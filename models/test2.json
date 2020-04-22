@@ -1,0 +1,24 @@
+{
+    "channels": [
+        { "name": "singlechannel",
+          "samples": [
+            { "name": "signal",
+              "data": [0, 2.0],
+              "modifiers": [ { "name": "mu", "type": "normfactor", "data": null} ]
+            },
+            { "name": "background",
+              "data": [10.0, 1],
+              "modifiers": [ ]
+            }
+          ]
+        }
+    ],
+    "observations": [
+        { "name": "singlechannel", "data": [10.0, 3] }
+    ],
+    "measurements": [
+        { "name": "Measurement", "config": {"poi": "mu", "parameters": []} }
+    ],
+    "version": "1.0.0"
+}
+
