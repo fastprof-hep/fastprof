@@ -57,10 +57,10 @@ samp_cl_s = [ pyhf_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
 # Plot
 
 def find_hypo(mus, cls, cl = 0.05) :
-  logcls = [ math.log(c) for c in cls ]
+  logcls = [ math.log(c/cl) for c in cls ]
   #print(logcls, math.log(cl))
-  finder = scipy.interpolate.interp1d(logcls, mus, 'quadratic')
-  return finder(math.log(cl))
+  finder = scipy.interpolate.InterpolatedUnivariateSpline(mus, logcls, k=3)
+  return finder.roots()[0]
 
 plt.ion()
 
@@ -73,13 +73,14 @@ plt.plot(gen_mus, samp_clsb, 'g--', label = 'pyhf sampling')
 plt.plot(gen_mus, fast_clsb, 'b'  , label = 'Fast sampling')
 plt.legend()
 
-fig2 = plt.figure(2)
+plt.figure(2)
 plt.suptitle('$CL_s$')
 plt.xlabel('$\mu$')
 plt.ylabel('$CL_s$')
 plt.plot(gen_mus, asym_cl_s, 'r:' , label = 'Asymptotics')
 plt.plot(gen_mus, samp_cl_s, 'g--', label = 'pyhf sampling')
 plt.plot(gen_mus, fast_cl_s, 'b'  , label = 'Fast sampling')
+plt.legend()
 
 print('asymptotics  , CLsb : UL(95) =', find_hypo(gen_mus, asym_clsb))
 print('fast sampling, CLsb : UL(95) =', find_hypo(gen_mus, fast_clsb))

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 plt.ion()
 
-samples = np.load('samples/fast_test1_clb_3.7.npy')
+samples = np.load('samples/pyhf_test1_3.7.npy')
 
 # Samples data:
 # 0, 1 : data bin contents (0=SR, 1=CR)
