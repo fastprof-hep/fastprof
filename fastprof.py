@@ -128,7 +128,7 @@ class Data :
     self.set_aux(aux_alpha, aux_beta)
     return self
 
-  def set_expected(pars) :
+  def set_expected(self, pars) :
     self.set_data(self.model.n_exp(pars), pars.alpha, pars.beta)
     return self
   
@@ -202,11 +202,11 @@ class NPMinimizer :
     for i in range(0, self.model.n_bins()) :
       for ia in range(0, na) :
         q[ia] += sobs[i]*r1[i]*self.model.a[i,ia]
-        for ja in range(0, na) :                   p[ia,      ja] += sobs[i]*r3[i]                  *self.model.a[i,ia]*self.model.a[i,ja]
+        for ja in range(0, na) :  p[ia,      ja] += sobs[i]                  *r3[i]*self.model.a[i,ia]*self.model.a[i,ja]
         for jb in range(0, nb)  : p[ia, na + jb] += sobs[i]*self.model.bkg[i]*r2[i]*self.model.a[i,ia]*self.model.b[i,jb]
       for ib in range(0, nb) :
         q[na + ib] += self.model.bkg[i]*r1[i]*self.model.b[i,ib]
-        for ja in range(0, na) :                   p[na + ib,      ja] += sobs[i]*self.model.bkg[i]*r2[i]          *self.model.b[i,ib]*self.model.a[i,ja]
+        for ja in range(0, na) :  p[na + ib,      ja] += sobs[i]          *self.model.bkg[i]*r2[i]*self.model.b[i,ib]*self.model.a[i,ja]
         for jb in range(0, nb)  : p[na + ib, na + jb] += self.model.bkg[i]*self.model.bkg[i]*r2[i]*self.model.b[i,ib]*self.model.b[i,jb]
     for ia in range(0, na) : p[ia     ,      ia] += 1
     for ib in range(0, nb) : p[na + ib, na + ib] += 1
@@ -243,7 +243,7 @@ class ScanMinimizer :
     self.pars = []
     for mu in scan_mus :
       self.pars.append(Parameters(mu, self.data.aux_alpha, self.data.aux_beta))
-  def minimize(self, debug) :
+  def minimize(self, debug = False) :
     self.nlls = np.zeros(self.scan_mus.size)
     for i in range(0, len(self.scan_mus)) :
       np_min = NPMinimizer(self.scan_mus[i], self.data)

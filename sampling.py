@@ -2,148 +2,158 @@ import pyhf
 import json
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 import math
 import os
 import fastprof
+from scipy.interpolate import InterpolatedUnivariateSpline
 
-spec = json.load(open('fastprof/models/test1.json', 'r'))
-parameters = [ 1.0, 0.0, 0.0 ]
+class SamplingDistribution :
+  def __init__(self, nentries, ncols = 0) :
+    self.samples = np.zeros((nentries, ncols)) if ncols > 0 else np.zeros(nentries)
 
-ws = pyhf.Workspace(spec)
-model = ws.model()
-
-data = ws.data(model)
-main_data = ws.data(model, False)
-
-n_poi = 1
-n_np = len(data) - len(main_data)
-
-calc = pyhf.infer.calculators.AsymptoticCalculator(data, model)
-
-mus = np.linspace(0.1, 4.1, 11)
-print('Will test the following hypotheses: ', mus)
-
-def update_bins(data, mu, n_np) :
-  params = [mu] + n_np*[0]
-  expected = model.expected_data(params)
-  for i in range(0, len(data) - n_np) :
-    data[i] = np.random.poisson(expected[i])
+  def sort(self) :
+    self.samples = np.sort(self.samples)
   
-def update_aux(data, n_np) :
-  for i in range(len(data) - n_np, len(data)) :
-    data[i] = np.random.normal(0, 1)
-
-def clsb(mu, data) :
-  return pyhf.infer.hypotest(mu, data, model, return_tail_probs = True)[1][0]
-
-def profile(mu, data) :
-  return pyhf.infer.mle.fixed_poi_fit(mu, data, model, return_fitted_val=True)
-
-# debug : each toy stores data_bin1, .., data_binN, aux_NP1, ... aux_NPN, fitval_NP1 ... fitval_NPN, profA, profB, cl
-def sampling_dist(mu, n_np, ntoys = 100, debug = False) :
-  cls = np.zeros(ntoys)
-  if debug : debug_info = np.zeros((ntoys, len(data) + 2*n_np + 1))
-  sig = np.array([1.0, 0])*mu  # specific to this case!
-  bkg = np.array([1.0, 10.0])  # specific to this case!
-  a = np.array([[0.2], [0.2]]) # specific to this case!
-  b = np.array([[0.2], [0.2]]) # specific to this case!
-  for k in range(0, ntoys) :
-    if k % 100 == 0 : print(k)
-    update_bins(data, mu, n_np)
-    update_aux(data, n_np)
-    cls[k] = clsb(mu, data)
-    if debug:
-      pars, val = profile(mu, data)
-      debug_info[k, :len(data)] = data
-      debug_info[k, len(data):len(data) + n_np] = pars[1:]
-      debug_info[k, -1] = cls[k]
-      n   = np.array(data[:-n_np])
-      alpha = np.array([ data[3] ]) # specific to this case!
-      beta  = np.array([ data[2] ]) # specific to this case!
-      model = fastprof.Model(n, sig, bkg, alpha, beta, a, b)
-      prof_alpha, prof_beta = fastprof.profile(model)
-      debug_info[k, len(data) + n_np:-1] = prof_alpha[0], prof_beta[0]
-  if debug : return cls, debug_info
-  return cls
-
-
-def save_samples(mus, n_np, ntoys, samples_file = 'samples', break_lock = False, debug_file = None) :
-  for mu in mus :
-    filename = samples_file + '_%g' % mu
-    if os.path.exists(filename + '.lock') and not break_lock : 
-      print('Samples for mu = %g already being produced, skipping' % mu)
-      continue
-    if os.path.exists(filename + '.npy') and not break_lock :
-      print('Samples for mu = %g already done, skipping' % mu)
-      continue
-    print('Creating sampling distribution for %g' % mu)
-    with open(filename + '.lock', 'w') as f :
-      f.write(str(os.getpid()))
-    if debug_file:
-      dist, debug_info = sampling_dist(mu, n_np, ntoys, True)
-    else :
-      dist = sampling_dist(mu, n_np, ntoys)
-    np.sort(dist)
-    np.save(filename, dist)
-    if debug_file :
-      debug_filename = debug_file + '_%g' % mu
-      np.save(debug_filename, debug_info)
-    print('Done')
-    os.remove(filename + '.lock')
-
-def load_samples(mus, samples_file = 'samples') :
-  samples = {}
-  for mu in mus :
-    filename = samples_file + '_%g.npy' % mu
+  def load(self, filename) :
     try:
-      dist = np.load(filename)
+      self.samples = np.load(filename)
     except:
-      print('File %s not found, for samples at mu = %g' % (filename, mu))
-      return {}
+      raise IOError('Could not load samples from file %s.' % filename)
+
+  def save(self, filename, sort_before_saving = True) :
+    if sort_before_saving : self.sort()
+    np.save(filename, self.samples)
+
+
+class FastSampler :
+  def __init__(self, model, scan_mus) :
+    self.model = model
+    self.scan_mus = scan_mus
     
-    samples[mu] = np.sort(dist)
-  return samples
-
-def sampling_cl(mu, cl, samples) :
-  return np.searchsorted(samples[mu], cl)/len(samples[mu])
-
-def sampling_cls(mu, data) :
-  return np.array([ sampling_cl(mu, clsb(mu, data), samples) for mu in mus ])
-
-def fast_sampling_cls(mu, data) :
-  return np.array([ sampling_cl(mu, clsb(mu, data), fast_samples) for mu in mus ])
-
-def asymptotic_cls(mus, data) :
- return np.array([ clsb(mu, data) for mu in mus ])
-
-def find_hypo(mus, cls, cl = 0.05) :
-  logcls = [ math.log(c) for c in cls ]
-  finder = scipy.interpolate.interp1d(logcls, mus, 'quadratic')
-  #print(logcls, math.log(cl))
-  return finder(math.log(cl))
+  def generate(self, mu, ntoys = 100, do_CLb = False) :
+    gen_hypo = fastprof.Parameters(0 if do_CLb else mu, 0, 0)
+    self.dist = SamplingDistribution(ntoys)
+    for k in range(0, ntoys) :
+      if k % 1000 == 0 : print(k)
+      data = self.model.generate_data(gen_hypo)
+      minimizer = fastprof.ScanMinimizer(data, self.scan_mus)
+      nll_min, min_pos = minimizer.minimize()
+      nll_hypo = fastprof.NPMinimizer(mu, data).profile_nll()
+      q = fastprof.QMu(2*(nll_hypo - nll_min), mu, min_pos)
+      self.dist.samples[k] = q.asymptotic_cl()
+    return self.dist
 
 
-np.random.seed(131071)
-save_samples(mus, 2, 20000, 'samples/test1', False, 'samples/test1_debug')
-samples = load_samples(mus, 'samples/test1')
-fast_samples = load_samples(mus, 'samples/fast_test1')
+class DebuggingFastSampler :
+  def __init__(self, model, scan_mus, pyhf_model) :
+    self.model = model
+    self.scan_mus = scan_mus
+    self.pyhf_model = pyhf_model
 
-fig = plt.figure()
-plt.ion()
-#cls = sampling_dist(1, 2, 2000)
-#plt.hist(cls, bins = 10, range = (0, 1))
-#plt.show()
-#f = lambda x: sampling_cl(mus[2], x, samples)
-#x = np.linspace(0, 0.5, 100)
-#plt.plot(x, f(x))
-acls = asymptotic_cls(mus, data)
-scls = sampling_cls(mus, data)
-fcls = fast_sampling_cls(mus, data)
-plt.plot(mus, acls, 'r')
-plt.plot(mus, scls, 'b')
-plt.plot(mus, fcls, 'g')
-print(find_hypo(mus, acls))
-print(find_hypo(mus, scls))
-print(find_hypo(mus, fcls))
-plt.show()
+  def generate(self, mu, ntoys = 100, do_CLb = False) :
+    # debug : each toy stores data_bin1, .., data_binN, aux_NP1, ... aux_NPN, fitval_mu, fitval_NP1 ... fitval_NPN, profA, profB, cl
+    gen_hypo = fastprof.Parameters(0 if do_CLb else mu, 0, 0)
+    n_dat = self.model.n_bins() + self.model.n_syst()
+    n_np = self.model.n_syst()
+    self.debug_info = SamplingDistribution(ntoys, n_dat + 3*n_np + 6)
+    for k in range(0, ntoys) :
+      if k % 1000 == 0 : print(k)
+      data = self.model.generate_data(gen_hypo)
+      minimizer = fastprof.ScanMinimizer(data, self.scan_mus)
+      nll_min, min_pos = minimizer.minimize(True)
+      nll_hypo = fastprof.NPMinimizer(mu, data).profile_nll()
+      q = fastprof.QMu(2*(nll_hypo - nll_min), mu, min_pos)
+      pyhf_data = data.export_pyhf_data(self.pyhf_model)
+      self.debug_info.samples[k, :n_dat] = pyhf_data # 0,1,2,3 : data
+      self.debug_info.samples[k, n_dat:n_dat + n_np + 2] = [ min_pos, minimizer.min_pars.alpha, minimizer.min_pars.beta, q.asymptotic_cl() ] # 4,5,6,7 : fast best-fit pars & cls
+      pars, val = pyhf.infer.mle.fit(pyhf_data, self.pyhf_model, return_fitted_val=True) # return [mhat, ahat, bhat], nll_min
+      self.debug_info.samples[k, n_dat + n_np + 2:n_dat + 2*n_np + 3] = pars # 8,9,10 : best-fit pars 
+      pyhf_clsb = pyhf.infer.hypotest(mu, pyhf_data, self.pyhf_model, return_tail_probs = True)[1][0]
+      self.debug_info.samples[k, n_dat + 2*n_np + 3:n_dat + 2*n_np + 4] = pyhf_clsb # 11: CLs+b @ mu=min
+      pars, val = pyhf.infer.mle.fixed_poi_fit(scan_mus[minimizer.min_idx], pyhf_data, self.pyhf_model, return_fitted_val=True)
+      self.debug_info.samples[k, n_dat + 2*n_np + 4:n_dat + 3*n_np + 5] = pars # 11,12,13 : full best-fit pars @ mu=min sample
+    return self.debug_info
+
+
+class PyhfSampler :
+  def __init__(self, model, n_bins, n_np) :
+    self.model = model
+    self.n_bins = n_bins
+    self.n_np = n_np
+    
+  def generate_data(self, mu) :
+    data = np.zeros(self.n_bins + self.n_np)
+    params = [mu] + self.n_np*[0]
+    expected = self.model.expected_data(params)
+    for i in range(0, self.n_bins) :
+      data[i] = np.random.poisson(expected[i])
+    for i in range(0, self.n_np) :
+      data[self.n_bins + i] = np.random.normal(0, 1)
+    return data
+  
+  def clsb(self, mu, data) :
+    return pyhf.infer.hypotest(mu, data, self.model, return_tail_probs = True)[1][0]
+
+  def generate(self, mu, ntoys = 100, do_CLb = False) :
+    gen_mu = 0 if do_CLb else mu
+    self.dist = SamplingDistribution(ntoys)
+    for k in range(0, ntoys) :
+      if k % 1000 == 0 : print(k)
+      data = self.generate_data(gen_mu)
+      self.dist.samples[k] = self.clsb(mu, data)
+    return self.dist
+
+
+class SamplingManager :
+  def __init__(self, sampler, file_root, break_lock = False) :
+    self.sampler = sampler
+    self.file_root = file_root
+    self.break_lock = break_lock
+    self.samples = {}
+    
+  def file_name(self, mu, ext = '') :
+    return self.file_root + '_%g' % mu + ext
+  
+  def generate_and_save(self, mus, ntoys) :
+    for mu in mus :
+      if os.path.exists(self.file_name(mu, '.lock')) and not self.break_lock : 
+        print('Samples for mu = %g already being produced, skipping' % mu)
+        continue
+      if os.path.exists(self.file_name(mu, '.npy')) and not self.break_lock :
+        print('Samples for mu = %g already produced, just loading' % mu)
+        self.samples[mu] = SamplingDistribution(ntoys)
+        self.samples[mu].load(self.file_name(mu, '.npy'))
+        continue
+      print('Creating sampling distribution for %g' % mu)
+      with open(self.file_name(mu, '.lock'), 'w') as f :
+        f.write(str(os.getpid()))
+      self.samples[mu] = self.sampler.generate(mu, ntoys)
+      self.samples[mu].save(self.file_name(mu))
+      print('Done')
+      os.remove(self.file_name(mu, '.lock'))
+    return self
+  
+  def load(self, mus) :
+    fname = self.file_name(mu, '.npy')
+    for mu in mus :
+      try:
+        samples = np.load(fname)
+      except:
+        print('File %s not found, for samples at mu = %g' % (fname, mu))
+        return {}
+      self.samples[mu] = samples
+    return samples
+
+  def generate(self, mus, ntoys) : # on the fly generation -- for fast cases only!
+    for mu in mus :
+      print('Creating sampling distribution for %g' % mu)
+      self.samples[mu] = self.sampler.generate(mu, ntoys)
+      self.samples[mu].sort()
+      print('Done')
+
+  def cl(self, acl, mu) :
+    try:
+      samples = self.samples[mu].samples
+    except:
+      raise KeyError('No sample available for mu = %g', mu)
+    return np.searchsorted(samples, acl)/len(samples)
