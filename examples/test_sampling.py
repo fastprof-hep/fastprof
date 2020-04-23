@@ -1,5 +1,5 @@
 import fastprof
-from sampling import SamplingManager, FastSampler, PyhfSampler, DebuggingFastSampler
+from sampling import Samples, CLsSamples, FastSampler, PyhfSampler, DebuggingFastSampler
 import pyhf
 import json
 import numpy as np
@@ -26,20 +26,33 @@ print('Will scan over the following hypotheses: ', scan_mus)
 # Generate the samples, if needed
 
 np.random.seed(131071)
-SamplingManager(DebuggingFastSampler(fast_model, scan_mus, pyhf_model), 'samples/fast_debug_test1').generate_and_save(gen_mus, 200)
+Samples(DebuggingFastSampler(fast_model, scan_mus, pyhf_model), 'samples/fast_debug_test1').generate_and_save(gen_mus, 200)
 
-fast_samples = SamplingManager(FastSampler(fast_model, scan_mus), 'samples/fast_test1').generate_and_save(gen_mus, 20000)
-pyhf_samples = SamplingManager(PyhfSampler(pyhf_model, 2, 2), 'samples/pyhf_test1').generate_and_save(gen_mus, 5000)
+fast_samples = CLsSamples(
+  Samples(FastSampler(fast_model, scan_mus)               , 'samples/fast_test1'),
+  Samples(FastSampler(fast_model, scan_mus, do_CLb = True), 'samples/fast_test1_clb')).generate_and_save(gen_mus, 20000)
+
+pyhf_samples = CLsSamples(
+  Samples(PyhfSampler(pyhf_model, 2, 2)               , 'samples/pyhf_test1'),
+  Samples(PyhfSampler(pyhf_model, 2, 2, do_CLb = True), 'samples/pyhf_test1_clb')).generate_and_save(gen_mus, 10000)
 
 # Compute 
 
 def clsb(mu, data, model) :
   return pyhf.infer.hypotest(mu, data, model, return_tail_probs = True)[1][0][0]
 
-pyhf_data = fastprof.Data(fast_model).set_expected(fastprof.Parameters(0,0,0)).export_pyhf_data(pyhf_model)
-acls = [ clsb(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
-fcls = [ fast_samples.cl(acl, mu) for mu, acl in zip(gen_mus, acls) ]
-scls = [ pyhf_samples.cl(acl, mu) for mu, acl in zip(gen_mus, acls) ]
+def cls(mu, data, model) :
+  return pyhf.infer.hypotest(mu, data, model, return_tail_probs = True)[0]
+
+#pyhf_data = fastprof.Data(fast_model).set_expected(fastprof.Parameters(0,0,0)).export_pyhf_data(pyhf_model) # Asimov case
+pyhf_data = np.array( [0, 10, 0, 0 ] ) # nobs = 0 case
+
+asym_clsb = [ clsb(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
+fast_clsb = [ fast_samples.clsb.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
+samp_clsb = [ pyhf_samples.clsb.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
+asym_cl_s = [ cls(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
+fast_cl_s = [ fast_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
+samp_cl_s = [ pyhf_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
 
 # Plot
 
@@ -49,12 +62,30 @@ def find_hypo(mus, cls, cl = 0.05) :
   finder = scipy.interpolate.interp1d(logcls, mus, 'quadratic')
   return finder(math.log(cl))
 
-fig = plt.figure()
 plt.ion()
-plt.plot(gen_mus, acls, 'r')
-plt.plot(gen_mus, scls, 'b')
-plt.plot(gen_mus, fcls, 'g')
-print(find_hypo(gen_mus, acls))
-print(find_hypo(gen_mus, scls))
-print(find_hypo(gen_mus, fcls))
+
+plt.figure(1)
+plt.suptitle('$CL_{s+b}$')
+plt.xlabel('$\mu$')
+plt.ylabel('$CL_{s+b}$')
+plt.plot(gen_mus, asym_clsb, 'r:' , label = 'Asymptotics')
+plt.plot(gen_mus, samp_clsb, 'g--', label = 'pyhf sampling')
+plt.plot(gen_mus, fast_clsb, 'b'  , label = 'Fast sampling')
+plt.legend()
+
+fig2 = plt.figure(2)
+plt.suptitle('$CL_s$')
+plt.xlabel('$\mu$')
+plt.ylabel('$CL_s$')
+plt.plot(gen_mus, asym_cl_s, 'r:' , label = 'Asymptotics')
+plt.plot(gen_mus, samp_cl_s, 'g--', label = 'pyhf sampling')
+plt.plot(gen_mus, fast_cl_s, 'b'  , label = 'Fast sampling')
+
+print('asymptotics  , CLsb : UL(95) =', find_hypo(gen_mus, asym_clsb))
+print('fast sampling, CLsb : UL(95) =', find_hypo(gen_mus, fast_clsb))
+print('pyhf sampling, CLsb : UL(95) =', find_hypo(gen_mus, samp_clsb))
+
+print('asymptotics  , CLs  : UL(95) =', find_hypo(gen_mus, asym_cl_s))
+print('fast sampling, CLs  : UL(95) =', find_hypo(gen_mus, fast_cl_s))
+print('pyhf sampling, CLs  : UL(95) =', find_hypo(gen_mus, samp_cl_s))
 plt.show()

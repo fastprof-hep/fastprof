@@ -26,12 +26,13 @@ class SamplingDistribution :
 
 
 class FastSampler :
-  def __init__(self, model, scan_mus) :
+  def __init__(self, model, scan_mus, do_CLb = False) :
     self.model = model
     self.scan_mus = scan_mus
+    self.do_CLb = do_CLb
     
-  def generate(self, mu, ntoys = 100, do_CLb = False) :
-    gen_hypo = fastprof.Parameters(0 if do_CLb else mu, 0, 0)
+  def generate(self, mu, ntoys) :
+    gen_hypo = fastprof.Parameters(0 if self.do_CLb else mu, 0, 0)
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
       if k % 1000 == 0 : print(k)
@@ -45,14 +46,15 @@ class FastSampler :
 
 
 class DebuggingFastSampler :
-  def __init__(self, model, scan_mus, pyhf_model) :
+  def __init__(self, model, scan_mus, pyhf_model, do_CLb = False) :
     self.model = model
     self.scan_mus = scan_mus
     self.pyhf_model = pyhf_model
+    self.do_CLb = do_CLb
 
-  def generate(self, mu, ntoys = 100, do_CLb = False) :
+  def generate(self, mu, ntoys) :
     # debug : each toy stores data_bin1, .., data_binN, aux_NP1, ... aux_NPN, fitval_mu, fitval_NP1 ... fitval_NPN, profA, profB, cl
-    gen_hypo = fastprof.Parameters(0 if do_CLb else mu, 0, 0)
+    gen_hypo = fastprof.Parameters(0 if self.do_CLb else mu, 0, 0)
     n_dat = self.model.n_bins() + self.model.n_syst()
     n_np = self.model.n_syst()
     self.debug_info = SamplingDistribution(ntoys, n_dat + 3*n_np + 6)
@@ -76,10 +78,11 @@ class DebuggingFastSampler :
 
 
 class PyhfSampler :
-  def __init__(self, model, n_bins, n_np) :
+  def __init__(self, model, n_bins, n_np, do_CLb = False) :
     self.model = model
     self.n_bins = n_bins
     self.n_np = n_np
+    self.do_CLb = do_CLb
     
   def generate_data(self, mu) :
     data = np.zeros(self.n_bins + self.n_np)
@@ -94,8 +97,8 @@ class PyhfSampler :
   def clsb(self, mu, data) :
     return pyhf.infer.hypotest(mu, data, self.model, return_tail_probs = True)[1][0]
 
-  def generate(self, mu, ntoys = 100, do_CLb = False) :
-    gen_mu = 0 if do_CLb else mu
+  def generate(self, mu, ntoys) :
+    gen_mu = 0 if self.do_CLb else mu
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
       if k % 1000 == 0 : print(k)
@@ -104,22 +107,21 @@ class PyhfSampler :
     return self.dist
 
 
-class SamplingManager :
-  def __init__(self, sampler, file_root, break_lock = False) :
+class Samples :
+  def __init__(self, sampler, file_root) :
     self.sampler = sampler
     self.file_root = file_root
-    self.break_lock = break_lock
     self.samples = {}
     
   def file_name(self, mu, ext = '') :
     return self.file_root + '_%g' % mu + ext
   
-  def generate_and_save(self, mus, ntoys) :
+  def generate_and_save(self, mus, ntoys, break_lock = False) :
     for mu in mus :
-      if os.path.exists(self.file_name(mu, '.lock')) and not self.break_lock : 
+      if os.path.exists(self.file_name(mu, '.lock')) and not break_lock : 
         print('Samples for mu = %g already being produced, skipping' % mu)
         continue
-      if os.path.exists(self.file_name(mu, '.npy')) and not self.break_lock :
+      if os.path.exists(self.file_name(mu, '.npy')) and not break_lock :
         print('Samples for mu = %g already produced, just loading' % mu)
         self.samples[mu] = SamplingDistribution(ntoys)
         self.samples[mu].load(self.file_name(mu, '.npy'))
@@ -142,7 +144,7 @@ class SamplingManager :
         print('File %s not found, for samples at mu = %g' % (fname, mu))
         return {}
       self.samples[mu] = samples
-    return samples
+    return self
 
   def generate(self, mus, ntoys) : # on the fly generation -- for fast cases only!
     for mu in mus :
@@ -150,6 +152,7 @@ class SamplingManager :
       self.samples[mu] = self.sampler.generate(mu, ntoys)
       self.samples[mu].sort()
       print('Done')
+    return self
 
   def cl(self, acl, mu) :
     try:
@@ -157,3 +160,29 @@ class SamplingManager :
     except:
       raise KeyError('No sample available for mu = %g', mu)
     return np.searchsorted(samples, acl)/len(samples)
+
+
+class CLsSamples :
+  def __init__(self, clsb_samples, cl_b_samples) :
+    self.clsb = clsb_samples
+    self.cl_b = cl_b_samples
+    
+  def generate_and_save(self, mus, ntoys) :
+    self.clsb.generate_and_save(mus, ntoys)
+    self.cl_b.generate_and_save(mus, ntoys)
+    return self
+  
+  def load(self, mus) :
+    self.clsb.load(mus)
+    self.cl_b.load(mus)
+    return self
+  
+  def generate(self, mus, ntoys) : # on the fly generation -- for fast cases only!
+    self.clsb.generate(mus, ntoys)
+    self.cl_b.generate(mus, ntoys)
+    return self
+
+  def cl(self, acl, mu) :
+    clsb = self.clsb.cl(acl, mu)
+    cl_b = self.cl_b.cl(acl, mu)
+    return clsb/cl_b
