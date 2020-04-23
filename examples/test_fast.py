@@ -1,5 +1,5 @@
 import numpy as np
-import fast_sampling
+import sampling
 import fastprof
 
 model = fastprof.Model(sig = np.array([1.0, 0]),
@@ -14,6 +14,6 @@ scan_mus = np.linspace(0, 10, 21)
 print('Will scan over the following hypotheses: ', scan_mus)
 
 np.random.seed(131071)
-dist = fast_sampling.FastSampler(model, scan_mus).generate(gen_mu, 10000)
+dist = sampling.FastSampler(model, scan_mus).generate(gen_mu, 10000)
 dist.sort()
 
