@@ -27,9 +27,11 @@ class Model :
   def s_exp(self, pars) : 
     ds = self.a.dot(pars.alpha)
     return pars.mu*self.sig*(1 + ds)
+
   def b_exp(self, pars) :
     db = self.b.dot(pars.beta)
     return self.bkg*(1 + db)
+
   def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
 
   def nll(self, pars, data) :
@@ -38,14 +40,31 @@ class Model :
     db = data.aux_beta  - pars.beta
     return np.sum(ntot - data.n*np.log(ntot)) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
 
-  def derivatives(self, pars) :
-    der_a = np.zeros(self.n_alpha())
-    der_b = np.zeros(self.n_beta())
-    da = self.aux_alpha - alpha
-    db = self.aux_beta  - beta
-    stot = self.s_exp(pars)
-    r1 = 1 - self.n/self.n_exp(pars)
-    return np.dot(stot*r1, self.a) - da, np.dot(self.bkg*r1, self.b) - db
+  #def derivatives(self, pars) :
+    #der_a = np.zeros(self.n_alpha())
+    #der_b = np.zeros(self.n_beta())
+    #da = self.aux_alpha - alpha
+    #db = self.aux_beta  - beta
+    #stot = self.s_exp(pars)
+    #r1 = 1 - self.n/self.n_exp(pars)
+    #return np.dot(stot*r1, self.a) - da, np.dot(self.bkg*r1, self.b) - db
+
+  def grad_poi(self, pars, data) :
+    sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
+    nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
+    #r1 = 1 - data.n/nexp
+    #return sexp.dot(r1)
+    s = 0
+    for i in range(0, sexp.size) : s += sexp[i]*(1 - data.n[i]/nexp[i])
+    return s
+  
+  def hess_poi(self, pars, data) : # Hessian wrt to a mu-type POI
+    sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
+    nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
+    s = 0
+    for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
+    return s
+    
 
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alpha, 1), np.random.normal(pars.beta, 1))
@@ -228,10 +247,12 @@ class NPMinimizer :
   def profile(self) :
     p, q = self.pq()
     v = np.linalg.inv(p).dot(q)
-    return self.data.aux_alpha - v[:self.model.n_alpha()], self.data.aux_beta - v[self.model.n_alpha():]
+    nps = self.data.aux_alpha - v[:self.model.n_alpha()], self.data.aux_beta - v[self.model.n_alpha():]
+    self.min_pars = Parameters(self.mu, *nps)
+    return nps
   
   def profile_nll(self) :
-    self.min_pars = Parameters(self.mu, *self.profile())
+    self.profile()
     return self.model.nll(self.min_pars, self.data)
   
 # -------------------------------------------------------------------------
@@ -248,7 +269,7 @@ class ScanMinimizer :
     for i in range(0, len(self.scan_mus)) :
       np_min = NPMinimizer(self.scan_mus[i], self.data)
       self.nlls[i] = np_min.profile_nll()
-      if debug : self.pars[i] = np_min.min_pars
+      self.pars[i] = np_min.min_pars
       #print('@mu(', i, ') =', mu, self.nlls[i], ahat, bhat)
     smooth_nll = InterpolatedUnivariateSpline(self.scan_mus, self.nlls, k=4)
     minima = smooth_nll.derivative().roots()
@@ -262,5 +283,58 @@ class ScanMinimizer :
         self.nll_min = interp_min
     self.min_pars = Parameters(min_mu, self.pars[self.min_idx].alpha, self.pars[self.min_idx].beta)
     return self.nll_min, min_mu
+
+# -------------------------------------------------------------------------
+class OptiMinimizer :
+  def __init__(self, data, x0 = 1, bounds = (0.1, 20), method = 'scalar' ) :
+    self.model = data.model
+    self.data = data
+    self.np_min = None
+    self.x0 = x0
+    self.bounds = bounds
+    self.method = method
+   
+  def minimize(self, debug = False) :    
+    def objective(mu) :
+      if isinstance(mu, np.ndarray) : mu = mu[0]
+      if isinstance(mu, np.ndarray) : mu = mu[0]
+      #print('obj',mu, type(mu))
+      self.np_min = NPMinimizer(mu, self.data)
+      self.nll_min = self.np_min.profile_nll()
+      #print('OptMinimizer: eval at %g -> %g' % (mu, self.nll_min))
+      return self.nll_min
+    def jacobian(mu) :
+      if isinstance(mu, np.ndarray) : mu = mu[0]
+      if isinstance(mu, np.ndarray) : mu = mu[0]
+      #print('jac', mu, type(mu))
+      self.np_min = NPMinimizer(mu, self.data)
+      self.np_min.profile()
+      #print('jac out', self.np_min.model.grad_poi(self.np_min.min_pars, self.data))
+      return np.array([ self.np_min.model.grad_poi(self.np_min.min_pars, self.data) ])
+    def hess_p(mu, v) :
+      if isinstance(mu, np.ndarray) : mu = mu[0]
+      if isinstance(mu, np.ndarray) : mu = mu[0]
+      #print('hess', mu, type(mu))
+      self.np_min = NPMinimizer(mu, self.data)
+      self.np_min.profile()
+      #print('hess out', self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0])
+      return np.array([ self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0] ])
+    #print('Optimizer: start bounded ----------------')
+    # print('Optimizer: switch to non-scalar  ----------------')
+    if self.method == 'scalar' :
+      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
+    else :
+      result = scipy.optimize.minimize(objective, x0=self.x0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, hessp=hess_p, options={'gtol': 1e-3, 'ftol':1e-3, 'xtol':1e-3 })
+      if not result.success:
+        result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
+    #print('Optimizer: done ----------------')
+    if not result.success :
+      print(dir(result))
+      print(result.status)
+      raise FloatingPointError(result.message)
+    self.min_pars = self.np_min.min_pars
+    self.nll_min = result.fun
+    self.min_mu = result.x
+    return self.nll_min, self.min_mu
 
   

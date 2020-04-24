@@ -37,8 +37,26 @@ class FastSampler :
     for k in range(0, ntoys) :
       if k % 1000 == 0 : print(k)
       data = self.model.generate_data(gen_hypo)
-      minimizer = fastprof.ScanMinimizer(data, self.scan_mus)
-      nll_min, min_pos = minimizer.minimize()
+      nll_min, min_pos = fastprof.ScanMinimizer(data, self.scan_mus).minimize()
+      nll_hypo = fastprof.NPMinimizer(mu, data).profile_nll()
+      q = fastprof.QMu(2*(nll_hypo - nll_min), mu, min_pos)
+      self.dist.samples[k] = q.asymptotic_cl()
+    return self.dist
+
+class OptiSampler :
+  def __init__(self, model, x0, bounds, do_CLb = False) :
+    self.model = model
+    self.do_CLb = do_CLb
+    self.x0 = x0
+    self.bounds = bounds
+    
+  def generate(self, mu, ntoys) :
+    gen_hypo = fastprof.Parameters(0 if self.do_CLb else mu, 0, 0)
+    self.dist = SamplingDistribution(ntoys)
+    for k in range(0, ntoys) :
+      if k % 1000 == 0 : print(k)
+      data = self.model.generate_data(gen_hypo)
+      nll_min, min_pos = fastprof.OptiMinimizer(data, x0, bounds).minimize()
       nll_hypo = fastprof.NPMinimizer(mu, data).profile_nll()
       q = fastprof.QMu(2*(nll_hypo - nll_min), mu, min_pos)
       self.dist.samples[k] = q.asymptotic_cl()
