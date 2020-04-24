@@ -15,6 +15,6 @@ print('Will scan over the following hypotheses: ', scan_mus)
 
 np.random.seed(131071)
 #dist = sampling.FastSampler(model, scan_mus).generate(gen_mu, 10000)
-dist = sampling.FastOptSampler(model).generate(gen_mu, 10000)
+dist = sampling.OptiSampler(model, x0=1, bounds=(0.1,20), method='scalar').generate(gen_mu, 10000)
 dist.sort()
 

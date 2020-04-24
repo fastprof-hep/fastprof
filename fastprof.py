@@ -322,7 +322,7 @@ class OptiMinimizer :
     #print('Optimizer: start bounded ----------------')
     # print('Optimizer: switch to non-scalar  ----------------')
     if self.method == 'scalar' :
-      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
+      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xatol': 1e-3 })
     else :
       result = scipy.optimize.minimize(objective, x0=self.x0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, hessp=hess_p, options={'gtol': 1e-3, 'ftol':1e-3, 'xtol':1e-3 })
       if not result.success:
