@@ -33,8 +33,8 @@ fast_samples = CLsSamples(
   Samples(FastSampler(fast_model, scan_mus, do_CLb = True), 'samples/fast_test1_clb')).generate_and_save(gen_mus, 20000)
 
 opti_samples = CLsSamples(
-  Samples(OptiSampler(fast_model, x0 = 1, bounds=(0.1, 20))               , 'samples/opti_test1'),
-  Samples(OptiSampler(fast_model, x0 = 1, bounds=(0.1, 20), do_CLb = True), 'samples/opti_test1_clb')).generate_and_save(gen_mus, 20000)
+  Samples(OptiSampler(fast_model, x0 = 1, bounds=(0, 20))               , 'samples/opti_test1'),
+  Samples(OptiSampler(fast_model, x0 = 1, bounds=(0, 20), do_CLb = True), 'samples/opti_test1_clb')).generate_and_save(gen_mus, 20000)
 
 pyhf_samples = CLsSamples(
   Samples(PyhfSampler(pyhf_model, 2, 2)               , 'samples/pyhf_test1'),
@@ -92,11 +92,11 @@ plt.legend()
 
 print('asymptotics  , CLsb : UL(95) =', find_hypo(gen_mus, asym_clsb))
 print('fast sampling, CLsb : UL(95) =', find_hypo(gen_mus, fast_clsb))
-#print('opti sampling, CLsb : UL(95) =', find_hypo(gen_mus, opti_clsb, n=1))
+print('opti sampling, CLsb : UL(95) =', find_hypo(gen_mus, opti_clsb))
 print('pyhf sampling, CLsb : UL(95) =', find_hypo(gen_mus, samp_clsb))
 
 print('asymptotics  , CLs  : UL(95) =', find_hypo(gen_mus, asym_cl_s))
 print('fast sampling, CLs  : UL(95) =', find_hypo(gen_mus, fast_cl_s))
-print('opti sampling, CLs  : UL(95) =', find_hypo(gen_mus, opti_cl_s, n=1))
+print('opti sampling, CLs  : UL(95) =', find_hypo(gen_mus, opti_cl_s))
 print('pyhf sampling, CLs  : UL(95) =', find_hypo(gen_mus, samp_cl_s))
 plt.show()
