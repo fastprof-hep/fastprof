@@ -1,8 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-plt.ion()
 
-samples = np.load('samples/fast_debug_test1_3.7.npy')
+import sys
+
+fname=sys.argv[1]
+samples = np.load(fname)
 
 # Samples data:
 # 0, 1 : data bin contents (0=SR, 1=CR)
@@ -10,6 +12,8 @@ samples = np.load('samples/fast_debug_test1_3.7.npy')
 # 4, 5, 6, 7 : fast-fit values of mu (4) signal (5) and background (6) pars + CLs+b (7)
 # 8, 9, 10, 11 : best-fit values of mu (8) signal (9) and background (10) pars  + CLsb @ mu=mu_min (11)
 # 12, 13, 14 :  mu_min (12) and best-fit values of signal (13) and background (14) pars
+
+plt.ion()
 
 SR_pred      = 1.0*samples[:,8]*(1 + 0.2*samples[:,9]) + 1.0*(1 + 0.2*samples[:,10])
 SR_pred_fast = 1.0*samples[:,4]*(1 + 0.2*samples[:,5]) + 1.0*(1 + 0.2*samples[:,6])

@@ -5,11 +5,11 @@
             { "name": "signal",
               "data": [1.0, 0],
               "modifiers": [ { "name": "mu", "type": "normfactor", "data": null}, 
-                             { "name": "sig_sys", "type" : "normsys",  "data": {"lo": 0.8, "hi": 1.2} } ]
+                             { "name": "acc_sys", "type" : "normsys",  "data": {"lo": 0.8, "hi": 1.2} } ]
             },
             { "name": "background",
               "data": [1.0, 10.0],
-              "modifiers": [ {"name": "bkg_syst", "type": "histosys", "data": { "lo_data" : [0.8, 8.0], "hi_data" : [1.2, 12.0] } } ]
+              "modifiers": [ {"name": "bkg_sys", "type": "histosys", "data": { "lo_data" : [0.8, 8.0], "hi_data" : [1.2, 12.0] } } ]
             }
           ]
         }

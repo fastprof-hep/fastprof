@@ -14,6 +14,7 @@ ws = pyhf.Workspace(spec)
 pyhf_model = ws.model()
 fast_model = fastprof.Model(sig = np.array([1.0, 0]),
                             bkg = np.array([1.0, 10.0]),
+                            alphas = ['acc_sys'], betas = ['bkg_sys'],
                             a = np.array([[0.2], [0.2]]),
                             b = np.array([[0.2], [0.2]]))
 
@@ -26,7 +27,7 @@ print('Will scan over the following hypotheses: ', scan_mus)
 # Generate the samples, if needed
 
 np.random.seed(131071)
-Samples(DebuggingFastSampler(fast_model, scan_mus, pyhf_model), 'samples/fast_debug_test1').generate_and_save(gen_mus, 200)
+Samples(DebuggingFastSampler(fast_model, scan_mus, pyhf_model), 'samples/fast_debug_test1').generate_and_save(gen_mus, 200, sort_before_saving=False)
 
 fast_samples = CLsSamples(
   Samples(FastSampler(fast_model, scan_mus)               , 'samples/fast_test1'),
@@ -38,7 +39,7 @@ opti_samples = CLsSamples(
 
 pyhf_samples = CLsSamples(
   Samples(PyhfSampler(pyhf_model, 2, 2)               , 'samples/pyhf_test1'),
-  Samples(PyhfSampler(pyhf_model, 2, 2, do_CLb = True), 'samples/pyhf_test1_clb')).generate_and_save(gen_mus, 10000)
+  Samples(PyhfSampler(pyhf_model, 2, 2, do_CLb = True), 'samples/pyhf_test1_clb')).generate_and_save(gen_mus, 20000)
 
 # Compute 
 

@@ -15,11 +15,14 @@ class SamplingDistribution :
     self.samples = np.sort(self.samples)
   
   def load(self, filename) :
+    nbefore = self.samples.shape[0]
     try:
       self.samples = np.load(filename)
     except:
       raise IOError('Could not load samples from file %s.' % filename)
-
+    nafter =  self.samples.shape[0]
+    if nbefore > 0 and nafter < nbefore :
+      raise IOError('File %s did not contain enough samples (expected %d, got %d).' % (filename, nbefore, nafter))
   def save(self, filename, sort_before_saving = True) :
     if sort_before_saving : self.sort()
     np.save(filename, self.samples)
@@ -52,7 +55,7 @@ class OptiSampler :
     self.method = method
     
   def generate(self, mu, ntoys) :
-    gen_hypo = fastprof.Parameters(0 if self.do_CLb else mu, 0, 0)
+    gen_hypo = fastprof.Parameters(0 if self.do_CLb else mu, np.zeros(self.model.na), np.zeros(self.model.nb), np.zeros(self.model.nc))
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
       if k % 1000 == 0 : print(k)
@@ -74,8 +77,8 @@ class DebuggingFastSampler :
   def generate(self, mu, ntoys) :
     # debug : each toy stores data_bin1, .., data_binN, aux_NP1, ... aux_NPN, fitval_mu, fitval_NP1 ... fitval_NPN, profA, profB, cl
     gen_hypo = fastprof.Parameters(0 if self.do_CLb else mu, 0, 0)
-    n_dat = self.model.n_bins() + self.model.n_syst()
-    n_np = self.model.n_syst()
+    n_dat = self.model.nbins + self.model.nsyst
+    n_np = self.model.n_nps
     self.debug_info = SamplingDistribution(ntoys, n_dat + 3*n_np + 6)
     for k in range(0, ntoys) :
       if k % 1000 == 0 : print(k)
@@ -85,32 +88,35 @@ class DebuggingFastSampler :
       nll_hypo = fastprof.NPMinimizer(mu, data).profile_nll()
       q = fastprof.QMu(2*(nll_hypo - nll_min), mu, min_pos)
       pyhf_data = data.export_pyhf_data(self.pyhf_model)
-      self.debug_info.samples[k, :n_dat] = pyhf_data # 0,1,2,3 : data
-      self.debug_info.samples[k, n_dat:n_dat + n_np + 2] = [ min_pos, minimizer.min_pars.alpha, minimizer.min_pars.beta, q.asymptotic_cl() ] # 4,5,6,7 : fast best-fit pars & cls
       pars, val = pyhf.infer.mle.fit(pyhf_data, self.pyhf_model, return_fitted_val=True) # return [mhat, ahat, bhat], nll_min
-      self.debug_info.samples[k, n_dat + n_np + 2:n_dat + 2*n_np + 3] = pars # 8,9,10 : best-fit pars 
       pyhf_clsb = pyhf.infer.hypotest(mu, pyhf_data, self.pyhf_model, return_tail_probs = True)[1][0]
-      self.debug_info.samples[k, n_dat + 2*n_np + 3:n_dat + 2*n_np + 4] = pyhf_clsb # 11: CLs+b @ mu=min
-      pars, val = pyhf.infer.mle.fixed_poi_fit(scan_mus[minimizer.min_idx], pyhf_data, self.pyhf_model, return_fitted_val=True)
-      self.debug_info.samples[k, n_dat + 2*n_np + 4:n_dat + 3*n_np + 5] = pars # 11,12,13 : full best-fit pars @ mu=min sample
+      pars, val = pyhf.infer.mle.fixed_poi_fit(self.scan_mus[minimizer.min_idx], pyhf_data, self.pyhf_model, return_fitted_val=True)
+      self.debug_info.samples[k, :n_dat] = pyhf_data # data
+      self.debug_info.samples[k, n_dat:n_dat + 1] = min_pos  # fast best-fit mu
+      self.debug_info.samples[k, n_dat + 1:n_dat + n_np + 1] = np.concatenate((minimizer.min_pars.alphas, minimizer.min_pars.betas, minimizer.min_pars.gammas)) # fast best-fit NPs
+      self.debug_info.samples[k, n_dat + n_np + 1:n_dat + n_np + 2] = q.asymptotic_cl() # fast best-fit CL
+      self.debug_info.samples[k, n_dat + n_np + 2:n_dat + 2*n_np + 3] = pars # pyhf best-fit pars 
+      self.debug_info.samples[k, n_dat + 2*n_np + 3:n_dat + 2*n_np + 4] = pyhf_clsb # pyhf CLs+b @ mu=min
+      self.debug_info.samples[k, n_dat + 2*n_np + 4:n_dat + 3*n_np + 5] = pars # pyhf best-fit pars @ mu=min sample
+      print(self.debug_info.samples[k,:])
     return self.debug_info
 
 
 class PyhfSampler :
-  def __init__(self, model, n_bins, n_np, do_CLb = False) :
+  def __init__(self, model, nbins, n_np, do_CLb = False) :
     self.model = model
-    self.n_bins = n_bins
+    self.nbins = nbins
     self.n_np = n_np
     self.do_CLb = do_CLb
     
   def generate_data(self, mu) :
-    data = np.zeros(self.n_bins + self.n_np)
+    data = np.zeros(self.nbins + self.n_np)
     params = [mu] + self.n_np*[0]
     expected = self.model.expected_data(params)
-    for i in range(0, self.n_bins) :
+    for i in range(0, self.nbins) :
       data[i] = np.random.poisson(expected[i])
     for i in range(0, self.n_np) :
-      data[self.n_bins + i] = np.random.normal(0, 1)
+      data[self.nbins + i] = np.random.normal(0, 1)
     return data
   
   def clsb(self, mu, data) :
@@ -135,13 +141,13 @@ class Samples :
   def file_name(self, mu, ext = '') :
     return self.file_root + '_%g' % mu + ext
   
-  def generate_and_save(self, mus, ntoys, break_lock = False) :
+  def generate_and_save(self, mus, ntoys, break_lock = False, sort_before_saving = True) :
     for mu in mus :
       if os.path.exists(self.file_name(mu, '.lock')) and not break_lock : 
         print('Samples for mu = %g already being produced, skipping' % mu)
         continue
       if os.path.exists(self.file_name(mu, '.npy')) and not break_lock :
-        print('Samples for mu = %g already produced, just loading' % mu)
+        print('Samples for mu = %g already produced, just loading (%d samples from %s)' % (mu, ntoys, self.file_name(mu, '.npy')))
         self.samples[mu] = SamplingDistribution(ntoys)
         self.samples[mu].load(self.file_name(mu, '.npy'))
         continue
@@ -149,7 +155,7 @@ class Samples :
       with open(self.file_name(mu, '.lock'), 'w') as f :
         f.write(str(os.getpid()))
       self.samples[mu] = self.sampler.generate(mu, ntoys)
-      self.samples[mu].save(self.file_name(mu))
+      self.samples[mu].save(self.file_name(mu), sort_before_saving=sort_before_saving)
       print('Done')
       os.remove(self.file_name(mu, '.lock'))
     return self
@@ -177,7 +183,7 @@ class Samples :
     try:
       samples = self.samples[mu].samples
     except:
-      raise KeyError('No sample available for mu = %g', mu)
+      raise KeyError('No sample available for mu = %g' % mu)
     return np.searchsorted(samples, acl)/len(samples)
 
 
