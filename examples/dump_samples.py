@@ -1,8 +1,11 @@
+# Usage : python3 -i fastprof/examples/dump_samples.py <sample_file.npy>
+
 import numpy as np
 import matplotlib.pyplot as plt
-plt.ion()
+import sys
 
-samples = np.load('samples/pyhf_test1_3.7.npy')
+fname=sys.argv[1]
+samples = np.load(fname)
 
 # Samples data:
 # 0, 1 : data bin contents (0=SR, 1=CR)
@@ -11,6 +14,8 @@ samples = np.load('samples/pyhf_test1_3.7.npy')
 # 8, 9, 10, 11 : best-fit values of mu (8) signal (9) and background (10) pars  + CLsb @ mu=mu_min (11)
 # 12, 13, 14 :  mu_min (12) and best-fit values of signal (13) and background (14) pars
 
+plt.ion()
 plt.yscale('log')
+plt.suptitle(fname)
 plt.hist(samples[:], bins=100, range=[0, 0.5])
 plt.show()
