@@ -3,28 +3,30 @@ import math
 import scipy.stats
 from abc import abstractmethod
 from scipy.interpolate import InterpolatedUnivariateSpline
+import json
 
 # -------------------------------------------------------------------------
 class Model :
-  def __init__(self, sig, bkg, alphas = [], betas = [], gammas = [], a = np.array([]), b = np.array([]), c = np.array([])) :
+  def __init__(self, sig = np.array([]), bkg = np.array([]), alphas = [], betas = [], gammas = [],
+               a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0))) :
     self.alphas = alphas
     self.betas  = betas
     self.gammas = gammas
-    if sig.ndim != 1 or bkg.ndim != 1 or a.ndim != 2 or b.ndim != 2 :
+    if sig.ndim != 1 or bkg.ndim != 1 or a.ndim != 2 or b.ndim != 2 or c.ndim != 2 :
       raise ValueError('Input data to fastprof model should be 1D vectors for (sig, bkg) and 2D matrices for (a, b)')
     if sig.size != bkg.size :
       raise ValueError('Inputs (sig, bkg) to fastprof model have different dimensions (%d, %d). Both dimensions should be equal to the number of bins in the model.' % (sig.size, bkg.size))
-    if a.shape != (0,) and a.shape[0] != sig.size :
+    if a.shape != (0,0) and a.shape[0] != sig.size :
       raise ValueError('Input "a" to fastprof model should have a row count equal to the number of bins (%d). ' % sig.size)
-    if b.shape != (0,) and b.shape[0] != sig.size :
+    if b.shape != (0,0) and b.shape[0] != sig.size :
       raise ValueError('Input "b" to fastprof model should have a row count equal to the number of bins (%d). ' % sig.size)
-    if c.shape != (0,) and c.shape[0] != sig.size :
+    if c.shape != (0,0) and c.shape[0] != sig.size :
       raise ValueError('Input "c" to fastprof model should have a row count equal to the number of bins (%d). ' % sig.size)
-    if a.shape != (0,) and a.shape[1] != len(alphas) :
+    if a.shape != (0,0) and a.shape[1] != len(alphas) :
       raise ValueError('Input "a" to fastprof model should have a column count equal to the number of alpha parameters (%d).' % len(alphas))
-    if b.shape != (0,) and b.shape[1] != len(betas) :
+    if b.shape != (0,0) and b.shape[1] != len(betas) :
       raise ValueError('Input "b" to fastprof model should have a column count equal to the number of beta parameters (%d).' % len(betas))
-    if c.shape != (0,) and c.shape[1] != len(gammas) :
+    if c.shape != (0,0) and c.shape[1] != len(gammas) :
       raise ValueError('Input "c" to fastprof model should have a column count equal to the number of gamma parameters (%d).' % len(gammas))
     self.sig = sig
     self.bkg = bkg
@@ -47,9 +49,10 @@ class Model :
     return pars.mu*self.sig*(1 + ds)
 
   def b_exp(self, pars) :
-    db = self.b.dot(pars.betas)
-    dc = self.c.dot(pars.gammas)
-    return self.bkg*(1 + db + dc)
+    d = 1
+    if self.b.shape != (0,0) : d += self.b.dot(pars.betas)
+    if self.c.shape != (0,0) : d += self.c.dot(pars.gammas)
+    return self.bkg*d
 
   def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
 
@@ -88,13 +91,85 @@ class Model :
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
 
+  @staticmethod
+  def create(filename) :
+    return Model().load(filename)
+  
+  def load(self, filename) :
+    with open(filename, 'r') as fd :
+      jdict = json.load(fd)
+      return self.load_jdict(jdict)
+
+  def save(self, filename) :
+    with open(filename, 'w') as fd :
+      jdict = self.dump_jdict()
+      return json.dump(jdict, fd, ensure_ascii=True, indent=3)
+      
+  def load_json(self, js) :
+    jdict = json.loads(js)
+    return self.load_jdict(jdict)
+  
+  def dump_json(self) :
+    jdict = self.dump_jdict()
+    return json.dumps(jdict)
+
+  def load_jdict(self, jdict) :
+    self.sig = np.array(jdict['signal'])
+    self.bkg = np.array(jdict['background'])
+    
+    self.alphas = []
+    self.a = np.ndarray((self.sig.size, len(jdict['alphas'])))
+    for i, alpha in enumerate(jdict['alphas']) :
+      self.alphas.append(alpha['name'])
+      self.a[:,i] = alpha['impact']
+    
+    self.betas = []
+    self.b = np.ndarray((self.sig.size, len(jdict['betas'])))
+    for i, beta in enumerate(jdict['betas']) :
+      self.betas.append(beta['name'])
+      self.b[:,i] = beta['impact']
+
+    self.gammas = []
+    self.c = np.ndarray((self.sig.size, len(jdict['gammas'])))
+    for i, gamma in enumerate(jdict['gammas']) :
+      self.gammas.append(gamma['name'])
+      self.c[:,i] = gamma['impact']
+    return self
+  
+  def dump_jdict(self) :
+    jdict = {}
+    jdict['signal'] = self.sig.tolist()
+    jdict['background'] = self.bkg.tolist()
+
+    alphas = []
+    for i, alpha in enumerate(self.alphas) :
+      alphas.append({ 'name' : alpha, 'impact' : self.a[:,i].tolist() })
+    jdict['alphas'] = alphas
+
+    betas = []
+    for i, beta in enumerate(self.betas) :
+      betas.append({ 'name' : beta, 'impact' : self.b[:,i].tolist() })
+    jdict['betas'] = betas
+
+    gammas= []
+    for i, gamma in enumerate(self.gammas) :
+      gammas.append({ 'name' : gamma, 'impact' : self.c[:,i].tolist() })
+    jdict['gammas'] = gammas
+    return jdict
+    
   def __str__(self) :
     s = ''
-    s += 'sig   = ' + str(self.sig)   + '\n'
-    s += 'bkg   = ' + str(self.bkg)   + '\n'
-    s += 'a     = ' + str(self.a)     + '\n'
-    s += 'b     = ' + str(self.b)     + '\n'
-    s += 'c     = ' + str(self.c)
+    s += 'sig    = ' + str(self.sig)    + '\n'
+    s += 'bkg    = ' + str(self.bkg)    + '\n'
+    if len(self.alphas) > 0 :
+      s += 'alphas = ' + ', '.join(self.alphas) + '\n'
+      s += 'a      = ' +       str(self.a)      + '\n'
+    if len(self.betas) > 0 :
+      s += 'betas = '  + ', '.join(self.betas) + '\n'
+      s += 'b      = ' +       str(self.b)     + '\n'
+    if len(self.gammas) > 0 :
+      s += 'gammas = ' + ', '.join(self.gammas) + '\n'
+      s += 'c      = ' +       str(self.c)      + '\n'
     return s
 
 # -------------------------------------------------------------------------
