@@ -1,0 +1,41 @@
+observable mgg = 1500 min=1000 max=2000 bins=200
+
+component Signal = RooGaussian("mgg", "mX", "sigmaX")
+component Background = PDF("mgg", "exp(-xi*mgg)", "xi")
+
+constraint dEff_aux = RooGaussian("dEff_aux", "dEff", 1)
+dEff     = 0 min=-5 max=5
+dEff_aux = 0 min=-5 max=5 const=true
+
+formula nSignal = (mu*nSignal0*(1 + sigma_eff*dEff))
+
+mu = 1 min=0 max=10
+nSignal0 = 1
+sigma_eff = 0.1
+
+nBackground = 10 min=0 max=50
+
+mX = 1500
+sigmaX = 30
+
+xi = 0.02 min=0 max=0.05
+
+// observable mgg = 1500 min=1000 max=2000 bins=200
+// 
+// component Signal = RooGaussian("mgg", "mX", "sigmaX")
+// component Background = PDF("mgg", "exp(-xi*mgg)", "xi")
+// 
+// formula nSignal = (mu*nSignal0)
+// nSignal0 = 1
+// mu = 1 min=0 max=10
+// 
+// formula nBackground = (nBackground0*(1 + dBkg))
+// nBackground0 = 20
+// dBkg = 0 min=-1 max=4
+// 
+// formula xi = (xi0*(1 + dXi))
+// xi0 = 0.02
+// dXi = 0 min=-1 max=2
+// 
+// mX = 1500
+// sigmaX = 30
