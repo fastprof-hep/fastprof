@@ -10,6 +10,8 @@ import numpy as np
 import json
 import collections
 
+# TODO: add dataset info to JSON output
+
 ####################################################################################################################################
 ###
 
@@ -25,8 +27,9 @@ def convert_ws() :
   parser.add_argument("-n", "--signal-yield",      default='nSignal', help="Name of signal yield variable", type=str)
   parser.add_argument("-b", "--binning",           default='',        help="Name of output file", type=str)
   parser.add_argument("-p", "--nps",               default='',        help="List of constrained nuisance parameters", type=str)
-  parser.add_argument("-d", "--data-name",         default='obsData', help="Name of dataset object within the input workspace", type=str)
-  parser.add_argument("-a", "--asimov",        action="store_true",   help="Use an Asimov dataset as the data")
+  parser.add_argument("-e", "--epsilon",           default=0.001,     help="Scale factor applied to uncertainties for impact computations", type=str)
+  parser.add_argument("-r", "--refit",         action="store_true",   help="Perform an Asimov fit before conversion")
+  parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
   parser.add_argument("-o", "--output-file",       default='',        help="Name of output file", type=str)
   parser.add_argument("-v", "--verbosity",         default=0,         help="Verbosity level", type=int)
   
@@ -57,8 +60,6 @@ def convert_ws() :
   if not mconfig :
     raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
   
-  eps = 0.1
-  
   main_pdf = mconfig.GetPdf()
   signal_pdf = ws.pdf(options.signal_pdf)
   nSignal = ws.var(options.signal_yield)
@@ -66,6 +67,18 @@ def convert_ws() :
     nSignal = ws.function(options.signal_yield)
     if nSignal == None :
       raise ValueError('Could not locate signal yield variable %s')
+    
+  data = None
+  if options.data_name != '' :
+    data = ws.data(options.data_name)
+    if data == None :
+      ds = [ d.GetName() for d in ws.allData() ]
+      raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+
+  if options.refit : 
+    if data == None :
+      raise ValueError('Need to specify a dataset name on which to perform the fit')
+    main_pdf.fitTo(data)
     
   try :
     obs = ROOT.RooArgList(mconfig.GetObservables()).at(0)
@@ -109,10 +122,6 @@ def convert_ws() :
     if not par in alphas and not par in betas :
       gammas.append(par)
 
-  print alphas
-  print betas
-  print gammas
-
   impacts_s = np.ndarray((nbins, len(np_list)))
   impacts_b = np.ndarray((nbins, len(np_list)))
   nom_sig = np.zeros(nbins)
@@ -132,28 +141,37 @@ def convert_ws() :
     for p in range(0, len(np_list)) :
       par = np_list.at(p)
       par0 = par.getVal()
-      delta = (par.getMax() - par.getVal())*eps
+      error = par.getError() if par.getError() > 0 else (par.getMax() - par0)/10
+      delta = error*options.epsilon
       par.setVal(par0 + delta)
+      ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
       sig1 = nSignal.getVal()*sigint.getVal()
-      bkg1 = ntot*totint.getVal() - sig0
-      impacts_s[i,p] = (sig1/sig0 - 1)/delta if sig0 != 0 else 0
-      impacts_b[i,p] = (bkg1/bkg0 - 1)/delta if bkg0 != 0 else 0
+      bkg1 = ntot*totint.getVal() - sig1
+      print bkg0, bkg1, bkg1/bkg0
+      impacts_s[i,p] = (sig1/sig0 - 1) if sig0 != 0 else 0
+      impacts_b[i,p] = (bkg1/bkg0 - 1) if bkg0 != 0 else 0
+      par.setVal(par0)
+  np_list.Print("V")
+  print impacts_s
+  print impacts_b
   
   impacts = {}
-  
   for p in range(0, len(np_list)) :
     par = np_list.at(p)
-    if p in alphas :
+    if par in alphas :
       impacts[par] = impacts_s[:,p]
     else :
       impacts[par] = impacts_b[:,p]
+  print impacts
   
   jdict = collections.OrderedDict()
   jdict['signal'] = nom_sig.tolist()
   jdict['background'] = nom_bkg.tolist()
-
+  
   alpha_specs = [ ]
   for i, alpha in enumerate(alphas) :
+    print alpha
+    print impacts[alpha]
     od = collections.OrderedDict()
     od['name'] = alpha.GetName()
     od['impact'] = impacts[alpha].tolist()
@@ -175,7 +193,7 @@ def convert_ws() :
     od['impact'] = impacts[gamma].tolist()
     gamma_specs.append(od)
   jdict['gammas'] = gamma_specs
-  print jdict
+  
   with open(options.output_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
   
