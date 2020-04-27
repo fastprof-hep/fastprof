@@ -13,7 +13,7 @@ mu = 1 min=0 max=10
 nSignal0 = 1
 sigma_eff = 0.1
 
-nBackground = 10 min=0 max=50
+nBackground = 100000 min=0 max=1E6
 
 mX = 1500
 sigmaX = 30
