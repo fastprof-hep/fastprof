@@ -101,7 +101,7 @@ def fit_ws() :
     hd['nll_best'] = nll_best
     hd['best_fit_val'] = best_fit_val
     hd['best_fit_err'] = best_fit_err
-    hd['qmu'] = 2*(hd['nll_hypo'] - nll_best) if fitval_best < hd[poi.GetName()] else 0 # q_mu case only
+    hd['qmu'] = 2*(hd['nll_hypo'] - nll_best) if best_fit_val < hd[poi.GetName()] else 0 # q_mu case only
   
   with open(options.output_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
