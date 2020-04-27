@@ -44,20 +44,23 @@ class Model :
     self.nbins = self.sig.size
     self.nsyst = self.na + self.nb
     self.n_nps = self.na + self.nb + self.nc
+    self.ln_a = np.log(1 + self.a)
+    self.ln_b = np.log(1 + self.b)
+    self.ln_c = np.log(1 + self.c)
     
   def alphas(self) : return self.alphas
   def betas (self) : return self.betas
   def gammas(self) : return self.gammas
 
   def s_exp(self, pars) :
-    ds = self.a.dot(pars.alphas)
-    return pars.mu*self.sig*(1 + ds)
+    ks = np.exp(self.ln_a.dot(pars.alphas))
+    return pars.mu*self.sig*ks
 
   def b_exp(self, pars) :
-    d = 1
-    if self.b.shape[1] != 0 : d += self.b.dot(pars.betas)
-    if self.c.shape[1] != 0 : d += self.c.dot(pars.gammas)
-    return self.bkg*d
+    bexp = self.bkg.copy()
+    if self.b.shape[1] != 0 : bexp *= np.exp(np.log(1 + self.b).dot(pars.betas))
+    if self.c.shape[1] != 0 : bexp *= np.exp(np.log(1 + self.c).dot(pars.gammas))
+    return bexp
 
   def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
 
@@ -65,8 +68,20 @@ class Model :
     nexp = self.n_exp(pars)
     da = data.aux_alphas - pars.alphas
     db = data.aux_betas  - pars.betas
-    print(nexp,pars)
-    return np.sum(nexp - data.n*np.log(nexp)) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
+    poisson = 0
+    for nob, nex in zip(data.n, nexp) :
+      if nex > 0 :
+        poisson += nex - nob*math.log(nex)
+      else :
+        if nob == 0 :
+          poisson += nex
+        else :
+          print('Warning: negative expected yields for the parameter values below, returning +INF')
+          print(pars)
+          print(nexp)
+          print(data)
+          return np.Infinity
+    return poisson + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
 
   #def derivatives(self, pars) :
     #der_a = np.zeros(self.n_alpha())
@@ -102,13 +117,13 @@ class Model :
   def plot(self, pars, data = None, bkg_only = True, variations=[]) :
     #print(np.linspace(0,self.sig.size - 1,self.sig.size))
     #print(self.b_exp(pars))
-    grid = np.linspace(0,self.nbins - 1,self.sig.size)
-    if bkg_only : plt.hist(grid, weights=self.n_exp(pars), bins=grid, histtype='step',color='b', label='bkg-only')
-    plt.hist(grid, weights=self.b_exp(pars), bins=grid, histtype='step',color='b', linestyle='--', label='Model')
+    grid = np.linspace(0,self.nbins, self.nbins)
+    if bkg_only : plt.hist(grid, weights=self.n_exp(pars), bins=grid, histtype='step',color='b', label='Model')
+    plt.hist(grid, weights=self.b_exp(pars), bins=grid, histtype='step',color='b', linestyle='--', label='bkg-only')
     if data : 
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.n ]
       plt.errorbar(grid + 0.5, data.n, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
-    plt.xlim(0,self.sig.size-1)
+    plt.xlim(0, self.nbins)
     for v in variations :
       vpars = copy.deepcopy(pars)
       if v[0] in self.alphas : vpars.alphas[self.alphas.index(v[0])] = v[1]
@@ -385,8 +400,12 @@ class NPMinimizer :
 
   def profile(self) :
     p, q = self.pq()
-    v = np.linalg.inv(p).dot(q)
-    nps = self.data.aux_alphas - v[:self.model.na], self.data.aux_betas - v[self.model.na:self.model.nsyst], -v[self.model.nsyst:]
+    if np.linalg.det(p) < 1E-8 :
+      print('Linear system has an ill-conditioned coefficient matrix, returning null result')
+      nps =  self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
+    else :
+      v = np.linalg.inv(p).dot(q)
+      nps = self.data.aux_alphas - v[:self.model.na], self.data.aux_betas - v[self.model.na:self.model.nsyst], -v[self.model.nsyst:]
     self.min_pars = Parameters(self.mu, *nps)
     return nps
   
@@ -440,7 +459,7 @@ class OptiMinimizer :
       #print('obj',mu, type(mu))
       self.np_min = NPMinimizer(mu, self.data)
       self.nll_min = self.np_min.profile_nll()
-      #print('OptMinimizer: eval at %g -> %g' % (mu, self.nll_min))
+      #print('== OptMinimizer: eval at %g -> %g' % (mu, self.nll_min))
       return self.nll_min
     def jacobian(mu) :
       if isinstance(mu, np.ndarray) : mu = mu[0]
@@ -468,11 +487,12 @@ class OptiMinimizer :
         result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
     #print('Optimizer: done ----------------')
     if not result.success :
+      print('Minimization failed, details below')
       print(dir(result))
-      print(result.status)
-      raise FloatingPointError(result.message)
+      if result.has_key('status')  : print('status  =', result.status)
+      if result.has_key('message') : print('message =', result.message)
+      return None, None
     self.min_pars = self.np_min.min_pars
     self.nll_min = result.fun
     self.min_mu = result.x
     return self.nll_min, self.min_mu
-  
