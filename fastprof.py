@@ -4,6 +4,8 @@ import scipy.stats
 from abc import abstractmethod
 from scipy.interpolate import InterpolatedUnivariateSpline
 import json
+import matplotlib.pyplot as plt
+import copy
 
 # -------------------------------------------------------------------------
 class Model :
@@ -33,6 +35,9 @@ class Model :
     self.a = a
     self.b = b
     self.c = c
+    self.init_vars()
+
+  def init_vars(self) :
     self.na = self.a.shape[1] if self.a.shape != (0,) else 0
     self.nb = self.b.shape[1] if self.b.shape != (0,) else 0
     self.nc = self.c.shape[1] if self.c.shape != (0,) else 0
@@ -44,14 +49,14 @@ class Model :
   def betas (self) : return self.betas
   def gammas(self) : return self.gammas
 
-  def s_exp(self, pars) : 
+  def s_exp(self, pars) :
     ds = self.a.dot(pars.alphas)
     return pars.mu*self.sig*(1 + ds)
 
   def b_exp(self, pars) :
     d = 1
-    if self.b.shape != (0,0) : d += self.b.dot(pars.betas)
-    if self.c.shape != (0,0) : d += self.c.dot(pars.gammas)
+    if self.b.shape[1] != 0 : d += self.b.dot(pars.betas)
+    if self.c.shape[1] != 0 : d += self.c.dot(pars.gammas)
     return self.bkg*d
 
   def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
@@ -60,6 +65,7 @@ class Model :
     nexp = self.n_exp(pars)
     da = data.aux_alphas - pars.alphas
     db = data.aux_betas  - pars.betas
+    print(nexp,pars)
     return np.sum(nexp - data.n*np.log(nexp)) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
 
   #def derivatives(self, pars) :
@@ -87,9 +93,31 @@ class Model :
     for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
     return s
     
+  def expected_pars(self, mu) :
+    return Parameters(mu, np.zeros(self.na), np.zeros(self.nb), np.zeros(self.nc))
 
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
+
+  def plot(self, pars, data = None, bkg_only = True, variations=[]) :
+    #print(np.linspace(0,self.sig.size - 1,self.sig.size))
+    #print(self.b_exp(pars))
+    grid = np.linspace(0,self.nbins - 1,self.sig.size)
+    if bkg_only : plt.hist(grid, weights=self.n_exp(pars), bins=grid, histtype='step',color='b', label='bkg-only')
+    plt.hist(grid, weights=self.b_exp(pars), bins=grid, histtype='step',color='b', linestyle='--', label='Model')
+    if data : 
+      yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.n ]
+      plt.errorbar(grid + 0.5, data.n, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
+    plt.xlim(0,self.sig.size-1)
+    for v in variations :
+      vpars = copy.deepcopy(pars)
+      if v[0] in self.alphas : vpars.alphas[self.alphas.index(v[0])] = v[1]
+      if v[0] in self.betas  : vpars.betas [self.betas .index(v[0])] = v[1]
+      if v[0] in self.gammas : vpars.gammas[self.gammas.index(v[0])] = v[1]
+      col = 'r' if len(v) < 3 else v[2]
+      plt.hist(grid, weights=self.n_exp(vpars), bins=grid, histtype='step',color=col, linestyle='--', label='%s=%+g' %(v[0], v[1]))
+      plt.legend()
+    #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
 
   @staticmethod
   def create(filename) :
@@ -134,6 +162,7 @@ class Model :
     for i, gamma in enumerate(jdict['gammas']) :
       self.gammas.append(gamma['name'])
       self.c[:,i] = gamma['impact']
+    self.init_vars()
     return self
   
   def dump_jdict(self) :
@@ -175,9 +204,9 @@ class Model :
 # -------------------------------------------------------------------------
 class Parameters :
   def __init__(self, mu, alphas = np.array([]), betas = np.array([]), gammas = np.array([])) :
-    if not isinstance(alphas, np.ndarray) : alphas = np.array([alphas])
-    if not isinstance(betas , np.ndarray) : betas  = np.array([betas ])
-    if not isinstance(gammas, np.ndarray) : gammas = np.array([gammas])
+    if not isinstance(alphas, np.ndarray) : alphas = np.array(alphas)
+    if not isinstance(betas , np.ndarray) : betas  = np.array(betas)
+    if not isinstance(gammas, np.ndarray) : gammas = np.array(gammas)
     self.mu = mu
     self.alphas = alphas
     self.betas = betas
@@ -191,7 +220,7 @@ class Parameters :
     s += 'mu     = ' + str(self.mu)     + '\n'
     s += 'alphas = ' + str(self.alphas) + '\n'
     s += 'betas  = ' + str(self.betas)  + '\n'
-    s += 'gammas = ' + str(self.betas)  + '\n'
+    s += 'gammas = ' + str(self.gammas) + '\n'
     return s
   
   
@@ -209,15 +238,15 @@ class Data :
       self.n = self.model.sig + self.model.bkg
 
     if aux_alphas.size > 0 :
-      if aux_alphas.size != self.model.a.shape[1] :
-        raise ValueError('Input data "aux_alphas" should have the same size as the width of model "a", got ' + str(aux_alphas))
+      if aux_alphas.size != self.model.na :
+        raise ValueError('Input data "aux_alphas" should have the same size as the "alphas" of the model (%d), got %s.' % (self.model.na, str(aux_alphas)))
       self.aux_alphas = aux_alphas
     else :
       self.aux_alphas = np.zeros(self.model.a.shape[1])
     
     if aux_betas.size > 0 :
       if aux_betas.size != self.model.b.shape[1] :
-        raise ValueError('Input data "aux_beta" should have the same size as the width of model "b", got ' + str(aux_betas))
+        raise ValueError('Input data "aux_beta" should have the same size as the "betas" of the model (%d), got %s.' % (self.model.nb, str(aux_betas)))
       self.aux_betas = aux_betas
     else :
       self.aux_betas = np.zeros(self.model.b.shape[1])
@@ -284,10 +313,15 @@ class TMu(TestStatistic) :
 class QMu(TestStatistic) :
   def __init__(self, twice_dll, test_mu, best_mu) :
     self.value = twice_dll if best_mu < test_mu else None
+    self.test_mu = test_mu
   def value(self) :
     return self.value
   def asymptotic_cl(self) :
     return scipy.stats.norm.sf(math.sqrt(self.value)) if (self.value != None and self.value > 0) else 0.5
+  def asymptotic_cls(self, sigma) :
+    clsb = self.asymptotic_cl()
+    clb = scipy.stats.norm.sf(math.sqrt(self.value) - self.test_mu/sigma)
+    return clsb/clb
 
 # -------------------------------------------------------------------------
 class NPMinimizer :
