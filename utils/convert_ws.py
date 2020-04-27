@@ -28,6 +28,7 @@ def convert_ws() :
   parser.add_argument("-b", "--binning",           default='',        help="Name of output file", type=str)
   parser.add_argument("-p", "--nps",               default='',        help="List of constrained nuisance parameters", type=str)
   parser.add_argument("-e", "--epsilon",           default=0.001,     help="Scale factor applied to uncertainties for impact computations", type=str)
+  parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
   parser.add_argument("-r", "--refit",         action="store_true",   help="Perform an Asimov fit before conversion")
   parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
   parser.add_argument("-o", "--output-file",       default='',        help="Name of output file", type=str)
@@ -59,7 +60,7 @@ def convert_ws() :
   mconfig = ws.obj(options.model_config_name)
   if not mconfig :
     raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
-  
+
   main_pdf = mconfig.GetPdf()
   signal_pdf = ws.pdf(options.signal_pdf)
   nSignal = ws.var(options.signal_yield)
@@ -74,6 +75,17 @@ def convert_ws() :
     if data == None :
       ds = [ d.GetName() for d in ws.allData() ]
       raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+
+  if options.setval != '' :
+    try:
+      sets = [ v.replace(' ', '').split('=') for v in options.setval.split(',') ]
+      for (var, val) in sets :
+        if not ws.var(var) :
+          raise ValueError("Cannot find variable '%s' in workspace" % var)   
+        ws.var(var).setVal(float(val))
+        print "INFO : setting %s=%g" % (var, float(val))
+    except:
+      raise ValueError("ERROR : invalid variable assignment string '%s'." % options.setval)
 
   if options.refit : 
     if data == None :
@@ -147,13 +159,10 @@ def convert_ws() :
       ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
       sig1 = nSignal.getVal()*sigint.getVal()
       bkg1 = ntot*totint.getVal() - sig1
-      print bkg0, bkg1, bkg1/bkg0
-      impacts_s[i,p] = (sig1/sig0 - 1) if sig0 != 0 else 0
-      impacts_b[i,p] = (bkg1/bkg0 - 1) if bkg0 != 0 else 0
+      #print(sig0,sig1,(sig1/sig0 - 1)/options.epsilon if sig0 != 0 else 0)
+      impacts_s[i,p] = (sig1/sig0 - 1)/options.epsilon if sig0 != 0 else 0
+      impacts_b[i,p] = (bkg1/bkg0 - 1)/options.epsilon if bkg0 != 0 else 0
       par.setVal(par0)
-  np_list.Print("V")
-  print impacts_s
-  print impacts_b
   
   impacts = {}
   for p in range(0, len(np_list)) :
@@ -162,7 +171,6 @@ def convert_ws() :
       impacts[par] = impacts_s[:,p]
     else :
       impacts[par] = impacts_b[:,p]
-  print impacts
   
   jdict = collections.OrderedDict()
   jdict['signal'] = nom_sig.tolist()
@@ -170,8 +178,6 @@ def convert_ws() :
   
   alpha_specs = [ ]
   for i, alpha in enumerate(alphas) :
-    print alpha
-    print impacts[alpha]
     od = collections.OrderedDict()
     od['name'] = alpha.GetName()
     od['impact'] = impacts[alpha].tolist()
