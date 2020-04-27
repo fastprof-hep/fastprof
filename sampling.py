@@ -55,7 +55,7 @@ class OptiSampler :
     self.method = method
     
   def generate(self, mu, ntoys) :
-    gen_hypo = fastprof.Parameters(0 if self.do_CLb else mu, np.zeros(self.model.na), np.zeros(self.model.nb), np.zeros(self.model.nc))
+    gen_hypo = self.model.expected_pars(0 if self.do_CLb else mu)
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
       if k % 1000 == 0 : print(k)
