@@ -7,13 +7,13 @@ import math
 import scipy
 
 # Define the models
-model_filename = 'run/high_mass_gg_1500.json'
-hypos_filename = 'run/hypos_high_mass_gg_1500.json'
+model_filename = 'run/high_mass_gg_1700.json'
+hypos_filename = 'run/hypos_high_mass_gg_1700.json'
 poi = 'mu'
 poi_init = 1
 poi_min = 0
 poi_max = 20
-output_filename = 'samples/high_mass_gg_1500'
+output_filename = 'samples/high_mass_gg_1700'
 fast_model = fastprof.Model.create(model_filename)
 ntoys = 10000
 
@@ -21,6 +21,8 @@ with open(hypos_filename, 'r') as fd :
   hypo_dicts = json.load(fd)
 
 hypo_mus = [ hd[poi] for hd in hypo_dicts ]
+
+print(fast_model)
 
 np.random.seed(131071)
 opti_samples = CLsSamples(
