@@ -38,7 +38,7 @@ class FastSampler :
     gen_hypo = fastprof.Parameters(0 if self.do_CLb else mu, 0, 0)
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
-      if k % 1000 == 0 : print(k)
+      if k % 1000 == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
       data = self.model.generate_data(gen_hypo)
       nll_min, min_pos = fastprof.ScanMinimizer(data, self.scan_mus).minimize()
       nll_hypo = fastprof.NPMinimizer(mu, data).profile_nll()
@@ -58,9 +58,15 @@ class OptiSampler :
     gen_hypo = self.model.expected_pars(0 if self.do_CLb else mu)
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
-      if k % 1000 == 0 : print(k)
-      data = self.model.generate_data(gen_hypo)
-      nll_min, min_pos = fastprof.OptiMinimizer(data, self.x0, self.bounds, self.method).minimize()
+      if k % 1000 == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
+      success = False
+      while not success :
+        data = self.model.generate_data(gen_hypo)
+        nll_min, min_pos = fastprof.OptiMinimizer(data, self.x0, self.bounds, self.method).minimize()
+        if nll_min != None : 
+          success = True
+        else :
+          print('Minimization failed at toy iteration %d, repeating it.' % k)
       nll_hypo = fastprof.NPMinimizer(mu, data).profile_nll()
       q = fastprof.QMu(2*(nll_hypo - nll_min), mu, min_pos)
       self.dist.samples[k] = q.asymptotic_cl()
@@ -81,7 +87,7 @@ class DebuggingFastSampler :
     n_np = self.model.n_nps
     self.debug_info = SamplingDistribution(ntoys, n_dat + 3*n_np + 6)
     for k in range(0, ntoys) :
-      if k % 1000 == 0 : print(k)
+      if k % 1000 == 0 : print('Processing iteration %d of %d' % (k+1, ntoys))
       data = self.model.generate_data(gen_hypo)
       minimizer = fastprof.ScanMinimizer(data, self.scan_mus)
       nll_min, min_pos = minimizer.minimize(True)
@@ -98,7 +104,6 @@ class DebuggingFastSampler :
       self.debug_info.samples[k, n_dat + n_np + 2:n_dat + 2*n_np + 3] = pars # pyhf best-fit pars 
       self.debug_info.samples[k, n_dat + 2*n_np + 3:n_dat + 2*n_np + 4] = pyhf_clsb # pyhf CLs+b @ mu=min
       self.debug_info.samples[k, n_dat + 2*n_np + 4:n_dat + 3*n_np + 5] = pars # pyhf best-fit pars @ mu=min sample
-      print(self.debug_info.samples[k,:])
     return self.debug_info
 
 
@@ -151,7 +156,7 @@ class Samples :
         self.samples[mu] = SamplingDistribution(ntoys)
         self.samples[mu].load(self.file_name(mu, '.npy'))
         continue
-      print('Creating sampling distribution for %g' % mu)
+      print('Creating sampling distribution for POI = %g' % mu)
       with open(self.file_name(mu, '.lock'), 'w') as f :
         f.write(str(os.getpid()))
       self.samples[mu] = self.sampler.generate(mu, ntoys)
@@ -166,8 +171,7 @@ class Samples :
       try:
         samples = np.load(fname)
       except:
-        print('File %s not found, for samples at mu = %g' % (fname, mu))
-        return {}
+        raise FileNotFoundError('File %s not found, for samples at mu = %g' % (fname, mu))
       self.samples[mu] = samples
     return self
 
@@ -193,7 +197,9 @@ class CLsSamples :
     self.cl_b = cl_b_samples
     
   def generate_and_save(self, mus, ntoys) :
+    print('Creating CL_{s+b} sampling distributions for POI values %s' % str(mus))
     self.clsb.generate_and_save(mus, ntoys)
+    print('Creating CL_b sampling distributions for POI values %s' % str(mus))
     self.cl_b.generate_and_save(mus, ntoys)
     return self
   
@@ -203,7 +209,9 @@ class CLsSamples :
     return self
   
   def generate(self, mus, ntoys) : # on the fly generation -- for fast cases only!
+    print('Creating CL_{s+b} sampling distributions for POI values %s' % str(mus))
     self.clsb.generate(mus, ntoys)
+    print('Creating CL_b sampling distributions for POI values %s' % str(mus))
     self.cl_b.generate(mus, ntoys)
     return self
 
