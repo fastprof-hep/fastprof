@@ -43,20 +43,20 @@ pyhf_samples = CLsSamples(
 
 # Compute 
 
-def clsb(mu, data, model) :
+def pyhf_clsb(mu, data, model) :
   return pyhf.infer.hypotest(mu, data, model, return_tail_probs = True)[1][0][0]
 
-def cls(mu, data, model) :
+def pyhf_cls(mu, data, model) :
   return pyhf.infer.hypotest(mu, data, model, return_tail_probs = True)[0]
 
 #pyhf_data = fastprof.Data(fast_model).set_expected(fastprof.Parameters(0,0,0)).export_pyhf_data(pyhf_model) # Asimov case
 pyhf_data = np.array( [0, 10, 0, 0 ] ) # nobs = 0 case
 
-asym_clsb = [ clsb(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
+asym_clsb = [ pyhf_clsb(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
 fast_clsb = [ fast_samples.clsb.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
 opti_clsb = [ opti_samples.clsb.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
 samp_clsb = [ pyhf_samples.clsb.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
-asym_cl_s = [ cls(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
+asym_cl_s = [ pyhf_cls(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
 fast_cl_s = [ fast_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
 opti_cl_s = [ opti_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
 samp_cl_s = [ pyhf_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
