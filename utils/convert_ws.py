@@ -27,7 +27,7 @@ def convert_ws() :
   parser.add_argument("-n", "--signal-yield",      default='nSignal', help="Name of signal yield variable", type=str)
   parser.add_argument("-b", "--binning",           default='',        help="Name of output file", type=str)
   parser.add_argument("-p", "--nps",               default='',        help="List of constrained nuisance parameters", type=str)
-  parser.add_argument("-e", "--epsilon",           default=0.001,     help="Scale factor applied to uncertainties for impact computations", type=str)
+  parser.add_argument("-e", "--epsilon",           default=1,         help="Scale factor applied to uncertainties for impact computations", type=str)
   parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
   parser.add_argument("-r", "--refit",         action="store_true",   help="Perform an Asimov fit before conversion")
   parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
@@ -154,14 +154,24 @@ def convert_ws() :
       par = np_list.at(p)
       par0 = par.getVal()
       error = par.getError() if par.getError() > 0 else (par.getMax() - par0)/10
+      if i == 0 : print('Parameter %s : using deviation %g from nominal value %g for impact computation (x %g)' % (par.GetName(), error, par0, options.epsilon))
       delta = error*options.epsilon
       par.setVal(par0 + delta)
       ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
-      sig1 = nSignal.getVal()*sigint.getVal()
-      bkg1 = ntot*totint.getVal() - sig1
-      #print(sig0,sig1,(sig1/sig0 - 1)/options.epsilon if sig0 != 0 else 0)
-      impacts_s[i,p] = (sig1/sig0 - 1)/options.epsilon if sig0 != 0 else 0
-      impacts_b[i,p] = (bkg1/bkg0 - 1)/options.epsilon if bkg0 != 0 else 0
+      sig_pos = nSignal.getVal()*sigint.getVal()
+      bkg_pos = ntot*totint.getVal() - sig_pos
+      impact_s_pos = (sig_pos/sig0 - 1)/options.epsilon if sig0 != 0 else 0
+      impact_b_pos = (bkg_pos/bkg0 - 1)/options.epsilon if bkg0 != 0 else 0
+      par.setVal(par0 - delta)
+      ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
+      sig_neg = nSignal.getVal()*sigint.getVal()
+      bkg_neg = ntot*totint.getVal() - sig_neg
+      impact_s_neg = (sig0/sig_neg - 1)/options.epsilon if sig_neg != 0 else 0
+      impact_b_neg = (bkg0/bkg_neg - 1)/options.epsilon if bkg_neg != 0 else 0
+      # print par.GetName(), bkg0, bkg_pos, bkg_neg, impact_b_pos, impact_b_neg
+      # take the minimal value in case the negative variation (on bin yields) would go below n=0
+      impacts_s[i,p] = impact_s_pos if abs(impact_s_pos) < abs(impact_s_neg) else impact_s_neg
+      impacts_b[i,p] = impact_b_pos if abs(impact_b_pos) < abs(impact_b_neg) else impact_b_neg
       par.setVal(par0)
   
   impacts = {}
