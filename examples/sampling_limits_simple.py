@@ -7,13 +7,13 @@ import math
 import scipy
 
 # Define the models
-model_filename = 'run/high_mass_gg_1700.json'
-hypos_filename = 'run/hypos_high_mass_gg_1700.json'
+model_filename = 'run/high_mass_gg_1300.json'
+hypos_filename = 'run/hypos_high_mass_gg_1300.json'
 poi = 'mu'
 poi_init = 1
 poi_min = 0
 poi_max = 20
-output_filename = 'samples/high_mass_gg_1700'
+output_filename = 'samples/high_mass_gg_1300'
 fast_model = fastprof.Model.create(model_filename)
 ntoys = 10000
 
@@ -30,18 +30,18 @@ opti_samples = CLsSamples(
   Samples(OptiSampler(fast_model, x0 = poi_init, bounds=(poi_min, poi_max), do_CLb = True), output_filename + '_clb')).generate_and_save(hypo_mus, ntoys)
 
 for hd in hypo_dicts :
-  if not cl in hd :
-    hd['cl'] = fastprof.QMu(hd['qmu'], hd[poi], hd['bestfit_val']).asymptotic_cl()
-  if not cls in hd :
-    hd['cls'] = fastprof.QMu(hd['qmu'], hd[poi], hd['bestfit_val']).asymptotic_cls(hd['bestfit_err'])
+  if not 'cl' in hd :
+    hd['cl'] = fastprof.QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cl()
+  if not 'cls' in hd :
+    hd['cls'] = fastprof.QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cls(hd['best_fit_err'])
+  print(hd['cl'])
   hd['sampling_cl'] = opti_samples.clsb.cl(hd['cl'], hd[poi])
   hd['sampling_cls'] = opti_samples.cl(hd['cl'], hd[poi])
 
 # Plot
 
 def find_hypo(mus, cls, cl = 0.05, n = 0) :
-  logcls = [ math.log(c/cl) for c in cls[n:] ]
-  #print(logcls, math.log(cl))
+  logcls = [ math.log(c/cl) if c > 0 else -999 for c in cls[n:] ]
   finder = scipy.interpolate.InterpolatedUnivariateSpline(mus[n:], logcls, k=3)
   return finder.roots()[0]
 
