@@ -34,12 +34,10 @@ for hd in hypo_dicts :
     hd['cl'] = fastprof.QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cl()
   if not 'cls' in hd :
     hd['cls'] = fastprof.QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cls(hd['best_fit_err'])
-  print(hd['cl'])
   hd['sampling_cl'] = opti_samples.clsb.cl(hd['cl'], hd[poi])
   hd['sampling_cls'] = opti_samples.cl(hd['cl'], hd[poi])
 
 # Plot
-
 def find_hypo(mus, cls, cl = 0.05, n = 0) :
   logcls = [ math.log(c/cl) if c > 0 else -999 for c in cls[n:] ]
   finder = scipy.interpolate.InterpolatedUnivariateSpline(mus[n:], logcls, k=3)
