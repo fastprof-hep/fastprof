@@ -1,5 +1,4 @@
-import fastprof
-from sampling import Samples, CLsSamples, FastSampler, OptiSampler, PyhfSampler, DebuggingFastSampler
+from fastprof import Model, Data, Parameters, Samples, CLsSamples, ScanSampler, OptiSampler, PyhfSampler, DebuggingScanSampler
 import pyhf
 import json
 import numpy as np
@@ -12,11 +11,11 @@ import scipy
 spec = json.load(open('fastprof/models/test1.json', 'r'))
 ws = pyhf.Workspace(spec)
 pyhf_model = ws.model()
-fast_model = fastprof.Model(sig = np.array([1.0, 0]),
-                            bkg = np.array([1.0, 10.0]),
-                            alphas = ['acc_sys'], betas = ['bkg_sys'],
-                            a = np.array([[0.2], [0.2]]),
-                            b = np.array([[0.2], [0.2]]))
+fast_model = Model(sig = np.array([1.0, 0]),
+                   bkg = np.array([1.0, 10.0]),
+                   alphas = ['acc_sys'], betas = ['bkg_sys'],
+                   a = np.array([[0.2], [0.2]]),
+                   b = np.array([[0.2], [0.2]]))
 
 gen_mus = np.linspace(0.1, 4.1, 11)
 print('Will generate the following hypotheses: ', gen_mus)
@@ -27,11 +26,11 @@ print('Will scan over the following hypotheses: ', scan_mus)
 # Generate the samples, if needed
 
 np.random.seed(131071)
-Samples(DebuggingFastSampler(fast_model, scan_mus, pyhf_model), 'samples/fast_debug_test1').generate_and_save(gen_mus, 200, sort_before_saving=False)
+Samples(DebuggingScanSampler(fast_model, scan_mus, pyhf_model), 'samples/fast_debug_test1').generate_and_save(gen_mus, 200, sort_before_saving=False)
 
 fast_samples = CLsSamples(
-  Samples(FastSampler(fast_model, scan_mus)               , 'samples/fast_test1'),
-  Samples(FastSampler(fast_model, scan_mus, do_CLb = True), 'samples/fast_test1_clb')).generate_and_save(gen_mus, 20000)
+  Samples(ScanSampler(fast_model, scan_mus)               , 'samples/fast_test1'),
+  Samples(ScanSampler(fast_model, scan_mus, do_CLb = True), 'samples/fast_test1_clb')).generate_and_save(gen_mus, 20000)
 
 opti_samples = CLsSamples(
   Samples(OptiSampler(fast_model, x0 = 1, bounds=(0, 20))               , 'samples/opti_test1'),
@@ -49,7 +48,7 @@ def pyhf_clsb(mu, data, model) :
 def pyhf_cls(mu, data, model) :
   return pyhf.infer.hypotest(mu, data, model, return_tail_probs = True)[0]
 
-#pyhf_data = fastprof.Data(fast_model).set_expected(fastprof.Parameters(0,0,0)).export_pyhf_data(pyhf_model) # Asimov case
+#pyhf_data = Data(fast_model).set_expected(Parameters(0,0,0)).export_pyhf_data(pyhf_model) # Asimov case
 pyhf_data = np.array( [0, 10, 0, 0 ] ) # nobs = 0 case
 
 asym_clsb = [ pyhf_clsb(mu, pyhf_data, pyhf_model) for mu in gen_mus ]

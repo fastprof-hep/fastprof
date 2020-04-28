@@ -1,16 +1,16 @@
-import fastprof as fastprof
 import numpy as np
 import matplotlib.pyplot as plt
+from fastprof import Model, Data, Parameters, NPMinimizer
 
 
-model = fastprof.Model.create('run/high_mass_gg_1500.json')
+model = Model.create('run/high_mass_gg_1500.json')
 
 n = np.array([6, 4, 2, 0, 0, 0, 0, 0, 1, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0 ])
 aux_a = np.array([-1])
 aux_b = np.array([])
-data = fastprof.Data(model, n, aux_a, aux_b)
+data = Data(model, n, aux_a, aux_b)
 
-data.set_expected(fastprof.Parameters(mu))
+data.set_expected(Parameters(mu))
 
 print(model)
 
@@ -23,7 +23,7 @@ plt.suptitle('Prefit model')
 model.plot(model.expected_pars(mu), data=data, variations=[ ('dEff', 5, 'r'), ('xi', +0.5, 'g') ])
 #plt.yscale('log')
 
-mini = fastprof.NPMinimizer(mu, data)
+mini = NPMinimizer(mu, data)
 mini.profile()
 plt.suptitle('Prefit model')
 

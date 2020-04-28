@@ -1,5 +1,4 @@
-import fastprof
-from sampling import Samples, CLsSamples, FastSampler, OptiSampler, DebuggingFastSampler
+from fastprof import Model, QMu, Samples, CLsSamples, OptiSampler
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +13,7 @@ poi_init = 1
 poi_min = 0
 poi_max = 20
 output_filename = 'samples/high_mass_gg_1300'
-fast_model = fastprof.Model.create(model_filename)
+fast_model = Model.create(model_filename)
 ntoys = 10000
 
 with open(hypos_filename, 'r') as fd :
@@ -31,9 +30,9 @@ opti_samples = CLsSamples(
 
 for hd in hypo_dicts :
   if not 'cl' in hd :
-    hd['cl'] = fastprof.QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cl()
+    hd['cl'] = QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cl()
   if not 'cls' in hd :
-    hd['cls'] = fastprof.QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cls(hd['best_fit_err'])
+    hd['cls'] = QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cls(hd['best_fit_err'])
   hd['sampling_cl'] = opti_samples.clsb.cl(hd['cl'], hd[poi])
   hd['sampling_cls'] = opti_samples.cl(hd['cl'], hd[poi])
 

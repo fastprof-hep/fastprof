@@ -2,13 +2,11 @@ import pyhf
 import json
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 import math
 import os
-
-import fastprof
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
+from fastprof import Model, NPMinimizer
 
 mus = np.linspace(0.1, 10.1, 11)
 n   = np.array([5, 12])
@@ -26,14 +24,14 @@ n_np = 2
 
 for mu in mus :
   sig = np.array([1.0, 0])*mu  # specific to this case!
-  models[mu] = fastprof.Model(np.array(data[:-n_np]), sig, bkg, np.array([ data[3] ]), np.array([ data[2] ]), a, b)
+  models[mu] = Model(np.array(data[:-n_np]), sig, bkg, np.array([ data[3] ]), np.array([ data[2] ]), a, b)
 
 nlls = np.zeros(mus.shape[0])
 
 for i, mu in enumerate(mus) :
   model = models[mu]
   model.set_all_data(np.array(data[:-n_np]), np.array([ data[3] ]), np.array([ data[2] ]))
-  nlls[i] = fastprof.profile_nll(model)
+  nlls[i] = NPMinimizer().profile_nll(model)
 
 plt.ion()
 plt.plot(mus, nlls, 'b')

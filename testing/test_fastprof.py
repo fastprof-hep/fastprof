@@ -1,4 +1,4 @@
-import fastprof as fastprof
+from fastprof import Model, Data, NPMinimizer
 import numpy as np
 
 mu = 3.7
@@ -13,12 +13,12 @@ aux_b = np.array([-1.6])
 a = np.array([[0.2], [0.2]])
 b = np.array([[0.2], [0.2]])
 
-model = fastprof.Model(sig, bkg, alphas=['acc_sys'], betas=['bkg_sys'], a=a, b=b)
-data = fastprof.Data(model, n, aux_a, aux_b)
+model = Model(sig, bkg, alphas=['acc_sys'], betas=['bkg_sys'], a=a, b=b)
+data = Data(model, n, aux_a, aux_b)
 
 print(model)
 
-best_a, best_b, best_c = fastprof.NPMinimizer(mu, data).profile()
+best_a, best_b, best_c = NPMinimizer(mu, data).profile()
 print('hat(a) =', best_a)
 print('hat(b) =', best_b)
 print('hat(c) =', best_c)

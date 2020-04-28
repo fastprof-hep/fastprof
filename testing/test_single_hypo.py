@@ -1,6 +1,6 @@
 import numpy as np
-import fastprof
 import pyhf, json
+from fastprof import Model, Data, Parameters, NPMinimizer
 
 test_mus = np.linspace(0,5,6)
 n_np = 2
@@ -18,16 +18,16 @@ pyhf_model = ws.model()
 for mu in test_mus :
   print('-------------------------------------')
   print('Testing the following hypothesis: ', mu)
-  model = fastprof.Model(sig, bkg, alphas = ['acc_sys'], betas = ['bkg_sys'], a=a, b=b)
-  data = fastprof.Data(model).set_from_pyhf_data(pyhf_data, pyhf_model)
+  model = Model(sig, bkg, alphas = ['acc_sys'], betas = ['bkg_sys'], a=a, b=b)
+  data = Data(model).set_from_pyhf_data(pyhf_data, pyhf_model)
   #print(model)
-  npm = fastprof.NPMinimizer(mu, data)
+  npm = NPMinimizer(mu, data)
   nll = npm.profile_nll()
   pars, val  = pyhf.infer.mle.fixed_poi_fit(mu, pyhf_data, pyhf_model, return_fitted_val=True)
   print('fast pars |', npm.min_pars.array())
   print('fast nexp |', model.s_exp(npm.min_pars), model.b_exp(npm.min_pars), model.n_exp(npm.min_pars))
   print(nll)
-  pyhf_pars = fastprof.Parameters(pars[0], pars[1], pars[2])
+  pyhf_pars = Parameters(pars[0], pars[1], pars[2])
   print('pyhf data |', pyhf_data)
   print('pyhf pars |', pyhf_pars.array())
   print('pyhf nexp |', model.s_exp(pyhf_pars), model.b_exp(pyhf_pars), model.n_exp(pyhf_pars))
