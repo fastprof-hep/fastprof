@@ -335,7 +335,8 @@ class QMu(TestStatistic) :
     return scipy.stats.norm.sf(math.sqrt(self.value)) if (self.value != None and self.value > 0) else 0.5
   def asymptotic_cls(self, sigma) :
     clsb = self.asymptotic_cl()
-    clb = scipy.stats.norm.sf(math.sqrt(self.value) - self.test_mu/sigma)
+    clb = scipy.stats.norm.sf(math.sqrt(self.value) - self.test_mu/sigma) if (self.value != None and self.value > 0) else 0.5
+    print('CLs = %g/%g = %g' % (clsb, clb, clsb/clb))
     return clsb/clb
 
 # -------------------------------------------------------------------------
