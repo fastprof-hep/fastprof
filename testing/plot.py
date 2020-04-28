@@ -1,7 +1,7 @@
-import fastprof
+from fastprof import Model
 import matplotlib.pyplot as plt
 
-model = fastprof.Model.create('run/high_mass_gg_1700.json')
+model = Model.create('run/high_mass_gg_1300.json')
 pars = model.expected_pars(10)
 data = model.generate_data(pars)
 plt.ion()
