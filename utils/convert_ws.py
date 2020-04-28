@@ -29,7 +29,8 @@ def convert_ws() :
   parser.add_argument("-p", "--nps",               default='',        help="List of constrained nuisance parameters", type=str)
   parser.add_argument("-e", "--epsilon",           default=1,         help="Scale factor applied to uncertainties for impact computations", type=str)
   parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
-  parser.add_argument("-r", "--refit",         action="store_true",   help="Perform an Asimov fit before conversion")
+  parser.add_argument("-r", "--refit",         action="store_true",   help="Perform a fit to the dataset (specified by --data-name) before conversion")
+  parser.add_argument("-a", "--refit-asimov",  action="store_true",   help="Perform an Asimov fit before conversion")
   parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
   parser.add_argument("-o", "--output-file",       default='',        help="Name of output file", type=str)
   parser.add_argument("-v", "--verbosity",         default=0,         help="Verbosity level", type=int)
@@ -69,6 +70,11 @@ def convert_ws() :
     if nSignal == None :
       raise ValueError('Could not locate signal yield variable %s')
     
+  try :
+    obs = ROOT.RooArgList(mconfig.GetObservables()).at(0)
+  except:
+    ValueError('Could not locate observable')
+
   data = None
   if options.data_name != '' :
     data = ws.data(options.data_name)
@@ -90,13 +96,12 @@ def convert_ws() :
   if options.refit : 
     if data == None :
       raise ValueError('Need to specify a dataset name on which to perform the fit')
-    main_pdf.fitTo(data)
-    
-  try :
-    obs = ROOT.RooArgList(mconfig.GetObservables()).at(0)
-  except:
-    ValueError('Could not locate observable')
-  
+    main_pdf.fitTo(data, ROOT.RooFit.Offset())
+
+  if options.refit_asimov : 
+    asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+    main_pdf.fitTo(asimov, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
+
   aux_alphas = []
   aux_betas  = []
   alphas = []
@@ -148,13 +153,15 @@ def convert_ws() :
     ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
     sig0 = nSignal.getVal()*sigint.getVal()
     bkg0 = ntot*totint.getVal() - sig0
+    print('-- Nominal sig = %g' % sig0)
+    print('-- Nominal bkg = %g' % bkg0)
     nom_sig[i] = sig0
     nom_bkg[i] = bkg0
     for p in range(0, len(np_list)) :
       par = np_list.at(p)
       par0 = par.getVal()
       error = par.getError() if par.getError() > 0 else (par.getMax() - par0)/10
-      if i == 0 : print('Parameter %s : using deviation %g from nominal value %g for impact computation (x %g)' % (par.GetName(), error, par0, options.epsilon))
+      if i == 0 : print('Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.GetName(), error, par0, options.epsilon))
       delta = error*options.epsilon
       par.setVal(par0 + delta)
       ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
@@ -168,10 +175,17 @@ def convert_ws() :
       bkg_neg = ntot*totint.getVal() - sig_neg
       impact_s_neg = (sig0/sig_neg - 1)/options.epsilon if sig_neg != 0 else 0
       impact_b_neg = (bkg0/bkg_neg - 1)/options.epsilon if bkg_neg != 0 else 0
-      # print par.GetName(), bkg0, bkg_pos, bkg_neg, impact_b_pos, impact_b_neg
       # take the minimal value in case the negative variation (on bin yields) would go below n=0
-      impacts_s[i,p] = impact_s_pos if abs(impact_s_pos) < abs(impact_s_neg) else impact_s_neg
-      impacts_b[i,p] = impact_b_pos if abs(impact_b_pos) < abs(impact_b_neg) else impact_b_neg
+      if par in alphas :
+        impacts_s[i,p] = impact_s_pos if abs(impact_s_pos) < abs(impact_s_neg) else impact_s_neg
+        print('-- parameter %-10s : +1 sigma sig impact = %g' % (par.GetName(), impact_s_pos))
+        print('-- parameter %-10s : -1 sigma sig impact = %g' % (''           , impact_s_neg))
+        print('-- parameter %-10s : selected sig impact = %g' % (''           , impacts_s[i,p]))
+      else :
+        impacts_b[i,p] = impact_b_pos if abs(impact_b_pos) < abs(impact_b_neg) else impact_b_neg
+        print('-- parameter %-10s : +1 sigma bkg impact = %g' % (par.GetName(), impact_b_pos))
+        print('-- parameter %-10s : -1 sigma bkg impact = %g' % (''           , impact_b_neg))
+        print('-- parameter %-10s : selected bkg impact = %g' % (''           , impacts_b[i,p]))
       par.setVal(par0)
   
   impacts = {}
