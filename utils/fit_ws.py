@@ -27,6 +27,7 @@ def fit_ws() :
   parser.add_argument("-w", "--ws-name",           default='modelWS', help="Name workspace object inside the specified file", type=str)
   parser.add_argument("-m", "--model-config-name", default='mconfig', help="Name of model config within the specified workspace", type=str)
   parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
+  parser.add_argument("-a", "--asimov",        action="store_true",   help="Fit an Asimov dataset")
   parser.add_argument("-y", "--hypos",             default='',        help="Comma-separated list of POI hypothesis values", type=str)
   parser.add_argument(      "--fit-options",       default='',        help="RooFit fit options to use", type=str)
   parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
@@ -53,11 +54,6 @@ def fit_ws() :
   main_pdf = mconfig.GetPdf()
   nuis_pars = mconfig.GetNuisanceParameters()
   poi = ROOT.RooArgList(mconfig.GetParametersOfInterest()).at(0) # make safer!
-  
-  data = ws.data(options.data_name)
-  if data == None :
-    ds = [ d.GetName() for d in ws.allData() ]
-    raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
 
   if options.setval != '' :
     try: 
@@ -69,6 +65,16 @@ def fit_ws() :
         print "INFO : setting %s=%g" % (var, float(val))
     except:
       raise ValueError("ERROR : invalid variable assignment string '%s'." % options.setval)
+
+  if options.data_name != '' :
+    data = ws.data(options.data_name)
+    if data == None :
+      ds = [ d.GetName() for d in ws.allData() ]
+      raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+  elif options.asimov :
+    data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+  else :
+    raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
 
   try :
     hypos = [ float(h) for h in options.hypos.split(',') ]
@@ -84,10 +90,11 @@ def fit_ws() :
     hypo_dict = collections.OrderedDict()
     hypo_dict[poi.GetName()] = hypo
     poi.setConstant(True)
-    result_hypo = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    result_hypo = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
     hypo_dict['nll_hypo'] = result_hypo.minNll()
     poi.setConstant(False)
-    result_free = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    result_free = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    result_free.floatParsFinal().Print("V")
     hypo_dict['nll_free'] = result_free.minNll()
     hypo_dict['fit_val'] = poi.getVal()
     hypo_dict['fit_err'] = poi.getError()
