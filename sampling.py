@@ -156,7 +156,7 @@ class Samples :
         self.samples[mu] = SamplingDistribution(ntoys)
         self.samples[mu].load(self.file_name(mu, '.npy'))
         continue
-      print('Creating sampling distribution for POI = %g' % mu)
+      print('Processing sampling distribution for POI = %g' % mu)
       with open(self.file_name(mu, '.lock'), 'w') as f :
         f.write(str(os.getpid()))
       self.samples[mu] = self.sampler.generate(mu, ntoys)
@@ -197,9 +197,9 @@ class CLsSamples :
     self.cl_b = cl_b_samples
     
   def generate_and_save(self, mus, ntoys) :
-    print('Creating CL_{s+b} sampling distributions for POI values %s' % str(mus))
+    print('Processing CL_{s+b} sampling distributions for POI values %s' % str(mus))
     self.clsb.generate_and_save(mus, ntoys)
-    print('Creating CL_b sampling distributions for POI values %s' % str(mus))
+    print('Processing CL_b sampling distributions for POI values %s' % str(mus))
     self.cl_b.generate_and_save(mus, ntoys)
     return self
   
