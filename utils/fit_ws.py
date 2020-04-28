@@ -84,18 +84,20 @@ def fit_ws() :
   ws.saveSnapshot('init', nuis_pars)
   jdict = []
   
+  nll = main_pdf.createNLL(data, ROOT.RooFit.SumW2Error(False))
+  
   for hypo in hypos :
     ws.loadSnapshot('init')
     poi.setVal(hypo)
     hypo_dict = collections.OrderedDict()
     hypo_dict[poi.GetName()] = hypo
     poi.setConstant(True)
-    result_hypo = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
-    hypo_dict['nll_hypo'] = result_hypo.minNll()
+    result_hypo = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    hypo_dict['nll_hypo'] = nll.getVal()
     poi.setConstant(False)
-    result_free = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    result_free = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
     result_free.floatParsFinal().Print("V")
-    hypo_dict['nll_free'] = result_free.minNll()
+    hypo_dict['nll_free'] = nll.getVal()
     hypo_dict['fit_val'] = poi.getVal()
     hypo_dict['fit_err'] = poi.getError()
     jdict.append(hypo_dict)
