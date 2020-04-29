@@ -9,7 +9,7 @@ dEff_aux = 0 min=-5 max=5 const=true
 
 formula nSignal = (mu*nSignal0*(1 + sigma_eff*dEff))
 
-mu = 1 min=-5 max=10
+mu = 1 min=0 max=10
 nSignal0 = 1
 sigma_eff = 0.1
 
