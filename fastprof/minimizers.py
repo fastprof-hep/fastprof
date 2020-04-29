@@ -100,7 +100,7 @@ class POIMinimizer :
 # -------------------------------------------------------------------------
 class ScanMinimizer(POIMinimizer) :
   def __init__(self, data, scan_mus) :
-    super().__init__(self, data)
+    super().__init__(data)
     self.scan_mus = scan_mus
     self.pars = []
     for mu in scan_mus :
@@ -129,7 +129,7 @@ class ScanMinimizer(POIMinimizer) :
 # -------------------------------------------------------------------------
 class OptiMinimizer(POIMinimizer) :
   def __init__(self, data, mu0 = 1, bounds = (0, 999999), method = 'scalar' ) :
-    super().__init__(self, data)
+    super().__init__(data)
     self.np_min = None
     self.mu0 = mu0
     self.bounds = bounds
