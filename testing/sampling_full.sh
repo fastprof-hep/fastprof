@@ -7,10 +7,12 @@ python3 -i fastprof/examples/sampling_limits_simple.py
 
 # Point at 1.3 GeV with 100 bins (needed for fit precision) (same hypo file as above)
 ./convert_ws.py -f fastprof.root --refit --asimov -b 1000:2000:100 --setval mX=1300,mu=1,nSignal0=100 -o high_mass_gg_1300-100bins.json
+./convert_ws.py -f fastprof.root -x --asimov -b 1000:2000:100 --setval mu=0 -o high_mass_gg_1300-100bins-data.json
 python3 -i fastprof/examples/sampling_limits_simple.py
 
 # Point at 1.7 GeV: Poisson regime
-./convert_ws.py -f fastprof.root --refit --asimov -b 1000:2000:20 --setval mX=1700 -o high_mass_gg_1700.json
+./convert_ws.py -f fastprof.root --refit --asimov -b 1000:2000:100 --setval mX=1700 -o high_mass_gg_1700-100bins.json
+./convert_ws.py -f fastprof.root -x --asimov -b 1000:2000:100 --setval mu=0 -o high_mass_gg_1700-100bins-data.json
 ./fit_ws.py -f fastprof.root --asimov --setval mX=1700,mu=0 -y 0.1,0.5,1,1.5,2,2.5,3,3.5,4,4.5,5 -o hypos_high_mass_gg_1700.json
 python3 -i fastprof/examples/sampling_limits_simple.py
 
