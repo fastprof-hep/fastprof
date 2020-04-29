@@ -9,6 +9,7 @@ import ROOT
 import numpy as np
 import json
 import collections
+import array
 
 # TODO: add dataset info to JSON output
 
@@ -30,7 +31,7 @@ def convert_ws() :
   parser.add_argument("-e", "--epsilon",           default=1,         help="Scale factor applied to uncertainties for impact computations", type=str)
   parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
   parser.add_argument("-r", "--refit",         action="store_true",   help="Perform a fit to the dataset (specified by --data-name) before conversion")
-  parser.add_argument("-a", "--refit-asimov",  action="store_true",   help="Perform an Asimov fit before conversion")
+  parser.add_argument("-a", "--asimov",        action="store_true",   help="Perform an Asimov fit before conversion")
   parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
   parser.add_argument("-o", "--output-file",       default='',        help="Name of output file", type=str)
   parser.add_argument("-v", "--verbosity",         default=0,         help="Verbosity level", type=int)
@@ -43,13 +44,13 @@ def convert_ws() :
   try:
     binspec = options.binning.split(':')
     if len(binspec) == 4 and binspec[3] == 'log' : 
-      bins = np.logspace(float(binspec[0]), float(binspec[1]), int(binspec[2]))
+      bins = np.logspace(float(binspec[0]), float(binspec[1]), int(binspec[2]) + 1)
     else :
-      bins = np.linspace(float(binspec[0]), float(binspec[1]), int(binspec[2]))
+      bins = np.linspace(float(binspec[0]), float(binspec[1]), int(binspec[2]) + 1)
   except:
     raise ValueError('Invalid bin specification %s : the format should be xmin:xmax:bins[:log]' % options.binning)
   nbins = len(bins) - 1  
-  
+
   f = ROOT.TFile(options.ws_file)
   if not f or not f.IsOpen() :
     raise FileNotFoundError('Cannot open file %s' % options.ws_file)
@@ -75,13 +76,6 @@ def convert_ws() :
   except:
     ValueError('Could not locate observable')
 
-  data = None
-  if options.data_name != '' :
-    data = ws.data(options.data_name)
-    if data == None :
-      ds = [ d.GetName() for d in ws.allData() ]
-      raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
-
   if options.setval != '' :
     try:
       sets = [ v.replace(' ', '').split('=') for v in options.setval.split(',') ]
@@ -93,14 +87,25 @@ def convert_ws() :
     except:
       raise ValueError("ERROR : invalid variable assignment string '%s'." % options.setval)
 
-  if options.refit : 
+  data = None
+  if options.data_name != '' :
+    data = ws.data(options.data_name)
     if data == None :
-      raise ValueError('Need to specify a dataset name on which to perform the fit')
-    main_pdf.fitTo(data, ROOT.RooFit.Offset())
+      ds = [ d.GetName() for d in ws.allData() ]
+      raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+  if options.asimov :
+    data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
-  if options.refit_asimov : 
-    asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
-    main_pdf.fitTo(asimov, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
+  if options.data_name != '' :
+    data = ws.data(options.data_name)
+    if data == None :
+      ds = [ d.GetName() for d in ws.allData() ]
+      raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+
+  if options.refit :
+    if data == None :
+      raise ValueError('Should specify a dataset on which to perform the fit, using either the --data-name or --asimov argument.')
+    main_pdf.fitTo(data, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
 
   aux_alphas = []
   aux_betas  = []
@@ -223,7 +228,18 @@ def convert_ws() :
     od['impact'] = impacts[gamma].tolist()
     gamma_specs.append(od)
   jdict['gammas'] = gamma_specs
-  
+
+  if data :
+    bin_array = array.array('d', bins)
+    hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
+    data.fillHistogram(hist, ROOT.RooArgList(obs))
+    bin_counts = [ hist.GetBinContent(i+1) for i in range(0, nbins) ]
+    data_dict = collections.OrderedDict()
+    data_dict['bin_counts'] = bin_counts
+    data_dict['aux_alphas'] = [ aux_alpha.getVal() for aux_alpha in aux_alphas ]
+    data_dict['aux_betas' ] = [ aux_beta.getVal() for aux_beta in aux_betas ]
+    jdict['data'] = data_dict
+
   with open(options.output_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
   
