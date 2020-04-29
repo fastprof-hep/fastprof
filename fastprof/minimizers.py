@@ -2,6 +2,7 @@ import numpy as np
 import math
 from scipy.interpolate import InterpolatedUnivariateSpline
 import scipy.optimize
+from abc import abstractmethod
 
 from .core import Model, Parameters
 
@@ -80,16 +81,32 @@ class NPMinimizer :
     self.profile()
     return self.model.nll(self.min_pars, self.data)
   
-# -------------------------------------------------------------------------
-class ScanMinimizer :
-  def __init__(self, data, scan_mus) :
+  
+class POIMinimizer :
+  def __init__(self, data) : 
     self.model = data.model
     self.data = data
+
+  @abstractmethod
+  def minimize(self) :
+    pass  
+
+  def tmu(self, mu) :
+    nll_min, min_pos = self.minimize()
+    if nll_min == None : return None
+    nll_hypo = NPMinimizer(mu, self.data).profile_nll()
+    return 2*(nll_hypo - nll_min), min_pos
+
+# -------------------------------------------------------------------------
+class ScanMinimizer(POIMinimizer) :
+  def __init__(self, data, scan_mus) :
+    super().__init__(self, data)
     self.scan_mus = scan_mus
     self.pars = []
     for mu in scan_mus :
       self.pars.append(Parameters(mu, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)))
-  def minimize(self, debug = False) :
+
+  def minimize(self) :
     self.nlls = np.zeros(self.scan_mus.size)
     for i in range(0, len(self.scan_mus)) :
       np_min = NPMinimizer(self.scan_mus[i], self.data)
@@ -110,16 +127,15 @@ class ScanMinimizer :
     return self.nll_min, min_mu
 
 # -------------------------------------------------------------------------
-class OptiMinimizer :
+class OptiMinimizer(POIMinimizer) :
   def __init__(self, data, mu0 = 1, bounds = (0, 999999), method = 'scalar' ) :
-    self.model = data.model
-    self.data = data
+    super().__init__(self, data)
     self.np_min = None
     self.mu0 = mu0
     self.bounds = bounds
     self.method = method
    
-  def minimize(self, debug = False) :    
+  def minimize(self) :    
     def objective(mu) :
       if isinstance(mu, np.ndarray) : mu = mu[0]
       if isinstance(mu, np.ndarray) : mu = mu[0]
@@ -163,9 +179,3 @@ class OptiMinimizer :
     self.nll_min = result.fun
     self.min_mu = result.x
     return self.nll_min, self.min_mu
-
-  def tmu(self, mu) :
-    nll_min, min_pos = self.minimize()
-    if nll_min == None : return None
-    nll_hypo = NPMinimizer(mu, self.data).profile_nll()
-    return 2*(nll_hypo - nll_min), min_pos
