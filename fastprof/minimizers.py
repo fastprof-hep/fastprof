@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from scipy.interpolate import InterpolatedUnivariateSpline
+import scipy.optimize
 
 from .core import Model, Parameters
 
@@ -110,11 +111,11 @@ class ScanMinimizer :
 
 # -------------------------------------------------------------------------
 class OptiMinimizer :
-  def __init__(self, data, x0 = 1, bounds = (0.1, 20), method = 'scalar' ) :
+  def __init__(self, data, mu0 = 1, bounds = (0, 999999), method = 'scalar' ) :
     self.model = data.model
     self.data = data
     self.np_min = None
-    self.x0 = x0
+    self.mu0 = mu0
     self.bounds = bounds
     self.method = method
    
@@ -148,7 +149,7 @@ class OptiMinimizer :
     if self.method == 'scalar' :
       result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xatol': 1e-3 })
     else :
-      result = scipy.optimize.minimize(objective, x0=self.x0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, hessp=hess_p, options={'gtol': 1e-3, 'ftol':1e-3, 'xtol':1e-3 })
+      result = scipy.optimize.minimize(objective, x0=self.mu0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, hessp=hess_p, options={'gtol': 1e-3, 'ftol':1e-3, 'xtol':1e-3 })
       if not result.success:
         result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
     #print('Optimizer: done ----------------')
@@ -162,3 +163,9 @@ class OptiMinimizer :
     self.nll_min = result.fun
     self.min_mu = result.x
     return self.nll_min, self.min_mu
+
+  def tmu(self, mu) :
+    nll_min, min_pos = self.minimize()
+    if nll_min == None : return None
+    nll_hypo = NPMinimizer(mu, self.data).profile_nll()
+    return 2*(nll_hypo - nll_min), min_pos
