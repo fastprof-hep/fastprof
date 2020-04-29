@@ -109,4 +109,5 @@ class CLsSamples :
   def cl(self, acl, mu) :
     clsb = self.clsb.cl(acl, mu)
     cl_b = self.cl_b.cl(acl, mu)
+    #print('Sampling CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
     return clsb/cl_b
