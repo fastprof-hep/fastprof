@@ -30,10 +30,10 @@ class ScanSampler :
     return self.dist
 
 class OptiSampler :
-  def __init__(self, model, x0, bounds, method = 'scalar', do_CLb = False) :
+  def __init__(self, model, mu0, bounds, method = 'scalar', do_CLb = False) :
     self.model = model
     self.do_CLb = do_CLb
-    self.x0 = x0
+    self.mu0 = mu0
     self.bounds = bounds
     self.method = method
     
@@ -45,13 +45,12 @@ class OptiSampler :
       success = False
       while not success :
         data = self.model.generate_data(gen_hypo)
-        nll_min, min_pos = OptiMinimizer(data, self.x0, self.bounds, self.method).minimize()
-        if nll_min != None : 
+        tmu, min_pos = OptiMinimizer(data, self.mu0, self.bounds, self.method).tmu(mu)
+        if tmu != None :
           success = True
         else :
           print('Minimization failed at toy iteration %d, repeating it.' % k)
-      nll_hypo = NPMinimizer(mu, data).profile_nll()
-      q = QMu(2*(nll_hypo - nll_min), mu, min_pos)
+      q = QMu(tmu, mu, min_pos)
       self.dist.samples[k] = q.asymptotic_cl()
     return self.dist
 
