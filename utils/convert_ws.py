@@ -11,8 +11,6 @@ import json
 import collections
 import array
 
-# TODO: add dataset info to JSON output
-
 ####################################################################################################################################
 ###
 
@@ -21,21 +19,22 @@ def convert_ws() :
   
   parser = ArgumentParser("convert_ws.py")
   parser.description = __doc__
-  parser.add_argument("-f", "--ws-file",           default='',        help="Name of file containing the workspace", type=str)
-  parser.add_argument("-w", "--ws-name",           default='modelWS', help="Name workspace object inside the specified file", type=str)
-  parser.add_argument("-m", "--model-config-name", default='mconfig', help="Name of model config within the specified workspace", type=str)
-  parser.add_argument("-s", "--signal-pdf",        default='Signal',  help="Name of signal component PDF", type=str)
-  parser.add_argument("-n", "--signal-yield",      default='nSignal', help="Name of signal yield variable", type=str)
-  parser.add_argument("-b", "--binning",           default='',        help="Name of output file", type=str)
-  parser.add_argument("-p", "--nps",               default='',        help="List of constrained nuisance parameters", type=str)
-  parser.add_argument("-e", "--epsilon",           default=1,         help="Scale factor applied to uncertainties for impact computations", type=str)
-  parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
-  parser.add_argument("-r", "--refit",         action="store_true",   help="Perform a fit to the dataset (specified by --data-name) before conversion")
-  parser.add_argument("-a", "--asimov",        action="store_true",   help="Perform an Asimov fit before conversion")
-  parser.add_argument("-x", "--data-only",     action="store_true",   help="Only dump the specified dataset, not the model")
-  parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
-  parser.add_argument("-o", "--output-file",       default='',        help="Name of output file", type=str)
-  parser.add_argument("-v", "--verbosity",         default=0,         help="Verbosity level", type=int)
+  parser.add_argument("-f", "--ws-file",                 default='',        help="Name of file containing the workspace", type=str)
+  parser.add_argument("-w", "--ws-name",                 default='modelWS', help="Name workspace object inside the specified file", type=str)
+  parser.add_argument("-m", "--model-config-name",       default='mconfig', help="Name of model config within the specified workspace", type=str)
+  parser.add_argument("-s", "--signal-pdf",              default='Signal',  help="Name of signal component PDF", type=str)
+  parser.add_argument("-n", "--signal-yield",            default='nSignal', help="Name of signal yield variable", type=str)
+  parser.add_argument("-b", "--binning",                 default='',        help="Name of output file", type=str)
+  parser.add_argument("-p", "--nps",                     default='',        help="List of constrained nuisance parameters", type=str)
+  parser.add_argument("-e", "--epsilon",                 default=1,         help="Scale factor applied to uncertainties for impact computations", type=str)
+  parser.add_argument("-=", "--setval",                  default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
+  parser.add_argument("-r", "--refit",               action="store_true",   help="Perform a fit to the dataset (specified by --data-name) before conversion")
+  parser.add_argument("-u", "--refit-uncertainties", action="store_true",   help="Update uncertainties (but not central values) from a fit to the specified dataset")
+  parser.add_argument("-a", "--asimov",              action="store_true",   help="Perform an Asimov fit before conversion")
+  parser.add_argument("-x", "--data-only",           action="store_true",   help="Only dump the specified dataset, not the model")
+  parser.add_argument("-d", "--data-name",               default='',        help="Name of dataset object within the input workspace", type=str)
+  parser.add_argument("-o", "--output-file",             default='',        help="Name of output file", type=str)
+  parser.add_argument("-v", "--verbosity",               default=0,         help="Verbosity level", type=int)
   
   options = parser.parse_args()
   if not options : 
@@ -101,11 +100,22 @@ def convert_ws() :
   if options.data_only and not data :
     raise ValueError('Requested to dump only the data (--data-only) but not dataset was specified either using --data-name or --asimov')
 
-  if not options.data_only and options.refit :
-      if data == None :
-        raise ValueError('Should specify a dataset on which to perform the fit, using either the --data-name or --asimov argument.')
-      main_pdf.fitTo(data, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
-  
+
+  if not options.data_only and (options.refit or options.refit_uncertainties) :
+    if data == None :
+      raise ValueError('Should specify a dataset on which to perform the fit, using either the --data-name or --asimov argument.')
+    allVars = ROOT.RooArgList(ws.allVars())
+    if options.refit_uncertainties :
+      save_vals = {}
+      for i in range(0, allVars.getSize()) :
+        v = allVars.at(i)
+        if not v.isConstant() : save_vals[v.GetName()] = v.getVal()
+    main_pdf.fitTo(data, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
+    if options.refit_uncertainties :
+      for i in range(0, allVars.getSize()) :
+        v = allVars.at(i)
+        if not v.isConstant() : v.setVal(save_vals[v.GetName()])
+
   aux_alphas = []
   aux_betas  = []
   alphas = []
