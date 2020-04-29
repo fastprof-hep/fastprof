@@ -32,6 +32,7 @@ def convert_ws() :
   parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
   parser.add_argument("-r", "--refit",         action="store_true",   help="Perform a fit to the dataset (specified by --data-name) before conversion")
   parser.add_argument("-a", "--asimov",        action="store_true",   help="Perform an Asimov fit before conversion")
+  parser.add_argument("-x", "--data-only",     action="store_true",   help="Only dump the specified dataset, not the model")
   parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
   parser.add_argument("-o", "--output-file",       default='',        help="Name of output file", type=str)
   parser.add_argument("-v", "--verbosity",         default=0,         help="Verbosity level", type=int)
@@ -93,20 +94,18 @@ def convert_ws() :
     if data == None :
       ds = [ d.GetName() for d in ws.allData() ]
       raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+
   if options.asimov :
     data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
-  if options.data_name != '' :
-    data = ws.data(options.data_name)
-    if data == None :
-      ds = [ d.GetName() for d in ws.allData() ]
-      raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+  if options.data_only and not data :
+    raise ValueError('Requested to dump only the data (--data-only) but not dataset was specified either using --data-name or --asimov')
 
-  if options.refit :
-    if data == None :
-      raise ValueError('Should specify a dataset on which to perform the fit, using either the --data-name or --asimov argument.')
-    main_pdf.fitTo(data, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
-
+  if not options.data_only and options.refit :
+      if data == None :
+        raise ValueError('Should specify a dataset on which to perform the fit, using either the --data-name or --asimov argument.')
+      main_pdf.fitTo(data, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
+  
   aux_alphas = []
   aux_betas  = []
   alphas = []
@@ -116,14 +115,11 @@ def convert_ws() :
   aux_obs = ROOT.RooArgList(mconfig.GetGlobalObservables())
   nuis_pars = mconfig.GetNuisanceParameters()
   pdfs = main_pdf.pdfList()
-  print len(nuis_pars)
   try:
     for o in range(0, len(aux_obs)) :
       aux = aux_obs.at(o)
-      print aux
       for p in range(0, len(pdfs)) :
         pdf = pdfs.at(p)
-        print ' - ', pdf
         if len(pdf.getDependents(ROOT.RooArgSet(aux))) > 0 :
           matching_pars = pdf.getDependents(nuis_pars)
           if len(matching_pars) == 1 :
@@ -137,98 +133,100 @@ def convert_ws() :
               aux_betas.append(aux)
   except :
     ValueError('Could not identify nuisance parameters')
-  
-  np_list = ROOT.RooArgList(nuis_pars)
-  for p in range(0, len(np_list)) :
-    par = np_list.at(p)
-    if not par in alphas and not par in betas :
-      gammas.append(par)
+    
+  jdict = collections.OrderedDict()
 
-  impacts_s = np.ndarray((nbins, len(np_list)))
-  impacts_b = np.ndarray((nbins, len(np_list)))
-  nom_sig = np.zeros(nbins)
-  nom_bkg = np.zeros(nbins)
-  
-  for i in range(0, nbins) :
-    xmin = bins[i]
-    xmax = bins[i + 1]
-    obs.setRange('bin_%d' % (i+1), xmin, xmax)
-    totint = main_pdf.createIntegral(ROOT.RooArgSet(obs), ROOT.RooArgSet(obs), 'bin_%d' % (i+1))
-    sigint = signal_pdf.createIntegral(ROOT.RooArgSet(obs), ROOT.RooArgSet(obs), 'bin_%d' % (i+1))
-    ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
-    sig0 = nSignal.getVal()*sigint.getVal()
-    bkg0 = ntot*totint.getVal() - sig0
-    print('-- Nominal sig = %g' % sig0)
-    print('-- Nominal bkg = %g' % bkg0)
-    nom_sig[i] = sig0
-    nom_bkg[i] = bkg0
+  if not options.data_only :
+    np_list = ROOT.RooArgList(nuis_pars)
     for p in range(0, len(np_list)) :
       par = np_list.at(p)
-      par0 = par.getVal()
-      error = par.getError() if par.getError() > 0 else (par.getMax() - par0)/10
-      if i == 0 : print('Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.GetName(), error, par0, options.epsilon))
-      delta = error*options.epsilon
-      par.setVal(par0 + delta)
+      if not par in alphas and not par in betas :
+        gammas.append(par)
+  
+    impacts_s = np.ndarray((nbins, len(np_list)))
+    impacts_b = np.ndarray((nbins, len(np_list)))
+    nom_sig = np.zeros(nbins)
+    nom_bkg = np.zeros(nbins)
+    
+    for i in range(0, nbins) :
+      xmin = bins[i]
+      xmax = bins[i + 1]
+      obs.setRange('bin_%d' % (i+1), xmin, xmax)
+      totint = main_pdf.createIntegral(ROOT.RooArgSet(obs), ROOT.RooArgSet(obs), 'bin_%d' % (i+1))
+      sigint = signal_pdf.createIntegral(ROOT.RooArgSet(obs), ROOT.RooArgSet(obs), 'bin_%d' % (i+1))
       ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
-      sig_pos = nSignal.getVal()*sigint.getVal()
-      bkg_pos = ntot*totint.getVal() - sig_pos
-      impact_s_pos = (sig_pos/sig0 - 1)/options.epsilon if sig0 != 0 else 0
-      impact_b_pos = (bkg_pos/bkg0 - 1)/options.epsilon if bkg0 != 0 else 0
-      par.setVal(par0 - delta)
-      ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
-      sig_neg = nSignal.getVal()*sigint.getVal()
-      bkg_neg = ntot*totint.getVal() - sig_neg
-      impact_s_neg = (sig0/sig_neg - 1)/options.epsilon if sig_neg != 0 else 0
-      impact_b_neg = (bkg0/bkg_neg - 1)/options.epsilon if bkg_neg != 0 else 0
-      # take the minimal value in case the negative variation (on bin yields) would go below n=0
+      sig0 = nSignal.getVal()*sigint.getVal()
+      bkg0 = ntot*totint.getVal() - sig0
+      print('-- Nominal sig = %g' % sig0)
+      print('-- Nominal bkg = %g' % bkg0)
+      nom_sig[i] = sig0
+      nom_bkg[i] = bkg0
+      for p in range(0, len(np_list)) :
+        par = np_list.at(p)
+        par0 = par.getVal()
+        error = par.getError() if par.getError() > 0 else (par.getMax() - par0)/10
+        if i == 0 : print('Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.GetName(), error, par0, options.epsilon))
+        delta = error*options.epsilon
+        par.setVal(par0 + delta)
+        ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
+        sig_pos = nSignal.getVal()*sigint.getVal()
+        bkg_pos = ntot*totint.getVal() - sig_pos
+        impact_s_pos = (sig_pos/sig0 - 1)/options.epsilon if sig0 != 0 else 0
+        impact_b_pos = (bkg_pos/bkg0 - 1)/options.epsilon if bkg0 != 0 else 0
+        par.setVal(par0 - delta)
+        ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
+        sig_neg = nSignal.getVal()*sigint.getVal()
+        bkg_neg = ntot*totint.getVal() - sig_neg
+        impact_s_neg = (sig0/sig_neg - 1)/options.epsilon if sig_neg != 0 else 0
+        impact_b_neg = (bkg0/bkg_neg - 1)/options.epsilon if bkg_neg != 0 else 0
+        # take the minimal value in case the negative variation (on bin yields) would go below n=0
+        if par in alphas :
+          impacts_s[i,p] = impact_s_pos if abs(impact_s_pos) < abs(impact_s_neg) else impact_s_neg
+          print('-- parameter %-10s : +1 sigma sig impact = %g' % (par.GetName(), impact_s_pos))
+          print('-- parameter %-10s : -1 sigma sig impact = %g' % (''           , impact_s_neg))
+          print('-- parameter %-10s : selected sig impact = %g' % (''           , impacts_s[i,p]))
+        else :
+          impacts_b[i,p] = impact_b_pos if abs(impact_b_pos) < abs(impact_b_neg) else impact_b_neg
+          print('-- parameter %-10s : +1 sigma bkg impact = %g' % (par.GetName(), impact_b_pos))
+          print('-- parameter %-10s : -1 sigma bkg impact = %g' % (''           , impact_b_neg))
+          print('-- parameter %-10s : selected bkg impact = %g' % (''           , impacts_b[i,p]))
+        par.setVal(par0)
+    
+    impacts = {}
+    for p in range(0, len(np_list)) :
+      par = np_list.at(p)
       if par in alphas :
-        impacts_s[i,p] = impact_s_pos if abs(impact_s_pos) < abs(impact_s_neg) else impact_s_neg
-        print('-- parameter %-10s : +1 sigma sig impact = %g' % (par.GetName(), impact_s_pos))
-        print('-- parameter %-10s : -1 sigma sig impact = %g' % (''           , impact_s_neg))
-        print('-- parameter %-10s : selected sig impact = %g' % (''           , impacts_s[i,p]))
+        impacts[par] = impacts_s[:,p]
       else :
-        impacts_b[i,p] = impact_b_pos if abs(impact_b_pos) < abs(impact_b_neg) else impact_b_neg
-        print('-- parameter %-10s : +1 sigma bkg impact = %g' % (par.GetName(), impact_b_pos))
-        print('-- parameter %-10s : -1 sigma bkg impact = %g' % (''           , impact_b_neg))
-        print('-- parameter %-10s : selected bkg impact = %g' % (''           , impacts_b[i,p]))
-      par.setVal(par0)
+        impacts[par] = impacts_b[:,p]
+    
+    jdict['signal'] = nom_sig.tolist()
+    jdict['background'] = nom_bkg.tolist()
+    
+    alpha_specs = [ ]
+    for i, alpha in enumerate(alphas) :
+      od = collections.OrderedDict()
+      od['name'] = alpha.GetName()
+      od['impact'] = impacts[alpha].tolist()
+      alpha_specs.append(od)
+    jdict['alphas'] = alpha_specs
   
-  impacts = {}
-  for p in range(0, len(np_list)) :
-    par = np_list.at(p)
-    if par in alphas :
-      impacts[par] = impacts_s[:,p]
-    else :
-      impacts[par] = impacts_b[:,p]
+    beta_specs = []
+    for i, beta in enumerate(betas) :
+      od = collections.OrderedDict()
+      od['name'] = beta.GetName()
+      od['impact'] = impacts[beta].tolist()
+      beta_specs.append(od)
+    jdict['betas'] = beta_specs
   
-  jdict = collections.OrderedDict()
-  jdict['signal'] = nom_sig.tolist()
-  jdict['background'] = nom_bkg.tolist()
+    gamma_specs= []
+    for i, gamma in enumerate(gammas) :
+      od = collections.OrderedDict()
+      od['name'] = gamma.GetName()
+      od['impact'] = impacts[gamma].tolist()
+      gamma_specs.append(od)
+    jdict['gammas'] = gamma_specs
   
-  alpha_specs = [ ]
-  for i, alpha in enumerate(alphas) :
-    od = collections.OrderedDict()
-    od['name'] = alpha.GetName()
-    od['impact'] = impacts[alpha].tolist()
-    alpha_specs.append(od)
-  jdict['alphas'] = alpha_specs
-
-  beta_specs = []
-  for i, beta in enumerate(betas) :
-    od = collections.OrderedDict()
-    od['name'] = beta.GetName()
-    od['impact'] = impacts[beta].tolist()
-    beta_specs.append(od)
-  jdict['betas'] = beta_specs
-
-  gamma_specs= []
-  for i, gamma in enumerate(gammas) :
-    od = collections.OrderedDict()
-    od['name'] = gamma.GetName()
-    od['impact'] = impacts[gamma].tolist()
-    gamma_specs.append(od)
-  jdict['gammas'] = gamma_specs
-
   if data :
     bin_array = array.array('d', bins)
     hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
