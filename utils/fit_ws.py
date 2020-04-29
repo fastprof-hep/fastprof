@@ -13,7 +13,8 @@ import collections
 # TODO: 
 # - add fit options support
 # - other test statistics than q_mu
-# - Ass Asimov fit to better compute fit_err from qA
+# - Add Asimov fit to better compute fit_err from qA
+# - POI range
 
 ####################################################################################################################################
 ###
@@ -82,7 +83,9 @@ def fit_ws() :
     raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
 
   ws.saveSnapshot('init', nuis_pars)
-  jdict = []
+  poi_init_val = poi.getVal()
+  jdict = collections.OrderedDict()
+  fit_results = []
   
   nll = main_pdf.createNLL(data, ROOT.RooFit.SumW2Error(False))
   
@@ -100,21 +103,26 @@ def fit_ws() :
     hypo_dict['nll_free'] = nll.getVal()
     hypo_dict['fit_val'] = poi.getVal()
     hypo_dict['fit_err'] = poi.getError()
-    jdict.append(hypo_dict)
+    fit_results.append(hypo_dict)
 
-  nlls = np.array([ hd['nll_free'] for hd in jdict ])
+  nlls = np.array([ result['nll_free'] for result in fit_results ])
   nll_best = np.amin(nlls)
-  best_fit_val = jdict[np.argmin(nlls)]['fit_val']
-  best_fit_err = jdict[np.argmin(nlls)]['fit_err']
-  for hd in jdict :
-    hd['nll_best'] = nll_best
-    hd['best_fit_val'] = best_fit_val
-    hd['best_fit_err'] = best_fit_err
-    hd['qmu'] = 2*(hd['nll_hypo'] - nll_best) if best_fit_val < hd[poi.GetName()] else 0 # q_mu case only
+  best_fit_val = fit_results[np.argmin(nlls)]['fit_val']
+  best_fit_err = fit_results[np.argmin(nlls)]['fit_err']
+  for result in fit_results :
+    result['nll_best'] = nll_best
+    result['best_fit_val'] = best_fit_val
+    result['best_fit_err'] = best_fit_err
+    result['qmu'] = 2*(result['nll_hypo'] - nll_best) if best_fit_val < result[poi.GetName()] else 0 # q_mu case only
   
+  jdict['POI_name'] = poi.GetName()
+  jdict['POI_initial_value'] = poi_init_val
+  jdict['POI_range'] = poi.getMin(), poi.getMax()
+  jdict['test_statistic'] = 'qmu'
+  jdict['fit_results'] = fit_results
   with open(options.output_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
-  
+
   return 0
 
 fit_ws()
