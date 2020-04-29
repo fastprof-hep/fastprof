@@ -62,7 +62,7 @@ class Model :
 
   def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
 
-  def nll(self, pars, data) :
+  def nll_naive(self, pars, data) :
     nexp = self.n_exp(pars)
     da = data.aux_alphas - pars.alphas
     db = data.aux_betas  - pars.betas
@@ -80,6 +80,17 @@ class Model :
           print(data)
           return np.Infinity
     return poisson + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
+
+  def nll(self, pars, data) :
+    nexp = self.n_exp(pars)
+    da = data.aux_alphas - pars.alphas
+    db = data.aux_betas  - pars.betas
+    try :
+      return np.sum(nexp - data.n*np.log(nexp)) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
+    except Exception as inst:
+      print('Fast NLL computation failed with the following exception, switching to slower-but-safer method')
+      print(inst)
+      return self.nll_naive(pars, data)
 
   #def derivatives(self, pars) :
     #der_a = np.zeros(self.n_alpha())

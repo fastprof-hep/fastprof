@@ -13,7 +13,7 @@ class NPMinimizer :
     self.mu = mu
     self.data = data
     
-  def pq(self) :
+  def pq_naive(self) :
     na = self.model.na
     nb = self.model.nb
     nc = self.model.nc
@@ -52,22 +52,28 @@ class NPMinimizer :
     for ia in range(0, na) : p[ia     ,      ia] += 1
     for ib in range(0, nb) : p[na + ib, na + ib] += 1
     return p, q
-# Same as above, more readable, but slower... [needs migration to include gammas!]
-#def pq(self) :
-  #snom = self.model.s_exp(self.model.aux_alpha)
-  #nnom = snom + self.model.b_exp(self.model.aux_beta)
-  #r1 = 1 - self.model.n/nnom
-  #r2 = self.model.n/nnom/nnom
-  #r3 = 1 - self.model.n/nnom*(1 - snom/nnom)
-  #qA = np.einsum('i,i,ij->j', snom, r1, self.model.a)
-  #qB = np.einsum('i,i,ij->j', self.model.bkg, r1, self.model.b)
-  #pAA = np.einsum('i,i,ij,ik->jk', snom, r3, self.model.a, self.model.a) + np.identity(na)
-  #pAB = np.einsum('i,i,i,ij,ik->jk', snom, self.model.bkg, r2, self.model.a, self.model.b)
-  #pBB = np.einsum('i,i,i,ij,ik->jk', self.model.bkg,self.model.bkg,r2, self.model.b, self.model.b) + np.identity(self.model.n_beta())
-  #return np.block([[pAA, pAB], [np.transpose(pAB), pBB]]), np.block([qA, qB])
 
+# Same as above, more readable, but slower... [needs migration to include gammas!]
+  def pq_einsum(self) :
+    pars_nom = Parameters(self.mu, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc))
+    snom = self.model.s_exp(pars_nom)
+    nnom = snom + self.model.b_exp(pars_nom)
+    r1 = 1 - self.data.n/nnom
+    r2 = self.data.n/nnom/nnom
+    r3 = 1 - self.data.n/nnom*(1 - snom/nnom)
+    qA = np.einsum('i,i,ij->j', snom, r1, self.model.a)
+    qB = np.einsum('i,i,ij->j', self.model.bkg, r1, self.model.b)
+    qC = np.einsum('i,i,ij->j', self.model.bkg, r1, self.model.c)
+    pAA = np.einsum('i,i,ij,ik->jk', snom, r3, self.model.a, self.model.a) + np.identity(self.model.na)
+    pAB = np.einsum('i,i,i,ij,ik->jk', snom, self.model.bkg, r2, self.model.a, self.model.b)
+    pAC = np.einsum('i,i,i,ij,ik->jk', snom, self.model.bkg, r2, self.model.a, self.model.c)
+    pBB = np.einsum('i,i,i,ij,ik->jk', self.model.bkg,self.model.bkg,r2, self.model.b, self.model.b) + np.identity(self.model.nb)
+    pBC = np.einsum('i,i,i,ij,ik->jk', self.model.bkg,self.model.bkg,r2, self.model.b, self.model.c)
+    pCC = np.einsum('i,i,i,ij,ik->jk', self.model.bkg,self.model.bkg,r2, self.model.c, self.model.c)
+    return np.block([[pAA, pAB, pAC], [np.transpose(pAB), pBB, pBC], [np.transpose(pAC), np.transpose(pBC), pCC]]), np.block([qA, qB, qC])
+  
   def profile(self) :
-    p, q = self.pq()
+    p, q = self.pq_einsum() # can switch to pq_naive for tests
     if np.linalg.det(p) < 1E-8 :
       print('Linear system has an ill-conditioned coefficient matrix, returning null result')
       nps =  self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
