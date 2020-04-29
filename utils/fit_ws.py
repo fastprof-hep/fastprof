@@ -32,6 +32,8 @@ def fit_ws() :
   parser.add_argument("-y", "--hypos",             default='',        help="Comma-separated list of POI hypothesis values", type=str)
   parser.add_argument(      "--fit-options",       default='',        help="RooFit fit options to use", type=str)
   parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
+  parser.add_argument("-i", "--poi-initial-value", default=None,      help="POI allowed range, in the form min,max", type=int)
+  parser.add_argument("-r", "--poi-range",         default='',        help="POI allowed range, in the form min,max", type=str)
   parser.add_argument("-o", "--output-file",       default='',        help="Name of output file", type=str)
   parser.add_argument("-v", "--verbosity",         default=0,         help="Verbosity level", type=int)
   
@@ -66,6 +68,17 @@ def fit_ws() :
         print "INFO : setting %s=%g" % (var, float(val))
     except:
       raise ValueError("ERROR : invalid variable assignment string '%s'." % options.setval)
+
+  if options.poi_initial_value != None :
+    poi.setVal(options.poi_initial_value)
+    
+  if options.poi_range != '' :
+    try:
+      poi_min, poi_max = [ float(p) for p in options.poi_range.split(',') ]
+    except :
+      raise ValueError('Invalid POI range specification %s, expected poi_min,poi_max' % options.poi_range)
+    if poi_min > poi_max : poi_min, poi_max = poi_max, poi_min
+    poi.setRange(poi_min, poi_max)
 
   if options.data_name != '' :
     data = ws.data(options.data_name)
