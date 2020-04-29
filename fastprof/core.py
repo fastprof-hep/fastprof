@@ -112,15 +112,20 @@ class Model :
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
 
-  def plot(self, pars, data = None, bkg_only = True, variations=[]) :
+  def plot(self, pars, data = None, bkg_only = True, variations=[], residuals = False) :
     #print(np.linspace(0,self.sig.size - 1,self.sig.size))
     #print(self.b_exp(pars))
     grid = np.linspace(0,self.nbins, self.nbins)
-    if bkg_only : plt.hist(grid, weights=self.n_exp(pars), bins=grid, histtype='step',color='b', label='Model')
-    plt.hist(grid, weights=self.b_exp(pars), bins=grid, histtype='step',color='b', linestyle='--', label='bkg-only')
+    nex = self.n_exp(pars)
+    if bkg_only :
+      yvals = self.b_exp(pars) if not residuals else -self.s_exp(pars)
+      plt.hist(grid, weights=yvals, bins=grid, histtype='step',color='b', linestyle='--', label='bkg-only')
+    yvals = nex if not residuals else np.zeros(self.nbins)
+    plt.hist(grid, weights=yvals, bins=grid, histtype='step',color='b', label='Model')
     if data : 
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.n ]
-      plt.errorbar(grid + 0.5, data.n, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
+      yvals = [ data.n[i] if not residuals else data.n[i] - nex[i] for i in range(0, self.nbins) ]
+      plt.errorbar(grid + 0.5, yvals, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
     plt.xlim(0, self.nbins)
     for v in variations :
       vpars = copy.deepcopy(pars)
@@ -256,7 +261,7 @@ class Data :
       self.aux_alphas = aux_alphas
     else :
       self.aux_alphas = np.zeros(self.model.a.shape[1])
-    
+
     if aux_betas.size > 0 :
       if aux_betas.size != self.model.b.shape[1] :
         raise ValueError('Input data "aux_beta" should have the same size as the "betas" of the model (%d), got %s.' % (self.model.nb, str(aux_betas)))
@@ -288,6 +293,37 @@ class Data :
     self.set_data(self.model.n_exp(pars), pars.alphas, pars.betas)
     return self
   
+  def load(self, filename) :
+    with open(filename, 'r') as fd :
+      jdict = json.load(fd)
+      return self.load_jdict(jdict)
+
+  def save(self, filename) :
+    with open(filename, 'w') as fd :
+      jdict = self.dump_jdict()
+      return json.dump(jdict, fd, ensure_ascii=True, indent=3)
+
+  def load_json(self, js) :
+    jdict = json.loads(js)
+    return self.load_jdict(jdict)
+
+  def dump_json(self) :
+    jdict = self.dump_jdict()
+    return json.dumps(jdict)
+
+  def load_jdict(self, jdict) :
+    self.n          = np.array(jdict['data']['bin_counts'])
+    self.aux_alphas = np.array(jdict['data']['aux_alphas'])
+    self.aux_betas  = np.array(jdict['data']['aux_betas'])
+    return self
+
+  def dump_jdict(self) :
+    jdict = {}
+    jdict['data']['bin_counts'] = self.n.tolist()
+    jdict['data']['aux_alphas'] = self.aux_alphas.tolist()
+    jdict['data']['aux_betas' ] = self.aux_betas .tolist()
+    return jdict
+
   def set_from_pyhf_data(self, pyhf_data, pyhf_model) : # TODO : actual implementation instead of this hack
     self.set_data(pyhf_data[:-2], pyhf_data[3:4], pyhf_data[2:3])
     return self
@@ -301,4 +337,3 @@ class Data :
     s += 'aux_a = ' + str(self.aux_alphas) + '\n'
     s += 'aux_b = ' + str(self.aux_betas)  + '\n'
     return s
-
