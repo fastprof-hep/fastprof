@@ -19,12 +19,12 @@ def convert_ws() :
   
   parser = ArgumentParser("convert_ws.py")
   parser.description = __doc__
-  parser.add_argument("-f", "--ws-file",                 default='',        help="Name of file containing the workspace", type=str)
+  parser.add_argument("-f", "--ws-file",                 required=True,     help="Name of file containing the workspace", type=str)
   parser.add_argument("-w", "--ws-name",                 default='modelWS', help="Name workspace object inside the specified file", type=str)
   parser.add_argument("-m", "--model-config-name",       default='mconfig', help="Name of model config within the specified workspace", type=str)
   parser.add_argument("-s", "--signal-pdf",              default='Signal',  help="Name of signal component PDF", type=str)
   parser.add_argument("-n", "--signal-yield",            default='nSignal', help="Name of signal yield variable", type=str)
-  parser.add_argument("-b", "--binning",                 default='',        help="Name of output file", type=str)
+  parser.add_argument("-b", "--binning",                 required=True,     help="Name of output file", type=str)
   parser.add_argument("-p", "--nps",                     default='',        help="List of constrained nuisance parameters", type=str)
   parser.add_argument("-e", "--epsilon",                 default=1,         help="Scale factor applied to uncertainties for impact computations", type=str)
   parser.add_argument("-=", "--setval",                  default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
@@ -33,7 +33,7 @@ def convert_ws() :
   parser.add_argument("-a", "--asimov",              action="store_true",   help="Perform an Asimov fit before conversion")
   parser.add_argument("-x", "--data-only",           action="store_true",   help="Only dump the specified dataset, not the model")
   parser.add_argument("-d", "--data-name",               default='',        help="Name of dataset object within the input workspace", type=str)
-  parser.add_argument("-o", "--output-file",             default='',        help="Name of output file", type=str)
+  parser.add_argument("-o", "--output-file",             required=True,     help="Name of output file", type=str)
   parser.add_argument("-v", "--verbosity",               default=0,         help="Verbosity level", type=int)
   
   options = parser.parse_args()

@@ -24,7 +24,7 @@ def fit_ws() :
   
   parser = ArgumentParser("convert_ws.py")
   parser.description = __doc__
-  parser.add_argument("-f", "--ws-file",           default='',        help="Name of file containing the workspace", type=str)
+  parser.add_argument("-f", "--ws-file",           required=True,     help="Name of file containing the workspace", type=str)
   parser.add_argument("-w", "--ws-name",           default='modelWS', help="Name workspace object inside the specified file", type=str)
   parser.add_argument("-m", "--model-config-name", default='mconfig', help="Name of model config within the specified workspace", type=str)
   parser.add_argument("-d", "--data-name",         default='',        help="Name of dataset object within the input workspace", type=str)
@@ -34,7 +34,7 @@ def fit_ws() :
   parser.add_argument("-=", "--setval",            default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
   parser.add_argument("-i", "--poi-initial-value", default=None,      help="POI allowed range, in the form min,max", type=int)
   parser.add_argument("-r", "--poi-range",         default='',        help="POI allowed range, in the form min,max", type=str)
-  parser.add_argument("-o", "--output-file",       default='',        help="Name of output file", type=str)
+  parser.add_argument("-o", "--output-file",       required=True,     help="Name of output file", type=str)
   parser.add_argument("-v", "--verbosity",         default=0,         help="Verbosity level", type=int)
   
   options = parser.parse_args()
