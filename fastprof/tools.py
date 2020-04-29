@@ -1,4 +1,7 @@
 import json
+import math
+import scipy
+import numpy as np
 
 from .core import Model, Data
 from .minimizers import OptiMinimizer
@@ -34,7 +37,7 @@ class FitResults :
     self.poi_min, self.poi_max = jdict['POI_range']
     self.fit_results           = jdict['fit_results']
     self.test_statistic        = jdict['test_statistic']
-    self.hypos= [ fit_result[self.poi_name] for fit_result in self.fit_results ]
+    self.hypos= np.array([ fit_result[self.poi_name] for fit_result in self.fit_results ])
     return self
 
   def dump_jdict(self) :
@@ -63,3 +66,17 @@ class FitResults :
       q = QMu(tmu, fit_result[self.poi_name], min_mu)
       print('%s = %4g : Asymptotic reference CL = %6.4f , fast CL = %6.4f.' % (self.poi_name, fit_result[self.poi_name], fit_result['cl'], q.asymptotic_cl()))
       if verbose: print('     (tmu = %g, min_mu = %g)' % (tmu, min_mu))
+      
+  def solve(self, result_key, target = 0.05, order = 3, log_scale = True) :
+    if log_scale :
+      values = np.array([ math.log(result[result_key]/target) if result[result_key] > 0 else -999 for result in self.fit_results ])
+    else :
+      values = [ result_key - target for result in self.fit_results ]
+    finder = scipy.interpolate.InterpolatedUnivariateSpline(self.hypos, values, k=order)
+    roots = finder.roots() 
+    if len(roots) == 0 :
+      print('No solution found for fit_results[%s] = %g' % (result_key, target))
+      return None
+    if len(roots) > 1 :
+      print('Multiple solutions found for fit_results[%s] = %g, returning the first one' % (result_key, target))
+    return roots[0]
