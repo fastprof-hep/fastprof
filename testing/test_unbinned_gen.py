@@ -9,3 +9,4 @@ print('Will generate the following hypothesis: ', gen_mu)
 
 np.random.seed(131071)
 dist = OptiSampler(model, mu0=1, bounds=(0,20), method='scalar').generate(gen_mu, 2000)
+dist.save('test')
