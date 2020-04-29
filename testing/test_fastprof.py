@@ -1,4 +1,4 @@
-from fastprof import Model, Data, NPMinimizer
+from fastprof import Model, Data, NPMinimizer, OptiMinimizer
 import numpy as np
 
 mu = 3.7
