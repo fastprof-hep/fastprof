@@ -1,5 +1,4 @@
 import numpy as np
-import sampling
 import matplotlib.pyplot as plt
 from fastprof import Model, ScanSampler, OptiSampler
 
@@ -17,7 +16,7 @@ print('Will scan over the following hypotheses: ', scan_mus)
 
 np.random.seed(131071)
 #dist = ScanSampler(model, scan_mus).generate(gen_mu, 10000)
-dist = OptiSampler(model, x0=1, bounds=(0.1,20), method='scalar').generate(gen_mu, 10000)
+dist = OptiSampler(model, mu0=1, bounds=(0,20), method='scalar').generate(gen_mu, 10000)
 dist.sort()
 
 plt.ion()
