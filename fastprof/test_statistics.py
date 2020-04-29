@@ -9,10 +9,10 @@ class TestStatistic :
   def __float__(self) :
     return value()
   @abstractmethod
-  def value() :
+  def value(self) :
     pass  
   @abstractmethod
-  def asymptotic_cl() :
+  def asymptotic_cl(self) :
     pass
     
 
@@ -35,7 +35,7 @@ class QMu(TestStatistic) :
     return scipy.stats.norm.sf(math.sqrt(self.value)) if (self.value != None and self.value > 0) else 0.5
   def asymptotic_cls(self, sigma) :
     clsb = self.asymptotic_cl()
-    clb = scipy.stats.norm.sf(math.sqrt(self.value) - self.test_mu/sigma) if (self.value != None and self.value > 0) else 0.5
-    #print('CLs = %g/%g = %g' % (clsb, clb, clsb/clb))
-    return clsb/clb
+    cl_b = scipy.stats.norm.sf(math.sqrt(self.value) - self.test_mu/sigma) if (self.value != None and self.value > 0) else 0.5
+    #print('Asymptotic CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
+    return clsb/cl_b
 
