@@ -8,15 +8,24 @@ import math
 import scipy
 
 # Define the models
-model_filename = 'run/high_mass_gg_1300-100bins.json'
-data_filename = model_filename
+#model_filename = 'run/high_mass_gg_1300-100bins.json'
+#data_filename = 'run/high_mass_gg_1300-100bins-data.json'
+#hypos_filename = 'run/hypos_high_mass_gg_1300.json'
+#poi = 'mu'
+#poi_init = 1
+#poi_min = -3
+#poi_max = 20
+#output_filename = 'samples/high_mass_gg_1300-100bins'
+#ntoys = 10000
 
-hypos_filename = 'run/hypos_high_mass_gg_1300.json'
+model_filename = 'run/high_mass_gg_1700-100bins.json'
+data_filename = 'run/high_mass_gg_1700-100bins-data.json'
+hypos_filename = 'run/hypos_high_mass_gg_1700.json'
 poi = 'mu'
 poi_init = 1
-poi_min = -3
+poi_min = 0
 poi_max = 20
-output_filename = 'samples/high_mass_gg_1300-100bins'
+output_filename = 'samples/high_mass_gg_1700-100bins'
 ntoys = 10000
 
 with open(hypos_filename, 'r') as fd :
@@ -24,7 +33,7 @@ with open(hypos_filename, 'r') as fd :
 
 hypo_mus = [ hd[poi] for hd in hypo_dicts ]
 
-print(fast_model)
+fast_model = Model.create(model_filename)
 
 np.random.seed(131071)
 opti_samples = CLsSamples(
@@ -41,11 +50,10 @@ for hd in hypo_dicts :
 
 # Check the fastprof CLs against the ones in the reference: in principle this should match well,
 # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
-fast_model = Model.create(model_filename)
 fast_data = Data(fast_model).load(data_filename)
 
 for hd in hypo_dicts :
-  tmu, min_mu = OptiMinimizer(fast_data, hd[poi], (-5, 20)).tmu(hd[poi])
+  tmu, min_mu = OptiMinimizer(fast_data, hd[poi], (-3, 20)).tmu(hd[poi])
   q = QMu(tmu, hd[poi], min_mu)
   print('mu = %g : observed asymptotic reference CL = %6.4f , fast CL = %6.4f (a large difference would require to correc the sampling distributions)' % (hd[poi], hd['cl'], q.asymptotic_cl()))
 
