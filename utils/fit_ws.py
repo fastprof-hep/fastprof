@@ -80,13 +80,16 @@ def fit_ws() :
     if poi_min > poi_max : poi_min, poi_max = poi_max, poi_min
     poi.setRange(poi_min, poi_max)
 
+  # Asimov dataset -- used later for qA computation
+  asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+
   if options.data_name != '' :
     data = ws.data(options.data_name)
     if data == None :
       ds = [ d.GetName() for d in ws.allData() ]
       raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
   elif options.asimov :
-    data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+    data = asimov
   else :
     raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
 
@@ -101,25 +104,43 @@ def fit_ws() :
   fit_results = []
   
   nll = main_pdf.createNLL(data, ROOT.RooFit.SumW2Error(False))
-  
+  asimov_nll = main_pdf.createNLL(asimov, ROOT.RooFit.SumW2Error(False))
+
   for hypo in hypos :
+    # Set the hypothesis
     ws.loadSnapshot('init')
     poi.setVal(hypo)
-    hypo_dict = collections.OrderedDict()
-    hypo_dict[poi.GetName()] = hypo
+    result = collections.OrderedDict()
+    result[poi.GetName()] = hypo
+    # Fixed-mu fit
     poi.setConstant(True)
     result_hypo = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
-    hypo_dict['nll_hypo'] = nll.getVal()
+    result['nll_hypo'] = nll.getVal()
+    # Free-mu fit
     poi.setConstant(False)
     result_free = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
     result_free.floatParsFinal().Print("V")
-    hypo_dict['nll_free'] = nll.getVal()
-    hypo_dict['fit_val'] = poi.getVal()
-    hypo_dict['fit_err'] = poi.getError()
-    fit_results.append(hypo_dict)
+    result['nll_free'] = nll.getVal()
+    result['fit_val'] = poi.getVal()
+    result['fit_err'] = poi.getError()
+    # Repeat for Asimov
+    ws.loadSnapshot('init')
+    poi.setVal(hypo)
+    poi.setConstant(True)
+    result_asimov_hypo = main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    result['asimov_nll_hypo'] = asimov_nll.getVal()
+    # Free-mu fit
+    poi.setConstant(False)
+    result_asimov_free = main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    result['asimov_nll_free'] = asimov_nll.getVal()
+    result_asimov_free.floatParsFinal().Print("V")
+    # Store results
+    fit_results.append(result)
 
   nlls = np.array([ result['nll_free'] for result in fit_results ])
   nll_best = np.amin(nlls)
+  asimov_nlls = np.array([ result['asimov_nll_free'] for result in fit_results ])
+  asimov_nll_best = np.amin(asimov_nlls)
   best_fit_val = fit_results[np.argmin(nlls)]['fit_val']
   best_fit_err = fit_results[np.argmin(nlls)]['fit_err']
   for result in fit_results :
@@ -127,6 +148,8 @@ def fit_ws() :
     result['best_fit_val'] = best_fit_val
     result['best_fit_err'] = best_fit_err
     result['qmu'] = 2*(result['nll_hypo'] - nll_best) if best_fit_val < result[poi.GetName()] else 0 # q_mu case only
+    result['asimov_nll_best'] = asimov_nll_best
+    result['qmu_A'] = 2*(result['asimov_nll_hypo'] - asimov_nll_best)
   
   jdict['POI_name'] = poi.GetName()
   jdict['POI_initial_value'] = poi_init_val
