@@ -56,7 +56,7 @@ class FitResults :
           fit_result['cl'] = QMu(fit_result['qmu'], fit_result[self.poi_name], fit_result['best_fit_val']).asymptotic_cl()
       if not 'cls' in fit_result :
         if self.test_statistic == 'qmu' :
-          fit_result['cls'] = QMu(fit_result['qmu'], fit_result[self.poi_name], fit_result['best_fit_val']).asymptotic_cls(fit_result['best_fit_err'])
+          fit_result['cls'] = QMu(fit_result['qmu'], fit_result[self.poi_name], fit_result['best_fit_val']).asymptotic_cls(qA=fit_result['qmu_A'])
     return self
   
   def check(self, data, verbose = False) :

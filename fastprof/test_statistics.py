@@ -33,9 +33,15 @@ class QMu(TestStatistic) :
     return self.value
   def asymptotic_cl(self) :
     return scipy.stats.norm.sf(math.sqrt(self.value)) if (self.value != None and self.value > 0) else 0.5
-  def asymptotic_cls(self, sigma) :
+  def asymptotic_cls(self, qA = None, sigma = None) :
+    if qA != None :
+      offset = math.sqrt(qA)
+    elif sigma != None :
+      offset = self.test_mu/sigma
+    else :
+      raise ValueError('Should supply either qA or sigma for the asymptotic CL_s computation')
     clsb = self.asymptotic_cl()
-    cl_b = scipy.stats.norm.sf(math.sqrt(self.value) - self.test_mu/sigma) if (self.value != None and self.value > 0) else 0.5
+    cl_b = scipy.stats.norm.sf(math.sqrt(self.value) - offset) if (self.value != None and self.value > 0) else 0.5
     #print('Asymptotic CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
     return clsb/cl_b
 
