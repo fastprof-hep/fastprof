@@ -44,7 +44,7 @@ def convert_ws() :
   try:
     binspec = options.binning.split(':')
     if len(binspec) == 4 and binspec[3] == 'log' : 
-      bins = np.logspace(float(binspec[0]), float(binspec[1]), int(binspec[2]) + 1)
+      bins = np.logspace(1, math.log(float(binspec[1]))/math.log(float(binspec[0])), int(binspec[2]) + 1, True, float(binspec[0]))
     else :
       bins = np.linspace(float(binspec[0]), float(binspec[1]), int(binspec[2]) + 1)
   except:
