@@ -26,19 +26,19 @@ print('Will scan over the following hypotheses: ', scan_mus)
 # Generate the samples, if needed
 
 np.random.seed(131071)
-Samples(DebuggingScanSampler(fast_model, scan_mus, pyhf_model), 'samples/fast_debug_test1').generate_and_save(gen_mus, 200, sort_before_saving=False)
+Samples(gen_mus, DebuggingScanSampler(fast_model, scan_mus, pyhf_model), 'samples/fast_debug_test1').generate_and_save(200, sort_before_saving=False)
 
 fast_samples = CLsSamples(
-  Samples(ScanSampler(fast_model, scan_mus)               , 'samples/fast_test1'),
-  Samples(ScanSampler(fast_model, scan_mus, do_CLb = True), 'samples/fast_test1_clb')).generate_and_save(gen_mus, 20000)
+  Samples(gen_mus, ScanSampler(fast_model, scan_mus)          , 'samples/fast_test1'),
+  Samples(gen_mus, ScanSampler(fast_model, scan_mus, gen_mu=0), 'samples/fast_test1_clb')).generate_and_save(20000)
 
 opti_samples = CLsSamples(
-  Samples(OptiSampler(fast_model, x0 = 1, bounds=(0, 20))               , 'samples/opti_test1'),
-  Samples(OptiSampler(fast_model, x0 = 1, bounds=(0, 20), do_CLb = True), 'samples/opti_test1_clb')).generate_and_save(gen_mus, 20000)
+  Samples(gen_mus, OptiSampler(fast_model, x0 = 1, bounds=(0, 20))          , 'samples/opti_test1'),
+  Samples(gen_mus, OptiSampler(fast_model, x0 = 1, bounds=(0, 20), gen_mu=0), 'samples/opti_test1_clb')).generate_and_save(20000)
 
 pyhf_samples = CLsSamples(
-  Samples(PyhfSampler(pyhf_model, 2, 2)               , 'samples/pyhf_test1'),
-  Samples(PyhfSampler(pyhf_model, 2, 2, do_CLb = True), 'samples/pyhf_test1_clb')).generate_and_save(gen_mus, 20000)
+  Samples(gen_mus, PyhfSampler(pyhf_model, 2, 2)          , 'samples/pyhf_test1'),
+  Samples(gen_mus, PyhfSampler(pyhf_model, 2, 2, gen_mu=0), 'samples/pyhf_test1_clb')).generate_and_save(20000)
 
 # Compute 
 
@@ -52,13 +52,13 @@ def pyhf_cls(mu, data, model) :
 pyhf_data = np.array( [0, 10, 0, 0 ] ) # nobs = 0 case
 
 asym_clsb = [ pyhf_clsb(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
-fast_clsb = [ fast_samples.clsb.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
-opti_clsb = [ opti_samples.clsb.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
-samp_clsb = [ pyhf_samples.clsb.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
+fast_clsb = [ fast_samples.clsb.cl(mu, acl) for mu, acl in zip(gen_mus, asym_clsb) ]
+opti_clsb = [ opti_samples.clsb.cl(mu, acl) for mu, acl in zip(gen_mus, asym_clsb) ]
+samp_clsb = [ pyhf_samples.clsb.cl(mu, acl) for mu, acl in zip(gen_mus, asym_clsb) ]
 asym_cl_s = [ pyhf_cls(mu, pyhf_data, pyhf_model) for mu in gen_mus ]
-fast_cl_s = [ fast_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
-opti_cl_s = [ opti_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
-samp_cl_s = [ pyhf_samples.cl(acl, mu) for mu, acl in zip(gen_mus, asym_clsb) ]
+fast_cl_s = [ fast_samples.cl(mu, acl) for mu, acl in zip(gen_mus, asym_clsb) ]
+opti_cl_s = [ opti_samples.cl(mu, acl) for mu, acl in zip(gen_mus, asym_clsb) ]
+samp_cl_s = [ pyhf_samples.cl(mu, acl) for mu, acl in zip(gen_mus, asym_clsb) ]
 
 # Plot
 
