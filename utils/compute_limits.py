@@ -24,6 +24,7 @@ def compute_limits() :
   parser.add_argument("-n", "--ntoys",          default=10000,   help="Name of output file", type=int)
   parser.add_argument("-s", "--seed",           default='0',     help="Name of output file", type=int)
   parser.add_argument("-o", "--output-file",    required=True,   help="Name of output file", type=str)
+  parser.add_argument("-%", "--print-freq",     default=1000,    help="Verbosity level", type=int)
   parser.add_argument("-v", "--verbosity",      default=0,       help="Verbosity level", type=int)
 
   options = parser.parse_args()
@@ -40,13 +41,14 @@ def compute_limits() :
   if options.seed != None : np.random.seed(options.seed)
 
   opti_samples = CLsSamples(
-    Samples(OptiSampler(model, mu0=fr.poi_initial_value, bounds=(fr.poi_min, fr.poi_max))               , options.output_file),
-    Samples(OptiSampler(model, mu0=fr.poi_initial_value, bounds=(fr.poi_min, fr.poi_max), do_CLb = True), options.output_file + '_clb')).generate_and_save(fr.hypos, options.ntoys)
+    Samples(fr.hypos, OptiSampler(model, mu0=fr.poi_initial_value, bounds=(fr.poi_min, fr.poi_max), print_freq=options.print_freq)          , options.output_file),
+    Samples(fr.hypos, OptiSampler(model, mu0=fr.poi_initial_value, bounds=(fr.poi_min, fr.poi_max), print_freq=options.print_freq, gen_mu=0), options.output_file + '_clb')) \
+    .generate_and_save(options.ntoys)
 
   full_results.fill() # fill asymptotic results
   for fit_result in fit_results :
-    fit_result['sampling_cl' ] = opti_samples.clsb.cl(fit_result['cl'], fit_result[fr.poi_name])
-    fit_result['sampling_cls'] = opti_samples.cl     (fit_result['cl'], fit_result[fr.poi_name])
+    fit_result['sampling_cl' ] = opti_samples.clsb.cl(fit_result[fr.poi_name], fit_result['cl'])
+    fit_result['sampling_cls'] = opti_samples.cl     (fit_result[fr.poi_name], fit_result['cl'])
 
   # Check the fastprof CLs against the ones in the reference: in principle this should match well,
   # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
@@ -66,6 +68,7 @@ def compute_limits() :
   print('Sampling,    CLs  : UL(95) =', fr.solve('sampling_cls', 0.05, log_scale = True))
 
   # Plot results
+  plt.ion()
   fig1 = plt.figure(1)
   plt.suptitle('$CL_{s+b}$')
   plt.xlabel('$\mu$')
@@ -78,9 +81,11 @@ def compute_limits() :
   plt.suptitle('$CL_s$')
   plt.xlabel('$\mu$')
   plt.ylabel('$CL_s$')
+  opti_samples.plot_bands(2)
   plt.plot(fr.hypos, [ fit_result['cls']          for fit_result in fit_results ], 'r:' , label = 'Asymptotics')
   plt.plot(fr.hypos, [ fit_result['sampling_cls'] for fit_result in fit_results ], 'b'  , label = 'Sampling')
   plt.legend()
+  plt.show()
 
   fig1.savefig(options.output_file + '_clsb.pdf')
   fig2.savefig(options.output_file + '_cls.pdf')
