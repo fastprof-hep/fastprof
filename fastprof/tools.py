@@ -3,13 +3,14 @@ import math
 import scipy
 import numpy as np
 
-from .core import Model, Data
+from .core import Model, Data, JSONSerializable
 from .minimizers import OptiMinimizer
 from .test_statistics import QMu
 
 
-class FitResults :
+class FitResults (JSONSerializable) :
   def __init__(self, filename = '') :
+    super().__init__()
     if filename != '' :
       self.load(filename)
 
