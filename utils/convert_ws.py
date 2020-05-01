@@ -10,6 +10,7 @@ import numpy as np
 import json
 import collections
 import array
+import math
 
 ####################################################################################################################################
 ###
@@ -24,7 +25,7 @@ def convert_ws() :
   parser.add_argument("-m", "--model-config-name",       default='mconfig', help="Name of model config within the specified workspace", type=str)
   parser.add_argument("-s", "--signal-pdf",              default='Signal',  help="Name of signal component PDF", type=str)
   parser.add_argument("-n", "--signal-yield",            default='nSignal', help="Name of signal yield variable", type=str)
-  parser.add_argument("-b", "--binning",                 required=True,     help="Name of output file", type=str)
+  parser.add_argument("-b", "--binning",                 required=True,     help="Binning used, in the form xmin:xmax:nbins[:log]", type=str)
   parser.add_argument("-p", "--nps",                     default='',        help="List of constrained nuisance parameters", type=str)
   parser.add_argument("-e", "--epsilon",                 default=1,         help="Scale factor applied to uncertainties for impact computations", type=str)
   parser.add_argument("-=", "--setval",                  default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
@@ -34,6 +35,7 @@ def convert_ws() :
   parser.add_argument("-x", "--data-only",           action="store_true",   help="Only dump the specified dataset, not the model")
   parser.add_argument("-d", "--data-name",               default='',        help="Name of dataset object within the input workspace", type=str)
   parser.add_argument("-o", "--output-file",             required=True,     help="Name of output file", type=str)
+  parser.add_argument(      "--output-name",             default='',        help="Name of output file", type=str)
   parser.add_argument("-v", "--verbosity",               default=0,         help="Verbosity level", type=int)
   
   options = parser.parse_args()
@@ -45,10 +47,12 @@ def convert_ws() :
     binspec = options.binning.split(':')
     if len(binspec) == 4 and binspec[3] == 'log' : 
       bins = np.logspace(1, math.log(float(binspec[1]))/math.log(float(binspec[0])), int(binspec[2]) + 1, True, float(binspec[0]))
+      print(bins)
     else :
       bins = np.linspace(float(binspec[0]), float(binspec[1]), int(binspec[2]) + 1)
-  except:
-    raise ValueError('Invalid bin specification %s : the format should be xmin:xmax:bins[:log]' % options.binning)
+  except Exception as inst :
+    print(inst)
+    raise ValueError('Invalid bin specification %s : the format should be xmin:xmax:nbins[:log]' % options.binning)
   nbins = len(bins) - 1  
 
   f = ROOT.TFile(options.ws_file)
@@ -73,7 +77,8 @@ def convert_ws() :
     
   try :
     obs = ROOT.RooArgList(mconfig.GetObservables()).at(0)
-  except:
+  except Exception as inst :
+    print(inst)
     ValueError('Could not locate observable')
 
   if options.setval != '' :
@@ -84,7 +89,8 @@ def convert_ws() :
           raise ValueError("Cannot find variable '%s' in workspace" % var)   
         ws.var(var).setVal(float(val))
         print "INFO : setting %s=%g" % (var, float(val))
-    except:
+    except Exception as inst :
+      print(inst)
       raise ValueError("ERROR : invalid variable assignment string '%s'." % options.setval)
 
   data = None
@@ -141,11 +147,20 @@ def convert_ws() :
             else :
               betas.append(mpar)
               aux_betas.append(aux)
-  except :
+  except Exception as inst :
+    print(inst)
     ValueError('Could not identify nuisance parameters')
     
-  jdict = collections.OrderedDict()
+  bin_data = []
+  for b in range(0, nbins) :
+    bin_datum = collections.OrderedDict()
+    bin_datum['lo_edge'] = bins[b]
+    bin_datum['hi_edge'] = bins[b+1]
+    bin_data.append(bin_datum)
 
+  jdict = collections.OrderedDict()
+  jdict['model_name' ] = options.output_name
+  jdict['bins'] = bin_data
   if not options.data_only :
     np_list = ROOT.RooArgList(nuis_pars)
     for p in range(0, len(np_list)) :
