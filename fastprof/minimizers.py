@@ -74,8 +74,9 @@ class NPMinimizer :
   
   def profile(self) :
     p, q = self.pq_einsum() # can switch to pq_naive for tests
-    if np.linalg.det(p) < 1E-8 :
-      print('Linear system has an ill-conditioned coefficient matrix, returning null result')
+    d = np.linalg.det(p)
+    if abs(d) < 1E-8 :
+      print('Linear system has an ill-conditioned coefficient matrix (det= %g), returning null result' % d)
       nps =  self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
     else :
       v = np.linalg.inv(p).dot(q)
@@ -88,23 +89,23 @@ class NPMinimizer :
     return self.model.nll(self.min_pars, self.data)
   
   
+# -------------------------------------------------------------------------
 class POIMinimizer :
   def __init__(self, data) : 
     self.model = data.model
     self.data = data
-
   @abstractmethod
   def minimize(self) :
     pass  
-
   def tmu(self, mu) :
     nll_min, min_pos = self.minimize()
-    if nll_min == None : return None
+    if nll_min == None : return None, None
     nll_hypo = NPMinimizer(mu, self.data).profile_nll()
     return 2*(nll_hypo - nll_min), min_pos
 
+
 # -------------------------------------------------------------------------
-class ScanMinimizer(POIMinimizer) :
+class ScanMinimizer (POIMinimizer) :
   def __init__(self, data, scan_mus) :
     super().__init__(data)
     self.scan_mus = scan_mus
@@ -133,7 +134,7 @@ class ScanMinimizer(POIMinimizer) :
     return self.nll_min, min_mu
 
 # -------------------------------------------------------------------------
-class OptiMinimizer(POIMinimizer) :
+class OptiMinimizer (POIMinimizer) :
   def __init__(self, data, mu0 = 1, bounds = (0, 999999), method = 'scalar' ) :
     super().__init__(data)
     self.np_min = None
@@ -178,8 +179,8 @@ class OptiMinimizer(POIMinimizer) :
     if not result.success :
       print('Minimization failed, details below')
       print(dir(result))
-      if result.has_key('status')  : print('status  =', result.status)
-      if result.has_key('message') : print('message =', result.message)
+      if hasattr(result, 'status')  : print('status  =', result.status)
+      if hasattr(result, 'message') : print('message =', result.message)
       return None, None
     self.min_pars = self.np_min.min_pars
     self.nll_min = result.fun
