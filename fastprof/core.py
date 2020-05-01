@@ -6,9 +6,36 @@ import matplotlib.pyplot as plt
 import copy
 
 # -------------------------------------------------------------------------
-class Model :
+class JSONSerializable :
+  def __init__(self) :
+    pass
+
+  def load(self, filename) :
+    with open(filename, 'r') as fd :
+      jdict = json.load(fd)
+      return self.load_jdict(jdict)
+  def save(self, filename) :
+    with open(filename, 'w') as fd :
+      jdict = self.dump_jdict()
+      return json.dump(jdict, fd, ensure_ascii=True, indent=3)
+  def load_json(self, js) :
+    jdict = json.loads(js)
+    return self.load_jdict(jdict)
+  def dump_json(self) :
+    jdict = self.dump_jdict()
+    return json.dumps(jdict)
+  @abstractmethod
+  def load_jdict(self, jdict) :
+    pass
+  @abstractmethod
+  def dump_jdict(self) :
+    pass
+
+# -------------------------------------------------------------------------
+class Model (JSONSerializable) :
   def __init__(self, sig = np.array([]), bkg = np.array([]), alphas = [], betas = [], gammas = [],
-               a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0))) :
+               a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0)), name=None, bins=[]) :
+    super().__init__()
     self.alphas = alphas
     self.betas  = betas
     self.gammas = gammas
@@ -30,9 +57,12 @@ class Model :
       raise ValueError('Input "c" to fastprof model should have a column count equal to the number of gamma parameters (%d).' % len(gammas))
     self.sig = sig
     self.bkg = bkg
+
     self.a = a
     self.b = b
     self.c = c
+    self.name = name
+    self.bins = bins
     self.init_vars()
 
   def init_vars(self) :
@@ -123,57 +153,46 @@ class Model :
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
 
-  def plot(self, pars, data = None, bkg_only = True, variations=[], residuals = False) :
+  def plot(self, pars, data = None, bkg_only = True, variations=[], residuals = False, canvas=plt) :
     #print(np.linspace(0,self.sig.size - 1,self.sig.size))
     #print(self.b_exp(pars))
-    grid = np.linspace(0,self.nbins, self.nbins)
+    if len(self.bins) > 0 :
+      grid = [ b['lo_edge'] for b in self.bins ]
+      grid.append(self.bins[-1]['hi_edge'])
+    else :
+      grid = np.linspace(0, self.nbins, self.nbins)
+    xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     nex = self.n_exp(pars)
     if bkg_only :
       yvals = self.b_exp(pars) if not residuals else -self.s_exp(pars)
-      plt.hist(grid, weights=yvals, bins=grid, histtype='step',color='b', linestyle='--', label='bkg-only')
+      canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle='--', label='bkg-only')
     yvals = nex if not residuals else np.zeros(self.nbins)
-    plt.hist(grid, weights=yvals, bins=grid, histtype='step',color='b', label='Model')
+    canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', label='Model')
     if data : 
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.n ]
       yvals = [ data.n[i] if not residuals else data.n[i] - nex[i] for i in range(0, self.nbins) ]
-      plt.errorbar(grid + 0.5, yvals, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
-    plt.xlim(0, self.nbins)
+      canvas.errorbar(xvals, yvals, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
+    canvas.xlim(grid[0], grid[-1])
     for v in variations :
       vpars = copy.deepcopy(pars)
       if v[0] in self.alphas : vpars.alphas[self.alphas.index(v[0])] = v[1]
       if v[0] in self.betas  : vpars.betas [self.betas .index(v[0])] = v[1]
       if v[0] in self.gammas : vpars.gammas[self.gammas.index(v[0])] = v[1]
       col = 'r' if len(v) < 3 else v[2]
-      plt.hist(grid, weights=self.n_exp(vpars), bins=grid, histtype='step',color=col, linestyle='--', label='%s=%+g' %(v[0], v[1]))
-      plt.legend()
+      canvas.hist(xvals, weights=self.n_exp(vpars), bins=grid, histtype='step',color=col, linestyle='--', label='%s=%+g' %(v[0], v[1]))
+      canvas.legend()
     #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
 
   @staticmethod
   def create(filename) :
     return Model().load(filename)
   
-  def load(self, filename) :
-    with open(filename, 'r') as fd :
-      jdict = json.load(fd)
-      return self.load_jdict(jdict)
-
-  def save(self, filename) :
-    with open(filename, 'w') as fd :
-      jdict = self.dump_jdict()
-      return json.dump(jdict, fd, ensure_ascii=True, indent=3)
-      
-  def load_json(self, js) :
-    jdict = json.loads(js)
-    return self.load_jdict(jdict)
-  
-  def dump_json(self) :
-    jdict = self.dump_jdict()
-    return json.dumps(jdict)
-
   def load_jdict(self, jdict) :
-    self.sig = np.array(jdict['signal'])
-    self.bkg = np.array(jdict['background'])
-    
+    self.sig  = np.array(jdict['signal'])
+    self.bkg  = np.array(jdict['background'])
+    if 'model_name' in jdict : self.name = np.array(jdict['model_name'])
+    if 'bins'       in jdict : self.bins = np.array(jdict['bins'])
+
     self.alphas = []
     self.a = np.ndarray((self.sig.size, len(jdict['alphas'])))
     for i, alpha in enumerate(jdict['alphas']) :
@@ -198,6 +217,8 @@ class Model :
     jdict = {}
     jdict['signal'] = self.sig.tolist()
     jdict['background'] = self.bkg.tolist()
+    if self.name : jdict['model_name'] = self.name
+    if self.bins : jdict['bins'] = self.bins
 
     alphas = []
     for i, alpha in enumerate(self.alphas) :
@@ -254,8 +275,9 @@ class Parameters :
   
   
 # -------------------------------------------------------------------------
-class Data :
+class Data (JSONSerializable) :
   def __init__(self, model, n = np.array([]), aux_alphas = np.array([]), aux_betas = np.array([])) :
+    super().__init__()
     self.model = model
     if n.size > 0 :
       if n.ndim != 1 :
@@ -304,24 +326,6 @@ class Data :
     self.set_data(self.model.n_exp(pars), pars.alphas, pars.betas)
     return self
   
-  def load(self, filename) :
-    with open(filename, 'r') as fd :
-      jdict = json.load(fd)
-      return self.load_jdict(jdict)
-
-  def save(self, filename) :
-    with open(filename, 'w') as fd :
-      jdict = self.dump_jdict()
-      return json.dump(jdict, fd, ensure_ascii=True, indent=3)
-
-  def load_json(self, js) :
-    jdict = json.loads(js)
-    return self.load_jdict(jdict)
-
-  def dump_json(self) :
-    jdict = self.dump_jdict()
-    return json.dumps(jdict)
-
   def load_jdict(self, jdict) :
     self.n          = np.array(jdict['data']['bin_counts'])
     self.aux_alphas = np.array(jdict['data']['aux_alphas'])
