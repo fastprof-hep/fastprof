@@ -3,7 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-import os
+from abc import abstractmethod
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 from .core import Parameters
@@ -11,17 +11,30 @@ from .test_statistics import QMu
 from .sampling import SamplingDistribution
 from .minimizers import NPMinimizer, OptiMinimizer, ScanMinimizer
 
-class ScanSampler :
-  def __init__(self, model, scan_mus, do_CLb = False) :
+# -------------------------------------------------------------------------
+class Sampler :
+  def __init__(self, model, gen_mu = None, print_freq = 1000) :
     self.model = model
+    self.gen_mu = None
+    self.freq = print_freq
+  def progress(self, k, ntoys) :
+    if k % self.freq == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
+  @abstractmethod
+  def generate(self, mu, ntoys) :
+     pass
+
+
+# -------------------------------------------------------------------------
+class ScanSampler (Sampler) :
+  def __init__(self, model, scan_mus, gen_mu = False, print_freq = 1000) :
+    super().__init__(model, gen_mu, print_freq)
     self.scan_mus = scan_mus
-    self.do_CLb = do_CLb
     
   def generate(self, mu, ntoys) :
-    gen_hypo = Parameters(0 if self.do_CLb else mu, 0, 0)
+    gen_hypo = Parameters(self.gen_mu if self.gen_mu != None else mu, 0, 0)
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
-      if k % 1000 == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
+      self.progress(k, ntoys)
       data = self.model.generate_data(gen_hypo)
       nll_min, min_pos = ScanMinimizer(data, self.scan_mus).minimize()
       nll_hypo = NPMinimizer(mu, data).profile_nll()
@@ -29,19 +42,20 @@ class ScanSampler :
       self.dist.samples[k] = q.asymptotic_cl()
     return self.dist
 
-class OptiSampler :
-  def __init__(self, model, mu0, bounds, method = 'scalar', do_CLb = False) :
-    self.model = model
-    self.do_CLb = do_CLb
+
+# -------------------------------------------------------------------------
+class OptiSampler (Sampler) :
+  def __init__(self, model, mu0, bounds, method = 'scalar', gen_mu = None, print_freq = 1000) :
+    super().__init__(model, gen_mu, print_freq)
     self.mu0 = mu0
     self.bounds = bounds
     self.method = method
     
   def generate(self, mu, ntoys) :
-    gen_hypo = self.model.expected_pars(0 if self.do_CLb else mu)
+    gen_hypo = self.model.expected_pars(self.gen_mu if self.gen_mu != None else mu)
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
-      if k % 1000 == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
+      self.progress(k, ntoys)
       success = False
       while not success :
         data = self.model.generate_data(gen_hypo)
@@ -55,21 +69,21 @@ class OptiSampler :
     return self.dist
 
 
-class DebuggingScanSampler :
-  def __init__(self, model, scan_mus, pyhf_model, do_CLb = False) :
-    self.model = model
+# -------------------------------------------------------------------------
+class DebuggingScanSampler (Sampler) :
+  def __init__(self, model, scan_mus, pyhf_model, gen_mu = None, print_freq = 1000) :
+    super().__init__(model, gen_mu, print_freq)
     self.scan_mus = scan_mus
     self.pyhf_model = pyhf_model
-    self.do_CLb = do_CLb
 
   def generate(self, mu, ntoys) :
     # debug : each toy stores data_bin1, .., data_binN, aux_NP1, ... aux_NPN, fitval_mu, fitval_NP1 ... fitval_NPN, profA, profB, cl
-    gen_hypo = Parameters(0 if self.do_CLb else mu, 0, 0)
+    gen_hypo = Parameters(self.gen_mu if self.gen_mu != None else mu, 0, 0)
     n_dat = self.model.nbins + self.model.nsyst
     n_np = self.model.n_nps
     self.debug_info = SamplingDistribution(ntoys, n_dat + 3*n_np + 6)
     for k in range(0, ntoys) :
-      if k % 1000 == 0 : print('Processing iteration %d of %d' % (k+1, ntoys))
+      self.progress(k, ntoys)
       data = self.model.generate_data(gen_hypo)
       minimizer = ScanMinimizer(data, self.scan_mus)
       nll_min, min_pos = minimizer.minimize(True)
@@ -89,12 +103,12 @@ class DebuggingScanSampler :
     return self.debug_info
 
 
-class PyhfSampler :
-  def __init__(self, model, nbins, n_np, do_CLb = False) :
-    self.model = model
+# -------------------------------------------------------------------------
+class PyhfSampler (Sampler) :
+  def __init__(self, model, nbins, n_np, gen_mu = None, print_freq = 1000) :
+    super().__init__(model, gen_mu, print_freq)
     self.nbins = nbins
     self.n_np = n_np
-    self.do_CLb = do_CLb
     
   def generate_data(self, mu) :
     data = np.zeros(self.nbins + self.n_np)
@@ -110,10 +124,10 @@ class PyhfSampler :
     return pyhf.infer.hypotest(mu, data, self.model, return_tail_probs = True)[1][0]
 
   def generate(self, mu, ntoys) :
-    gen_mu = 0 if self.do_CLb else mu
+    gen_mu = self.gen_mu if self.gen_mu != None else mu
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
-      if k % 1000 == 0 : print(k)
+      self.progress(k, ntoys)
       data = self.generate_data(gen_mu)
       self.dist.samples[k] = self.clsb(mu, data)
     return self.dist
