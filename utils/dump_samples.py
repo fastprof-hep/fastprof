@@ -3,9 +3,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
-fname=sys.argv[1]
-samples = np.load(fname)
+####################################################################################################################################
+###
+
+parser = ArgumentParser("dump_samples.py", formatter_class=ArgumentDefaultsHelpFormatter)
+parser.description = __doc__
+parser.add_argument('filename'         , type=str, nargs=1  , help='Name of the npy file in which samples are stored')
+parser.add_argument("-b", "--nbins"    , type=int, default=100, help="Number of bins to use")
+parser.add_argument("-l", "--log-scale", action='store_true'  , help="Use log scale for plotting")
+
+options = parser.parse_args()
+if not options :
+  parser.print_help()
+  sys.exit(0)
+
+samples = np.load(options.filename[0])
 
 # Samples data:
 # 0, 1 : data bin contents (0=SR, 1=CR)
@@ -15,7 +29,7 @@ samples = np.load(fname)
 # 12, 13, 14 :  mu_min (12) and best-fit values of signal (13) and background (14) pars
 
 plt.ion()
-plt.yscale('log')
-plt.suptitle(fname)
-plt.hist(samples[:], bins=100, range=[0, 0.5])
+if options.log_scale : plt.yscale('log')
+plt.suptitle(options.filename[0])
+plt.hist(samples[:], bins=options.nbins, range=[0, 1])
 plt.show()
