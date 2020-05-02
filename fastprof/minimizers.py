@@ -53,7 +53,7 @@ class NPMinimizer :
     for ib in range(0, nb) : p[na + ib, na + ib] += 1
     return p, q
 
-# Same as above, more readable, but slower... [needs migration to include gammas!]
+# Same as above, more readable, and faster -- use by default
   def pq_einsum(self) :
     pars_nom = Parameters(self.mu, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc))
     snom = self.model.s_exp(pars_nom)
@@ -81,7 +81,7 @@ class NPMinimizer :
     else :
       v = np.linalg.inv(p).dot(q)
       nps = self.data.aux_alphas - v[:self.model.na], self.data.aux_betas - v[self.model.na:self.model.nsyst], -v[self.model.nsyst:]
-    self.min_pars = Parameters(self.mu, *nps)
+    self.min_pars = Parameters(self.mu, *nps, self.model)
     return nps
   
   def profile_nll(self) :
@@ -100,7 +100,9 @@ class POIMinimizer :
   def tmu(self, mu) :
     nll_min, min_pos = self.minimize()
     if nll_min == None : return None, None
-    nll_hypo = NPMinimizer(mu, self.data).profile_nll()
+    np_min = NPMinimizer(mu, self.data)
+    nll_hypo = np_min.profile_nll()
+    self.hypo_pars = np_min.min_pars
     return 2*(nll_hypo - nll_min), min_pos
 
 
@@ -111,7 +113,7 @@ class ScanMinimizer (POIMinimizer) :
     self.scan_mus = scan_mus
     self.pars = []
     for mu in scan_mus :
-      self.pars.append(Parameters(mu, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)))
+      self.pars.append(Parameters(mu, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc), self.model))
 
   def minimize(self) :
     self.nlls = np.zeros(self.scan_mus.size)
