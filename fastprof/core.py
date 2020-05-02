@@ -148,14 +148,15 @@ class Model (JSONSerializable) :
     return s
     
   def expected_pars(self, mu) :
-    return Parameters(mu, np.zeros(self.na), np.zeros(self.nb), np.zeros(self.nc))
+    return Parameters(mu, np.zeros(self.na), np.zeros(self.nb), np.zeros(self.nc), self)
 
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
 
-  def plot(self, pars, data = None, bkg_only = True, variations=[], residuals = False, canvas=plt) :
+  def plot(self, pars, data = None, bkg_only = True, variations=[], residuals = False, canvas=None) :
     #print(np.linspace(0,self.sig.size - 1,self.sig.size))
     #print(self.b_exp(pars))
+    if canvas == None : canvas = plt.gca()
     if len(self.bins) > 0 :
       grid = [ b['lo_edge'] for b in self.bins ]
       grid.append(self.bins[-1]['hi_edge'])
@@ -172,15 +173,19 @@ class Model (JSONSerializable) :
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.n ]
       yvals = [ data.n[i] if not residuals else data.n[i] - nex[i] for i in range(0, self.nbins) ]
       canvas.errorbar(xvals, yvals, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
-    canvas.xlim(grid[0], grid[-1])
+    canvas.set_xlim(grid[0], grid[-1])
     for v in variations :
       vpars = copy.deepcopy(pars)
       if v[0] in self.alphas : vpars.alphas[self.alphas.index(v[0])] = v[1]
       if v[0] in self.betas  : vpars.betas [self.betas .index(v[0])] = v[1]
       if v[0] in self.gammas : vpars.gammas[self.gammas.index(v[0])] = v[1]
       col = 'r' if len(v) < 3 else v[2]
-      canvas.hist(xvals, weights=self.n_exp(vpars), bins=grid, histtype='step',color=col, linestyle='--', label='%s=%+g' %(v[0], v[1]))
+      style = '--' if v[1] > 0 else '-.'
+      canvas.hist(xvals, weights=self.n_exp(vpars), bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
       canvas.legend()
+    canvas.set_title(self.name)
+    canvas.set_xlabel('$' + self.obs_name + '$' + ((' ['  + self.obs_unit + ']') if self.obs_unit != '' else ''))
+    canvas.set_ylabel('Events / bin')
     #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
 
   @staticmethod
@@ -190,8 +195,10 @@ class Model (JSONSerializable) :
   def load_jdict(self, jdict) :
     self.sig  = np.array(jdict['signal'])
     self.bkg  = np.array(jdict['background'])
-    if 'model_name' in jdict : self.name = np.array(jdict['model_name'])
-    if 'bins'       in jdict : self.bins = np.array(jdict['bins'])
+    if 'model_name' in jdict : self.name     = jdict['model_name']
+    if 'obs_name'   in jdict : self.obs_name = jdict['obs_name']
+    if 'obs_unit'   in jdict : self.obs_unit = jdict['obs_unit']
+    if 'bins'       in jdict : self.bins     = np.array(jdict['bins'])
 
     self.alphas = []
     self.a = np.ndarray((self.sig.size, len(jdict['alphas'])))
@@ -215,10 +222,12 @@ class Model (JSONSerializable) :
   
   def dump_jdict(self) :
     jdict = {}
-    jdict['signal'] = self.sig.tolist()
+    jdict['signal']     = self.sig.tolist()
     jdict['background'] = self.bkg.tolist()
-    if self.name : jdict['model_name'] = self.name
-    if self.bins : jdict['bins'] = self.bins
+    jdict['model_name'] = self.name
+    jdict['obs_name']   = self.obs_name
+    jdict['obs_unit']   = self.obs_unit
+    jdict['bins']       = self.bins.toarray()
 
     alphas = []
     for i, alpha in enumerate(self.alphas) :
@@ -253,7 +262,7 @@ class Model (JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Parameters :
-  def __init__(self, mu, alphas = np.array([]), betas = np.array([]), gammas = np.array([])) :
+  def __init__(self, mu, alphas = np.array([]), betas = np.array([]), gammas = np.array([]), model = None) :
     if not isinstance(alphas, np.ndarray) : alphas = np.array(alphas)
     if not isinstance(betas , np.ndarray) : betas  = np.array(betas)
     if not isinstance(gammas, np.ndarray) : gammas = np.array(gammas)
@@ -261,6 +270,7 @@ class Parameters :
     self.alphas = alphas
     self.betas = betas
     self.gammas = gammas
+    self.model = model
 
   def array(self) : 
     return np.concatenate( ( np.array([ self.mu ]), self.alphas, self.betas, self.gammas ) )
@@ -268,11 +278,16 @@ class Parameters :
   def __str__(self) :
     s = ''
     s += 'mu     = ' + str(self.mu)     + '\n'
-    s += 'alphas = ' + str(self.alphas) + '\n'
-    s += 'betas  = ' + str(self.betas)  + '\n'
-    s += 'gammas = ' + str(self.gammas) + '\n'
+    if self.model == None :
+      s += 'alphas = ' + str(self.alphas) + '\n'
+      s += 'betas  = ' + str(self.betas)  + '\n'
+      s += 'gammas = ' + str(self.gammas)
+    else :
+      s += 'alphas : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.alphas, self.alphas) ] ) + '\n'
+      s += 'betas  : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.betas , self.betas ) ] ) + '\n'
+      s += 'gammas : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.gammas, self.gammas) ] )
     return s
-  
+
   
 # -------------------------------------------------------------------------
 class Data (JSONSerializable) :
