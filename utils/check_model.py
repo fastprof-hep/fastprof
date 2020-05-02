@@ -7,7 +7,7 @@ import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import json
 
-from fastprof import Model, Data, FitResults
+from fastprof import Model, Data, FitResults, QMuCalculator, OptiMinimizer
 
 ####################################################################################################################################
 ###
@@ -24,24 +24,29 @@ def check_model() :
   parser.add_argument("-v", "--verbosity",  default=0,       help="Verbosity level", type=int)
   
   options = parser.parse_args()
-  if not options : 
+  if not options :
     parser.print_help()
     return
  
-  full_results = FitResults(options.fits_file)
+  results = FitResults(options.fits_file)
 
   model = Model.create(options.model_file)
   if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
+
   if options.data_file :
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
     print('Using dataset stored in file %s.' % options.data_file)
   elif options.asimov != None :
     data = Data(model).set_expected(model.expected_pars(options.asimov))
-    print('Using Asimov dataset with %s = %g' % (full_results.poi_name, options.asimov))
+    print('Using Asimov dataset with %s = %g.' % (results.poi_name, options.asimov))
   else :
+    print('Using dataset stored in file %s.' % options.model_file)
     data = Data(model).load(options.model_file)
   
-  full_results.check(data, options.verbosity)
+  calc = QMuCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
+  calc.fill_qcl('qmu', 'cl', 'cls')
+  calc.fill_fast()
+  results.print(verbosity = options.verbosity)
 
 check_model()
