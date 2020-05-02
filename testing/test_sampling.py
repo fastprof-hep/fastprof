@@ -30,10 +30,10 @@ np.random.seed(131071)
 
 for hd in hypo_dicts :
   if not 'cl' in hd :
-    hd['cl'] = QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cl()
+    hd['cl'] = QMu(hd[poi], hd['tmu'], hd['best_fit_val']).asymptotic_cl()
   if not 'cls' in hd :
-    hd['cls'] = QMu(hd['qmu'], hd[poi], hd['best_fit_val']).asymptotic_cls(hd['best_fit_err'])
+    hd['cls'] = QMu(hd[poi], hd['tmu'], hd['best_fit_val']).asymptotic_cls(hd['best_fit_err'])
   # DEBUG below
   tmu, min_mu = OptiMinimizer(fast_data, hd[poi], (-5, 20)).tmu(hd[poi])
   q = QMu(tmu, hd[poi], min_mu)
-  print(hd[poi], hd['qmu'], hd['cl'], hd['best_fit_val'], '  <-->  ', q.value, q.asymptotic_cl(), min_mu)
+  print(hd[poi], hd['tmu'], hd['cl'], hd['best_fit_val'], '  <-->  ', q.value(), q.asymptotic_cl(), min_mu)
