@@ -2,6 +2,7 @@ import json
 import math
 import scipy
 import numpy as np
+import copy
 
 from .core import Model, Data, JSONSerializable
 from .minimizers import OptiMinimizer
@@ -60,13 +61,25 @@ class FitResults (JSONSerializable) :
           fit_result['cls'] = QMu(fit_result['qmu'], fit_result[self.poi_name], fit_result['best_fit_val']).asymptotic_cls(qA=fit_result['qmu_A'])
     return self
   
-  def check(self, data, verbose = False) :
+  def check(self, data, verbosity = 0) :
     self.fill()
-    for fit_result in self.fit_results :
-      tmu, min_mu = OptiMinimizer(data, fit_result[self.poi_name], (self.poi_min, self.poi_max)).tmu(fit_result[self.poi_name])
-      q = QMu(tmu, fit_result[self.poi_name], min_mu)
-      print('%s = %4g : Asymptotic reference CL = %6.4f , fast CL = %6.4f.' % (self.poi_name, fit_result[self.poi_name], fit_result['cl'], q.asymptotic_cl()))
-      if verbose: print('     (tmu = %g, min_mu = %g)' % (tmu, min_mu))
+    results_fast = copy.deepcopy(self)
+    for result_full, result_fast in zip(self.fit_results, results_fast.fit_results) :
+      mini = OptiMinimizer(data, result_full[self.poi_name], (self.poi_min, self.poi_max))
+      tmu, min_mu = mini.tmu(result_full[self.poi_name])
+      q = QMu(tmu, result_full[self.poi_name], min_mu)
+      result_fast['cl'] = q.asymptotic_cl()
+      print('%s = %4g : Asymptotic reference CL = %6.4f , fast CL = %6.4f.' % (self.poi_name, result_full[self.poi_name], result_full['cl'], q.asymptotic_cl()))
+      if verbosity > 0 : print('     (tmu = %g, min_mu = %g)' % (tmu, min_mu))
+      if verbosity > 1 :
+        print('Unconditional minimum:')
+        print(mini.min_pars)
+        print('Conditional minimum:')
+        print(mini.hypo_pars)
+        print('\n')
+    limit_full = self.solve('cl', 0.05)
+    limit_fast = results_fast.solve('cl', 0.05)
+    print('Asymptotic 95%% CLs limits: reference = %g, fast = %g.' % (limit_full, limit_fast))
       
   def solve(self, result_key, target = 0.05, order = 3, log_scale = True) :
     if log_scale :
