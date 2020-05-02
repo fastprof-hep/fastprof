@@ -4,7 +4,7 @@ __doc__ = "Ccompute limits from sampling distributions"
 __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -16,7 +16,7 @@ from fastprof import Model, Data, QMu, Samples, CLsSamples, OptiSampler, OptiMin
 def compute_limits() :
   """convert """
   
-  parser = ArgumentParser("compute_limits.py")
+  parser = ArgumentParser("compute_limits.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file",     required=True,   help="Name of JSON file defining model", type=str)
   parser.add_argument("-d", "--data-file",      default='',      help="Name of JSON file defining the dataset (optional, otherwise taken from model file)", type=str)

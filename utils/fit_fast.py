@@ -4,7 +4,7 @@ __doc__ = "Plot a fast model"
 __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from fastprof import Model, Data
 import matplotlib.pyplot as plt
 
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 def fit_fast() :
   """fit_fast"""
   
-  parser = ArgumentParser("fit_fast.py")
+  parser = ArgumentParser("fit_fast.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file",        required=True,     help="Name of JSON file defining model", type=str)
   parser.add_argument("-d", "--data-file",         default='',        help="Name of JSON file defining the dataset (optional, otherwise taken from model file)", type=str)
