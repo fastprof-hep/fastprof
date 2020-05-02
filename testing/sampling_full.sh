@@ -47,3 +47,4 @@
 ./fit_ws.py -f HighMass_NW.root --data-name obsData --setval mX=1700,xs=0 -r " -0.2,2" -y 0.001,0.01,0.02,0.03,0.04,0.05,0.07,0.09,0.2 -o fits_HighMass_NW-1700.json                 
 # Use Asimov since the binning is comparable to the WS Asimov (but doesn't match, as it's log-scale) and this causes problems...
 ./fastprof/utils/check_model.py -m run/fastprof/HighMass_NW-1700-log500.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700.json         
+./fastprof/utils/compute_limits.py -m  run/fastprof/HighMass_NW-1700-log500.json -f run/fastprof/fits_HighMass_NW-1700.json -o samples/HighMass_NW-1700-log500 -n 10000
