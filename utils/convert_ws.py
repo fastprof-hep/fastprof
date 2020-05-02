@@ -4,7 +4,7 @@ __doc__ = "Convert a ROOT workspace into fastprof JSON format"
 __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import ROOT
 import numpy as np
 import json
@@ -18,7 +18,7 @@ import math
 def convert_ws() :
   """convert """
   
-  parser = ArgumentParser("convert_ws.py")
+  parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-f", "--ws-file",                 required=True,     help="Name of file containing the workspace", type=str)
   parser.add_argument("-w", "--ws-name",                 default='modelWS', help="Name workspace object inside the specified file", type=str)
@@ -27,7 +27,7 @@ def convert_ws() :
   parser.add_argument("-n", "--signal-yield",            default='nSignal', help="Name of signal yield variable", type=str)
   parser.add_argument("-b", "--binning",                 required=True,     help="Binning used, in the form xmin:xmax:nbins[:log]", type=str)
   parser.add_argument("-p", "--nps",                     default='',        help="List of constrained nuisance parameters", type=str)
-  parser.add_argument("-e", "--epsilon",                 default=1,         help="Scale factor applied to uncertainties for impact computations", type=str)
+  parser.add_argument("-e", "--epsilon",                 default=1,         help="Scale factor applied to uncertainties for impact computations", type=float)
   parser.add_argument("-=", "--setval",                  default='',        help="Variables to set, in the form var1=val1,var2=val2,...", type=str)
   parser.add_argument("-r", "--refit",               action="store_true",   help="Perform a fit to the dataset (specified by --data-name) before conversion")
   parser.add_argument("-u", "--refit-uncertainties", action="store_true",   help="Update uncertainties (but not central values) from a fit to the specified dataset")
@@ -160,6 +160,8 @@ def convert_ws() :
 
   jdict = collections.OrderedDict()
   jdict['model_name' ] = options.output_name
+  jdict['obs_name' ] = obs.GetTitle().replace('#','\\')
+  jdict['obs_unit' ] = obs.getUnit()
   jdict['bins'] = bin_data
   if not options.data_only :
     np_list = ROOT.RooArgList(nuis_pars)
