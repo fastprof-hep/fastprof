@@ -39,7 +39,7 @@ def convert_ws() :
   parser.add_argument("-v", "--verbosity",               default=0,         help="Verbosity level", type=int)
   
   options = parser.parse_args()
-  if not options : 
+  if not options :
     parser.print_help()
     return
 
