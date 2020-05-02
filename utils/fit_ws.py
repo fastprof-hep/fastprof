@@ -149,9 +149,9 @@ def fit_ws() :
     result['nll_best'] = nll_best
     result['best_fit_val'] = best_fit_val
     result['best_fit_err'] = best_fit_err
-    result['qmu'] = 2*(result['nll_hypo'] - nll_best) if best_fit_val < result[poi.GetName()] else 0 # q_mu case only
+    result['tmu'] = 2*(result['nll_hypo'] - nll_best)
     result['asimov_nll_best'] = asimov_nll_best
-    result['qmu_A'] = 2*(result['asimov_nll_hypo'] - asimov_nll_best)
+    result['tmu_A'] = 2*(result['asimov_nll_hypo'] - asimov_nll_best)
   
   jdict['POI_name'] = poi.GetName()
   jdict['POI_initial_value'] = poi_init_val
