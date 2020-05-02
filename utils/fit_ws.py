@@ -4,7 +4,7 @@ __doc__ = "Convert a ROOT workspace into fastprof JSON format"
 __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import ROOT
 import numpy as np
 import json
@@ -20,7 +20,7 @@ import collections
 def fit_ws() :
   """fit_ws """
   
-  parser = ArgumentParser("convert_ws.py")
+  parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-f", "--ws-file",           required=True,     help="Name of file containing the workspace", type=str)
   parser.add_argument("-w", "--ws-name",           default='modelWS', help="Name workspace object inside the specified file", type=str)
@@ -100,6 +100,7 @@ def fit_ws() :
     raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
 
   ws.saveSnapshot('init', nuis_pars)
+  nuis_pars.Print("V")
   poi_init_val = poi.getVal()
   jdict = collections.OrderedDict()
   fit_results = []

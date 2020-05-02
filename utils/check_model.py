@@ -4,7 +4,7 @@ __doc__ = "Check asymptotic results of the fast model against those of the full 
 __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import json
 
 from fastprof import Model, Data, FitResults
@@ -15,7 +15,7 @@ from fastprof import Model, Data, FitResults
 def check_model() :
   """convert """
   
-  parser = ArgumentParser("check_model.py")
+  parser = ArgumentParser("check_model.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file", default='',      help="Name of JSON file defining model", type=str)
   parser.add_argument("-d", "--data-file",  default='',      help="Name of JSON file defining the dataset (optional, otherwise taken from model file)", type=str)
@@ -42,6 +42,6 @@ def check_model() :
   else :
     data = Data(model).load(options.model_file)
   
-  full_results.check(data, False if options.verbosity == 0 else True)
+  full_results.check(data, options.verbosity)
 
 check_model()
