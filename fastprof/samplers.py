@@ -15,7 +15,7 @@ from .minimizers import NPMinimizer, OptiMinimizer, ScanMinimizer
 class Sampler :
   def __init__(self, model, gen_mu = None, print_freq = 1000) :
     self.model = model
-    self.gen_mu = None
+    self.gen_mu = gen_mu
     self.freq = print_freq
   def progress(self, k, ntoys) :
     if k % self.freq == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
@@ -36,9 +36,8 @@ class ScanSampler (Sampler) :
     for k in range(0, ntoys) :
       self.progress(k, ntoys)
       data = self.model.generate_data(gen_hypo)
-      nll_min, min_pos = ScanMinimizer(data, self.scan_mus).minimize()
-      nll_hypo = NPMinimizer(mu, data).profile_nll()
-      q = QMu(2*(nll_hypo - nll_min), mu, min_pos)
+      tmu, min_pos = ScanMinimizer(data, self.scan_mus).tmu(mu)
+      q = QMu(test_mu = mu, tmu = tmu, best_mu = min_pos)
       self.dist.samples[k] = q.asymptotic_cl()
     return self.dist
 
@@ -64,7 +63,8 @@ class OptiSampler (Sampler) :
           success = True
         else :
           print('Minimization failed at toy iteration %d, repeating it.' % k)
-      q = QMu(tmu, mu, min_pos)
+      q = QMu(test_mu = mu, tmu = tmu, best_mu = min_pos)
+      #print(mu, tmu, min_pos, '->', q.value(), q.asymptotic_cl())
       self.dist.samples[k] = q.asymptotic_cl()
     return self.dist
 
@@ -88,7 +88,7 @@ class DebuggingScanSampler (Sampler) :
       minimizer = ScanMinimizer(data, self.scan_mus)
       nll_min, min_pos = minimizer.minimize(True)
       nll_hypo = NPMinimizer(mu, data).profile_nll()
-      q = QMu(2*(nll_hypo - nll_min), mu, min_pos)
+      q = QMu(test_mu = mu, tmu = 2*(nll_hypo - nll_min), best_mu = min_pos)
       pyhf_data = data.export_pyhf_data(self.pyhf_model)
       pars, val = pyhf.infer.mle.fit(pyhf_data, self.pyhf_model, return_fitted_val=True) # return [mhat, ahat, bhat], nll_min
       pyhf_clsb = pyhf.infer.hypotest(mu, pyhf_data, self.pyhf_model, return_tail_probs = True)[1][0]
