@@ -3,8 +3,9 @@ import math
 from scipy.interpolate import InterpolatedUnivariateSpline
 import scipy.optimize
 from abc import abstractmethod
+import copy
 
-from .core import Model, Parameters
+from .core import Model, Parameters, Data
 
 # -------------------------------------------------------------------------
 class NPMinimizer :
@@ -104,7 +105,10 @@ class POIMinimizer :
     nll_hypo = np_min.profile_nll()
     self.hypo_pars = np_min.min_pars
     return 2*(nll_hypo - nll_min), min_pos
-
+  def asimov_clone(self, mu) :
+    clone = copy.copy(self)
+    clone.data = Data(self.model).set_expected(self.model.expected_pars(mu))
+    return clone
 
 # -------------------------------------------------------------------------
 class ScanMinimizer (POIMinimizer) :
@@ -137,7 +141,7 @@ class ScanMinimizer (POIMinimizer) :
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
-  def __init__(self, data, mu0 = 1, bounds = (0, 999999), method = 'scalar' ) :
+  def __init__(self, data, mu0 = 1, bounds = (0, 999999), method = 'scalar') :
     super().__init__(data)
     self.np_min = None
     self.mu0 = mu0
