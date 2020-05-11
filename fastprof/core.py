@@ -34,7 +34,8 @@ class JSONSerializable :
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
   def __init__(self, sig = np.array([]), bkg = np.array([]), alphas = [], betas = [], gammas = [],
-               a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0)), name=None, bins=[]) :
+               a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0)), sigma_alphas = np.ndarray((0,0)), sigma_betas = np.ndarray((0,0)),
+               name=None, bins=[], linear_nps = False) :
     super().__init__()
     self.alphas = alphas
     self.betas  = betas
@@ -50,19 +51,22 @@ class Model (JSONSerializable) :
     if c.shape != (0,0) and c.shape[0] != sig.size :
       raise ValueError('Input "c" to fastprof model should have a row count equal to the number of bins (%d). ' % sig.size)
     if a.shape != (0,0) and a.shape[1] != len(alphas) :
-      raise ValueError('Input "a" to fastprof model should have a column count equal to the number of alpha parameters (%d).' % len(alphas))
+      raise ValueError('Input "a" to fastprof model should have a column count (here %g) equal to the number of alpha parameters (%d).' % (a.shape[1], len(alphas)))
     if b.shape != (0,0) and b.shape[1] != len(betas) :
-      raise ValueError('Input "b" to fastprof model should have a column count equal to the number of beta parameters (%d).' % len(betas))
+      raise ValueError('Input "b" to fastprof model should have a column count (here %g) equal to the number of beta parameters (%d).' % (b.shape[1], len(betas)))
     if c.shape != (0,0) and c.shape[1] != len(gammas) :
-      raise ValueError('Input "c" to fastprof model should have a column count equal to the number of gamma parameters (%d).' % len(gammas))
+      raise ValueError('Input "c" to fastprof model should have a column count (here %g) equal to the number of gamma parameters (%d).' % (c.shape[1], len(gammas)))
     self.sig = sig
     self.bkg = bkg
 
     self.a = a
     self.b = b
     self.c = c
+    self.sigma_alphas = sigma_alphas
+    self.sigma_betas  = sigma_betas
     self.name = name
     self.bins = bins
+    self.linear_nps = linear_nps
     self.init_vars()
 
   def init_vars(self) :
@@ -75,19 +79,23 @@ class Model (JSONSerializable) :
     self.ln_a = np.log(1 + self.a)
     self.ln_b = np.log(1 + self.b)
     self.ln_c = np.log(1 + self.c)
-    
+    self.diag_alphas = np.diag(1/self.sigma_alphas**2) if self.sigma_alphas.shape != (0,0) else np.identity(self.na)
+    self.diag_betas  = np.diag(1/self.sigma_betas **2) if self.sigma_betas .shape != (0,0) else np.identity(self.nb)
+
   def alphas(self) : return self.alphas
   def betas (self) : return self.betas
   def gammas(self) : return self.gammas
 
   def s_exp(self, pars) :
+    if self.linear_nps : return pars.mu*self.sig*(1 + self.a.dot(pars.alphas))
     ks = np.exp(self.ln_a.dot(pars.alphas))
     return pars.mu*self.sig*ks
 
   def b_exp(self, pars) :
+    if self.linear_nps : return self.bkg*(1 + self.b.dot(pars.betas) + self.c.dot(pars.gammas))
     bexp = self.bkg.copy()
-    if self.b.shape[1] != 0 : bexp *= np.exp(np.log(1 + self.b).dot(pars.betas))
-    if self.c.shape[1] != 0 : bexp *= np.exp(np.log(1 + self.c).dot(pars.gammas))
+    if self.nb != 0 : bexp *= np.exp(self.ln_b.dot(pars.betas))
+    if self.nc != 0 : bexp *= np.exp(self.ln_c.dot(pars.gammas))
     return bexp
 
   def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
@@ -111,12 +119,18 @@ class Model (JSONSerializable) :
           return np.Infinity
     return poisson + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
 
-  def nll(self, pars, data) :
-    nexp = self.n_exp(pars)
+  def nll(self, pars, data, offset = True) :
     da = data.aux_alphas - pars.alphas
     db = data.aux_betas  - pars.betas
+    nexp = self.n_exp(pars)
     try :
-      return np.sum(nexp - data.n*np.log(nexp)) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
+      if not offset :
+        result = np.sum(nexp - data.n*np.log(nexp)) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
+      else :
+        nexp0 = self.sig + self.bkg
+        result = np.sum(nexp - nexp0 - data.n*(np.log(nexp/nexp0))) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
+      if math.isnan(result) : result = math.inf
+      return result
     except Exception as inst:
       print('Fast NLL computation failed with the following exception, switching to slower-but-safer method')
       print(inst)
@@ -260,17 +274,52 @@ class Model (JSONSerializable) :
       s += 'c      = ' +       str(self.c)      + '\n'
     return s
 
+  def closure_exact(self, pars, data) : # add alphas eventually
+    eq_b = np.einsum('i,ij,i->j',self.bkg, self.b, (1 - data.n/self.n_exp(pars))) - (data.aux_betas - pars.betas)
+    eq_c = np.einsum('i,ij,i->j',self.bkg, self.c, (1 - data.n/self.n_exp(pars)))
+    return eq_b, eq_c
+
+  def closure_approx(self, pars, data, order = 1) :  # add alphas eventually
+    pars0 = self.expected_pars(pars.mu).set_from_aux(data)
+    eq_b = np.einsum('i,ij,i->j',self.bkg, self.b, 1 - data.n/self.n_exp(pars0)*(1 - self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas )))
+    eq_b -= (data.aux_betas - pars.betas)
+    eq_c = np.einsum('i,ij,i->j',self.bkg, self.c, 1 - data.n/self.n_exp(pars0)*(1 - self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas)))
+    if order > 1 :
+      eq_b += np.einsum('i,ij,i,i,i->j', self.bkg, self.b, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ))
+      eq_c += np.einsum('i,ij,i,i,i->j', self.bkg, self.c, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas))
+    if order > 2 :
+      eq_b += np.einsum('i,ij,i,i,i,i->j', self.bkg, self.b, data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ))
+      eq_c += np.einsum('i,ij,i,i,i,i->j', self.bkg, self.c, data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas))
+    if order > 3 :
+      eq_b += np.einsum('i,ij,i,i,i,i,i->j', self.bkg, self.b, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.n.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/model.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/model.n_exp(pars0)*self.n.dot(pars.betas ))
+      eq_c += np.einsum('i,ij,i,i,i,i,i->j', self.bkg, self.c, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/model.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/model.n_exp(pars0)*self.c.dot(pars.gammas))
+    return eq_b, eq_c
+
+  def regularize(self, sigmas = 3) : # Add a constraint (at sigmas*the current impact) to the gammas to make the model better-behaved.
+    reg_model = copy.deepcopy(self)
+    reg_model.betas = self.betas + self.gammas
+    reg_model.gammas = []
+    reg_model.b = np.concatenate((self.b, self.c), axis=1)
+    reg_model.c =  np.ndarray((self.nbins,0))
+    reg_model.sigma_betas = np.concatenate((np.ones(self.nb), sigmas*np.ones(self.nc)))
+    reg_model.init_vars()
+    return reg_model
+
 # -------------------------------------------------------------------------
 class Parameters :
   def __init__(self, mu, alphas = np.array([]), betas = np.array([]), gammas = np.array([]), model = None) :
     if not isinstance(alphas, np.ndarray) : alphas = np.array(alphas)
     if not isinstance(betas , np.ndarray) : betas  = np.array(betas)
     if not isinstance(gammas, np.ndarray) : gammas = np.array(gammas)
+    self.model = model
     self.mu = mu
+    if model :
+      if alphas.shape[0] == 0 : alphas = np.zeros(model.na)
+      if betas .shape[0] == 0 : betas  = np.zeros(model.nb)
+      if gammas.shape[0] == 0 : gammas = np.zeros(model.nc)
     self.alphas = alphas
     self.betas = betas
     self.gammas = gammas
-    self.model = model
 
   def array(self) : 
     return np.concatenate( ( np.array([ self.mu ]), self.alphas, self.betas, self.gammas ) )
@@ -288,7 +337,28 @@ class Parameters :
       s += 'gammas : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.gammas, self.gammas) ] )
     return s
 
+  def set(self, par, val) :
+    try :
+      i = self.model.alphas.index(par)
+      self.alphas[i] = val
+    except:
+      try :
+        i = self.model.betas.index(par)
+        self.betas[i] = val
+      except:
+        try :
+          i = self.model.gammas.index(par)
+          self.gammas[i] = val
+        except:
+          raise KeyError('Model parameter %s not found' % par)
+    return self
   
+  def set_from_aux(self, data) :
+    self.alphas = np.array(data.aux_alphas)
+    self.betas  = np.array(data.aux_betas )
+    return self
+
+
 # -------------------------------------------------------------------------
 class Data (JSONSerializable) :
   def __init__(self, model, n = np.array([]), aux_alphas = np.array([]), aux_betas = np.array([])) :
@@ -349,6 +419,7 @@ class Data (JSONSerializable) :
 
   def dump_jdict(self) :
     jdict = {}
+    jdict['data'] = {}
     jdict['data']['bin_counts'] = self.n.tolist()
     jdict['data']['aux_alphas'] = self.aux_alphas.tolist()
     jdict['data']['aux_betas' ] = self.aux_betas .tolist()
