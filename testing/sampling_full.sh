@@ -48,3 +48,10 @@
 # Use Asimov since the binning is comparable to the WS Asimov (but doesn't match, as it's log-scale) and this causes problems...
 ./fastprof/utils/check_model.py -m run/fastprof/HighMass_NW-1700-log500.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700.json         
 ./fastprof/utils/compute_limits.py -m  run/fastprof/HighMass_NW-1700-log500.json -f run/fastprof/fits_HighMass_NW-1700.json -o samples/HighMass_NW-1700-log500 -n 10000
+
+
+./convert_ws.py -f HighMass_NW.root -u --asimov -b 150:2500:200:log --setval mX=1700,xs=1 --setconst dSig -o HighMass_NW-1700-log200-noDSig.json --validation-data HighMass_NW-1700-log200-noDSig-valid.json
+./fit_ws.py -f HighMass_NW.root --data-name obsData --setval mX=1700,xs=0 --setconst dSig -r "0,1" -y 0.01,0.02,0.04,0.06,0.08,0.10,0.15,0.2 -o fits_HighMass_NW-1700-noDSig.json
+./fastprof/utils/check_model.py -m run/fastprof/HighMass_NW-1700-log200-noDSig.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-noDSig.json
+./fastprof/utils/compute_limits.py -m run/fastprof/HighMass_NW-1700-log200-noDSig.json -f run/fastprof/fits_HighMass_NW-1700-noDSig.json -o samples/HighMass_NW-1700-log200-noDSig -n 10000
+./fastprof/utils/compute_limits.py -m run/fastprof/HighMass_NW-1700-log200-noDSig.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-noDSig.json --regularize 3 -o samples/HighMass_NW-1700-log200-noDSig-r3 -n 10000
