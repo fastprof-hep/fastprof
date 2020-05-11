@@ -7,7 +7,7 @@ import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import json
 
-from fastprof import Model, Data, FitResults, QMuCalculator, OptiMinimizer
+from fastprof import Model, Data, FitResults, QMuTildaCalculator, OptiMinimizer
 
 ####################################################################################################################################
 ###
@@ -43,10 +43,9 @@ def check_model() :
   else :
     print('Using dataset stored in file %s.' % options.model_file)
     data = Data(model).load(options.model_file)
-  
-  calc = QMuCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
-  calc.fill_qcl('qmu', 'cl', 'cls')
-  calc.fill_fast()
+  calc = QMuTildaCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
+  calc.fill_qcl()
+  calc.fill_fast_results()
   results.print(verbosity = options.verbosity)
 
 check_model()
