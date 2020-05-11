@@ -10,8 +10,8 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 
 # -------------------------------------------------------------------------
 class SamplingDistribution :
-  def __init__(self, nentries = 0, ncols = 0) :
-    self.samples = np.zeros((nentries, ncols)) if ncols > 0 else np.zeros(nentries)
+  def __init__(self, nentries = 0) :
+    self.samples = np.zeros(nentries)
 
   def sort(self) :
     self.samples = np.sort(self.samples)
@@ -76,12 +76,12 @@ class Samples (SamplesBase) :
   def file_name(self, mu, ext = '') :
     return self.file_root + '_%g' % mu + ext
   
-  def generate_and_save(self, ntoys, break_lock = False, sort_before_saving = True) :
+  def generate_and_save(self, ntoys, break_locks = False, sort_before_saving = True) :
     for mu in self.mus :
-      if os.path.exists(self.file_name(mu, '.lock')) and not break_lock : 
+      if os.path.exists(self.file_name(mu, '.lock')) and not break_locks :
         print('Samples for mu = %g already being produced, skipping' % mu)
         continue
-      if os.path.exists(self.file_name(mu, '.npy')) and not break_lock :
+      if os.path.exists(self.file_name(mu, '.npy')) and not break_locks :
         print('Samples for mu = %g already produced, just loading (%d samples from %s)' % (mu, ntoys, self.file_name(mu, '.npy')))
         self.dists[mu] = SamplingDistribution(ntoys)
         self.dists[mu].load(self.file_name(mu, '.npy'))
@@ -91,6 +91,7 @@ class Samples (SamplesBase) :
         f.write(str(os.getpid()))
       self.dists[mu] = self.sampler.generate(mu, ntoys)
       self.dists[mu].save(self.file_name(mu), sort_before_saving=sort_before_saving)
+      if hasattr(self.sampler, 'debug_data') : self.sampler.debug_data.to_csv(self.file_name(mu, '_debug.csv'))
       print('Done')
       os.remove(self.file_name(mu, '.lock'))
     return self
@@ -135,11 +136,11 @@ class CLsSamples (SamplesBase) :
     self.clsb = clsb_samples
     self.cl_b = cl_b_samples
     
-  def generate_and_save(self, ntoys) :
+  def generate_and_save(self, ntoys, break_locks = False, sort_before_saving = True) :
     print('Processing CL_{s+b} sampling distributions for POI values %s' % str(self.mus))
-    self.clsb.generate_and_save(ntoys)
+    self.clsb.generate_and_save(ntoys, break_locks, sort_before_saving)
     print('Processing CL_b sampling distributions for POI values %s' % str(self.mus))
-    self.cl_b.generate_and_save(ntoys)
+    self.cl_b.generate_and_save(ntoys, break_locks, sort_before_saving)
     return self
   
   def load(self) :
