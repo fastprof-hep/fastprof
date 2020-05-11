@@ -7,6 +7,7 @@ import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from fastprof import Model, Data, OptiMinimizer, JSONSerializable
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 import numpy as np
 import math
 
@@ -66,47 +67,30 @@ bkg0 = model.b_exp(pars)
 nexp0 = model.n_exp(pars)
 
 for b in bins :
-  fig_var = plt.figure(figsize=(8, 6), dpi=96)
-  fig_inv = plt.figure(figsize=(8, 6), dpi=96)
-  gs = plt.GridSpec(nrows=nr, ncols=nc)
-  fig_var.suptitle('Bin [%g, %g] parameter variations' % (model.bins[b]['lo_edge'], model.bins[b]['hi_edge']))
-  fig_inv.suptitle('Bin [%g, %g] 1/N linearity check'  % (model.bins[b]['lo_edge'], model.bins[b]['hi_edge']))
+  fig = plt.figure(figsize=(8, 8), dpi=96)
+  fig.suptitle('Bin [%g, %g] linearity checks'  % (model.bins[b]['lo_edge'], model.bins[b]['hi_edge']))
+  gs = gridspec.GridSpec(nrows=nr, ncols=nc, wspace=0.3, hspace=0.3, top=0.9, bottom=0.05, left=0.1, right=0.95)
   for i, par in enumerate(model.alphas + model.betas + model.gammas) :
-    pars = model.expected_pars(1)
-    #if par in model.alphas :
-      #model.linear_nps = True
-      #vars_lin = [ model.s_exp(pars.set(par, x))[b]/sig0 for x in cont_x ]
-      #model.linear_nps = False
-      #vars_nonlin = [ model.s_exp(pars.set(par, x))[b]/sig0 for x in cont_x ]
-    #else:
-      #model.linear_nps = True
-      #vars_lin = [ model.b_exp(pars.set(par, x))[b]/bkg0 for x in cont_x ]
-      #model.linear_nps = False
-      #vars_nonlin = [ model.b_exp(pars.set(par, x))[b]/bkg0 for x in cont_x ]
-    model.linear_nps = True
-    vars_lin = [ model.n_exp(pars.set(par, x))[b]/nexp0[b] for x in cont_x ]
-    rvar_lin = [ 1 - ((model.n_exp(pars.set(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
-    model.linear_nps = False
-    vars_nli = [ model.n_exp(pars.set(par, x))[b]/nexp0[b] for x in cont_x ]
-    rvar_nli = [ 1 - ((model.n_exp(pars.set(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
+    
+    sgs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs[i//nc, i % nc], wspace=0.1, hspace=0.1)
 
-    ax_var = fig_var.add_subplot(gs[i//nc, i % nc])
+    pars = model.expected_pars(1)
+    model.linear_nps = True
+    vars_lin = [ model.n_exp(pars.set(par, x))[b]/nexp0[b] - 1 for x in cont_x ]
+    rvar_lin = [ -((model.n_exp(pars.set(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
+    model.linear_nps = False
+    vars_nli = [ model.n_exp(pars.set(par, x))[b]/nexp0[b] - 1 for x in cont_x ]
+    rvar_nli = [ -((model.n_exp(pars.set(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
+
+    ax_var = fig.add_subplot(sgs[0])
+    ax_inv = fig.add_subplot(sgs[1], sharex=ax_var)
     ax_var.set_title(par)
-    ax_var.plot(data.points, data.variations[par][b, :], 'ko')
+    ax_var.plot(data.points, data.variations[par][b, :]-1, 'ko')
     ax_var.plot(cont_x, vars_lin, 'r--')
     ax_var.plot(cont_x, vars_nli, 'b')
-    
-    ax_inv = fig_inv.add_subplot(gs[i//nc, i % nc])
-    ax_inv.set_title(par)
     ax_inv.plot(cont_x, rvar_lin, 'r--')
     ax_inv.plot(cont_x, rvar_nli, 'b')
 
-  fig_var.tight_layout()
-  fig_var.subplots_adjust(top=0.9)
-  fig_var.canvas.set_window_title('Bin %g parameter variations' % b)
-  
-  fig_inv.tight_layout()
-  fig_inv.subplots_adjust(top=0.9)
-  fig_inv.canvas.set_window_title('Bin %g 1/N linearity check' % b)
+  fig.canvas.set_window_title('Bin %g linearity checks' % b)
 
   
