@@ -53,11 +53,49 @@ class QMu(TestStatistic) :
     else :
       return scipy.stats.norm.sf(-math.sqrt(-self.value()) - math.sqrt(self.non_centrality_parameter()))
 
+  def asymptotic_clb(self) :
+    return QMu(0, self.tmu, self.best_mu, self.comp_mu, self.tmu_A, self.sigma).asymptotic_cl()
+
   def asymptotic_cls(self) :
     clsb = self.asymptotic_cl()
     cl_b = self.asymptotic_clb()
     #print('Asymptotic CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
     return clsb/cl_b if cl_b > 0 else 1
 
+
+class QMuTilda(TestStatistic) :
+  def __init__(self, test_mu, tmu, best_mu, comp_mu = None, tmu_A = None, tmu_0 = None) :
+    super().__init__(test_mu)
+    self.tmu = tmu
+    self.best_mu = best_mu
+    self.comp_mu = comp_mu if comp_mu != None else self.test_mu
+    self.tmu_A = tmu_A # corresponds to the test_mu hypo
+    self.tmu_0 = tmu_0 # corresponds to the mu=0 hypo
+
+  def value(self) :
+    return self.tmu if self.best_mu < self.test_mu else -self.tmu
+
+  def non_centrality_parameter(self) : # (mu - mu')^2/sigma^2
+    if self.comp_mu == self.test_mu : return 0
+    return self.tmu_A
+
+  def threshold(self) : # mu^2/sigma^2
+    return self.tmu_0
+
+  def asymptotic_cl(self) :
+    if self.value() < self.threshold() :
+      if self.value() >= 0 :
+        return scipy.stats.norm.sf(+math.sqrt(+self.value()) - math.sqrt(self.non_centrality_parameter()))
+      else :
+        return scipy.stats.norm.sf(-math.sqrt(-self.value()) - math.sqrt(self.non_centrality_parameter()))
+    else :
+      return scipy.stats.norm.sf((self.value() + self.threshold())/(2*math.sqrt(self.threshold())) - math.sqrt(self.non_centrality_parameter()))
+
   def asymptotic_clb(self) :
-    return QMu(0, self.tmu, self.best_mu, self.comp_mu, self.tmu_A, self.sigma).asymptotic_cl()
+    return QMuTilda(0, self.tmu, self.best_mu, self.comp_mu, self.tmu_0, self.tmu_0).asymptotic_cl()
+
+  def asymptotic_cls(self) :
+    clsb = self.asymptotic_cl()
+    cl_b = self.asymptotic_clb()
+    #print('Asymptotic CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
+    return clsb/cl_b if cl_b > 0 else 1

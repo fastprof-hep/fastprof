@@ -1,6 +1,6 @@
-from .core            import Model, Parameters, Data
-from .test_statistics import QMu, TMu
+from .core            import Model, Parameters, Data, JSONSerializable
+from .test_statistics import TMu, QMu, QMuTilda
 from .minimizers      import NPMinimizer, OptiMinimizer, ScanMinimizer
 from .sampling        import SamplingDistribution, Samples, CLsSamples
-from .samplers        import ScanSampler, OptiSampler, PyhfSampler, DebuggingScanSampler
-from .tools           import FitResults, QMuCalculator
+from .samplers        import ScanSampler, OptiSampler, PyhfSampler
+from .tools           import FitResults, QMuCalculator, QMuTildaCalculator
