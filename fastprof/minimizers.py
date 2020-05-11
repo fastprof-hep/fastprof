@@ -55,56 +55,67 @@ class NPMinimizer :
     return p, q
 
 # Same as above, more readable, and faster -- use by default
-  def pq_einsum(self) :
-    pars_nom = Parameters(self.mu, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc))
+  def pq_einsum(self, pars_nom) :
     snom = self.model.s_exp(pars_nom)
-    nnom = snom + self.model.b_exp(pars_nom)
-    r1 = 1 - self.data.n/nnom
-    r2 = self.data.n/nnom/nnom
-    r3 = 1 - self.data.n/nnom*(1 - snom/nnom)
-    qA = np.einsum('i,i,ij->j', snom, r1, self.model.a)
-    qB = np.einsum('i,i,ij->j', self.model.bkg, r1, self.model.b)
-    qC = np.einsum('i,i,ij->j', self.model.bkg, r1, self.model.c)
-    pAA = np.einsum('i,i,ij,ik->jk', snom, r3, self.model.a, self.model.a) + np.identity(self.model.na)
-    pAB = np.einsum('i,i,i,ij,ik->jk', snom, self.model.bkg, r2, self.model.a, self.model.b)
-    pAC = np.einsum('i,i,i,ij,ik->jk', snom, self.model.bkg, r2, self.model.a, self.model.c)
-    pBB = np.einsum('i,i,i,ij,ik->jk', self.model.bkg,self.model.bkg,r2, self.model.b, self.model.b) + np.identity(self.model.nb)
-    pBC = np.einsum('i,i,i,ij,ik->jk', self.model.bkg,self.model.bkg,r2, self.model.b, self.model.c)
-    pCC = np.einsum('i,i,i,ij,ik->jk', self.model.bkg,self.model.bkg,r2, self.model.c, self.model.c)
+    bnom = self.model.b_exp(pars_nom)
+    nnom = snom + bnom
+    rB = bnom/nnom
+    rS = snom/nnom
+    dN = nnom - self.data.n
+    qA = np.einsum('i,i,ij->j', rS, dN, self.model.a)
+    qB = np.einsum('i,i,ij->j', rB, dN, self.model.b)
+    qC = np.einsum('i,i,ij->j', rB, dN, self.model.c)
+    pAA = np.einsum('i,i,ij,ik->jk',   rS, rS *self.data.n + dN, self.model.a, self.model.a) + self.model.diag_alphas
+    pAB = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , self.model.a, self.model.b)
+    pAC = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , self.model.a, self.model.c)
+    pBB = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , self.model.b, self.model.b) + self.model.diag_betas
+    pBC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , self.model.b, self.model.c)
+    pCC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , self.model.c, self.model.c)
     return np.block([[pAA, pAB, pAC], [np.transpose(pAB), pBB, pBC], [np.transpose(pAC), np.transpose(pBC), pCC]]), np.block([qA, qB, qC])
   
-  def profile(self) :
-    p, q = self.pq_einsum() # can switch to pq_naive for tests
+  def profile(self, pars_nom = None) :
+    if pars_nom == None : pars_nom = self.model.expected_pars(self.mu).set_from_aux(self.data)
+    p, q = self.pq_einsum(pars_nom) # can switch to pq_naive for tests
     d = np.linalg.det(p)
     if abs(d) < 1E-8 :
       print('Linear system has an ill-conditioned coefficient matrix (det= %g), returning null result' % d)
-      nps =  self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
+      nps = self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
     else :
       v = np.linalg.inv(p).dot(q)
-      nps = self.data.aux_alphas - v[:self.model.na], self.data.aux_betas - v[self.model.na:self.model.nsyst], -v[self.model.nsyst:]
+      nps = pars_nom.alphas - v[:self.model.na], pars_nom.betas - v[self.model.na:self.model.nsyst], pars_nom.gammas - v[self.model.nsyst:]
     self.min_pars = Parameters(self.mu, *nps, self.model)
     return nps
   
-  def profile_nll(self) :
-    self.profile()
+  def profile_nll(self, pars_nom = None) :
+    self.profile(pars_nom)
     return self.model.nll(self.min_pars, self.data)
   
   
 # -------------------------------------------------------------------------
 class POIMinimizer :
-  def __init__(self, data) : 
+  def __init__(self, data, niter = 1) :
     self.model = data.model
     self.data = data
+    self.niter = niter
   @abstractmethod
   def minimize(self) :
-    pass  
+    pass
+  def profile_nps(self, mu) :
+    self.np_min = NPMinimizer(mu, self.data)
+    self.min_pars = None
+    for i in range(0, self.niter) :
+      self.np_min.profile(self.min_pars)
+      self.min_pars = self.np_min.min_pars
+    self.nll_min = self.model.nll(self.min_pars, self.data)
   def tmu(self, mu) :
-    nll_min, min_pos = self.minimize()
-    if nll_min == None : return None, None
-    np_min = NPMinimizer(mu, self.data)
-    nll_hypo = np_min.profile_nll()
-    self.hypo_pars = np_min.min_pars
-    return 2*(nll_hypo - nll_min), min_pos
+    self.minimize()
+    if self.nll_min == None : return None, None
+    self.free_nll = self.nll_min
+    self.free_pars = self.min_pars
+    self.profile_nps(mu)
+    self.hypo_nll = self.nll_min
+    self.hypo_pars = self.min_pars
+    return 2*(self.hypo_nll - self.free_nll), self.min_mu
   def asimov_clone(self, mu) :
     clone = copy.copy(self)
     clone.data = Data(self.model).set_expected(self.model.expected_pars(mu))
@@ -112,8 +123,8 @@ class POIMinimizer :
 
 # -------------------------------------------------------------------------
 class ScanMinimizer (POIMinimizer) :
-  def __init__(self, data, scan_mus) :
-    super().__init__(data)
+  def __init__(self, data, scan_mus, niter=1) :
+    super().__init__(data, niter)
     self.scan_mus = scan_mus
     self.pars = []
     for mu in scan_mus :
@@ -130,19 +141,19 @@ class ScanMinimizer (POIMinimizer) :
     minima = smooth_nll.derivative().roots()
     self.nll_min = np.amin(self.nlls)
     self.min_idx = np.argmin(self.nlls)
-    min_mu  = self.scan_mus[self.min_idx]
+    self.min_mu  = self.scan_mus[self.min_idx]
     if len(minima) == 1 :
       interp_min = smooth_nll(minima[0])
       if interp_min < self.nll_min :
-        min_mu  = minima[0]
+        self.min_mu  = minima[0]
         self.nll_min = interp_min
-    self.min_pars = Parameters(min_mu, self.pars[self.min_idx].alphas, self.pars[self.min_idx].betas, self.pars[self.min_idx].gammas)
-    return self.nll_min, min_mu
+    self.min_pars = Parameters(self.min_mu, self.pars[self.min_idx].alphas, self.pars[self.min_idx].betas, self.pars[self.min_idx].gammas)
+    return self.nll_min, self.min_mu
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
-  def __init__(self, data, mu0 = 1, bounds = (0, 999999), method = 'scalar') :
-    super().__init__(data)
+  def __init__(self, data, mu0 = 1, bounds = (0, 999999), method = 'scalar', niter=1) :
+    super().__init__(data, niter)
     self.np_min = None
     self.mu0 = mu0
     self.bounds = bounds
@@ -152,25 +163,19 @@ class OptiMinimizer (POIMinimizer) :
     def objective(mu) :
       if isinstance(mu, np.ndarray) : mu = mu[0]
       if isinstance(mu, np.ndarray) : mu = mu[0]
-      #print('obj',mu, type(mu))
-      self.np_min = NPMinimizer(mu, self.data)
-      self.nll_min = self.np_min.profile_nll()
-      #print('== OptMinimizer: eval at %g -> %g' % (mu, self.nll_min))
+      self.profile_nps(mu)
+      # print('== OptMinimizer: eval at %g -> %g' % (mu, self.nll_min))
       return self.nll_min
     def jacobian(mu) :
       if isinstance(mu, np.ndarray) : mu = mu[0]
       if isinstance(mu, np.ndarray) : mu = mu[0]
-      #print('jac', mu, type(mu))
-      self.np_min = NPMinimizer(mu, self.data)
-      self.np_min.profile()
+      self.profile_nps(mu)
       #print('jac out', self.np_min.model.grad_poi(self.np_min.min_pars, self.data))
       return np.array([ self.np_min.model.grad_poi(self.np_min.min_pars, self.data) ])
     def hess_p(mu, v) :
       if isinstance(mu, np.ndarray) : mu = mu[0]
       if isinstance(mu, np.ndarray) : mu = mu[0]
-      #print('hess', mu, type(mu))
-      self.np_min = NPMinimizer(mu, self.data)
-      self.np_min.profile()
+      self.profile_nps(mu)
       #print('hess out', self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0])
       return np.array([ self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0] ])
     #print('Optimizer: start bounded ----------------')
@@ -185,10 +190,14 @@ class OptiMinimizer (POIMinimizer) :
     if not result.success :
       print('Minimization failed, details below')
       print(dir(result))
+      print('Current NPs:')
+      print(self.min_pars)
+      if hasattr(result, 'x')       : print('x       =', result.x)
+      if hasattr(result, 'fun')     : print('fun     =', result.fun)
       if hasattr(result, 'status')  : print('status  =', result.status)
       if hasattr(result, 'message') : print('message =', result.message)
       return None, None
-    self.min_pars = self.np_min.min_pars
     self.nll_min = result.fun
     self.min_mu = result.x
+    self.nfev = result.nfev
     return self.nll_min, self.min_mu
