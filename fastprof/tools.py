@@ -38,7 +38,7 @@ class FitResults (JSONSerializable) :
       if verbosity > 0 :
         print_keys.extend([ 'cls', 'fast_cls', 'sampling_cls', 'clb', 'fast_clb', 'sampling_clb' ])
       if verbosity > 1 :
-        print_keys.extend([ 'q', 'fast_q', 'best_fit_val', 'fast_best_fit_val' ])
+        print_keys.extend([ 'tmu', 'fast_tmu', 'best_fit_val', 'fast_best_fit_val' ])
     s = ''
     for k in print_keys :
       if k in self.fit_results[0] : s += '| %-15s ' % k
