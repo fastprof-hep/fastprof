@@ -44,7 +44,7 @@
 ./create_workspace.py -c ./fastprof/fidXsection_spin0_NW_withSS/hfitter_newResRun2_highMass_NW.dat -o fastprof/HighMass_NW.root --poi xs --asimov -i ..:../Hfitter/HfitterModels
 # Use eps=4 to account for non-linear effect of dSig
 ./convert_ws.py -f HighMass_NW.root -u --asimov -b 150:2500:500:log --setval mX=1700,xs=1 -o HighMass_NW-1700-log500.json --eps 4
-./fit_ws.py -f HighMass_NW.root --data-name obsData --setval mX=1700,xs=0 -r " -0.2,2" -y 0.001,0.01,0.02,0.03,0.04,0.05,0.07,0.09,0.2 -o fits_HighMass_NW-1700.json                 
+./fit_ws.py -f HighMass_NW.root --data-name obsData --setval mX=1700,xs=0 -r "0,1" -y 0.001,0.01,0.02,0.03,0.04,0.05,0.07,0.09,0.2 -o fits_HighMass_NW-1700.json              
 # Use Asimov since the binning is comparable to the WS Asimov (but doesn't match, as it's log-scale) and this causes problems...
 ./fastprof/utils/check_model.py -m run/fastprof/HighMass_NW-1700-log500.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700.json         
 ./fastprof/utils/compute_limits.py -m  run/fastprof/HighMass_NW-1700-log500.json -f run/fastprof/fits_HighMass_NW-1700.json -o samples/HighMass_NW-1700-log500 -n 10000
@@ -55,3 +55,5 @@
 ./fastprof/utils/check_model.py -m run/fastprof/HighMass_NW-1700-log200-noDSig.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-noDSig.json
 ./fastprof/utils/compute_limits.py -m run/fastprof/HighMass_NW-1700-log200-noDSig.json -f run/fastprof/fits_HighMass_NW-1700-noDSig.json -o samples/HighMass_NW-1700-log200-noDSig -n 10000
 ./fastprof/utils/compute_limits.py -m run/fastprof/HighMass_NW-1700-log200-noDSig.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-noDSig.json --regularize 3 -o samples/HighMass_NW-1700-log200-noDSig-r3 -n 10000
+./fastprof/utils/compute_limits.py -m run/fastprof/HighMass_NW-1700-log200.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-manual.json --regularize 5 -o samples/HighMass_NW-1700-log200-r5 -n 10000
+./fastprof/utils/check_model.py -m run/fastprof/HighMass_NW-1700-log200.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-manual.json -r 5
