@@ -8,6 +8,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import ROOT
 import numpy as np
 import json
+from scipy.stats import norm
 import collections
 
 # TODO: 
@@ -30,6 +31,7 @@ parser.add_argument("-=", "--setval"           , type=str   , default='',       
 parser.add_argument("-k", "--setconst"         , type=str   , default='',          help="Variables to set constant")
 parser.add_argument("-i", "--poi-initial-value", type=float , default=None,        help="POI allowed range, in the form min,max")
 parser.add_argument("-r", "--poi-range"        , type=str   , default='',          help="POI allowed range, in the form min,max")
+parser.add_argument("-n", "--signal-yield"     , type=str   , default='nSignal'  , help="Name of signal yield variable")
 parser.add_argument("-o", "--output-file"      , type=str   , required=True,       help="Name of output file")
 parser.add_argument("-v", "--verbosity"        , type=int   , default=0,           help="Verbosity level")
 
@@ -104,10 +106,17 @@ else :
   raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
 
 try :
-  hypos = [ float(h) for h in options.hypos.split(',') ]
-except Exception as inst :
-  print(inst)
-  raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
+  nhypos = int(options.hypos)
+  n1 = (nhypos + 1) // 4
+  pos = np.concatenate((np.linspace(0, 2, n1+2)[1:-1], np.linspace(2, 5, n1))) # same number of points between [0,2] and [2,5]
+  hypo_zs = np.concatenate((np.flip(-pos), np.zeros(1), pos))
+  hypos = None
+except:
+  try :
+    hypos = [ float(h) for h in options.hypos.split(',') ]
+  except Exception as inst :
+    print(inst)
+    raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
 
 ws.saveSnapshot('init', nuis_pars)
 nuis_pars.Print("V")
@@ -117,6 +126,29 @@ fit_results = []
 
 nll = main_pdf.createNLL(data, ROOT.RooFit.SumW2Error(False))
 asimov_nll = main_pdf.createNLL(asimov, ROOT.RooFit.SumW2Error(False))
+
+if hypos == None : # we need to auto-define them based on the POI uncertainty
+  nSignal = ws.var(options.signal_yield)
+  if nSignal == None :
+    nSignal = ws.function(options.signal_yield)
+    if nSignal == None :
+      raise ValueError('Could not locate signal yield variable %s')
+  def hypo_guess(i, unc) :
+    cl = 0.05
+    return (3 + 0.5*i)*np.exp(-unc**2/3) + (1 - np.exp(-unc**2/3))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + unc**2)
+  poi.setConstant(True)
+  main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  poi.setConstant(False)
+  main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  poi.setVal(1)
+  hypos_nS = np.array([ hypo_guess(i, poi.getError()/poi.getVal()*nSignal.getVal()) for i in hypo_zs ])
+  hypos = hypos_nS/nSignal.getVal()*poi.getVal()
+  print('Auto-defined the following hypotheses :')
+  print('  ' + '\n  '.join([ '%5g : Nsig = %10g, POI = %10g' % (h_z, h_n, h_p) for h_z, h_n, h_p in zip(hypo_zs, hypos_nS, hypos) ] ))
+  if options.poi_range == '' :
+    # Set range up to the 10sigma hypothesis, should be enough...
+    poi.setRange(0, hypo_guess(10, poi.getError()/poi.getVal()*nSignal.getVal())/nSignal.getVal()*poi.getVal())
+    print('Auto-set POI range to [%g, %g]' % (poi.getMin(), poi.getMax()))
 
 for hypo in hypos :
   # Set the hypothesis
