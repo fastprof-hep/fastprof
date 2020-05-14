@@ -25,6 +25,7 @@ class SamplingDistribution :
     nafter =  self.samples.shape[0]
     if nbefore > 0 and nafter < nbefore :
       raise IOError('File %s did not contain enough samples (expected %d, got %d).' % (filename, nbefore, nafter))
+    return self
 
   def save(self, filename, sort_before_saving = True) :
     if sort_before_saving : self.sort()
