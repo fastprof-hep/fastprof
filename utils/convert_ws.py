@@ -247,17 +247,10 @@ if not options.data_only :
           ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
           sig_var = nSignal.getVal()*sigint.getVal()
           bkg_var = ntot*totint.getVal() - sig_var
-          #if par in alphas :
-            ##impact_s_pos = (sig_var/sig0 - 1) if sig0 != 0 else 0
-            ##impact_s_neg = (sig0/sig_var - 1) if sig_var != 0 else 0
-            ##par_data[i,k] = impact_s_pos if val > 0 else impact_s_neg
-            #par_data[i,k] = sig_var/sig0 if sig0 != 0 else 0
-          #else :
-            ##impact_b_pos = (bkg_var/bkg0 - 1) if bkg0 != 0 else 0
-            ##impact_b_neg = (bkg0/bkg_var - 1) if bkg_var != 0 else 0
-            ##par_data[i,k] = impact_b_pos if val > 0 else impact_b_neg
-            #par_data[i,k] = bkg_var/bkg0 if bkg0 != 0 else 0
+          print('== validation %-10s: %+6g sigma sig yield = %g' % ('', val, sig_var))
+          print('== validation %-10s: %+6g sigma bkg yield = %g' % ('', val, bkg_var))
           par_data[i,k] = (sig_var + bkg_var)/(sig0 + bkg0) if sig0 + bkg0 != 0 else 0
+          print('== validation %-10s: %+6g variation = %g' % ('', val, par_data[i,k]))
         par.setVal(par0)
 
   impacts = {}
