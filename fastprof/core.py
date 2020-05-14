@@ -64,6 +64,7 @@ class Model (JSONSerializable) :
     self.c = c
     self.sigma_alphas = sigma_alphas
     self.sigma_betas  = sigma_betas
+    self.sigma_gammas = np.ndarray((0,0))
     self.name = name
     self.bins = bins
     self.linear_nps = linear_nps
@@ -81,6 +82,11 @@ class Model (JSONSerializable) :
     self.ln_c = np.log(1 + self.c)
     self.diag_alphas = np.diag(1/self.sigma_alphas**2) if self.sigma_alphas.shape != (0,0) else np.identity(self.na)
     self.diag_betas  = np.diag(1/self.sigma_betas **2) if self.sigma_betas .shape != (0,0) else np.identity(self.nb)
+    self.diag_gammas = np.diag(1/self.sigma_gammas**2) if self.sigma_gammas.shape != (0,0) else np.zeros((self.nc, self.nc))
+
+  def set_gamma_regularization(self, gamma_regularization) :
+    self.sigma_gammas = np.ones(self.nc)*gamma_regularization
+    self.init_vars()
 
   def alphas(self) : return self.alphas
   def betas (self) : return self.betas
@@ -100,41 +106,30 @@ class Model (JSONSerializable) :
 
   def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
 
-  def nll_naive(self, pars, data) :
-    nexp = self.n_exp(pars)
-    da = data.aux_alphas - pars.alphas
-    db = data.aux_betas  - pars.betas
-    poisson = 0
-    for nob, nex in zip(data.n, nexp) :
-      if nex > 0 :
-        poisson += nex - nob*math.log(nex)
-      else :
-        if nob == 0 :
-          poisson += nex
-        else :
-          print('Warning: negative expected yields for the parameter values below, returning +INF')
-          print(pars)
-          print(nexp)
-          print(data)
-          return np.Infinity
-    return poisson + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
-
   def nll(self, pars, data, offset = True) :
     da = data.aux_alphas - pars.alphas
     db = data.aux_betas  - pars.betas
+    dc = pars.gammas
     nexp = self.n_exp(pars)
     try :
       if not offset :
-        result = np.sum(nexp - data.n*np.log(nexp)) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
+        result = np.sum(nexp - data.n*np.log(nexp)) \
+          + 0.5*np.linalg.multi_dot((da, self.diag_alphas, da)) \
+          + 0.5*np.linalg.multi_dot((db, self.diag_betas , db)) \
+          + 0.5*np.linalg.multi_dot((dc, self.diag_gammas, dc))
       else :
         nexp0 = self.sig + self.bkg
-        result = np.sum(nexp - nexp0 - data.n*(np.log(nexp/nexp0))) + 0.5*np.dot(da,da) + 0.5*np.dot(db,db)
+        result = np.sum(nexp - nexp0 - data.n*(np.log(nexp/nexp0))) \
+          + 0.5*np.linalg.multi_dot((da, self.diag_alphas, da)) \
+          + 0.5*np.linalg.multi_dot((db, self.diag_betas , db)) \
+          + 0.5*np.linalg.multi_dot((dc, self.diag_gammas, dc))
+
       if math.isnan(result) : result = math.inf
       return result
     except Exception as inst:
-      print('Fast NLL computation failed with the following exception, switching to slower-but-safer method')
+      print('Fast NLL computation failed with the following exception, returning +Inf')
       print(inst)
-      return self.nll_naive(pars, data)
+      return np.Infinity
 
   #def derivatives(self, pars) :
     #der_a = np.zeros(self.n_alpha())
@@ -294,16 +289,6 @@ class Model (JSONSerializable) :
       eq_b += np.einsum('i,ij,i,i,i,i,i->j', self.bkg, self.b, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.n.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/model.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/model.n_exp(pars0)*self.n.dot(pars.betas ))
       eq_c += np.einsum('i,ij,i,i,i,i,i->j', self.bkg, self.c, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/model.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/model.n_exp(pars0)*self.c.dot(pars.gammas))
     return eq_b, eq_c
-
-  def regularize(self, sigmas = 3) : # Add a constraint (at sigmas*the current impact) to the gammas to make the model better-behaved.
-    reg_model = copy.deepcopy(self)
-    reg_model.betas = self.betas + self.gammas
-    reg_model.gammas = []
-    reg_model.b = np.concatenate((self.b, self.c), axis=1)
-    reg_model.c =  np.ndarray((self.nbins,0))
-    reg_model.sigma_betas = np.concatenate((np.ones(self.nb), sigmas*np.ones(self.nc)))
-    reg_model.init_vars()
-    return reg_model
 
 # -------------------------------------------------------------------------
 class Parameters :
