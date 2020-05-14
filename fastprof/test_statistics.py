@@ -36,7 +36,7 @@ class QMu(TestStatistic) :
     self.sigma = sigma
 
   def value(self) :
-    return self.tmu if self.best_mu < self.test_mu else -self.tmu
+    return self.tmu if self.best_mu < self.comp_mu else -self.tmu
 
   def non_centrality_parameter(self) :
     if self.comp_mu == self.test_mu : return 0
@@ -73,7 +73,7 @@ class QMuTilda(TestStatistic) :
     self.tmu_0 = tmu_0 # corresponds to the mu=0 hypo
 
   def value(self) :
-    return self.tmu if self.best_mu < self.test_mu else -self.tmu
+    return self.tmu if self.best_mu < self.comp_mu else -self.tmu
 
   def non_centrality_parameter(self) : # (mu - mu')^2/sigma^2
     if self.comp_mu == self.test_mu : return 0
