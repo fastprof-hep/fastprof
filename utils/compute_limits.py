@@ -36,7 +36,8 @@ if not options :
   sys.exit(0)
 
 model = Model.create(options.model_file)
-if options.regularize != None : model = model.regularize(options.regularize)
+if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
+if options.regularize != None : model.set_gamma_regularization(options.regularize)
 
 res = FitResults(options.fits_file)
 fit_results = res.fit_results
