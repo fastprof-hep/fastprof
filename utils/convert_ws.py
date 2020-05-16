@@ -5,12 +5,12 @@ __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import ROOT
 import numpy as np
 import json
 import collections
 import array
 import math
+import ROOT
 
 ####################################################################################################################################
 ###
