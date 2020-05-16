@@ -5,15 +5,14 @@ __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import ROOT
 import numpy as np
 import json
 import collections
 import array
 import math
+import ROOT
 
 ####################################################################################################################################
-###
 
 parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
@@ -87,7 +86,7 @@ if options.setval != '' :
       if not ws.var(var) :
         raise ValueError("Cannot find variable '%s' in workspace" % var)
       ws.var(var).setVal(float(val))
-      print "INFO : setting %s=%g" % (var, float(val))
+      print("INFO : setting %s=%g" % (var, float(val)))
   except Exception as inst :
     print(inst)
     raise ValueError("ERROR : invalid variable assignment string '%s'." % options.setval)
@@ -97,12 +96,12 @@ if options.setconst != '' :
   for var in varlist :
     matching_vars = ROOT.RooArgList(ws.allVars().selectByName(var))
     if matching_vars.getSize() == 0 :
-      print "ERROR : no variables matching '%s' in model" % var
+      print("ERROR : no variables matching '%s' in model" % var)
       raise ValueError
     for i in range(0, matching_vars.getSize()) :
       thisvar =  matching_vars.at(i)
       thisvar.setConstant()
-      print "INFO : setting variable '%s' constant (current value: %g)" % (thisvar.GetName(), thisvar.getVal())
+      print("INFO : setting variable '%s' constant (current value: %g)" % (thisvar.GetName(), thisvar.getVal()))
 
 data = None
 if options.data_name != '' :

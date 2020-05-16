@@ -5,11 +5,11 @@ __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import ROOT
 import numpy as np
 import json
 from scipy.stats import norm
 import collections
+import ROOT
 
 # TODO: 
 # - add fit options support
