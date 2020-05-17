@@ -32,14 +32,16 @@ except Exception as inst :
   raise ValueError('Invalid bin specification %s : the format should be bin1,bin2,...' % options.bins)
 
 class ValidationData (JSONSerializable) :
-  def __init__(self, filename = '') :
+  def __init__(self, model, filename = '') :
     super().__init__()
+    self.model = model
     if filename != '' : self.load(filename)
 
   def load_jdict(self, jdict) :
+    self.poi        = jdict[self.model.poi]
     self.points     = jdict['points']
     self.variations = {}
-    for par in model.alphas + model.betas + model.gammas :
+    for par in self.model.alphas + self.model.betas + self.model.gammas :
       if not par in jdict : 
         print('No validation data found for NP %s' % par)
       else :
@@ -50,9 +52,10 @@ class ValidationData (JSONSerializable) :
     return {}  
 
 model = Model.create(options.model_file)
-if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
+if model == None :
+  raise ValueError('No valid model definition found in file %s.' % options.model_file)
 
-data = ValidationData(options.validation_data)
+data = ValidationData(model, options.validation_data)
 
 plt.ion()
 nplots = model.n_nps
@@ -61,7 +64,7 @@ nr = math.ceil(nplots/nc)
 
 cont_x = np.linspace(data.points[0], data.points[-1], 100)
 
-pars = model.expected_pars(1)
+pars = model.expected_pars(data.poi)
 sig0 = model.s_exp(pars)
 bkg0 = model.b_exp(pars)
 nexp0 = model.n_exp(pars)
@@ -71,10 +74,8 @@ for b in bins :
   fig.suptitle('Bin [%g, %g] linearity checks'  % (model.bins[b]['lo_edge'], model.bins[b]['hi_edge']))
   gs = gridspec.GridSpec(nrows=nr, ncols=nc, wspace=0.3, hspace=0.3, top=0.9, bottom=0.05, left=0.1, right=0.95)
   for i, par in enumerate(model.alphas + model.betas + model.gammas) :
-    
     sgs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs[i//nc, i % nc], wspace=0.1, hspace=0.1)
-
-    pars = model.expected_pars(1)
+    pars = model.expected_pars(data.poi)
     model.linear_nps = True
     vars_lin = [ model.n_exp(pars.set(par, x))[b]/nexp0[b] - 1 for x in cont_x ]
     rvar_lin = [ -((model.n_exp(pars.set(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
