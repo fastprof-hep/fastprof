@@ -20,20 +20,21 @@ import ROOT
 
 parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
-parser.add_argument("-f", "--ws-file"          , type=str   , required=True,       help="Name of file containing the workspace")
-parser.add_argument("-w", "--ws-name"          , type=str   , default='modelWS',   help="Name workspace object inside the specified file")
-parser.add_argument("-m", "--model-config-name", type=str   , default='mconfig',   help="Name of model config within the specified workspace")
-parser.add_argument("-d", "--data-name"        , type=str   , default='',          help="Name of dataset object within the input workspace")
-parser.add_argument("-a", "--asimov"           , action="store_true",              help="Fit an Asimov dataset")
-parser.add_argument("-y", "--hypos"            , type=str   , default='',          help="Comma-separated list of POI hypothesis values")
-parser.add_argument(      "--fit-options"      , type=str   , default='',          help="RooFit fit options to use")
-parser.add_argument("-=", "--setval"           , type=str   , default='',          help="Variables to set, in the form var1=val1,var2=val2,...")
-parser.add_argument("-k", "--setconst"         , type=str   , default='',          help="Variables to set constant")
-parser.add_argument("-i", "--poi-initial-value", type=float , default=None,        help="POI allowed range, in the form min,max")
-parser.add_argument("-r", "--poi-range"        , type=str   , default='',          help="POI allowed range, in the form min,max")
-parser.add_argument("-n", "--signal-yield"     , type=str   , default='nSignal'  , help="Name of signal yield variable")
-parser.add_argument("-o", "--output-file"      , type=str   , required=True,       help="Name of output file")
-parser.add_argument("-v", "--verbosity"        , type=int   , default=0,           help="Verbosity level")
+parser.add_argument("-f", "--ws-file"          , type=str   , required=True    , help="Name of file containing the workspace")
+parser.add_argument("-w", "--ws-name"          , type=str   , default='modelWS', help="Name workspace object inside the specified file")
+parser.add_argument("-m", "--model-config-name", type=str   , default='mconfig', help="Name of model config within the specified workspace")
+parser.add_argument("-d", "--data-name"        , type=str   , default=''       , help="Name of dataset object within the input workspace")
+parser.add_argument("-a", "--asimov"           , action="store_true"           , help="Fit an Asimov dataset")
+parser.add_argument("-y", "--hypos"            , type=str   , default=''       , help="Comma-separated list of POI hypothesis values")
+parser.add_argument(      "--fit-options"      , type=str   , default=''       , help="RooFit fit options to use")
+parser.add_argument(      "--binned"           , action="store_true"           , help="Use binned data")
+parser.add_argument("-=", "--setval"           , type=str   , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
+parser.add_argument("-k", "--setconst"         , type=str   , default=''       , help="Variables to set constant")
+parser.add_argument("-i", "--poi-initial-value", type=float , default=None     , help="POI allowed range, in the form min,max")
+parser.add_argument("-r", "--poi-range"        , type=str   , default=''       , help="POI allowed range, in the form min,max")
+parser.add_argument("-n", "--signal-yield"     , type=str   , default='nSignal', help="Name of signal yield variable")
+parser.add_argument("-o", "--output-file"      , type=str   , required=True    , help="Name of output file")
+parser.add_argument("-v", "--verbosity"        , type=int   , default=0        , help="Verbosity level")
 
 options = parser.parse_args()
 if not options :
@@ -100,6 +101,7 @@ if options.data_name != '' :
   if data == None :
     ds = [ d.GetName() for d in ws.allData() ]
     raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+  if options.binned : data = data.binnedClone()
 elif options.asimov :
   data = asimov
 else :
