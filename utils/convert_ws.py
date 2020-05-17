@@ -17,25 +17,26 @@ import ROOT
 
 parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
-parser.add_argument("-f", "--ws-file"            , type=str  , required=True    , help="Name of file containing the workspace")
-parser.add_argument("-w", "--ws-name"            , type=str  , default='modelWS', help="Name workspace object inside the specified file")
-parser.add_argument("-m", "--model-config-name"  , type=str  , default='mconfig', help="Name of model config within the specified workspace")
-parser.add_argument("-s", "--signal-pdf"         , type=str  , default='Signal' , help="Name of signal component PDF")
-parser.add_argument("-n", "--signal-yield"       , type=str  , default='nSignal', help="Name of signal yield variable")
-parser.add_argument("-b", "--binning"            , type=str  , required=True    , help="Binning used, in the form xmin:xmax:nbins[:log]")
-parser.add_argument("-p", "--nps"                , type=str  , default=''       , help="List of constrained nuisance parameters")
-parser.add_argument("-e", "--epsilon"            , type=float, default=1        , help="Scale factor applied to uncertainties for impact computations")
-parser.add_argument("-=", "--setval"             , type=str  , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
-parser.add_argument("-k", "--setconst"           , type=str  , default=''       , help="Variables to set constant")
-parser.add_argument("-r", "--refit"              , action="store_true"          , help="Perform a fit to the dataset (specified by --data-name) before conversion")
-parser.add_argument("-u", "--refit-uncertainties", action="store_true"          , help="Update uncertainties (but not central values) from a fit to the specified dataset")
-parser.add_argument("-a", "--asimov"             , action="store_true"          , help="Perform an Asimov fit before conversion")
-parser.add_argument("-x", "--data-only"          , action="store_true"          , help="Only dump the specified dataset, not the model")
-parser.add_argument("-d", "--data-name"          , type=str  , default=''       , help="Name of dataset object within the input workspace")
-parser.add_argument("-o", "--output-file"        , type=str  , required=True    , help="Name of output file")
-parser.add_argument(      "--output-name"        , type=str  , default=''       , help="Name of the output model")
-parser.add_argument(      "--validation-data"    , type=str  , default=''       , help="Name of output file for validation data")
-parser.add_argument("-v", "--verbosity"          , type=int  , default=0        , help="Verbosity level")
+parser.add_argument("-f", "--ws-file"          , type=str  , required=True    , help="Name of file containing the workspace")
+parser.add_argument("-w", "--ws-name"          , type=str  , default='modelWS', help="Name workspace object inside the specified file")
+parser.add_argument("-m", "--model-config-name", type=str  , default='mconfig', help="Name of model config within the specified workspace")
+parser.add_argument("-s", "--signal-pdf"       , type=str  , default='Signal' , help="Name of signal component PDF")
+parser.add_argument("-n", "--signal-yield"     , type=str  , default='nSignal', help="Name of signal yield variable")
+parser.add_argument("-b", "--binning"          , type=str  , required=True    , help="Binning used, in the form xmin:xmax:nbins[:log]")
+parser.add_argument("-p", "--nps"              , type=str  , default=''       , help="List of constrained nuisance parameters")
+parser.add_argument("-e", "--epsilon"          , type=float, default=1        , help="Scale factor applied to uncertainties for impact computations")
+parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
+parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Variables to set constant")
+parser.add_argument("-a", "--asimov"           , action="store_true"          , help="Perform an Asimov fit before conversion")
+parser.add_argument("-x", "--data-only"        , action="store_true"          , help="Only dump the specified dataset, not the model")
+parser.add_argument("-d", "--data-name"        , type=str  , default=''       , help="Name of dataset object within the input workspace")
+parser.add_argument("-u", "--refit"            , action="store_true"          , help="Update uncertainties (but not central values) from a fit to the specified dataset")
+parser.add_argument(      "--signal"           , type=str  , default=''       , help="List of parameters to be assigned to the signal component")
+parser.add_argument(      "--bkg"              , type=str  , default=''       , help="List of parameters to be assigned to the background component")
+parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
+parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
+parser.add_argument(      "--validation-data"  , type=str  , default=''       , help="Name of output file for validation data")
+parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
 
 options = parser.parse_args()
 if not options :
@@ -46,7 +47,7 @@ try:
   binspec = options.binning.split(':')
   if len(binspec) == 4 and binspec[3] == 'log' :
     bins = np.logspace(1, math.log(float(binspec[1]))/math.log(float(binspec[0])), int(binspec[2]) + 1, True, float(binspec[0]))
-    print(bins)
+    print('bins = ', bins)
   else :
     bins = np.linspace(float(binspec[0]), float(binspec[1]), int(binspec[2]) + 1)
 except Exception as inst :
@@ -72,13 +73,18 @@ nSignal = ws.var(options.signal_yield)
 if nSignal == None :
   nSignal = ws.function(options.signal_yield)
   if nSignal == None :
-    raise ValueError('Could not locate signal yield variable %s')
+    raise ValueError('Could not identify signal yield variable %s')
 
 try :
   obs = ROOT.RooArgList(mconfig.GetObservables()).at(0)
 except Exception as inst :
   print(inst)
-  ValueError('Could not locate observable')
+  ValueError('Could not identify observable')
+try :
+  poi = ROOT.RooArgList(mconfig.GetParametersOfInterest()).at(0)
+except Exception as inst :
+  print(inst)
+  ValueError('Could not identify POI')
 
 if options.setval != '' :
   try:
@@ -104,6 +110,27 @@ if options.setconst != '' :
       thisvar.setConstant()
       print("INFO : setting variable '%s' constant (current value: %g)" % (thisvar.GetName(), thisvar.getVal()))
 
+sig_pars = []
+bkg_pars = []
+if options.signal != '' :
+  try:
+    sig_pars = options.signal.split(',')
+    for p in sig_pars :
+      if not ws.var(p) :
+        raise ValueError("Cannot find variable '%s' in workspace" % p)
+  except Exception as inst :
+    print(inst)
+    raise ValueError("ERROR : invalid signal parameter specification '%s'." % options.signal)
+if options.bkg != '' :
+  try:
+    bkg_pars = options.bkg.split(',')
+    for p in bkg_pars :
+      if not ws.var(p) :
+        raise ValueError("Cannot find variable '%s' in workspace" % p)
+  except Exception as inst :
+    print(inst)
+    raise ValueError("ERROR : invalid background parameter specification '%s'." % options.bkg)
+
 data = None
 if options.data_name != '' :
   data = ws.data(options.data_name)
@@ -114,24 +141,22 @@ if options.data_name != '' :
 if options.asimov :
   data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
-if options.data_only and not data :
-  raise ValueError('Requested to dump only the data (--data-only) but not dataset was specified either using --data-name or --asimov')
+if not data :
+  raise ValueError('ERROR: no dataset was specified either using --data-name or --asimov')
 
+bin_data = []
+for b in range(0, nbins) :
+  bin_datum = collections.OrderedDict()
+  bin_datum['lo_edge'] = bins[b]
+  bin_datum['hi_edge'] = bins[b+1]
+  bin_data.append(bin_datum)
 
-if not options.data_only and (options.refit or options.refit_uncertainties) :
-  if data == None :
-    raise ValueError('Should specify a dataset on which to perform the fit, using either the --data-name or --asimov argument.')
-  allVars = ROOT.RooArgList(ws.allVars())
-  if options.refit_uncertainties :
-    save_vals = {}
-    for i in range(0, allVars.getSize()) :
-      v = allVars.at(i)
-      if not v.isConstant() : save_vals[v.GetName()] = v.getVal()
-  main_pdf.fitTo(data, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
-  if options.refit_uncertainties :
-    for i in range(0, allVars.getSize()) :
-      v = allVars.at(i)
-      if not v.isConstant() : v.setVal(save_vals[v.GetName()])
+jdict = collections.OrderedDict()
+jdict['model_name' ] = options.output_name
+jdict['obs_name' ] = obs.GetTitle().replace('#','\\')
+jdict['obs_unit' ] = obs.getUnit()
+jdict['bins'] = bin_data
+jdict['poi'] = poi.GetName()
 
 aux_alphas = []
 aux_betas  = []
@@ -152,7 +177,7 @@ try:
         if len(matching_pars) == 1 :
           mpar = ROOT.RooArgList(matching_pars).at(0)
           print('Matching aux %s to NP %s' % (aux.GetName(), mpar.GetName()))
-          if len(signal_pdf.getDependents(matching_pars)) > 0 or len(nSignal.getDependents(matching_pars)) > 0 :
+          if (len(signal_pdf.getDependents(matching_pars)) > 0 or len(nSignal.getDependents(matching_pars)) > 0 or mpar.GetName() in sig_pars) and not mpar.GetName() in bkg_pars :
             alphas.append(mpar)
             aux_alphas.append(aux)
           else :
@@ -161,20 +186,19 @@ try:
 except Exception as inst :
   print(inst)
   ValueError('Could not identify nuisance parameters')
-  
-bin_data = []
-for b in range(0, nbins) :
-  bin_datum = collections.OrderedDict()
-  bin_datum['lo_edge'] = bins[b]
-  bin_datum['hi_edge'] = bins[b+1]
-  bin_data.append(bin_datum)
 
-jdict = collections.OrderedDict()
-jdict['model_name' ] = options.output_name
-jdict['obs_name' ] = obs.GetTitle().replace('#','\\')
-jdict['obs_unit' ] = obs.getUnit()
-jdict['bins'] = bin_data
 if not options.data_only :
+  if options.refit:
+    # First, fit the data: this will give the uncertainty values on the free parameters which are needed to compute their impacts reliably
+    # For the Asimov case, we need the POI uncertainty (see below) so let it float:
+    if options.asimov : poi.setConstant(False)
+    main_pdf.fitTo(data, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
+    # If we are running on Asimov (best choice in almost all cases) then the S/B should be adjusted to the expected sensitivity value to get 
+    # reliable uncertainties on signal NPs. Choose POI = 2*uncertainty or this, and refit under this hypothesis
+    poi.setVal(2*poi.getError())
+    rescaled_asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+    main_pdf.fitTo(rescaled_asimov, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
+
   np_list = ROOT.RooArgList(nuis_pars)
   for p in range(0, len(np_list)) :
     par = np_list.at(p)
@@ -188,11 +212,28 @@ if not options.data_only :
     for par in alphas + betas + gammas :
       valid_data[par.GetName()] = np.ndarray((nbins, len(validation_points)))
 
+  par_nom = {}
+  par_err = {}
+  for p in range(0, len(np_list)) :
+    par = np_list.at(p)
+    if par in gammas :
+      error = par.getError()
+      if error <= 0 :
+        raise ValueError('Parameter %s has an uncertainty %g which is <= 0' % (par.GetName(), error))
+    else :
+      error = 1
+    print('Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.GetName(), error, par.getVal(), options.epsilon))
+    par_nom[par] = par.getVal()
+    par_err[par] = error
+
+  if poi.getVal() == 0 :
+    raise ValueError('ERROR : POI %s is exactly 0, cannot extract signal component!' % poi.GetName())
+  print('Signal component normalized to POI %s = %g -> nSignal = %g' % (poi.GetName(), poi.getVal(), nSignal.getVal()))
   impacts_s = np.ndarray((nbins, len(np_list)))
   impacts_b = np.ndarray((nbins, len(np_list)))
   nom_sig = np.zeros(nbins)
   nom_bkg = np.zeros(nbins)
-  
+
   for i in range(0, nbins) :
     xmin = bins[i]
     xmax = bins[i + 1]
@@ -204,27 +245,21 @@ if not options.data_only :
     bkg0 = ntot*totint.getVal() - sig0
     print('-- Nominal sig = %g' % sig0)
     print('-- Nominal bkg = %g' % bkg0)
-    nom_sig[i] = sig0
+    nom_sig[i] = sig0/poi.getVal() # rescale to match POI value in nominal model
     nom_bkg[i] = bkg0
     for p in range(0, len(np_list)) :
       par = np_list.at(p)
-      par0 = par.getVal()
-      if par in gammas :
-        error = par.getError() if par.getError() > 0 else (par.getMax() - par0)/10
-      else :
-        error = 1
-      if i == 0 : print('Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.GetName(), error, par0, options.epsilon))
-      delta = error*options.epsilon
-      par.setVal(par0 + delta)
+      delta = par_err[par]*options.epsilon
+      par.setVal(par_nom[par] + delta)
       ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
-      sig_pos = nSignal.getVal()*sigint.getVal()
-      bkg_pos = ntot*totint.getVal() - sig_pos
+      sig_pos = nSignal.getVal()*sigint.getVal() # count only signal changes (unlike bkg below) : unstable due to FP precision when S/B very low
+      bkg_pos = ntot*totint.getVal() - sig0 # count possible signal changes in bkg as well (e.g. for spurious signal)
       impact_s_pos = ((sig_pos/sig0)**(1/options.epsilon) - 1) if sig0 != 0 else 0
       impact_b_pos = ((bkg_pos/bkg0)**(1/options.epsilon) - 1) if bkg0 != 0 else 0
-      par.setVal(par0 - delta)
+      par.setVal(par_nom[par] - delta)
       ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
       sig_neg = nSignal.getVal()*sigint.getVal()
-      bkg_neg = ntot*totint.getVal() - sig_neg
+      bkg_neg = ntot*totint.getVal() - sig0
       impact_s_neg = ((sig0/sig_neg)**(1/options.epsilon) - 1) if sig_neg != 0 else 0
       impact_b_neg = ((bkg0/bkg_neg)**(1/options.epsilon) - 1) if bkg_neg != 0 else 0
       if par in alphas :
@@ -239,11 +274,11 @@ if not options.data_only :
         print('-- parameter %-10s : +1 sigma bkg impact = %g' % (par.GetName(), impact_b_pos))
         print('-- parameter %-10s : -1 sigma bkg impact = %g' % (''           , impact_b_neg))
         print('-- parameter %-10s : selected bkg impact = %g' % (''           , impacts_b[i,p]))
-      par.setVal(par0)
+      par.setVal(par_nom[par])
       if options.validation_data :
         par_data = valid_data[par.GetName()]
         for k, val in enumerate(validation_points) :
-          par.setVal(par0 + val*delta)
+          par.setVal(par_nom[par] + val*delta)
           ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
           sig_var = nSignal.getVal()*sigint.getVal()
           bkg_var = ntot*totint.getVal() - sig_var
@@ -251,7 +286,7 @@ if not options.data_only :
           print('== validation %-10s: %+6g sigma bkg yield = %g' % ('', val, bkg_var))
           par_data[i,k] = (sig_var + bkg_var)/(sig0 + bkg0) if sig0 + bkg0 != 0 else 0
           print('== validation %-10s: %+6g variation = %g' % ('', val, par_data[i,k]))
-        par.setVal(par0)
+        par.setVal(par_nom[par])
 
   impacts = {}
   for p in range(0, len(np_list)) :
@@ -265,45 +300,51 @@ if not options.data_only :
   jdict['background'] = nom_bkg.tolist()
   
   alpha_specs = [ ]
-  for i, alpha in enumerate(alphas) :
+  for alpha in alphas :
     od = collections.OrderedDict()
     od['name'] = alpha.GetName()
+    od['nominal'] = par_nom[alpha]
+    od['variation'] = par_err[alpha]
     od['impact'] = impacts[alpha].tolist()
     alpha_specs.append(od)
   jdict['alphas'] = alpha_specs
 
   beta_specs = []
-  for i, beta in enumerate(betas) :
+  for beta in betas :
     od = collections.OrderedDict()
     od['name'] = beta.GetName()
+    od['nominal'] = par_nom[beta]
+    od['variation'] = par_err[beta]
     od['impact'] = impacts[beta].tolist()
     beta_specs.append(od)
   jdict['betas'] = beta_specs
 
   gamma_specs= []
-  for i, gamma in enumerate(gammas) :
+  for gamma in gammas :
     od = collections.OrderedDict()
     od['name'] = gamma.GetName()
+    od['nominal'] = par_nom[gamma]
+    od['variation'] = par_err[gamma]
     od['impact'] = impacts[gamma].tolist()
     gamma_specs.append(od)
   jdict['gammas'] = gamma_specs
 
-if data :
-  bin_array = array.array('d', bins)
-  hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
-  data.fillHistogram(hist, ROOT.RooArgList(obs))
-  bin_counts = [ hist.GetBinContent(i+1) for i in range(0, nbins) ]
-  data_dict = collections.OrderedDict()
-  data_dict['bin_counts'] = bin_counts
-  data_dict['aux_alphas'] = [ aux_alpha.getVal() for aux_alpha in aux_alphas ]
-  data_dict['aux_betas' ] = [ aux_beta.getVal() for aux_beta in aux_betas ]
-  jdict['data'] = data_dict
+bin_array = array.array('d', bins)
+hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
+data.fillHistogram(hist, ROOT.RooArgList(obs))
+bin_counts = [ hist.GetBinContent(i+1) for i in range(0, nbins) ]
+data_dict = collections.OrderedDict()
+data_dict['bin_counts'] = bin_counts
+data_dict['aux_alphas'] = [ aux_alpha.getVal() for aux_alpha in aux_alphas ]
+data_dict['aux_betas' ] = [ aux_beta.getVal() for aux_beta in aux_betas ]
+jdict['data'] = data_dict
 
 with open(options.output_file, 'w') as fd:
   json.dump(jdict, fd, ensure_ascii=True, indent=3)
 
 if options.validation_data :
   valid_lists = collections.OrderedDict()
+  valid_lists[poi.GetName()] = poi.getVal()
   valid_lists['points'] = valid_data['points'].tolist()
   for par in alphas + betas + gammas :
     valid_lists[par.GetName()] = valid_data[par.GetName()].tolist()
