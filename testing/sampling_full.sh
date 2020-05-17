@@ -57,3 +57,8 @@
 ./fastprof/utils/compute_limits.py -m run/fastprof/HighMass_NW-1700-log200-noDSig.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-noDSig.json --regularize 3 -o samples/HighMass_NW-1700-log200-noDSig-r3 -n 10000
 ./fastprof/utils/compute_limits.py -m run/fastprof/HighMass_NW-1700-log200.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-manual.json --regularize 5 -o samples/HighMass_NW-1700-log200-r5 -n 10000
 ./fastprof/utils/check_model.py -m run/fastprof/HighMass_NW-1700-log200.json --asimov 0 -f run/fastprof/fits_HighMass_NW-1700-manual.json -r 5
+
+# in run/
+./create_workspace.py -c fastprof/datacards/fidXsection_spin0_NW_withSS/hfitter_newResRun2_highMass_NW.dat --poi xs -f fastprof/ntup_data_all.root -i ..:../Hfitter/HfitterModels -o fastprof/highMass_NW.root
+# in run/fastprof
+ ./fit_ws.py -f highMass_NW.root --data-name obsData --setval mX=1700,xs=0 -y 13 -o fits_highMass_NW-1700.json
