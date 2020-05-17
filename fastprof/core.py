@@ -33,10 +33,11 @@ class JSONSerializable :
 
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
-  def __init__(self, sig = np.array([]), bkg = np.array([]), alphas = [], betas = [], gammas = [],
+  def __init__(self, sig = np.array([]), bkg = np.array([]), poi = None, alphas = [], betas = [], gammas = [],
                a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0)), sigma_alphas = np.ndarray((0,0)), sigma_betas = np.ndarray((0,0)),
                name=None, bins=[], linear_nps = False) :
     super().__init__()
+    self.poi    = poi
     self.alphas = alphas
     self.betas  = betas
     self.gammas = gammas
@@ -58,7 +59,6 @@ class Model (JSONSerializable) :
       raise ValueError('Input "c" to fastprof model should have a column count (here %g) equal to the number of gamma parameters (%d).' % (c.shape[1], len(gammas)))
     self.sig = sig
     self.bkg = bkg
-
     self.a = a
     self.b = b
     self.c = c
@@ -88,14 +88,15 @@ class Model (JSONSerializable) :
     self.sigma_gammas = np.ones(self.nc)*gamma_regularization
     self.init_vars()
 
+  def poi   (self) : return self.poi
   def alphas(self) : return self.alphas
   def betas (self) : return self.betas
   def gammas(self) : return self.gammas
 
   def s_exp(self, pars) :
-    if self.linear_nps : return pars.mu*self.sig*(1 + self.a.dot(pars.alphas))
+    if self.linear_nps : return pars.poi*self.sig*(1 + self.a.dot(pars.alphas))
     ks = np.exp(self.ln_a.dot(pars.alphas))
-    return pars.mu*self.sig*ks
+    return pars.poi*self.sig*ks
 
   def b_exp(self, pars) :
     if self.linear_nps : return self.bkg*(1 + self.b.dot(pars.betas) + self.c.dot(pars.gammas))
@@ -174,13 +175,13 @@ class Model (JSONSerializable) :
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     nex = self.n_exp(pars)
     if bkg_only :
-      yvals = self.b_exp(pars) if not residuals else -self.s_exp(pars)
+      yvals = self.b_exp(pars) if not residuals else self.s_exp(pars)
       canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle='--', label='bkg-only')
-    yvals = nex if not residuals else np.zeros(self.nbins)
+    yvals = nex if not residuals or not data else nex - data.n
     canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', label='Model')
     if data : 
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.n ]
-      yvals = [ data.n[i] if not residuals else data.n[i] - nex[i] for i in range(0, self.nbins) ]
+      yvals = data.n if not residuals else np.zeros(self.nbins)
       canvas.errorbar(xvals, yvals, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
     canvas.set_xlim(grid[0], grid[-1])
     for v in variations :
@@ -208,6 +209,7 @@ class Model (JSONSerializable) :
     if 'obs_name'   in jdict : self.obs_name = jdict['obs_name']
     if 'obs_unit'   in jdict : self.obs_unit = jdict['obs_unit']
     if 'bins'       in jdict : self.bins     = np.array(jdict['bins'])
+    self.poi = jdict['poi']
 
     self.alphas = []
     self.a = np.ndarray((self.sig.size, len(jdict['alphas'])))
@@ -275,7 +277,7 @@ class Model (JSONSerializable) :
     return eq_b, eq_c
 
   def closure_approx(self, pars, data, order = 1) :  # add alphas eventually
-    pars0 = self.expected_pars(pars.mu).set_from_aux(data)
+    pars0 = self.expected_pars(pars.poi).set_from_aux(data)
     eq_b = np.einsum('i,ij,i->j',self.bkg, self.b, 1 - data.n/self.n_exp(pars0)*(1 - self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas )))
     eq_b -= (data.aux_betas - pars.betas)
     eq_c = np.einsum('i,ij,i->j',self.bkg, self.c, 1 - data.n/self.n_exp(pars0)*(1 - self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas)))
@@ -292,12 +294,12 @@ class Model (JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Parameters :
-  def __init__(self, mu, alphas = np.array([]), betas = np.array([]), gammas = np.array([]), model = None) :
+  def __init__(self, poi, alphas = np.array([]), betas = np.array([]), gammas = np.array([]), model = None) :
     if not isinstance(alphas, np.ndarray) : alphas = np.array(alphas)
     if not isinstance(betas , np.ndarray) : betas  = np.array(betas)
     if not isinstance(gammas, np.ndarray) : gammas = np.array(gammas)
     self.model = model
-    self.mu = mu
+    self.poi = poi
     if model :
       if alphas.shape[0] == 0 : alphas = np.zeros(model.na)
       if betas .shape[0] == 0 : betas  = np.zeros(model.nb)
@@ -307,16 +309,17 @@ class Parameters :
     self.gammas = gammas
 
   def array(self) : 
-    return np.concatenate( ( np.array([ self.mu ]), self.alphas, self.betas, self.gammas ) )
+    return np.concatenate( ( np.array([ self.poi ]), self.alphas, self.betas, self.gammas ) )
   
   def __str__(self) :
     s = ''
-    s += 'mu     = ' + str(self.mu)     + '\n'
     if self.model == None :
+      s += 'poi    = ' + str(self.poi)    + '\n'
       s += 'alphas = ' + str(self.alphas) + '\n'
       s += 'betas  = ' + str(self.betas)  + '\n'
       s += 'gammas = ' + str(self.gammas)
     else :
+      s += 'poi    : %-12s = %8.4f' %  (self.model.poi, self.poi) + '\n'
       s += 'alphas : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.alphas, self.alphas) ] ) + '\n'
       s += 'betas  : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.betas , self.betas ) ] ) + '\n'
       s += 'gammas : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.gammas, self.gammas) ] )
