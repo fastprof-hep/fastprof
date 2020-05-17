@@ -126,8 +126,8 @@ poi_init_val = poi.getVal()
 jdict = collections.OrderedDict()
 fit_results = []
 
-nll = main_pdf.createNLL(data, ROOT.RooFit.SumW2Error(False))
-asimov_nll = main_pdf.createNLL(asimov, ROOT.RooFit.SumW2Error(False))
+nll = main_pdf.createNLL(data)
+asimov_nll = main_pdf.createNLL(asimov)
 
 if hypos == None : # we need to auto-define them based on the POI uncertainty
   nSignal = ws.var(options.signal_yield)
