@@ -34,6 +34,7 @@ for hd in hypo_dicts :
   if not 'cls' in hd :
     hd['cls'] = QMu(hd[poi], hd['tmu'], hd['best_fit_val']).asymptotic_cls(hd['best_fit_err'])
   # DEBUG below
-  tmu, min_mu = OptiMinimizer(fast_data, hd[poi], (-5, 20)).tmu(hd[poi])
-  q = QMu(tmu, hd[poi], min_mu)
+  opti = OptiMinimizer(fast_data, hd[poi], (-5, 20))
+  tmu = opti.tmu(hd[poi])
+  q = QMu(tmu, hd[poi], opti.min_poi)
   print(hd[poi], hd['tmu'], hd['cl'], hd['best_fit_val'], '  <-->  ', q.value(), q.asymptotic_cl(), min_mu)
