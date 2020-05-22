@@ -6,6 +6,7 @@ __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import numpy as np
+import math
 import json
 from scipy.stats import norm
 import collections
@@ -40,6 +41,19 @@ options = parser.parse_args()
 if not options :
   parser.print_help()
   sys.exit(0)
+
+try :
+  nhypos = int(options.hypos)
+  n1 = (nhypos + 1) // 4
+  pos = np.concatenate((np.linspace(0, 2, n1+2)[1:-1], np.linspace(2, 5, n1))) # same number of points between [0,2] and [2,5]
+  hypo_zs = np.concatenate((np.flip(-pos), np.zeros(1), pos))
+  hypos = None
+except:
+  try :
+    hypos = [ float(h) for h in options.hypos.split(',') ]
+  except Exception as inst :
+    print(inst)
+    raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
 
 f = ROOT.TFile(options.ws_file)
 if not f or not f.IsOpen() :
@@ -92,44 +106,38 @@ if options.poi_range != '' :
     raise ValueError('Invalid POI range specification %s, expected poi_min,poi_max' % options.poi_range)
   if poi_min > poi_max : poi_min, poi_max = poi_max, poi_min
   poi.setRange(poi_min, poi_max)
+else :
+  poi.setRange(0,10)
 
-# Asimov dataset -- used later for qA computation
-asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+ws.saveSnapshot('init', nuis_pars)
+poi_init_val = poi.getVal()
 
+data = None
+asimov = None
 if options.data_name != '' :
   data = ws.data(options.data_name)
   if data == None :
     ds = [ d.GetName() for d in ws.allData() ]
     raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
   if options.binned : data = data.binnedClone()
-elif options.asimov :
-  data = asimov
-else :
-  raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
-
-try :
-  nhypos = int(options.hypos)
-  n1 = (nhypos + 1) // 4
-  pos = np.concatenate((np.linspace(0, 2, n1+2)[1:-1], np.linspace(2, 5, n1))) # same number of points between [0,2] and [2,5]
-  hypo_zs = np.concatenate((np.flip(-pos), np.zeros(1), pos))
-  hypos = None
-except:
-  try :
-    hypos = [ float(h) for h in options.hypos.split(',') ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
-
-ws.saveSnapshot('init', nuis_pars)
-nuis_pars.Print("V")
-poi_init_val = poi.getVal()
-jdict = collections.OrderedDict()
-fit_results = []
+if not data :
+  if options.asimov :
+    asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+    data = asimov
+  else :
+    raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
+    
+if not asimov :
+  poi.setVal(0)
+  poi.setConstant(True)
+  main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
 nll = main_pdf.createNLL(data)
 asimov_nll = main_pdf.createNLL(asimov)
 
 if hypos == None : # we need to auto-define them based on the POI uncertainty
+  ws.loadSnapshot('init')
   nSignal = ws.var(options.signal_yield)
   if nSignal == None :
     nSignal = ws.function(options.signal_yield)
@@ -138,19 +146,28 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
   def hypo_guess(i, unc) :
     cl = 0.05
     return (3 + 0.5*i)*np.exp(-unc**2/3) + (1 - np.exp(-unc**2/3))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + unc**2)
+  poi.setConstant(False)
+  poi.setVal(poi_init_val)
+  main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  free_nll = asimov_nll.getVal()
+  poi.setVal(poi.getError()/100) # In principle shouldn't have the factor 100, but helps to protect against bad estimations of poi uncertainty
   poi.setConstant(True)
   main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
-  poi.setConstant(False)
-  main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
-  poi.setVal(1)
-  hypos_nS = np.array([ hypo_guess(i, poi.getError()/poi.getVal()*nSignal.getVal()) for i in hypo_zs ])
+  hypo_nll = asimov_nll.getVal()
+  dll = 2*(hypo_nll - free_nll)
+  sigma_A = poi.getVal()/math.sqrt(dll) if dll > 0 else poi.getError()
+  print('Asimov qA uncertainty = %g (fit uncertainty = %g) evaluated at POI hypo = %g (nSignal = %g)' % (sigma_A, poi.getError(), poi.getVal(), nSignal.getVal()))
+  hypos_nS = np.array([ hypo_guess(i, sigma_A/poi.getVal()*nSignal.getVal()) for i in hypo_zs ])
   hypos = hypos_nS/nSignal.getVal()*poi.getVal()
   print('Auto-defined the following hypotheses :')
   print('  ' + '\n  '.join([ '%5g : Nsig = %10g, POI = %10g' % (h_z, h_n, h_p) for h_z, h_n, h_p in zip(hypo_zs, hypos_nS, hypos) ] ))
   if options.poi_range == '' :
     # Set range up to the 10sigma hypothesis, should be enough...
-    poi.setRange(0, hypo_guess(10, poi.getError()/poi.getVal()*nSignal.getVal())/nSignal.getVal()*poi.getVal())
+    poi.setRange(0, hypo_guess(10, sigma_A/poi.getVal()*nSignal.getVal())/nSignal.getVal()*poi.getVal())
     print('Auto-set POI range to [%g, %g]' % (poi.getMin(), poi.getMax()))
+
+jdict = collections.OrderedDict()
+fit_results = []
 
 for hypo in hypos :
   # Set the hypothesis
@@ -162,6 +179,7 @@ for hypo in hypos :
   poi.setConstant(True)
   result_hypo = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
   result['nll_hypo'] = nll.getVal()
+  for p in nuis_pars : result['hypo_' + p.GetName()] = result_hypo.floatParsFinal().find(p.GetName()).getVal()
   # Free-mu fit
   poi.setConstant(False)
   result_free = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
@@ -169,6 +187,7 @@ for hypo in hypos :
   result['nll_free'] = nll.getVal()
   result['fit_val'] = poi.getVal()
   result['fit_err'] = poi.getError()
+  for p in nuis_pars : result['free_' + p.GetName()] = result_free.floatParsFinal().find(p.GetName()).getVal()
   # Repeat for Asimov
   ws.loadSnapshot('init')
   poi.setVal(hypo)
