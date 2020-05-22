@@ -7,6 +7,7 @@ import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 
 from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, FitResults, QMuCalculator, QMuTildaCalculator
 
@@ -39,7 +40,7 @@ model = Model.create(options.model_file)
 if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
 if options.regularize != None : model.set_gamma_regularization(options.regularize)
 
-res = FitResults(options.fits_file)
+res = FitResults(model, options.fits_file)
 fit_results = res.fit_results
 
 if options.data_file :
@@ -53,13 +54,16 @@ else :
   print('Using dataset stored in file %s.' % options.model_file)
   data = Data(model).load(options.model_file)
 
+mu0 = res.poi_initial_value
+bounds = (res.poi_min, res.poi_max)
+
 # Check the fastprof CLs against the ones in the reference: in principle this should match well,
 # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
 print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
 if options.test_statistic == 'qmu_tilda' :
-  calc = QMuCalculator(OptiMinimizer(data, res.poi_initial_value, (res.poi_min, res.poi_max)), res)
+  calc = QMuCalculator(OptiMinimizer(data, mu0, bounds), res)
 elif options.test_statistic == 'qmu' :
-  calc = QMuCalculator(OptiMinimizer(data, res.poi_initial_value, (res.poi_min, res.poi_max)), res)
+  calc = QMuCalculator(OptiMinimizer(data, mu0, bounds), res)
 else:
   raise ValueError('Unknown test statistic %s.' % options.test_statistic)
 calc.fill_qcl()
@@ -68,9 +72,17 @@ res.print(verbosity=1)
 
 if options.seed != None : np.random.seed(options.seed)
 
-opti_samples = CLsSamples(
-  Samples(res.hypos, OptiSampler(model, mu0=res.poi_initial_value, bounds=(res.poi_min, res.poi_max), print_freq=options.print_freq, debug=options.debug, niter=options.iterations)          , options.output_file),
-  Samples(res.hypos, OptiSampler(model, mu0=res.poi_initial_value, bounds=(res.poi_min, res.poi_max), print_freq=options.print_freq, debug=options.debug, niter=options.iterations, gen_mu=0), options.output_file + '_clb')) \
+samplers_clsb = []
+samplers_cl_b = []
+for fit_result in res.fit_results :
+  test_hypo = fit_result['hypo_pars']
+  gen0_hypo = copy.deepcopy(test_hypo).set_poi(0)
+  samplers_clsb.append(OptiSampler(model, test_hypo, mu0=mu0, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=options.iterations))
+  samplers_cl_b.append(OptiSampler(model, test_hypo, mu0=mu0, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=options.iterations, gen_hypo=gen0_hypo))
+
+opti_samples = CLsSamples( \
+  Samples(samplers_clsb, options.output_file), \
+  Samples(samplers_cl_b, options.output_file + '_clb')) \
   .generate_and_save(options.ntoys, break_locks=options.break_locks)
 
 for fit_result in fit_results :
@@ -79,16 +91,20 @@ for fit_result in fit_results :
   fit_result['sampling_cls'] = opti_samples.cl     (fit_result[res.poi_name], fit_result['cl'])
 res.print(verbosity=1)
 
-limit_asymptot_clsb = res.solve('cl'          , 0.05, log_scale = True)
+limit_asy_full_clsb = res.solve('cl'          , 0.05, log_scale = True)
+limit_asy_fast_clsb = res.solve('fast_cl'     , 0.05, log_scale = True)
 limit_sampling_clsb = res.solve('sampling_cl' , 0.05, log_scale = True)
-limit_asymptot_cls  = res.solve('cls'         , 0.05, log_scale = True)
+limit_asy_full_cls  = res.solve('cls'         , 0.05, log_scale = True)
+limit_asy_fast_cls  = res.solve('fast_cls'    , 0.05, log_scale = True)
 limit_sampling_cls  = res.solve('sampling_cls', 0.05, log_scale = True)
 
 # Print results
-print('Asymptotics, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asymptot_clsb, np.sum(model.s_exp(model.expected_pars(limit_asymptot_clsb)))))
-print('Sampling,    CLsb : UL(95) = %g (N_signal = %g)' % (limit_sampling_clsb, np.sum(model.s_exp(model.expected_pars(limit_sampling_clsb)))))
-print('Asymptotics, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asymptot_cls , np.sum(model.s_exp(model.expected_pars(limit_asymptot_cls )))))
-print('Sampling,    CLs  : UL(95) = %g (N_signal = %g)' % (limit_sampling_cls , np.sum(model.s_exp(model.expected_pars(limit_sampling_cls )))))
+print('Asymptotics, full model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asy_full_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_full_clsb)))))
+print('Asymptotics, fast model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asy_fast_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_fast_clsb)))))
+print('Sampling   , fast model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_sampling_clsb, np.sum(model.s_exp(model.expected_pars(limit_sampling_clsb)))))
+print('Asymptotics, full model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asy_full_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_full_cls )))))
+print('Asymptotics, fast model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asy_fast_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_fast_cls )))))
+print('Sampling   , fast model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_sampling_cls , np.sum(model.s_exp(model.expected_pars(limit_sampling_cls )))))
 
 # Plot results
 plt.ion()

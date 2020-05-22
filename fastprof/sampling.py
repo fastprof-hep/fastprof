@@ -20,7 +20,8 @@ class SamplingDistribution :
     nbefore = self.samples.shape[0]
     try:
       self.samples = np.load(filename)
-    except:
+    except Exception as inst :
+      print(inst)
       raise IOError('Could not load samples from file %s.' % filename)
     nafter =  self.samples.shape[0]
     if nbefore > 0 and nafter < nbefore :
@@ -49,98 +50,109 @@ class SamplingDistribution :
 
 # -------------------------------------------------------------------------
 class SamplesBase :
-  def __init__(self, mus) :
-    self.mus = mus
+  def __init__(self, pois) :
+    self.pois = pois
 
   def bands(self, max_sigma) :
     bds = {}
     for i in range (-max_sigma, max_sigma+1) :
-      bds[i]  = np.array([ self.quantile(hypo, sigma=i) for hypo in self.mus ])
+      bds[i]  = np.array([ self.quantile(poi, sigma=i) for poi in self.pois ])
     return bds
 
   def plot_bands(self, max_sigma = 2, canvas=plt) :
     colors = [ 'k', 'g', 'y', 'c', 'b' ]
     bands = self.bands(max_sigma)
     for i in reversed(range(1, max_sigma + 1)) :
-      canvas.fill_between(self.mus, bands[+i], bands[-i], color=colors[i])
-    canvas.plot(self.mus, bands[0], 'k--')
+      canvas.fill_between(self.pois, bands[+i], bands[-i], color=colors[i])
+    canvas.plot(self.pois, bands[0], 'k--')
 
 
 # -------------------------------------------------------------------------
 class Samples (SamplesBase) :
-  def __init__(self, mus, sampler = None, file_root = '') :
-    super().__init__(mus)
-    self.sampler = sampler
+  def __init__(self, samplers = [], file_root = '', pois = []) :
+    if len(samplers) > 0 and len(pois) > 0 :
+      raise ValueError('Should specify either samplers or hypotheses, but not both.')
+    if len(samplers) == 0 and len(pois) == 0 :
+      raise ValueError('Should specify either samplers or hypotheses.')
+    if len(samplers) > 0  and len(pois) == 0 : pois = [ sampler.test_hypo.poi for sampler in samplers ]
+    super().__init__(pois)
+    self.samplers = samplers
     self.file_root = file_root
     self.dists = {}
     
-  def file_name(self, mu, ext = '') :
-    return self.file_root + '_%g' % mu + ext
+  def file_name(self, poi, ext = '') :
+    return self.file_root + '_%g' % poi + ext
   
   def generate_and_save(self, ntoys, break_locks = False, sort_before_saving = True) :
-    for mu in self.mus :
-      if os.path.exists(self.file_name(mu, '.lock')) and not break_locks :
-        print('Samples for mu = %g already being produced, skipping' % mu)
+    if not self.samplers :
+      raise ValueError('Cannot generate as no samplers were specified.')
+    for poi, sampler in zip(self.pois, self.samplers) :
+      if os.path.exists(self.file_name(poi, '.lock')) and not break_locks :
+        print('Samples for POI = %g already being produced, skipping' % poi)
         continue
-      if os.path.exists(self.file_name(mu, '.npy')) and not break_locks :
-        print('Samples for mu = %g already produced, just loading (%d samples from %s)' % (mu, ntoys, self.file_name(mu, '.npy')))
-        self.dists[mu] = SamplingDistribution(ntoys)
-        self.dists[mu].load(self.file_name(mu, '.npy'))
+      if os.path.exists(self.file_name(poi, '.npy')) :
+        print('Samples for POI = %g already produced, just loading (%d samples from %s)' % (poi, ntoys, self.file_name(poi, '.npy')))
+        self.dists[poi] = SamplingDistribution(ntoys)
+        self.dists[poi].load(self.file_name(poi, '.npy'))
         continue
-      print('Processing sampling distribution for POI = %g' % mu)
-      with open(self.file_name(mu, '.lock'), 'w') as f :
+      print('Processing sampling distribution for POI = %g' % poi)
+      with open(self.file_name(poi, '.lock'), 'w') as f :
         f.write(str(os.getpid()))
-      self.dists[mu] = self.sampler.generate(mu, ntoys)
-      self.dists[mu].save(self.file_name(mu), sort_before_saving=sort_before_saving)
-      if hasattr(self.sampler, 'debug_data') : self.sampler.debug_data.to_csv(self.file_name(mu, '_debug.csv'))
+      self.dists[poi] = sampler.generate(ntoys)
+      self.dists[poi].save(self.file_name(poi), sort_before_saving=sort_before_saving)
+      if hasattr(sampler, 'debug_data') : sampler.debug_data.to_csv(self.file_name(poi, '_debug.csv'))
       print('Done')
-      os.remove(self.file_name(mu, '.lock'))
+      os.remove(self.file_name(poi, '.lock'))
     return self
   
   def load(self) :
-    fname = self.file_name(mu, '.npy')
-    for mu in self.mus :
+    for poi in self.pois :
       try:
-        samples = np.load(fname)
-      except:
-        raise FileNotFoundError('File %s not found, for samples at mu = %g' % (fname, mu))
-      self.dists[mu] = samples
+        self.dists[poi] = SamplingDistribution()
+        self.dists[poi].load(self.file_name(poi, '.npy'))
+      except Exception as inst :
+        print(inst)
+        raise FileNotFoundError('File %s not found, for samples at POI = %g' % (fname, poi))
     return self
 
   def generate(self, ntoys) : # on the fly generation -- for fast cases only!
-    for mu in self.mus :
-      print('Creating sampling distribution for %g' % mu)
-      self.dists[mu] = self.sampler.generate(mu, ntoys)
-      self.dists[mu].sort()
+    if not self.samplers :
+      raise ValueError('Cannot generate as no samplers were specified.')
+    for poi, sampler in zip(self.pois, self.samplers) :
+      print('Creating sampling distribution for %g' % poi)
+      self.dists[poi] = self.sampler.generate(ntoys)
+      self.dists[poi].sort()
       print('Done')
     return self
 
-  def cl(self, mu, acl) :
+  def cl(self, poi, acl) :
     try:
-      samples = self.dists[mu]
-    except:
-      raise KeyError('No sample available for mu = %g' % mu)
+      samples = self.dists[poi]
+    except Exception as inst :
+      print(inst)
+      print('Available samples are', self.dists.keys())
+      raise KeyError('No sample available for POI = %g' % poi)
     return samples.cl(acl)
 
-  def quantile(self, mu, fraction=None, sigma=None) :
+  def quantile(self, poi, fraction=None, sigma=None) :
     try:
-      samples = self.dists[mu]
-    except:
-      raise KeyError('No sample available for mu = %g' % mu)
+      samples = self.dists[poi]
+    except Exception as inst :
+      print(inst)
+      raise KeyError('No sample available for POI = %g' % poi)
     return samples.quantile(fraction, sigma)
-
 
 # -------------------------------------------------------------------------
 class CLsSamples (SamplesBase) :
   def __init__(self, clsb_samples, cl_b_samples) :
-    super().__init__(clsb_samples.mus)
+    super().__init__(clsb_samples.pois)
     self.clsb = clsb_samples
     self.cl_b = cl_b_samples
     
   def generate_and_save(self, ntoys, break_locks = False, sort_before_saving = True) :
-    print('Processing CL_{s+b} sampling distributions for POI values %s' % str(self.mus))
+    print('Processing CL_{s+b} sampling distributions for POI values %s' % str(self.pois))
     self.clsb.generate_and_save(ntoys, break_locks, sort_before_saving)
-    print('Processing CL_b sampling distributions for POI values %s' % str(self.mus))
+    print('Processing CL_b sampling distributions for POI values %s' % str(self.pois))
     self.cl_b.generate_and_save(ntoys, break_locks, sort_before_saving)
     return self
   
@@ -150,28 +162,28 @@ class CLsSamples (SamplesBase) :
     return self
   
   def generate(self, ntoys) : # on the fly generation -- for fast cases only!
-    print('Creating CL_{s+b} sampling distributions for POI values %s' % str(self.mus))
+    print('Creating CL_{s+b} sampling distributions for POI values %s' % str(self.pois))
     self.clsb.generate(ntoys)
-    print('Creating CL_b sampling distributions for POI values %s' % str(self.mus))
+    print('Creating CL_b sampling distributions for POI values %s' % str(self.pois))
     self.cl_b.generate(ntoys)
     return self
 
-  def cl(self, mu, acl) :
-    clsb = self.clsb.cl(mu, acl)
-    cl_b = self.cl_b.cl(mu, acl)
+  def cl(self, poi, acl) :
+    clsb = self.clsb.cl(poi, acl)
+    cl_b = self.cl_b.cl(poi, acl)
     #print('Sampling CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
     return clsb/cl_b if cl_b > 0 else 1
 
-  def quantile(self, mu, fraction=None, sigma=None, cl_b = 0.5) :
-    return self.clsb.quantile(mu, fraction, sigma)/cl_b
+  def quantile(self, poi, fraction=None, sigma=None, cl_b = 0.5) :
+    return self.clsb.quantile(poi, fraction, sigma)/cl_b
 
   def bands(self, max_sigmas) :
     cls_samples = Samples(self.mus)
-    for mu in self.mus :
-      ns = len(self.cl_b.dists[mu].samples)
+    for poi in self.pois :
+      ns = len(self.cl_b.dists[poi].samples)
       sd = SamplingDistribution(ns)
-      for i, acl in enumerate(self.cl_b.dists[mu].samples) :
-        sd.samples[i] = self.cl(mu, acl)
+      for i, acl in enumerate(self.cl_b.dists[poi].samples) :
+        sd.samples[i] = self.cl(poi, acl)
       sd.sort()
-      cls_samples.dists[mu] = sd
+      cls_samples.dists[poi] = sd
     return cls_samples.bands(max_sigmas)
