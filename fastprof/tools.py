@@ -4,14 +4,15 @@ import scipy
 import numpy as np
 import copy
 
-from .core import Model, Data, JSONSerializable
+from .core import Model, Data, Parameters, JSONSerializable
 from .minimizers import OptiMinimizer
 from .test_statistics import QMu, QMuTilda
 
 
 class FitResults (JSONSerializable) :
-  def __init__(self, filename = '') :
+  def __init__(self, model, filename = '') :
     super().__init__()
+    self.model = model
     if filename != '' :
       self.load(filename)
 
@@ -20,6 +21,9 @@ class FitResults (JSONSerializable) :
     self.poi_initial_value     = jdict['POI_initial_value']
     self.poi_min, self.poi_max = jdict['POI_range']
     self.fit_results           = jdict['fit_results']
+    for fit_result in self.fit_results :
+      fit_result['free_pars'] = self.make_pars(fit_result, 'free_', 'best_fit_val')
+      fit_result['hypo_pars'] = self.make_pars(fit_result, 'hypo_', self.poi_name)
     self.hypos= np.array([ fit_result[self.poi_name] for fit_result in self.fit_results ])
     return self
 
@@ -30,7 +34,14 @@ class FitResults (JSONSerializable) :
     jdict['POI_range'] = self.poi_min, self.poi_max
     jdict['fit_results'] = self.fit_results
     return jdict
-  
+
+  def make_pars(self, fr, prefix, poi_key) :
+    pars = Parameters(model=self.model)
+    pars.poi = fr[poi_key]
+    for par in fr :
+      if par.startswith(prefix) : pars.set_np(par[len(prefix):], fr[par], unscaled=True)
+    return pars
+
   def str_rep(self, print_keys = [], verbosity = 0) :
     if len(self.fit_results) == 0 : return ''
     if print_keys == [] :
@@ -48,11 +59,11 @@ class FitResults (JSONSerializable) :
         if k in fit_result : s += '| %15.4g ' % fit_result[k]
       if verbosity > 2 :
         s += '\n' + 'Unconditional minimum:'
-        s += '\n' + str(fit_result['free_pars'])
+        s += '\n' + str(fit_result['fast_free_pars'])
         s += '\n' + 'Conditional minimum:'
-        s += '\n' + str(fit_result['hypo_pars'])
-    limit_full = self.solve('cl'     , 0.05)
-    limit_fast = self.solve('fast_cl', 0.05)
+        s += '\n' + str(fit_result['fast_hypo_pars'])
+    limit_full = self.solve('cls'     , 0.05)
+    limit_fast = self.solve('fast_cls', 0.05)
     limit_full = '%g' % limit_full if limit_full != None else 'not computable'
     limit_fast = '%g' % limit_fast if limit_fast != None else 'not computable'
     s += '\n' + 'Asymptotic 95%% CLs limits: reference = %s, fast = %s.' % (limit_full, limit_fast)
@@ -85,10 +96,10 @@ class QMuCalculator :
     self.minimizer = minimizer
     self.results = results
 
-  def fill_qcl(self, q_key = 'qmu', cl_key = 'cl', cls_key = 'cls', clb_key = 'clb', tmu_key = 'tmu', best_mu_key = 'best_fit_val', tmu_A_key = 'tmu_A') :
+  def fill_qcl(self, q_key = 'qmu', cl_key = 'cl', cls_key = 'cls', clb_key = 'clb', tmu_key = 'tmu', best_poi_key = 'best_fit_val', tmu_A_key = 'tmu_A') :
     for fit_result in self.results.fit_results :
-      q = QMu(test_mu = fit_result[self.results.poi_name], tmu = fit_result[tmu_key], best_mu = fit_result[best_mu_key], tmu_A = fit_result[tmu_A_key])
-      #print(fit_result[self.results.poi_name], fit_result[tmu_key], fit_result[best_mu_key], fit_result[tmu_A_key])
+      q = QMu(test_poi = fit_result[self.results.poi_name], tmu = fit_result[tmu_key], best_poi = fit_result[best_poi_key], tmu_A = fit_result[tmu_A_key])
+      #print(fit_result[self.results.poi_name], fit_result[tmu_key], fit_result[best_poi_key], fit_result[tmu_A_key])
       if not   q_key in fit_result : fit_result[  q_key] = q.value()
       if not  cl_key in fit_result : fit_result[ cl_key] = q.asymptotic_cl()
       if not cls_key in fit_result : fit_result[cls_key] = q.asymptotic_cls()
@@ -96,20 +107,20 @@ class QMuCalculator :
     return self
 
   def fill_fast_results(self, q_key = 'fast_q', cl_key = 'fast_cl', cls_key = 'fast_cls', clb_key = 'fast_clb',
-                        tmu_key = 'fast_tmu', best_mu_key = 'fast_best_fit_val', tmu_A_key = 'fast_tmu_A',
-                        free_pars_key = 'free_pars', hypo_pars_key = 'hypo_pars') :
+                        tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_A_key = 'fast_tmu_A',
+                        free_pars_key = 'fast_free_pars', hypo_pars_key = 'fast_hypo_pars') :
     for fit_result in self.results.fit_results :
-      mu = fit_result[self.results.poi_name]
-      tmu, min_mu = self.minimizer.tmu(mu)
+      poi = fit_result[self.results.poi_name]
+      tmu = self.minimizer.tmu(poi)
       fit_result[tmu_key] = tmu
-      fit_result[best_mu_key] = min_mu
+      fit_result[best_poi_key] = self.minimizer.min_poi
       fit_result[free_pars_key] = self.minimizer.min_pars
       fit_result[hypo_pars_key] = self.minimizer.hypo_pars
-      tmu_A, min_mu_A = self.minimizer.asimov_clone(0).tmu(mu)
+      tmu_A = self.minimizer.asimov_clone(0).tmu(poi)
       fit_result[tmu_A_key] = tmu_A
-      q = QMu(test_mu = mu, tmu = tmu, best_mu = min_mu)
+      q = QMu(test_poi = poi, tmu = tmu, best_poi = self.minimizer.min_poi)
       fit_result[q_key] = q.value()
-    self.fill_qcl(q_key = 'fast_qmu', cl_key = 'fast_cl', cls_key = 'fast_cls', clb_key = 'fast_clb', tmu_key = 'fast_tmu', best_mu_key = 'fast_best_fit_val', tmu_A_key = 'fast_tmu_A')
+    self.fill_qcl(q_key = 'fast_qmu', cl_key = 'fast_cl', cls_key = 'fast_cls', clb_key = 'fast_clb', tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_A_key = 'fast_tmu_A')
     return self
 
 
@@ -117,32 +128,35 @@ class QMuTildaCalculator :
   def __init__(self, minimizer, results) :
     self.minimizer = minimizer
     self.results = results
-
-  def fill_qcl(self, q_key = 'qmu_tilda', cl_key = 'cl', cls_key = 'cls', clb_key = 'clb', tmu_key = 'tmu', best_mu_key = 'best_fit_val', tmu_A_key = 'tmu_A', tmu_0_key = 'tmu_0') :
+    self.qs = []
+    self.fast_qs = []
+  def fill_qcl(self, q_key = 'qmu_tilda', cl_key = 'cl', cls_key = 'cls', clb_key = 'clb', tmu_key = 'tmu', best_poi_key = 'best_fit_val', tmu_A_key = 'tmu_A', tmu_0_key = 'tmu_0') :
     for fit_result in self.results.fit_results :
-      q = QMuTilda(test_mu = fit_result[self.results.poi_name], tmu = fit_result[tmu_key], best_mu = fit_result[best_mu_key], tmu_A = fit_result[tmu_A_key], tmu_0 = fit_result[tmu_0_key])
-      #print(fit_result[self.results.poi_name], fit_result[tmu_key], fit_result[best_mu_key], fit_result[tmu_A_key])
+      q = QMuTilda(test_poi = fit_result[self.results.poi_name], tmu = fit_result[tmu_key], best_poi = fit_result[best_poi_key], tmu_A = fit_result[tmu_A_key], tmu_0 = fit_result[tmu_0_key])
+      #print(fit_result[self.results.poi_name], fit_result[tmu_key], fit_result[best_poi_key], fit_result[tmu_A_key])
       if not   q_key in fit_result : fit_result[  q_key] = q.value()
       if not  cl_key in fit_result : fit_result[ cl_key] = q.asymptotic_cl()
       if not cls_key in fit_result : fit_result[cls_key] = q.asymptotic_cls()
       if not clb_key in fit_result : fit_result[clb_key] = q.asymptotic_clb()
+      self.qs.append(q)
     return self
 
   def fill_fast_results(self, q_key = 'fast_qmu_tilda', cl_key = 'fast_cl', cls_key = 'fast_cls', clb_key = 'fast_clb', 
-                        tmu_key = 'fast_tmu', best_mu_key = 'fast_best_fit_val', tmu_A_key = 'fast_tmu_A', tmu_0_key = 'fast_tmu_0',
-                        free_pars_key = 'free_pars', hypo_pars_key = 'hypo_pars') :
+                        tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_A_key = 'fast_tmu_A', tmu_0_key = 'fast_tmu_0',
+                        free_pars_key = 'fast_free_pars', hypo_pars_key = 'fast_hypo_pars') :
     for fit_result in self.results.fit_results :
-      mu = fit_result[self.results.poi_name]
-      tmu, min_mu = self.minimizer.tmu(mu)
+      poi = fit_result[self.results.poi_name]
+      tmu = self.minimizer.tmu(poi)
       fit_result[tmu_key] = tmu
-      fit_result[best_mu_key] = min_mu
+      fit_result[best_poi_key] = self.minimizer.min_poi
       fit_result[free_pars_key] = self.minimizer.min_pars
       fit_result[hypo_pars_key] = self.minimizer.hypo_pars
-      tmu_A, min_mu_A = self.minimizer.asimov_clone(0).tmu(mu)
+      tmu_A = self.minimizer.asimov_clone(0).tmu(poi)
       fit_result[tmu_A_key] = tmu_A
       fit_result[tmu_0_key] = tmu_A # since we use a 0-Asimov for tmu_A already
-      q = QMuTilda(test_mu = mu, tmu = tmu, best_mu = min_mu)
+      q = QMuTilda(test_poi = poi, tmu = tmu, best_poi = self.minimizer.min_poi)
       fit_result[q_key] = q.value()
+      self.fast_qs.append(q)
     self.fill_qcl(q_key = 'fast_qmu_tilda', cl_key = 'fast_cl', cls_key = 'fast_cls', clb_key = 'fast_clb',
-                  tmu_key = 'fast_tmu', best_mu_key = 'fast_best_fit_val', tmu_A_key = 'fast_tmu_A', tmu_0_key = 'fast_tmu_0')
+                  tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_A_key = 'fast_tmu_A', tmu_0_key = 'fast_tmu_0')
     return self
