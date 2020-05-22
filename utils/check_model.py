@@ -26,11 +26,11 @@ if not options :
   parser.print_help()
   sys.exit(0)
 
-results = FitResults(options.fits_file)
-
 model = Model.create(options.model_file)
 if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
 if options.regularize != None : model.set_gamma_regularization(options.regularize)
+
+results = FitResults(model, options.fits_file)
 
 if options.data_file :
   data = Data(model).load(options.data_file)
