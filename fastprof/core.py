@@ -41,6 +41,7 @@ class Model (JSONSerializable) :
     self.alphas = alphas
     self.betas  = betas
     self.gammas = gammas
+    self.pars = {}
     if sig.ndim != 1 or bkg.ndim != 1 or a.ndim != 2 or b.ndim != 2 or c.ndim != 2 :
       raise ValueError('Input data to fastprof model should be 1D vectors for (sig, bkg) and 2D matrices for (a, b)')
     if sig.size != bkg.size :
@@ -132,15 +133,6 @@ class Model (JSONSerializable) :
       print(inst)
       return np.Infinity
 
-  #def derivatives(self, pars) :
-    #der_a = np.zeros(self.n_alpha())
-    #der_b = np.zeros(self.n_beta())
-    #da = self.aux_alpha - alpha
-    #db = self.aux_beta  - beta
-    #stot = self.s_exp(pars)
-    #r1 = 1 - self.n/self.n_exp(pars)
-    #return np.dot(stot*r1, self.a) - da, np.dot(self.bkg*r1, self.b) - db
-
   def grad_poi(self, pars, data) :
     sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
@@ -157,15 +149,22 @@ class Model (JSONSerializable) :
     for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
     return s
     
-  def expected_pars(self, mu) :
-    return Parameters(mu, np.zeros(self.na), np.zeros(self.nb), np.zeros(self.nc), self)
+  def expected_pars(self, poi, minimizer = None) :
+    if minimizer :
+      return minimizer.profile_nps(poi)
+    else :
+      return Parameters(poi, np.zeros(self.na), np.zeros(self.nb), np.zeros(self.nc), self)
 
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
 
+  def generate_asimov(self, pars) :
+    return Data(self).set_data(self.n_exp(pars), pars.alphas, pars.betas)
+
+  def generate_expected(self, poi, minimizer = None) :
+    return self.generate_asimov(self.expected_pars(poi, minimizer))
+
   def plot(self, pars, data = None, bkg_only = True, variations=[], residuals = False, canvas=None) :
-    #print(np.linspace(0,self.sig.size - 1,self.sig.size))
-    #print(self.b_exp(pars))
     if canvas == None : canvas = plt.gca()
     if len(self.bins) > 0 :
       grid = [ b['lo_edge'] for b in self.bins ]
@@ -213,21 +212,25 @@ class Model (JSONSerializable) :
 
     self.alphas = []
     self.a = np.ndarray((self.sig.size, len(jdict['alphas'])))
-    for i, alpha in enumerate(jdict['alphas']) :
-      self.alphas.append(alpha['name'])
-      self.a[:,i] = alpha['impact']
+    for i, spec in enumerate(jdict['alphas']) :
+      self.alphas.append(spec['name'])
+      self.a[:,i] = spec['impact']
+      self.pars[spec['name']] = { 'nominal' : spec['nominal'], 'variation' : spec['variation'] }
     
     self.betas = []
     self.b = np.ndarray((self.sig.size, len(jdict['betas'])))
-    for i, beta in enumerate(jdict['betas']) :
-      self.betas.append(beta['name'])
-      self.b[:,i] = beta['impact']
+    for i, spec in enumerate(jdict['betas']) :
+      self.betas.append(spec['name'])
+      self.b[:,i] = spec['impact']
+      self.pars[spec['name']] = { 'nominal' : spec['nominal'], 'variation' : spec['variation'] }
 
     self.gammas = []
     self.c = np.ndarray((self.sig.size, len(jdict['gammas'])))
-    for i, gamma in enumerate(jdict['gammas']) :
-      self.gammas.append(gamma['name'])
-      self.c[:,i] = gamma['impact']
+    for i, spec in enumerate(jdict['gammas']) :
+      self.gammas.append(spec['name'])
+      self.c[:,i] = spec['impact']
+      self.pars[spec['name']] = { 'nominal' : spec['nominal'], 'variation' : spec['variation'] }
+
     self.init_vars()
     return self
   
@@ -294,7 +297,7 @@ class Model (JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Parameters :
-  def __init__(self, poi, alphas = np.array([]), betas = np.array([]), gammas = np.array([]), model = None) :
+  def __init__(self, poi = 0, alphas = np.array([]), betas = np.array([]), gammas = np.array([]), model = None) :
     if not isinstance(alphas, np.ndarray) : alphas = np.array(alphas)
     if not isinstance(betas , np.ndarray) : betas  = np.array(betas)
     if not isinstance(gammas, np.ndarray) : gammas = np.array(gammas)
@@ -320,12 +323,39 @@ class Parameters :
       s += 'gammas = ' + str(self.gammas)
     else :
       s += 'poi    : %-12s = %8.4f' %  (self.model.poi, self.poi) + '\n'
-      s += 'alphas : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.alphas, self.alphas) ] ) + '\n'
-      s += 'betas  : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.betas , self.betas ) ] ) + '\n'
-      s += 'gammas : ' + '\n         '.join( [ '%-12s = %8.4f' % (p,v) for p,v in zip(self.model.gammas, self.gammas) ] )
+      s += 'alphas : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.alphas, self.alphas) ] ) + '\n'
+      s += 'betas  : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.betas , self.betas ) ] ) + '\n'
+      s += 'gammas : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.gammas, self.gammas) ] )
     return s
 
-  def set(self, par, val) :
+  def __getitem__(self, par):
+    if par == self.model.poi : return self.poi
+    try :
+      i = self.model.alphas.index(par)
+      return self.alphas[i]
+    except:
+      try :
+        i = self.model.betas.index(par)
+        return self.betas[i]
+      except:
+        try :
+          i = self.model.gammas.index(par)
+          return self.gammas[i]
+        except:
+          raise KeyError('Model parameter %s not found' % par)
+    return None
+
+  def set_poi(self, poi) :
+    self.poi = poi
+    return self
+
+  def set_np(self, par, val, unscaled=False) :
+    if unscaled :
+      try :
+        p = self.model.pars[par]
+        val = (val - p['nominal'])/p['variation']
+      except:
+        raise KeyError('Model parameter %s not found' % par)
     try :
       i = self.model.alphas.index(par)
       self.alphas[i] = val
@@ -341,6 +371,13 @@ class Parameters :
           raise KeyError('Model parameter %s not found' % par)
     return self
   
+  def unscaled(self, par, val) :
+    try :
+      p = self.model.pars[par]
+      return p['nominal'] + p['variation']*val
+    except:
+      raise KeyError('Model parameter %s not found' % par)
+
   def set_from_aux(self, data) :
     self.alphas = np.array(data.aux_alphas)
     self.betas  = np.array(data.aux_betas )
@@ -360,14 +397,12 @@ class Data (JSONSerializable) :
       self.n = n
     else :
       self.n = self.model.sig + self.model.bkg
-
     if aux_alphas.size > 0 :
       if aux_alphas.size != self.model.na :
         raise ValueError('Input data "aux_alphas" should have the same size as the "alphas" of the model (%d), got %s.' % (self.model.na, str(aux_alphas)))
       self.aux_alphas = aux_alphas
     else :
       self.aux_alphas = np.zeros(self.model.a.shape[1])
-
     if aux_betas.size > 0 :
       if aux_betas.size != self.model.b.shape[1] :
         raise ValueError('Input data "aux_beta" should have the same size as the "betas" of the model (%d), got %s.' % (self.model.nb, str(aux_betas)))
