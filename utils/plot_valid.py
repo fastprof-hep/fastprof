@@ -56,7 +56,7 @@ if model == None :
   raise ValueError('No valid model definition found in file %s.' % options.model_file)
 
 data = ValidationData(model, options.validation_data)
-
+print('Validating for POI value %s = %g' % (model.poi, data.poi))
 plt.ion()
 nplots = model.n_nps
 nc = math.ceil(math.sqrt(nplots))
@@ -77,11 +77,11 @@ for b in bins :
     sgs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs[i//nc, i % nc], wspace=0.1, hspace=0.1)
     pars = model.expected_pars(data.poi)
     model.linear_nps = True
-    vars_lin = [ model.n_exp(pars.set(par, x))[b]/nexp0[b] - 1 for x in cont_x ]
-    rvar_lin = [ -((model.n_exp(pars.set(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
+    vars_lin = [ model.n_exp(pars.set_np(par, x))[b]/nexp0[b] - 1 for x in cont_x ]
+    rvar_lin = [ -((model.n_exp(pars.set_np(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
     model.linear_nps = False
-    vars_nli = [ model.n_exp(pars.set(par, x))[b]/nexp0[b] - 1 for x in cont_x ]
-    rvar_nli = [ -((model.n_exp(pars.set(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
+    vars_nli = [ model.n_exp(pars.set_np(par, x))[b]/nexp0[b] - 1 for x in cont_x ]
+    rvar_nli = [ -((model.n_exp(pars.set_np(par, x))[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
 
     ax_var = fig.add_subplot(sgs[0])
     ax_inv = fig.add_subplot(sgs[1], sharex=ax_var)
