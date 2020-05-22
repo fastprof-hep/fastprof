@@ -68,3 +68,6 @@
  # in fastprof/
 ./fastprof/utils/check_model.py -m run/fastprof/highMass_NW-1700-log200.json -d run/fastprof/data_highMass-log200.json -f run/fastprof/fits_highMass_NW-1700.json -r 5 
 python -i ./fastprof/utils/plot_valid.py -m run/fastprof/highMass_NW-1700-log200.json -v run/fastprof/valid-highMass_NW-1700-log200.json -b 172
+./fastprof/utils/compute_limits.py -m run/fastprof/highMass_NW-1700-log200.json -d run/fastprof/data_highMass-log200.json -f run/fastprof/fits_highMass_NW-1700.json -r 5 -o samples/highMass_NW-1700-log200-r5 -n 10000
+python -i ./fastprof/utils/check_asymptotics.py -m run/fastprof/highMass_NW-$mass-log200.json -f run/fastprof/fits_highMass_NW-$mass.json -s samples/highMass_NW-$mass-log200-r1
+python -i fastprof/utils/dump_debug.py samples/highMass_NW-2483-log200-r1_0.0671406_debug.csv -r --hypo run/fastprof/fits_highMass_NW-2483.json:11 -m run/fastprof/highMass_NW-2483-log200.json --log
