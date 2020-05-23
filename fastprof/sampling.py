@@ -178,7 +178,7 @@ class CLsSamples (SamplesBase) :
     return self.clsb.quantile(poi, fraction, sigma)/cl_b
 
   def bands(self, max_sigmas) :
-    cls_samples = Samples(self.mus)
+    cls_samples = Samples(pois=self.pois)
     for poi in self.pois :
       ns = len(self.cl_b.dists[poi].samples)
       sd = SamplingDistribution(ns)
