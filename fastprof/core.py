@@ -108,24 +108,22 @@ class Model (JSONSerializable) :
 
   def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
 
-  def nll(self, pars, data, offset = True) :
+  def nll(self, pars, data, offset = True, no_constraints=False) :
     da = data.aux_alphas - pars.alphas
     db = data.aux_betas  - pars.betas
     dc = pars.gammas
     nexp = self.n_exp(pars)
     try :
       if not offset :
-        result = np.sum(nexp - data.n*np.log(nexp)) \
-          + 0.5*np.linalg.multi_dot((da, self.diag_alphas, da)) \
-          + 0.5*np.linalg.multi_dot((db, self.diag_betas , db)) \
-          + 0.5*np.linalg.multi_dot((dc, self.diag_gammas, dc))
+        result = np.sum(nexp - data.n*np.log(nexp))
       else :
         nexp0 = self.sig + self.bkg
-        result = np.sum(nexp - nexp0 - data.n*(np.log(nexp/nexp0))) \
+        result = np.sum(nexp - nexp0 - data.n*(np.log(nexp/nexp0)))
+      if not no_constraints :
+         result += \
           + 0.5*np.linalg.multi_dot((da, self.diag_alphas, da)) \
           + 0.5*np.linalg.multi_dot((db, self.diag_betas , db)) \
           + 0.5*np.linalg.multi_dot((dc, self.diag_gammas, dc))
-
       if math.isnan(result) : result = math.inf
       return result
     except Exception as inst:
