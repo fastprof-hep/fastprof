@@ -62,7 +62,7 @@
 ./create_workspace.py -c fastprof/datacards/fidXsection_spin0_NW_withSS/hfitter_newResRun2_highMass_NW.dat --poi xs -f fastprof/ntup_data_all.root -i ..:../Hfitter/HfitterModels -o fastprof/highMass_NW.root
 # in run/fastprof
 # use python -u <cmd below> to write output in order (unbuffered) to a log file
-./convert_ws.py -f highMass_NW.root --bkg dBkg -b 150:2500:200:log -u --asimov --setval mX=1700,xs=0 -o highMass_NW-1700-log200.json --validation-data valid-highMass_NW-1700-log200.json
+python -u ./convert_ws.py -f highMass_NW.root --setval mX=$mass,xs=0 -r 0,10 -d obsData --refit 0 --binned --bkg dBkg -b 150:2500:200:log -o highMass_NW-$mass-log200.json
 ./convert_ws.py -f highMass_NW.root --bkg dBkg -b 150:2500:200:log -d obsData -x -o data_highMass-log200.json
 ./fit_ws.py -f highMass_NW.root -d obsData --binned --setval mX=1700 -y 13 -o fits_highMass_NW-1700.json
  # in fastprof/
