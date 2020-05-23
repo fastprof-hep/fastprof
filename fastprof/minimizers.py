@@ -72,20 +72,32 @@ class POIMinimizer :
     #print('profile NPs @ %g' % poi)
     #print(str(self.min_pars))
     return self.min_pars
-  def tmu(self, hypo) :
+  def tmu(self, hypo, free=None) :
     if isinstance(hypo, (int, float)) :
-      hypo = self.model.expected_pars(hypo)
+      hypo = self.model.expected_pars(hypo, self)
+    if isinstance(free, (int, float)) :
+      free = self.model.expected_pars(free, self)
     #print('tmu @ %g' % hypo.poi)
     self.profile_nps(hypo)
     self.hypo_nll = self.nll_min
     self.hypo_pars = self.min_pars
-    self.minimize(hypo)
+    self.minimize(free)
     if self.nll_min == None : return None
     self.free_nll = self.nll_min
     self.free_pars = self.min_pars
     #print(self.free_nll, str(self.free_pars))
     #print(self.hypo_nll, str(self.hypo_pars))
-    return 2*(self.hypo_nll - self.free_nll)
+    tmu = 2*(self.hypo_nll - self.free_nll)
+    if tmu < 0 :
+      print('Warning: computed negative tmu = %g !' % tmu)
+      if tmu < -0.5 :
+        print('Hypothesis definition   :', hypo)
+        print('Hypothesis fit result   :', self.hypo_pars)
+        print('Free fit starting value :', free)
+        print('Free fit result         :', self.free_pars)
+        print(self.data.aux_alphas, self.data.aux_betas)
+      tmu = 0
+    return tmu
   def asimov_clone(self, poi) :
     clone = copy.copy(self)
     #print('generating asimov')
@@ -124,15 +136,18 @@ class ScanMinimizer (POIMinimizer) :
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
-  def __init__(self, data, poi0 = 1, bounds = (0, 10), method = 'scalar', niter=1) :
+  def __init__(self, data, poi0 = 0, bounds = (0, 10), method = 'scalar', niter=1) :
     super().__init__(data, niter)
     self.np_min = None
     self.poi0 = poi0
     self.bounds = bounds
     self.method = method
    
-  def minimize(self, hypo) :
-    current_hypo = copy.deepcopy(hypo)
+  def minimize(self, init_hypo) :
+    if init_hypo == None :
+      current_hypo = self.model.expected_pars(self.poi0, self)
+    else :
+      current_hypo = copy.deepcopy(init_hypo)
     def objective(poi) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
@@ -153,9 +168,9 @@ class OptiMinimizer (POIMinimizer) :
       return np.array([ self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0] ])
     #print('Optimizer: using scalar  ----------------')
     if self.method == 'scalar' :
-      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xatol': 1e-3 })
+      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xatol': 1e-5 })
     else :
-      result = scipy.optimize.minimize(objective, x0=self.poi0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, hessp=hess_p, options={'gtol': 1e-3, 'ftol':1e-3, 'xtol':1e-3 })
+      result = scipy.optimize.minimize(objective, x0=self.poi0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, hessp=hess_p, options={'gtol': 1e-5, 'ftol':1e-5, 'xtol':1e-5 })
       if not result.success:
         result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
     #print('Optimizer: done ----------------')
