@@ -27,10 +27,13 @@ parser.add_argument("-p", "--nps"              , type=str  , default=''       , 
 parser.add_argument("-e", "--epsilon"          , type=float, default=1        , help="Scale factor applied to uncertainties for impact computations")
 parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
 parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Variables to set constant")
-parser.add_argument("-a", "--asimov"           , action="store_true"          , help="Perform an Asimov fit before conversion")
-parser.add_argument("-x", "--data-only"        , action="store_true"          , help="Only dump the specified dataset, not the model")
+parser.add_argument("-r", "--poi-range"        , type=str  , default=''       , help="POI allowed range, in the form min,max")
 parser.add_argument("-d", "--data-name"        , type=str  , default=''       , help="Name of dataset object within the input workspace")
-parser.add_argument("-u", "--refit"            , action="store_true"          , help="Update uncertainties (but not central values) from a fit to the specified dataset")
+parser.add_argument("-a", "--asimov"           , type=float, default=None     , help="Perform an Asimov fit before conversion")
+parser.add_argument("-x", "--data-only"        , action="store_true"          , help="Only dump the specified dataset, not the model")
+parser.add_argument(      "--refit"            , type=float, default=None     , help="Fit the model to the specified dataset before conversion")
+parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
+parser.add_argument("-u", "--asimov-errors"    , type=float, default=None     , help="Update uncertainties from a fit to an Asimov dataset")
 parser.add_argument(      "--signal"           , type=str  , default=''       , help="List of parameters to be assigned to the signal component")
 parser.add_argument(      "--bkg"              , type=str  , default=''       , help="List of parameters to be assigned to the background component")
 parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
@@ -43,6 +46,8 @@ if not options :
   parser.print_help()
   sys.exit(0)
 
+# 1 - Parse bin specifications, retrieve workspace contents
+# ---------------------------------------------------------
 try:
   binspec = options.binning.split(':')
   if len(binspec) == 4 and binspec[3] == 'log' :
@@ -85,6 +90,18 @@ try :
 except Exception as inst :
   print(inst)
   ValueError('Could not identify POI')
+poi_init = poi.getVal()
+
+# 2 - Update parameter values and constness
+# -----------------------------------------
+if options.poi_range != '' :
+  try:
+    poi_min, poi_max = [ float(p) for p in options.poi_range.split(',') ]
+  except Exception as inst :
+    print(inst)
+    raise ValueError('Invalid POI range specification %s, expected poi_min,poi_max' % options.poi_range)
+  if poi_min > poi_max : poi_min, poi_max = poi_max, poi_min
+  poi.setRange(poi_min, poi_max)
 
 if options.setval != '' :
   try:
@@ -110,6 +127,25 @@ if options.setconst != '' :
       thisvar.setConstant()
       print("INFO : setting variable '%s' constant (current value: %g)" % (thisvar.GetName(), thisvar.getVal()))
 
+# 3 - Define the primary dataset
+# ------------------------------
+data = None
+if options.data_name != '' :
+  data = ws.data(options.data_name)
+  if data == None :
+    ds = [ d.GetName() for d in ws.allData() ]
+    raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
+
+if options.asimov != None :
+  poi.setVal(options.asimov)
+  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+  poi.setVal(poi_init)
+
+if not data :
+  raise ValueError('ERROR: no dataset was specified either using --data-name or --asimov')
+
+# 4 - Identify the model parameters
+# ---------------------------------
 sig_pars = []
 bkg_pars = []
 if options.signal != '' :
@@ -130,33 +166,6 @@ if options.bkg != '' :
   except Exception as inst :
     print(inst)
     raise ValueError("ERROR : invalid background parameter specification '%s'." % options.bkg)
-
-data = None
-if options.data_name != '' :
-  data = ws.data(options.data_name)
-  if data == None :
-    ds = [ d.GetName() for d in ws.allData() ]
-    raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
-
-if options.asimov :
-  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
-
-if not data :
-  raise ValueError('ERROR: no dataset was specified either using --data-name or --asimov')
-
-bin_data = []
-for b in range(0, nbins) :
-  bin_datum = collections.OrderedDict()
-  bin_datum['lo_edge'] = bins[b]
-  bin_datum['hi_edge'] = bins[b+1]
-  bin_data.append(bin_datum)
-
-jdict = collections.OrderedDict()
-jdict['model_name' ] = options.output_name
-jdict['obs_name' ] = obs.GetTitle().replace('#','\\')
-jdict['obs_unit' ] = obs.getUnit()
-jdict['bins'] = bin_data
-jdict['poi'] = poi.GetName()
 
 aux_alphas = []
 aux_betas  = []
@@ -187,17 +196,50 @@ except Exception as inst :
   print(inst)
   ValueError('Could not identify nuisance parameters')
 
+# 5 - Fill the common JSON header
+# --------------------------------
+bin_data = []
+for b in range(0, nbins) :
+  bin_datum = collections.OrderedDict()
+  bin_datum['lo_edge'] = bins[b]
+  bin_datum['hi_edge'] = bins[b+1]
+  bin_data.append(bin_datum)
+
+jdict = collections.OrderedDict()
+jdict['model_name'] = options.output_name
+jdict['obs_name'] = obs.GetTitle().replace('#','\\')
+jdict['obs_unit'] = obs.getUnit()
+jdict['bins'] = bin_data
+jdict['poi'] = poi.GetName()
+
+# 6 - Fill the model information
+# ------------------------------
 if not options.data_only :
-  if options.refit:
-    # First, fit the data: this will give the uncertainty values on the free parameters which are needed to compute their impacts reliably
-    # For the Asimov case, we need the POI uncertainty (see below) so let it float:
-    if options.asimov : poi.setConstant(False)
-    main_pdf.fitTo(data, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
-    # If we are running on Asimov (best choice in almost all cases) then the S/B should be adjusted to the expected sensitivity value to get 
-    # reliable uncertainties on signal NPs. Choose POI = 2*uncertainty or this, and refit under this hypothesis
+  if options.refit != None :
+    poi.setVal(options.refit)
+    poi.setConstant(True)
+    refit_data = data.binnedClone() if options.binned else data
+    print('=== Refitting PDF to specified dataset with under the POI = %g hypothesis.' % poi.getVal())
+    main_pdf.fitTo(refit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+
+  if options.asimov_errors != None :
+    poi.setVal(options.asimov_errors)
+    asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+    print('=== Updating uncertainties using an Asimov dataset with POI = %g.' % poi.getVal())
+    nuis_pars.Print("V")
+    main_pdf.fitTo(rescaled_asimov, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+
+  if poi.getVal() == 0 :
+    ws.saveSnapshot('nominalNPs', nuis_pars)
+    poi.setConstant(False)
+    asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+    print('=== Determining POI uncertainty using an Asimov dataset with POI = %g.' % poi.getVal())
+    nuis_pars.Print("V")
+    main_pdf.fitTo(asimov, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    # The S/B should be adjusted to the expected sensitivity value to get
+    # reliable uncertainties on signal NPs. Choose POI = 2*uncertainty or this.
+    ws.loadSnapshot('nominalNPs')
     poi.setVal(2*poi.getError())
-    rescaled_asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
-    main_pdf.fitTo(rescaled_asimov, ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Offset())
 
   np_list = ROOT.RooArgList(nuis_pars)
   for p in range(0, len(np_list)) :
@@ -229,6 +271,7 @@ if not options.data_only :
   if poi.getVal() == 0 :
     raise ValueError('ERROR : POI %s is exactly 0, cannot extract signal component!' % poi.GetName())
   print('Signal component normalized to POI %s = %g -> nSignal = %g' % (poi.GetName(), poi.getVal(), nSignal.getVal()))
+  nuis_pars.Print("V")
   impacts_s = np.ndarray((nbins, len(np_list)))
   impacts_b = np.ndarray((nbins, len(np_list)))
   nom_sig = np.zeros(nbins)
@@ -243,9 +286,9 @@ if not options.data_only :
     ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
     sig0 = nSignal.getVal()*sigint.getVal()
     bkg0 = ntot*totint.getVal() - sig0
-    print('-- Nominal sig = %g' % sig0)
+    print('-- Nominal sig = %g' % (sig0/poi.getVal()))
     print('-- Nominal bkg = %g' % bkg0)
-    nom_sig[i] = sig0/poi.getVal() # rescale to match POI value in nominal model
+    nom_sig[i] = sig0/poi.getVal() # rescale so that 'nominal' corresponds to POI=1
     nom_bkg[i] = bkg0
     for p in range(0, len(np_list)) :
       par = np_list.at(p)
@@ -329,6 +372,8 @@ if not options.data_only :
     gamma_specs.append(od)
   jdict['gammas'] = gamma_specs
 
+# 7 - Fill the dataset information
+# --------------------------------
 bin_array = array.array('d', bins)
 hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
 data.fillHistogram(hist, ROOT.RooArgList(obs))
@@ -339,9 +384,13 @@ data_dict['aux_alphas'] = [ aux_alpha.getVal() for aux_alpha in aux_alphas ]
 data_dict['aux_betas' ] = [ aux_beta.getVal() for aux_beta in aux_betas ]
 jdict['data'] = data_dict
 
+# 8 - Write everything to file
+# ----------------------------
 with open(options.output_file, 'w') as fd:
   json.dump(jdict, fd, ensure_ascii=True, indent=3)
 
+# 9 - If requested, also dump validation information
+# --------------------------------------------------
 if options.validation_data :
   valid_lists = collections.OrderedDict()
   valid_lists[poi.GetName()] = poi.getVal()
