@@ -78,6 +78,7 @@ for i, par in enumerate(pars) :
   free_delta = debug['free_' + par] -  - debug['aux_' + par] if 'aux_' + par in debug.columns else debug['free_' + par]
   hypo_delta = debug['hypo_' + par] -  - debug['aux_' + par] if 'aux_' + par in debug.columns else debug['hypo_' + par]
   if options.hypo != '' :
+    print('Shifting distributions of %s by %g' % (par, hypo_pars[par]))
     free_delta -= hypo_pars[par]
     hypo_delta -= hypo_pars[par]
   ax2[0,i].hist(free_delta, bins=np.linspace(-z, z, options.nbins))
