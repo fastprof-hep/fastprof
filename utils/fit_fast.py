@@ -60,8 +60,8 @@ if options.poi_hypo != None :
   print('profile NLL @ %g = %g' % (options.poi_hypo, np_min.profile_nll()))
   print('Profiled NP values :', np_min.min_pars)
   min_pars = np_min.min_pars
-  tmu   = opti.tmu(options.poi_hypo)
-  tmu_A = opti.asimov_clone(0).tmu(options.poi_hypo)
+  tmu   = opti.tmu(options.poi_hypo, options.poi_hypo)
+  tmu_A = opti.asimov_clone(0).tmu(options.poi_hypo, options.poi_hypo)
   q = QMuTilda(options.poi_hypo, tmu, opti.min_pars.poi, options.poi_hypo, tmu_A, tmu_A)
   print('min_poi  = % g' % opti.min_poi)
   print('tmu      = % g' % tmu)

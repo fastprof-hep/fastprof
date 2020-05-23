@@ -47,7 +47,7 @@ class ScanSampler (Sampler) :
       self.progress(k, ntoys)
       data = self.model.generate_data(self.gen_hypo)
       opti = ScanMinimizer(data, self.scan_mus)
-      tmu = opti.tmu(self.test_hypo)
+      tmu = opti.tmu(self.test_hypo, self.test_hypo)
       q = QMu(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi)
       self.dist.samples[k] = q.asymptotic_cl()
     return self.dist
@@ -85,7 +85,7 @@ class OptiSampler (Sampler) :
         if self.debug : print('DEBUG: iteration %d generating data for hypo %g.' % (k, self.gen_hypo.poi))
         data = self.model.generate_data(self.gen_hypo)
         opti = OptiMinimizer(data, self.mu0, self.bounds, self.method, self.niter)
-        tmu = opti.tmu(self.test_hypo)
+        tmu = opti.tmu(self.test_hypo, self.test_hypo)
         if self.debug : 
           print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' %(self.mu0, *self.bounds, tmu, opti.min_poi))
           print(opti.min_pars)
