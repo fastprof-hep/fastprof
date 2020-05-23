@@ -68,7 +68,6 @@ if not mconfig :
   raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
 
 main_pdf = mconfig.GetPdf()
-nuis_pars = mconfig.GetNuisanceParameters()
 poi = ROOT.RooArgList(mconfig.GetParametersOfInterest()).at(0) # make safer!
 
 if options.setval != '' :
@@ -97,7 +96,7 @@ if options.setconst != '' :
 
 if options.poi_initial_value != None :
   poi.setVal(options.poi_initial_value)
-  
+
 if options.poi_range != '' :
   try:
     poi_min, poi_max = [ float(p) for p in options.poi_range.split(',') ]
@@ -106,8 +105,8 @@ if options.poi_range != '' :
     raise ValueError('Invalid POI range specification %s, expected poi_min,poi_max' % options.poi_range)
   if poi_min > poi_max : poi_min, poi_max = poi_max, poi_min
   poi.setRange(poi_min, poi_max)
-else :
-  poi.setRange(0,10)
+
+nuis_pars = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
 
 ws.saveSnapshot('init', nuis_pars)
 poi_init_val = poi.getVal()
