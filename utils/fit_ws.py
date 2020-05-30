@@ -44,8 +44,8 @@ if not options :
 
 try :
   nhypos = int(options.hypos)
-  n1 = (nhypos + 1) // 4
-  pos = np.concatenate((np.linspace(0, 2, n1+2)[1:-1], np.linspace(2, 5, n1))) # same number of points between [0,2] and [2,5]
+  n1 = (nhypos + 1) // 6
+  pos = np.concatenate((np.linspace(0, 3, 2*n1 + 1)[1:-1], np.linspace(3, 8, n1))) # twice as many points in ]0,3[ as in [3,8]
   hypo_zs = np.concatenate((np.flip(-pos), np.zeros(1), pos))
   hypos = None
 except:
@@ -111,6 +111,13 @@ nuis_pars = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
 ws.saveSnapshot('init', nuis_pars)
 poi_init_val = poi.getVal()
 
+def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
+   result = main_pdf.fitTo(dataset, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
+   if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
+     return fit(dataset, robust, n_max - 1, result.minNll())
+   else :
+     return result
+
 data = None
 asimov = None
 if options.data_name != '' :
@@ -129,7 +136,7 @@ if not data :
 if not asimov :
   poi.setVal(0)
   poi.setConstant(True)
-  main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  fit(data, robust=True)
   asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
 nll = main_pdf.createNLL(data)
@@ -147,11 +154,11 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
     return (3 + 0.5*i)*np.exp(-unc**2/3) + (1 - np.exp(-unc**2/3))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + unc**2)
   poi.setConstant(False)
   poi.setVal(poi_init_val)
-  main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  fit(asimov, robust=True)
   free_nll = asimov_nll.getVal()
   poi.setVal(poi.getError()/100) # In principle shouldn't have the factor 100, but helps to protect against bad estimations of poi uncertainty
   poi.setConstant(True)
-  main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  fit(asimov, robust=True)
   hypo_nll = asimov_nll.getVal()
   dll = 2*(hypo_nll - free_nll)
   sigma_A = poi.getVal()/math.sqrt(dll) if dll > 0 else poi.getError()
@@ -162,7 +169,7 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
   print('  ' + '\n  '.join([ '%5g : Nsig = %10g, POI = %10g' % (h_z, h_n, h_p) for h_z, h_n, h_p in zip(hypo_zs, hypos_nS, hypos) ] ))
   if options.poi_range == '' :
     # Set range up to the 10sigma hypothesis, should be enough...
-    poi.setRange(0, hypo_guess(10, sigma_A/poi.getVal()*nSignal.getVal())/nSignal.getVal()*poi.getVal())
+    poi.setRange(0, hypo_guess(20, sigma_A/poi.getVal()*nSignal.getVal())/nSignal.getVal()*poi.getVal())
     print('Auto-set POI range to [%g, %g]' % (poi.getMin(), poi.getMax()))
 
 jdict = collections.OrderedDict()
@@ -176,12 +183,12 @@ for hypo in hypos :
   result[poi.GetName()] = hypo
   # Fixed-mu fit
   poi.setConstant(True)
-  result_hypo = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  result_hypo = fit(data, robust=True)
   result['nll_hypo'] = nll.getVal()
   for p in nuis_pars : result['hypo_' + p.GetName()] = result_hypo.floatParsFinal().find(p.GetName()).getVal()
   # Free-mu fit
   poi.setConstant(False)
-  result_free = main_pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  result_free = fit(data, robust=True)
   result_free.floatParsFinal().Print("V")
   result['nll_free'] = nll.getVal()
   result['fit_val'] = poi.getVal()
@@ -191,11 +198,11 @@ for hypo in hypos :
   ws.loadSnapshot('init')
   poi.setVal(hypo)
   poi.setConstant(True)
-  result_asimov_hypo = main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  result_asimov_hypo = fit(asimov, robust=True)
   result['asimov_nll_hypo'] = asimov_nll.getVal()
   # Free-mu fit
   poi.setConstant(False)
-  result_asimov_free = main_pdf.fitTo(asimov, ROOT.RooFit.Save(), ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+  result_asimov_free = fit(asimov, robust=True)
   result['asimov_nll_free'] = asimov_nll.getVal()
   result_asimov_free.floatParsFinal().Print("V")
   # Store results
