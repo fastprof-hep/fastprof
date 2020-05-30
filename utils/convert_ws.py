@@ -92,8 +92,8 @@ except Exception as inst :
   ValueError('Could not identify POI')
 poi_init = poi.getVal()
 
-# 2 - Update parameter values and constness
-# -----------------------------------------
+# 2 - Update parameter values and constness as specified in options
+# -----------------------------------------------------------------
 if options.poi_range != '' :
   try:
     poi_min, poi_max = [ float(p) for p in options.poi_range.split(',') ]
@@ -214,20 +214,28 @@ jdict['poi'] = poi.GetName()
 
 # 6 - Fill the model information
 # ------------------------------
+
+def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
+   result = main_pdf.fitTo(dataset, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
+   if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
+     return fit(dataset, robust, n_max - 1, result.minNll())
+   else :
+     return result
+
 if not options.data_only :
   if options.refit != None :
     poi.setVal(options.refit)
     poi.setConstant(True)
     refit_data = data.binnedClone() if options.binned else data
     print('=== Refitting PDF to specified dataset with under the POI = %g hypothesis.' % poi.getVal())
-    main_pdf.fitTo(refit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    fit(refit_data, robust=True)
 
   if options.asimov_errors != None :
     poi.setVal(options.asimov_errors)
     asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
     print('=== Updating uncertainties using an Asimov dataset with POI = %g.' % poi.getVal())
     nuis_pars.Print("V")
-    main_pdf.fitTo(rescaled_asimov, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    fit(rescaled_asimov, robust=True)
 
   if poi.getVal() == 0 :
     ws.saveSnapshot('nominalNPs', nuis_pars)
@@ -235,11 +243,13 @@ if not options.data_only :
     asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
     print('=== Determining POI uncertainty using an Asimov dataset with POI = %g.' % poi.getVal())
     nuis_pars.Print("V")
-    main_pdf.fitTo(asimov, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'))
+    fit(asimov, robust=True)
     # The S/B should be adjusted to the expected sensitivity value to get
     # reliable uncertainties on signal NPs. Choose POI = 2*uncertainty or this.
+    nuis_pars.Print("V")
     ws.loadSnapshot('nominalNPs')
     poi.setVal(2*poi.getError())
+    nuis_pars.Print("V")
 
   np_list = ROOT.RooArgList(nuis_pars)
   for p in range(0, len(np_list)) :
