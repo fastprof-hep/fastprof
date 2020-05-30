@@ -8,6 +8,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
+import json
 
 from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, FitResults, QMuCalculator, QMuTildaCalculator
 
@@ -27,8 +28,9 @@ parser.add_argument("-a", "--asimov"        , type=float, default=None       , h
 parser.add_argument("-i", "--iterations"    , type=int  , default=1          , help="Number of iterations to perform for NP computation")
 parser.add_argument("-r", "--regularize"    , type=float, default=None       , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
 parser.add_argument("-t", "--test-statistic", type=str  , default='qmu_tilda', help="Test statistic to use")
-parser.add_argument("-b", "--break-locks"   , action='store_true'            , help="Allow breaking locks from other sample production jobs")
+parser.add_argument(      "--break-locks"   , action='store_true'            , help="Allow breaking locks from other sample production jobs")
 parser.add_argument(      "--debug"         , action='store_true'            , help="Produce debugging output")
+parser.add_argument("-b", "--batch-mode"    , action='store_true'            , help="Batch mode: no plots shown")
 parser.add_argument("-v", "--verbosity"     , type=int  , default=0          , help="Verbosity level")
 
 options = parser.parse_args()
@@ -99,32 +101,45 @@ limit_asy_fast_cls  = res.solve('fast_cls'    , 0.05, log_scale = True)
 limit_sampling_cls  = res.solve('sampling_cls', 0.05, log_scale = True)
 
 # Print results
-print('Asymptotics, full model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asy_full_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_full_clsb)))))
-print('Asymptotics, fast model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asy_fast_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_fast_clsb)))))
-print('Sampling   , fast model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_sampling_clsb, np.sum(model.s_exp(model.expected_pars(limit_sampling_clsb)))))
-print('Asymptotics, full model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asy_full_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_full_cls )))))
-print('Asymptotics, fast model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asy_fast_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_fast_cls )))))
-print('Sampling   , fast model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_sampling_cls , np.sum(model.s_exp(model.expected_pars(limit_sampling_cls )))))
+if limit_asy_full_clsb : print('Asymptotics, full model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asy_full_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_full_clsb)))))
+if limit_asy_fast_clsb : print('Asymptotics, fast model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asy_fast_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_fast_clsb)))))
+if limit_sampling_clsb : print('Sampling   , fast model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_sampling_clsb, np.sum(model.s_exp(model.expected_pars(limit_sampling_clsb)))))
+if limit_asy_full_cls  : print('Asymptotics, full model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asy_full_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_full_cls )))))
+if limit_asy_fast_cls  : print('Asymptotics, fast model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asy_fast_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_fast_cls )))))
+if limit_sampling_cls  : print('Sampling   , fast model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_sampling_cls , np.sum(model.s_exp(model.expected_pars(limit_sampling_cls )))))
 
 # Plot results
-plt.ion()
-fig1 = plt.figure(1)
-plt.suptitle('$CL_{s+b}$')
-plt.xlabel('$\mu$')
-plt.ylabel('$CL_{s+b}$')
-plt.plot(res.hypos, [ fit_result['cl']          for fit_result in fit_results ], 'r:' , label = 'Asymptotics')
-plt.plot(res.hypos, [ fit_result['sampling_cl'] for fit_result in fit_results ], 'b'  , label = 'Sampling')
-plt.legend()
+if not options.batch_mode :
+  plt.ion()
+  fig1 = plt.figure(1)
+  plt.suptitle('$CL_{s+b}$')
+  plt.xlabel('$\mu$')
+  plt.ylabel('$CL_{s+b}$')
+  plt.plot(res.hypos, [ fit_result['cl']          for fit_result in fit_results ], 'r:' , label = 'Asymptotics')
+  plt.plot(res.hypos, [ fit_result['sampling_cl'] for fit_result in fit_results ], 'b'  , label = 'Sampling')
+  plt.legend()
 
-fig2 = plt.figure(2)
-plt.suptitle('$CL_s$')
-plt.xlabel('$\mu$')
-plt.ylabel('$CL_s$')
-opti_samples.plot_bands(2)
-plt.plot(res.hypos, [ fit_result['cls']          for fit_result in fit_results ], 'r:' , label = 'Asymptotics')
-plt.plot(res.hypos, [ fit_result['sampling_cls'] for fit_result in fit_results ], 'b'  , label = 'Sampling')
-plt.legend()
-plt.show()
+  fig2 = plt.figure(2)
+  plt.suptitle('$CL_s$')
+  plt.xlabel('$\mu$')
+  plt.ylabel('$CL_s$')
+  opti_samples.plot_bands(2)
+  plt.plot(res.hypos, [ fit_result['cls']          for fit_result in fit_results ], 'r:' , label = 'Asymptotics')
+  plt.plot(res.hypos, [ fit_result['sampling_cls'] for fit_result in fit_results ], 'b'  , label = 'Sampling')
+  plt.legend()
+  fig1.savefig(options.output_file + '_clsb.pdf')
+  fig2.savefig(options.output_file + '_cls.pdf')
+  plt.show()
 
-fig1.savefig(options.output_file + '_clsb.pdf')
-fig2.savefig(options.output_file + '_cls.pdf')
+jdict = {}
+jdict['CL'] = 0.05
+jdict['POI'] = model.poi
+jdict['limit_sampling_CLs'] = limit_sampling_cls
+jdict['limit_asymptotics_CLs'] = limit_asy_full_cls
+jdict['limit_asymptotics_CLs_fast'] = limit_asy_fast_cls
+jdict['limit_sampling_CLsb'] = limit_sampling_clsb
+jdict['limit_asymptotics_CLsb'] = limit_asy_full_clsb
+jdict['limit_asymptotics_CLsb_fast'] = limit_asy_fast_clsb
+
+with open(options.output_file + '_results.json', 'w') as fd:
+  json.dump(jdict, fd, ensure_ascii=True, indent=3)
