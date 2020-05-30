@@ -41,7 +41,10 @@ class QMu(TestStatistic) :
   def non_centrality_parameter(self) :
     if self.comp_poi == self.test_poi : return 0
     if self.tmu_A != None :
-      return self.tmu_A if self.tmu_A >= 0 else 0
+      if self.tmu_A < 0 :
+        print('Warning: qmutilda tmu_A = % g < 0, returning 0' % self.tmu_A)
+        return 0
+      return self.tmu_A
     elif self.sigma != None :
       return ((self.comp_poi - self.test_poi)/self.sigma)**2
     else :
