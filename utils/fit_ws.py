@@ -136,7 +136,7 @@ if not data :
 if not asimov :
   poi.setVal(0)
   poi.setConstant(True)
-  fit(data, robust=True)
+  result_bkg_only = fit(data, robust=True)
   asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
 nll = main_pdf.createNLL(data)
@@ -151,20 +151,22 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
       raise ValueError('Could not locate signal yield variable %s')
   def hypo_guess(i, unc) :
     cl = 0.05
-    return (3 + 0.5*i)*np.exp(-unc**2/3) + (1 - np.exp(-unc**2/3))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + unc**2)
+    return (3*math.exp(0.5/3*i))*math.exp(-unc**2/3) + (1 -math.exp(-unc**2/3))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + unc**2)
   poi.setConstant(False)
   poi.setVal(poi_init_val)
   fit(asimov, robust=True)
   free_nll = asimov_nll.getVal()
-  poi.setVal(poi.getError()/100) # In principle shouldn't have the factor 100, but helps to protect against bad estimations of poi uncertainty
+  hypo_val = poi.getError()/10 # In principle shouldn't have the factor 100, but helps to protect against bad estimations of poi uncertainty
+  poi.setVal(hypo_val)
   poi.setConstant(True)
   fit(asimov, robust=True)
   hypo_nll = asimov_nll.getVal()
   dll = 2*(hypo_nll - free_nll)
   sigma_A = poi.getVal()/math.sqrt(dll) if dll > 0 else poi.getError()
+  poi2sig = nSignal.getVal()/poi.getVal()
   print('Asimov qA uncertainty = %g (fit uncertainty = %g) evaluated at POI hypo = %g (nSignal = %g)' % (sigma_A, poi.getError(), poi.getVal(), nSignal.getVal()))
-  hypos_nS = np.array([ hypo_guess(i, sigma_A/poi.getVal()*nSignal.getVal()) for i in hypo_zs ])
-  hypos = hypos_nS/nSignal.getVal()*poi.getVal()
+  hypos_nS = np.array([ hypo_guess(i, sigma_A*poi2sig) for i in hypo_zs ])
+  hypos = hypos_nS/poi2sig
   print('Auto-defined the following hypotheses :')
   print('  ' + '\n  '.join([ '%5g : Nsig = %10g, POI = %10g' % (h_z, h_n, h_p) for h_z, h_n, h_p in zip(hypo_zs, hypos_nS, hypos) ] ))
   if options.poi_range == '' :
