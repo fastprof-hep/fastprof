@@ -21,21 +21,23 @@ import ROOT
 
 parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
-parser.add_argument("-f", "--ws-file"          , type=str   , required=True    , help="Name of file containing the workspace")
-parser.add_argument("-w", "--ws-name"          , type=str   , default='modelWS', help="Name workspace object inside the specified file")
-parser.add_argument("-m", "--model-config-name", type=str   , default='mconfig', help="Name of model config within the specified workspace")
-parser.add_argument("-d", "--data-name"        , type=str   , default=''       , help="Name of dataset object within the input workspace")
-parser.add_argument("-a", "--asimov"           , action="store_true"           , help="Fit an Asimov dataset")
-parser.add_argument("-y", "--hypos"            , type=str   , default=''       , help="Comma-separated list of POI hypothesis values")
-parser.add_argument(      "--fit-options"      , type=str   , default=''       , help="RooFit fit options to use")
-parser.add_argument(      "--binned"           , action="store_true"           , help="Use binned data")
-parser.add_argument("-=", "--setval"           , type=str   , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
-parser.add_argument("-k", "--setconst"         , type=str   , default=''       , help="Variables to set constant")
-parser.add_argument("-i", "--poi-initial-value", type=float , default=None     , help="POI allowed range, in the form min,max")
-parser.add_argument("-r", "--poi-range"        , type=str   , default=''       , help="POI allowed range, in the form min,max")
-parser.add_argument("-n", "--signal-yield"     , type=str   , default='nSignal', help="Name of signal yield variable")
-parser.add_argument("-o", "--output-file"      , type=str   , required=True    , help="Name of output file")
-parser.add_argument("-v", "--verbosity"        , type=int   , default=0        , help="Verbosity level")
+parser.add_argument("-f", "--ws-file"          , type=str  , required=True    , help="Name of file containing the workspace")
+parser.add_argument("-w", "--ws-name"          , type=str  , default='modelWS', help="Name workspace object inside the specified file")
+parser.add_argument("-m", "--model-config-name", type=str  , default='mconfig', help="Name of model config within the specified workspace")
+parser.add_argument("-d", "--data-name"        , type=str  , default=''       , help="Name of dataset object within the input workspace")
+parser.add_argument("-a", "--asimov"           , action="store_true"          , help="Fit an Asimov dataset")
+parser.add_argument("-y", "--hypos"            , type=str  , default=''       , help="Comma-separated list of POI hypothesis values")
+parser.add_argument(      "--fit-options"      , type=str  , default=''       , help="RooFit fit options to use")
+parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
+parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
+parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Variables to set constant")
+parser.add_argument("-i", "--poi-initial-value", type=float, default=None     , help="POI allowed range, in the form min,max")
+parser.add_argument("-r", "--poi-range"        , type=str  , default=''       , help="POI allowed range, in the form min,max")
+parser.add_argument(      "--poi-min"          , type=float, default=None     , help="POI range minimum")
+parser.add_argument(      "--poi-max"          , type=float, default=None     , help="POI range maximum")
+parser.add_argument("-n", "--signal-yield"     , type=str  , default='nSignal', help="Name of signal yield variable")
+parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
+parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
 
 options = parser.parse_args()
 if not options :
@@ -97,6 +99,9 @@ if options.setconst != '' :
 if options.poi_initial_value != None :
   poi.setVal(options.poi_initial_value)
 
+poi_min = None
+poi_max = None
+
 if options.poi_range != '' :
   try:
     poi_min, poi_max = [ float(p) for p in options.poi_range.split(',') ]
@@ -105,6 +110,14 @@ if options.poi_range != '' :
     raise ValueError('Invalid POI range specification %s, expected poi_min,poi_max' % options.poi_range)
   if poi_min > poi_max : poi_min, poi_max = poi_max, poi_min
   poi.setRange(poi_min, poi_max)
+
+if options.poi_min != None :
+  poi_min = options.poi_min
+  poi.setMin(poi_min)
+
+if options.poi_max != None :
+  poi_max = options.poi_max
+  poi.setMax(poi_max)
 
 nuis_pars = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
 
@@ -169,10 +182,16 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
   hypos = hypos_nS/poi2sig
   print('Auto-defined the following hypotheses :')
   print('  ' + '\n  '.join([ '%5g : Nsig = %10g, POI = %10g' % (h_z, h_n, h_p) for h_z, h_n, h_p in zip(hypo_zs, hypos_nS, hypos) ] ))
-  if options.poi_range == '' :
-    # Set range up to the 10sigma hypothesis, should be enough...
-    poi.setRange(0, hypo_guess(20, sigma_A/poi.getVal()*nSignal.getVal())/nSignal.getVal()*poi.getVal())
-    print('Auto-set POI range to [%g, %g]' % (poi.getMin(), poi.getMax()))
+
+  if poi_min == None :
+    # Set min to the -5sigma hypothesis, should be enough...
+    poi.setMin(-hypo_guess(5, sigma_A*poi2sig)/poi2sig)
+    print('Auto-set POI min to %g' % poi.getMin())
+
+  if poi_max == None :
+    # Set max to the 20sigma hypothesis, should be enough...
+    poi.setMax(hypo_guess(20, sigma_A*poi2sig)/poi2sig)
+    print('Auto-set POI max to %g' % poi.getMax())
 
 jdict = collections.OrderedDict()
 fit_results = []
