@@ -79,5 +79,5 @@ if options.root_output :
   f.Close()
 
 plt.ion()
-plt.plot(positions, results)
+plt.plot(positions, results, 'b')
 plt.show()
