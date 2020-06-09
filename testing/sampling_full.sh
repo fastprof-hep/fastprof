@@ -71,7 +71,12 @@ python -i ./fastprof/utils/plot_valid.py -m run/fastprof/highMass_NW-1700-log200
 ./fastprof/utils/compute_limits.py -m run/fastprof/highMass_NW-1700-log200.json -d run/fastprof/data_highMass-log200.json -f run/fastprof/fits_highMass_NW-1700.json -r 5 -o samples/highMass_NW-1700-log200-r5 -n 10000
 python -i ./fastprof/utils/check_asymptotics.py -m run/fastprof/highMass_NW-$mass-log200.json -f run/fastprof/fits_highMass_NW-$mass.json -s samples/highMass_NW-$mass-log200-r1
 python -i fastprof/utils/dump_debug.py samples/highMass_NW-2483-log200-r1_0.0671406_debug.csv -r --hypo run/fastprof/fits_highMass_NW-2483.json:11 -m run/fastprof/highMass_NW-2483-log200.json --log
+split -d --lines 100 make_all_no_a0_17 make_all_no_a0_17_part
+
+./convert_ws.py -f highMass_NW.root --bkg dBkg --refit 0 -d obsData --asimov -b 150:4000:250:log -x -o asimov_highMass-log250.json
+./fastprof/utils/check_model.py -m models/highMass_NW-no-a0-17/model_highMass_NW-no-a0-17-log250-2939.json -d run/fastprof/data_highMass-log250.json -f fits/highMass_NW-no-a0-17/fits_highMass_NW-no-a0-17-2939.json -r 3 
 fastprof/utils/iterate.py -p 150:2500:200:logint -c "source mk_inputs_no_a0_17 %"
 fastprof/utils/iterate.py -p 150:2500:200:logint -c "sub_lim_no_a0_17 % 3" -o all_limits_no_a0_17
-split -d --lines 100 make_all_no_a0_17 make_all_no_a0_17_part
+./fastprof/utils/compute_limits.py -m models/highMass_NW-no-a0-17/model_highMass_NW-no-a0-17-log250-2939.json -d run/fastprof/data_highMass-log250.json -f fits/highMass_NW-no-a0-17/fits_highMass_NW-no-a0-17-2939.json -r 3 -o samples/ref-2939/samples-2939 -n 10000 >&! samples/log-ref-2939
+fastprof/utils/iterate.py -p 160:3000:500:logint -c "source mk_lyon_limit_no_a0_17 % 3" -o compute_lyon_limits-no_a0_17
 python -i ./fastprof/utils/collect_results.py -p 150:2500:200:logint -i samples/obs%-r3/samples/obs%-r3_results.json -k limit_sampling_CLs -o lyon_limit_sampling_CLs.json 
