@@ -56,6 +56,10 @@ class QMu(TestStatistic) :
     else :
       return scipy.stats.norm.sf(-math.sqrt(-self.value()) - math.sqrt(self.non_centrality_parameter()))
 
+  def asymptotic_tmu(self, cl) :
+    q1 = scipy.stats.norm.isf(cl) + math.sqrt(self.non_centrality_parameter())
+    return q1*abs(q1)
+
   def asymptotic_clb(self) :
     return QMu(0, self.tmu, self.best_poi, self.comp_poi, self.tmu_A, self.sigma).asymptotic_cl()
 
@@ -64,7 +68,6 @@ class QMu(TestStatistic) :
     cl_b = self.asymptotic_clb()
     #print('Asymptotic CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
     return clsb/cl_b if cl_b > 0 else 1
-
 
 class QMuTilda(TestStatistic) :
   def __init__(self, test_poi, tmu, best_poi, comp_poi = None, tmu_A = None, tmu_0 = None) :
@@ -99,6 +102,13 @@ class QMuTilda(TestStatistic) :
         return scipy.stats.norm.sf(-math.sqrt(-self.value()) - math.sqrt(self.non_centrality_parameter()))
     else :
       return scipy.stats.norm.sf((self.value() + self.threshold())/(2*math.sqrt(self.threshold())) - math.sqrt(self.non_centrality_parameter()))
+
+  def asymptotic_tmu(self, cl) :
+    q1 = scipy.stats.norm.isf(cl) + math.sqrt(self.non_centrality_parameter())
+    if q1 < self.threshold() :
+      return q1*abs(q1)
+    else :
+      return q1*2*math.sqrt(self.threshold()) - self.threshold()
 
   def asymptotic_clb(self) :
     return QMuTilda(0, self.tmu, self.best_poi, self.comp_poi, self.tmu_0, self.tmu_0).asymptotic_cl()
