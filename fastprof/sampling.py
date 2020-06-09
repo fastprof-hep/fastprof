@@ -87,13 +87,13 @@ class Samples (SamplesBase) :
     if not self.samplers :
       raise ValueError('Cannot generate as no samplers were specified.')
     for poi, sampler in zip(self.pois, self.samplers) :
-      if os.path.exists(self.file_name(poi, '.lock')) and not break_locks :
-        print('Samples for POI = %g already being produced, skipping' % poi)
-        continue
       if os.path.exists(self.file_name(poi, '.npy')) :
         print('Samples for POI = %g already produced, just loading (%d samples from %s)' % (poi, ntoys, self.file_name(poi, '.npy')))
         self.dists[poi] = SamplingDistribution(ntoys)
         self.dists[poi].load(self.file_name(poi, '.npy'))
+        continue
+      if os.path.exists(self.file_name(poi, '.lock')) and not break_locks :
+        print('Samples for POI = %g already being produced, skipping' % poi)
         continue
       print('Processing sampling distribution for POI = %g' % poi)
       with open(self.file_name(poi, '.lock'), 'w') as f :
