@@ -65,7 +65,7 @@ bounds = (res.poi_min, res.poi_max)
 # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
 print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
 if options.test_statistic == 'qmu_tilda' :
-  calc = QMuCalculator(OptiMinimizer(data, mu0, bounds), res)
+  calc = QMuTildaCalculator(OptiMinimizer(data, mu0, bounds), res)
 elif options.test_statistic == 'qmu' :
   calc = QMuCalculator(OptiMinimizer(data, mu0, bounds), res)
 else:
