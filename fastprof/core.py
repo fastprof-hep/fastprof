@@ -106,13 +106,15 @@ class Model (JSONSerializable) :
     if self.nc != 0 : bexp *= np.exp(self.ln_c.dot(pars.gammas))
     return bexp
 
-  def n_exp(self, pars) : return self.s_exp(pars) + self.b_exp(pars)
+  def n_exp(self, pars, floor = None) :
+    nexp = self.s_exp(pars) + self.b_exp(pars)
+    return nexp if floor == None else np.maximum(nexp, floor)
 
-  def nll(self, pars, data, offset = True, no_constraints=False) :
+  def nll(self, pars, data, offset = True, floor = None, no_constraints=False) :
     da = data.aux_alphas - pars.alphas
     db = data.aux_betas  - pars.betas
     dc = pars.gammas
-    nexp = self.n_exp(pars)
+    nexp = self.n_exp(pars, floor)
     try :
       if not offset :
         result = np.sum(nexp - data.n*np.log(nexp))

@@ -55,13 +55,14 @@ class ScanSampler (Sampler) :
 
 # -------------------------------------------------------------------------
 class OptiSampler (Sampler) :
-  def __init__(self, model, test_hypo, mu0 = 0, bounds = None, method = 'scalar', gen_hypo = None, print_freq = 1000, debug=False, niter=1) :
+  def __init__(self, model, test_hypo, mu0 = 0, bounds = None, method = 'scalar', gen_hypo = None, print_freq = 1000, debug=False, niter=1, floor=1E-7) :
     super().__init__(model, test_hypo, gen_hypo, print_freq)
     self.mu0 = mu0
     self.bounds = bounds
     self.method = method
     self.debug = debug
     self.niter = niter
+    self.floor = floor
     
   def generate(self, ntoys) :
     print('Generating POI hypothesis %g, and wil compute at %g. Full gen hypo = ' % (self.gen_hypo.poi, self.test_hypo.poi))
@@ -84,8 +85,9 @@ class OptiSampler (Sampler) :
       while not success :
         if self.debug : print('DEBUG: iteration %d generating data for hypo %g.' % (k, self.gen_hypo.poi))
         data = self.model.generate_data(self.gen_hypo)
-        opti = OptiMinimizer(data, self.mu0, self.bounds, self.method, self.niter)
+        opti = OptiMinimizer(data, self.mu0, self.bounds, self.method, self.niter, self.floor)
         tmu = opti.tmu(self.test_hypo, self.test_hypo)
+        if tmu == 0 : print('Warning: tmu <= 0 at toy iteration %d' % k)
         if self.debug : 
           print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' %(self.mu0, *self.bounds, tmu, opti.min_poi))
           print(opti.min_pars)

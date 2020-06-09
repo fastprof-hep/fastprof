@@ -46,17 +46,18 @@ class NPMinimizer :
     self.min_pars = Parameters(self.poi, *nps, self.model)
     return self.min_pars
   
-  def profile_nll(self, pars_nom = None) :
+  def profile_nll(self, pars_nom = None, floor = None) :
     self.profile(pars_nom)
-    return self.model.nll(self.min_pars, self.data)
+    return self.model.nll(self.min_pars, self.data, floor=floor)
   
   
 # -------------------------------------------------------------------------
 class POIMinimizer :
-  def __init__(self, data, niter = 1) :
+  def __init__(self, data, niter = 1, floor = None) :
     self.model = data.model
     self.data = data
     self.niter = niter
+    self.floor = floor
   @abstractmethod
   def minimize(self, hypo) :
     pass
@@ -68,7 +69,7 @@ class POIMinimizer :
     for i in range(0, self.niter) :
       self.np_min.profile(self.min_pars)
       self.min_pars = self.np_min.min_pars
-    self.nll_min = self.model.nll(self.min_pars, self.data)
+    self.nll_min = self.model.nll(self.min_pars, self.data, floor=self.floor)
     #print('profile NPs @ %g' % poi)
     #print(str(self.min_pars))
     return self.min_pars
@@ -136,8 +137,8 @@ class ScanMinimizer (POIMinimizer) :
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
-  def __init__(self, data, poi0 = 0, bounds = (0, 10), method = 'scalar', niter=1) :
-    super().__init__(data, niter)
+  def __init__(self, data, poi0 = 0, bounds = (0, 10), method = 'scalar', niter = 1, floor = 1E-7) :
+    super().__init__(data, niter, floor)
     self.np_min = None
     self.poi0 = poi0
     self.bounds = bounds
