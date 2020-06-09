@@ -1,3 +1,4 @@
-python3 -m venv pyhf-env
-source pyhf-env/bin/activate
+python3 -m venv .
+source bin/activate
+mkdir -p ./run
 export PYTHONPATH=$PYTHONPATH:./fastprof
