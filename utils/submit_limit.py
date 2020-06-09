@@ -25,7 +25,8 @@ parser.add_argument("-d", "--data-file"     , type=str  , default=''         , h
 parser.add_argument("-a", "--asimov"        , type=float, default=None       , help="Perform checks using an Asimov dataset for the specified POI value")
 parser.add_argument("-i", "--iterations"    , type=int  , default=1          , help="Numer of iterations to perform for NP computation")
 parser.add_argument("-r", "--regularize"    , type=float, default=None       , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
-parser.add_argument("-b", "--break-locks"   , action='store_true'            , help="Allow breaking locks from other sample production jobs")
+parser.add_argument(      "--break-locks"   , action='store_true'            , help="Allow breaking locks from other sample production jobs")
+parser.add_argument(      "--resume"        , type=int  , default=0          , help="Resume an interrupted job ")
 parser.add_argument(      "--debug"         , action='store_true'            , help="Produce debugging output")
 parser.add_argument("-v", "--verbosity"     , type=int  , default=0          , help="Verbosity level")
 
@@ -36,12 +37,22 @@ if not options :
 
 print('Running in directory %s' % os.getcwd())
 os.makedirs('Batch', exist_ok=True)
-os.makedirs('Batch/%s' % options.name)
+
+if options.resume == 0 :
+  try :
+    os.makedirs('Batch/%s' % options.name)
+  except Exception as inst :
+    print(inst)
+    print('Directory %s exists already, will not submit again an existing job' % options.name)
+    sys.exit(1)  
+
 os.chdir('Batch/%s' % options.name)
 print('Now in directory %s' % os.getcwd())
-os.symlink('../../run', 'run')
-os.symlink('../../fastprof', 'fastprof')
-os.makedirs('samples')
+
+if options.resume == 0 :
+  os.symlink('../../run', 'run')
+  os.symlink('../../fastprof', 'fastprof')
+  os.makedirs('samples')
 
 opts = ''
 if options.asimov      : opts += ' --asimov %d' % options.asimov
@@ -53,15 +64,19 @@ if options.verbosity   : opts += ' --verbosity %d' % options.verbosity
 if options.debug       : opts += ' --debug'
 if options.break_locks : opts += ' --break-locks'
 
+job = 'job_%d.sh' % options.resume
+out = 'stdout_%d' % options.resume
+err = 'stderr_%d' % options.resume
+
 command = './fastprof/utils/compute_limits.py -m %s -f %s -n %d -s %d %s -o samples/%s' % (options.model_file, options.fits_file, options.ntoys, options.seed, opts, options.name)
-with open('job.sh', 'w') as f :
+with open(job, 'w') as f :
   f.write(command)
-os.chmod('job.sh', 0o555)
+os.chmod(job, 0o555)
 
 submit_opts = ''
 if options.cores > 1 : submit_opts += ' -pe multicores %d' % option.cores
 
-submit_command = 'qsub -N %s -q %s -cwd -V -l sps=1 %s -o stdout -e stderr job.sh' % (options.name, options.queue, submit_opts)
+submit_command = 'qsub -N %s -q %s -cwd -V -l sps=1 %s -o %s -e %s %s' % (options.name, options.queue, submit_opts, out, err, job)
 print(command)
 print(submit_command)
 os.system(submit_command)
