@@ -135,13 +135,11 @@ if options.data_name != '' :
   if data == None :
     ds = [ d.GetName() for d in ws.allData() ]
     raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
-
-if options.asimov != None :
+elif options.asimov != None :
   poi.setVal(options.asimov)
   data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
   poi.setVal(poi_init)
-
-if not data :
+else:
   raise ValueError('ERROR: no dataset was specified either using --data-name or --asimov')
 
 # 4 - Identify the model parameters
@@ -222,14 +220,23 @@ def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
    else :
      return result
 
-if not options.data_only :
-  if options.refit != None :
-    poi.setVal(options.refit)
-    poi.setConstant(True)
-    refit_data = data.binnedClone() if options.binned else data
-    print('=== Refitting PDF to specified dataset with under the POI = %g hypothesis.' % poi.getVal())
-    fit(refit_data, robust=True)
+if options.refit != None :
+  poi.setVal(options.refit)
+  poi.setConstant(True)
+  refit_data = data.binnedClone() if options.binned else data
+  print('=== Refitting PDF to specified dataset with under the POI = %g hypothesis.' % poi.getVal())
+  fit(refit_data, robust=True)
 
+# If we specified both, then it means an Asimov with NP values profiled on the observed
+if options.data_name != '' and options.asimov != None :
+  poi_current = poi.getVal()
+  poi.setVal(options.asimov)
+  print('=== Generating the main dataset as an Asimov with POI = %g and NP values below:' % poi.getVal())
+  nuis_pars.Print('V')
+  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+  poi.setVal(poi_current)
+
+if not options.data_only :
   if options.asimov_errors != None :
     poi.setVal(options.asimov_errors)
     asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
