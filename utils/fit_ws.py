@@ -169,13 +169,16 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
   poi.setVal(poi_init_val)
   fit(asimov, robust=True)
   free_nll = asimov_nll.getVal()
-  hypo_val = poi.getError()/10 # In principle shouldn't have the factor 100, but helps to protect against bad estimations of poi uncertainty
+  free_val = poi.getVal()
+  hypo_val = free_val + poi.getError()/10 # In principle shouldn't have the factor 100, but helps to protect against bad estimations of poi uncertainty
   poi.setVal(hypo_val)
   poi.setConstant(True)
+  print('Computing qA for poi = %g, computed from val = %g and error = %g' % (poi.getVal(), free_val, poi.getError()))
   fit(asimov, robust=True)
   hypo_nll = asimov_nll.getVal()
   dll = 2*(hypo_nll - free_nll)
-  sigma_A = poi.getVal()/math.sqrt(dll) if dll > 0 else poi.getError()
+  print('Hypo_nll = %10.2f, free_nll = %10.2f => t = %10.2f' % (hypo_nll, free_nll, dll))
+  sigma_A = (poi.getVal() - free_val)/math.sqrt(dll) if dll > 0 else poi.getError()
   poi2sig = nSignal.getVal()/poi.getVal()
   print('Asimov qA uncertainty = %g (fit uncertainty = %g) evaluated at POI hypo = %g (nSignal = %g)' % (sigma_A, poi.getError(), poi.getVal(), nSignal.getVal()))
   hypos_nS = np.array([ hypo_guess(i, sigma_A*poi2sig) for i in hypo_zs ])
