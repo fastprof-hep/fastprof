@@ -55,12 +55,15 @@ for pos in positions :
   except Exception as inst :
     print(inst)
     print('Skipping file %s with missing data' % filename)
-  try :
-    res = jdict[options.key]
-    results.append(float(res) if res != None else None)
-  except Exception as inst :
-    print(inst)
-    raise ValueError('Floating-point result not found at key %s in file %s' % (options.key, filename))
+    jdict = None
+
+  if jdict != None :
+    try :
+      res = jdict[options.key]
+      results.append(float(res) if res != None else None)
+    except Exception as inst :
+      print(inst)
+      raise ValueError('Floating-point result not found at key %s in file %s' % (options.key, filename))
 
 jdict = {}
 jdict['positions'] = positions
