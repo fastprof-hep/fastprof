@@ -63,7 +63,7 @@ for pos in positions :
       results.append(float(res) if res != None else None)
     except Exception as inst :
       print(inst)
-      raise ValueError('Floating-point result not found at key %s in file %s' % (options.key, filename))
+      raise ValueError('Floating-point result not found at key %s in file %s. Available keys:\n%s' % (options.key, filename, '\n'.join(jdict.keys())))
 
 jdict = {}
 jdict['positions'] = positions
