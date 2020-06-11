@@ -1,4 +1,3 @@
-import pyhf
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -100,7 +99,7 @@ class Samples (SamplesBase) :
         f.write(str(os.getpid()))
       self.dists[poi] = sampler.generate(ntoys)
       self.dists[poi].save(self.file_name(poi), sort_before_saving=sort_before_saving)
-      if hasattr(sampler, 'debug_data') : sampler.debug_data.to_csv(self.file_name(poi, '_debug.csv'))
+      if hasattr(sampler, 'debug_data') and sampler.debug_data != None : sampler.debug_data.to_csv(self.file_name(poi, '_debug.csv'))
       print('Done')
       os.remove(self.file_name(poi, '.lock'))
     return self
@@ -174,7 +173,7 @@ class CLsSamples (SamplesBase) :
     #print('Sampling CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
     return clsb/cl_b if cl_b > 0 else 1
 
-  def quantile(self, poi, fraction=None, sigma=None, cl_b = 0.5) :
+  def quantile(self, poi, fraction=None, sigma=None, cl_b=0.5) :
     return self.clsb.quantile(poi, fraction, sigma)/cl_b
 
   def bands(self, max_sigmas) :
