@@ -86,6 +86,7 @@ class FitResults (JSONSerializable) :
     print(self.str_rep(print_keys, verbosity))
 
   def solve(self, result_key, target = 0.05, order = 3, log_scale = True) :
+    if not result_key in self.fit_results[0] : return None
     if log_scale :
       values = np.array([ math.log(result[result_key]/target) if result[result_key] > 0 else -999 for result in self.fit_results ])
     else :
