@@ -58,8 +58,9 @@ class POIMinimizer :
     self.data = data
     self.niter = niter
     self.floor = floor
+    self.tmu_debug = 0
   @abstractmethod
-  def minimize(self, hypo) :
+  def minimize(self, init_hypo) :
     pass
   def profile_nps(self, hypo) :
     if isinstance(hypo, (int, float)) : 
@@ -91,12 +92,13 @@ class POIMinimizer :
     tmu = 2*(self.hypo_nll - self.free_nll)
     if tmu < 0 :
       print('Warning: computed negative tmu = %g !' % tmu)
-      if tmu < -0.5 :
+      if tmu < -5 :
         print('Hypothesis definition   :', hypo)
         print('Hypothesis fit result   :', self.hypo_pars)
         print('Free fit starting value :', free)
         print('Free fit result         :', self.free_pars)
         print(self.data.aux_alphas, self.data.aux_betas)
+      self.tmu_debug = tmu
       tmu = 0
     return tmu
   def asimov_clone(self, poi) :
@@ -114,10 +116,10 @@ class ScanMinimizer (POIMinimizer) :
     for poi in scan_pois :
       self.pars.append(Parameters(poi, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc), self.model))
 
-  def minimize(self, hypo) :
+  def minimize(self, init_hypo) :
     self.nlls = np.zeros(self.scan_pois.size)
     for i in range(0, len(self.scan_pois)) :
-      scan_hypo = copy.deepcopy(hypo).set_poi(self.scan_pois[i])
+      scan_hypo = copy.deepcopy(init_hypo).set_poi(self.scan_pois[i])
       np_min = NPMinimizer(scan_hypo, self.data)
       self.nlls[i] = np_min.profile_nll()
       self.pars[i] = np_min.min_pars
@@ -137,12 +139,15 @@ class ScanMinimizer (POIMinimizer) :
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
-  def __init__(self, data, poi0 = 0, bounds = (0, 10), method = 'scalar', niter = 1, floor = 1E-7) :
+  def __init__(self, data, poi0 = 0, bounds = (0, 10), method = 'scalar', niter = 1, floor = 1E-7, rebound = 0, alt_method = 'L-BFGS-B') :
     super().__init__(data, niter, floor)
     self.np_min = None
     self.poi0 = poi0
     self.bounds = bounds
     self.method = method
+    self.rebound = rebound
+    self.alt_method = alt_method
+    self.debug = 0
    
   def minimize(self, init_hypo) :
     if init_hypo == None :
@@ -153,27 +158,31 @@ class OptiMinimizer (POIMinimizer) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
       self.profile_nps(current_hypo.set_poi(poi))
-      #print('== OptMinimizer: eval at %g -> %g' % (poi, self.nll_min))
+      if self.debug > 0 : print('== OptMinimizer: eval at %g -> %g' % (poi, self.nll_min))
+      if self.debug > 1 : print(current_hypo)
+      if self.debug > 1 : print(self.min_pars)
       return self.nll_min
     def jacobian(poi) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
       self.profile_nps(current_hypo.set_poi(poi))
-      #print('jac out', self.np_min.model.grad_poi(self.np_min.min_pars, self.data))
+      if self.debug > 0 : print('== Jacobian:', self.np_min.model.grad_poi(self.np_min.min_pars, self.data))
       return np.array([ self.np_min.model.grad_poi(self.np_min.min_pars, self.data) ])
     def hess_p(poi, v) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
       self.profile_nps(current_hypo.set_poi(poi))
-      #print('hess out', self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0])
+      if self.debug > 0 : print('== Hessian:', self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0])
       return np.array([ self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0] ])
-    #print('Optimizer: using scalar  ----------------')
     if self.method == 'scalar' :
+      if self.debug > 0 : print('== Optimizer: using scalar  ----------------')
       result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xatol': 1e-5 })
-    else :
-      result = scipy.optimize.minimize(objective, x0=self.poi0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, hessp=hess_p, options={'gtol': 1e-5, 'ftol':1e-5, 'xtol':1e-5 })
-      if not result.success:
+    elif self.method == 'L-BFGS-B':
+      result = scipy.optimize.minimize(objective, x0=self.poi0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, options={'gtol': 1e-5, 'ftol':1e-5 })
+      if not result.success :
         result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
+    else :
+      raise ValueError('Optiminimizer: unknown method %s.' % self.method)
     #print('Optimizer: done ----------------')
     if not result.success :
       print('Minimization failed, details below')
@@ -190,3 +199,19 @@ class OptiMinimizer (POIMinimizer) :
     self.nfev = result.nfev
     #print(self.min_poi)
     return self.nll_min, self.min_poi
+
+  def tmu(self, hypo, free=None) :
+    tmu = super().tmu(hypo, free)
+    if tmu == 0 and self.tmu_debug < 0 :
+      if self.method == 'scalar' and self.rebound > 0 :
+        new_bounds = ((self.poi0 + self.bounds[0])/2, (self.poi0 + self.bounds[1])/2)
+        print('Warning: tmu computation failed (tmu < 0) with bounds', self.bounds, ', repeating with narrower bounds: ', new_bounds, ' (%d attempts left).' % self.rebound)
+        self.bounds = new_bounds
+        self.rebound -= 1
+        return self.tmu(hypo, free)
+      if self.alt_method != None :
+        print('Warning: tmu computation failed (tmu < 0) with method %s, repeating with alternate method %s.' % (self.method, self.alt_method))
+        self.method = self.alt_method
+        self.alt_method = None
+        return self.tmu(hypo, free)
+    return tmu
