@@ -33,7 +33,7 @@ parser.add_argument("-=", "--setval"           , type=str  , default=''       , 
 parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Variables to set constant")
 parser.add_argument("-i", "--poi-initial-value", type=float, default=None     , help="POI allowed range, in the form min,max")
 parser.add_argument("-r", "--poi-range"        , type=str  , default=''       , help="POI allowed range, in the form min,max")
-parser.add_argument(      "--poi-min"          , type=float, default=None     , help="POI range minimum")
+parser.add_argument(      "--poi-min"          , type=float, default=0        , help="POI range minimum")
 parser.add_argument(      "--poi-max"          , type=float, default=None     , help="POI range maximum")
 parser.add_argument("-n", "--signal-yield"     , type=str  , default='nSignal', help="Name of signal yield variable")
 parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
