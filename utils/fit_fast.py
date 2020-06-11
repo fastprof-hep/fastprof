@@ -49,8 +49,10 @@ if options.poi_range != '' :
     print(inst)
     raise ValueError('Invalid POI range specification %s, expected poi_min,poi_max' % options.poi_range)
 
+start = model.expected_pars(options.poi_initial_value if options.poi_hypo == None else options.poi_hypo)
+
 opti = OptiMinimizer(data, options.poi_initial_value, (poi_min, poi_max))
-nll_min, min_poi = opti.minimize()
+nll_min, min_poi = opti.minimize(start)
 print('Minimum: nll = %g @ POI = %g, NP values :' % (nll_min, min_poi))
 print('Global minimum :', opti.min_pars)
 min_pars = opti.min_pars
