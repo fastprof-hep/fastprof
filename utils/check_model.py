@@ -7,19 +7,20 @@ import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import json
 
-from fastprof import Model, Data, FitResults, QMuTildaCalculator, OptiMinimizer
+from fastprof import Model, Data, FitResults, QMuCalculator, QMuTildaCalculator, OptiMinimizer
 
 ####################################################################################################################################
 ###
 
 parser = ArgumentParser("check_model.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
-parser.add_argument("-m", "--model-file", type=str  , default=''  , help="Name of JSON file defining model")
-parser.add_argument("-d", "--data-file" , type=str  , default=''  , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
-parser.add_argument("-a", "--asimov"    , type=float, default=None, help="Fit an Asimov dataset for the specified POI value")
-parser.add_argument("-f", "--fits-file" , type=str  , default=''  , help="Name of JSON file containing full-model fit results")
-parser.add_argument("-r", "--regularize", type=float, default=None, help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
-parser.add_argument("-v", "--verbosity" , type=int  , default=0,    help="Verbosity level")
+parser.add_argument("-m", "--model-file"    , type=str  , default=''        , help="Name of JSON file defining model")
+parser.add_argument("-d", "--data-file"     , type=str  , default=''        , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
+parser.add_argument("-a", "--asimov"        , type=float, default=None      , help="Fit an Asimov dataset for the specified POI value")
+parser.add_argument("-f", "--fits-file"     , type=str  , default=''        , help="Name of JSON file containing full-model fit results")
+parser.add_argument("-r", "--regularize"    , type=float, default=None      , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+parser.add_argument("-t", "--test-statistic", type=str  , default='qmutilda', help="Test statistic to use in the check")
+parser.add_argument("-v", "--verbosity"     , type=int  , default=0         , help="Verbosity level")
 
 options = parser.parse_args()
 if not options :
@@ -42,7 +43,13 @@ elif options.asimov != None :
 else :
   print('Using dataset stored in file %s.' % options.model_file)
   data = Data(model).load(options.model_file)
-calc = QMuTildaCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
+
+if options.test_statistic == 'qmutilda' :
+  calc = QMuTildaCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
+elif options.test_statistic == 'qmu' :
+  calc = QMuCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
+else :
+  raise ValueError('Unknown test statistic %s' % options.test_statistic)
 calc.fill_qcl()
 calc.fill_fast_results()
 results.print(verbosity = options.verbosity)
