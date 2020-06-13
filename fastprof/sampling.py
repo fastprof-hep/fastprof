@@ -99,7 +99,7 @@ class Samples (SamplesBase) :
         f.write(str(os.getpid()))
       self.dists[poi] = sampler.generate(ntoys)
       self.dists[poi].save(self.file_name(poi), sort_before_saving=sort_before_saving)
-      if hasattr(sampler, 'debug_data') and sampler.debug_data != None : sampler.debug_data.to_csv(self.file_name(poi, '_debug.csv'))
+      if hasattr(sampler, 'debug_data') and sampler.debug_data.shape[0] != 0 : sampler.debug_data.to_csv(self.file_name(poi, '_debug.csv'))
       print('Done')
       os.remove(self.file_name(poi, '.lock'))
     return self

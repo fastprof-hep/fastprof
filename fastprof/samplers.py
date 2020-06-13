@@ -86,7 +86,7 @@ class OptiSampler (Sampler) :
     self.tmu_A = tmu_A
     self.tmu_0 = tmu_0
     self.use_qtilda = True if tmu_A != None and tmu_0 != None else False
-    self.debug_data = None
+    self.debug_data = pd.DataFrame()
     
   def compute_pv(self, data, toy_iter) :
     opti = OptiMinimizer(data, self.mu0, self.bounds, self.method, self.niter, self.floor)
@@ -96,7 +96,7 @@ class OptiSampler (Sampler) :
       if self.debug and opti.tmu_debug < -10 : data.save('data_%d.json' % toy_iter)
       return None
     if self.debug :
-      print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' %(self.mu0, *self.bounds, tmu, opti.min_poi))
+      print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' % (self.mu0, *self.bounds, tmu, opti.min_poi))
       print(opti.min_pars)
       print(opti.hypo_pars)
     if self.use_qtilda :
@@ -104,7 +104,7 @@ class OptiSampler (Sampler) :
     else :
       q = QMu(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi)
     if self.debug :
-      if self.debug_data == None :
+      if self.debug_data.shape[0] == 0 :
         columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev' ]
         columns.extend( [ 'free_' + a for a in self.model.alphas ] )
         columns.extend( [ 'free_' + b for b in self.model.betas  ] )
