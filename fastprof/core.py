@@ -142,8 +142,6 @@ class Model (JSONSerializable) :
   def grad_poi(self, pars, data) :
     sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
-    #r1 = 1 - data.n/nexp
-    #return sexp.dot(r1)
     s = 0
     for i in range(0, sexp.size) : s += sexp[i]*(1 - data.n[i]/nexp[i])
     return s
