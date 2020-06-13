@@ -81,7 +81,7 @@ class QMuTilda(TestStatistic) :
   def value(self) :
     return self.tmu if self.best_poi < self.comp_poi else -self.tmu
 
-  def non_centrality_parameter(self) : # (mu - mu')^2/sigma^2
+  def non_centrality_parameter(self) : # tmu_A = (mu - mu')^2/sigma^2
     if self.comp_poi == self.test_poi : return 0
     if self.tmu_A < 0 :
       print('Warning: qmutilda tmu_A = % g < 0, returning 0' % self.tmu_A)
