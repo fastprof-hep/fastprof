@@ -287,7 +287,9 @@ if not options.data_only :
 
   if poi.getVal() == 0 :
     raise ValueError('ERROR : POI %s is exactly 0, cannot extract signal component!' % poi.GetName())
-  print('Signal component normalized to POI %s = %g -> nSignal = %g' % (poi.GetName(), poi.getVal(), nSignal.getVal()))
+
+  poi_nom = poi.getVal()
+  print('Signal component normalized to POI %s = %g -> nSignal = %g' % (poi.GetName(), poi_nom, nSignal.getVal()))
   nuis_pars.Print("V")
   impacts_s = np.ndarray((nbins, len(np_list)))
   impacts_b = np.ndarray((nbins, len(np_list)))
@@ -300,28 +302,42 @@ if not options.data_only :
     obs.setRange('bin_%d' % i, xmin, xmax)
     totint =   main_pdf.createIntegral(ROOT.RooArgSet(obs), ROOT.RooArgSet(obs), 'bin_%d' % i)
     sigint = signal_pdf.createIntegral(ROOT.RooArgSet(obs), ROOT.RooArgSet(obs), 'bin_%d' % i)
+    poi.setVal(0)
     ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
-    sig0 = nSignal.getVal()*sigint.getVal()
-    bkg0 = ntot*totint.getVal() - sig0
+    spr0 = nSignal.getVal()*sigint.getVal()
+    bkg0 = ntot*totint.getVal()
+    poi.setVal(poi_nom)
+    ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
+     # count only signal changes (unlike bkg above) : not 100% accurat but avoids FP precision issues in (S+B)-B computation when S/B very low
+    sig0 = nSignal.getVal()*sigint.getVal() - spr0  # count only signal changes (unlike bkg above) : not 100% accurat but avoids FP precision issues in (S+B)-B computation when S/B very low
     print('-- Nominal sig = %g' % (sig0/poi.getVal()))
     print('-- Nominal bkg = %g' % bkg0)
-    nom_sig[i] = sig0/poi.getVal() # rescale so that 'nominal' corresponds to POI=1
+    nom_sig[i] = sig0/poi_nom # rescale so that 'nominal' corresponds to POI=1
     nom_bkg[i] = bkg0
     for p in range(0, len(np_list)) :
       par = np_list.at(p)
       delta = par_err[par]*options.epsilon
       par.setVal(par_nom[par] + delta)
+      poi.setVal(0)
       ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
-      sig_pos = nSignal.getVal()*sigint.getVal() # count only signal changes (unlike bkg below) : unstable due to FP precision when S/B very low
-      bkg_pos = ntot*totint.getVal() - sig0 # count possible signal changes in bkg as well (e.g. for spurious signal)
+      spr_pos = nSignal.getVal()*sigint.getVal()
+      bkg_pos = ntot*totint.getVal()
+      poi.setVal(poi_nom)
+      ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
+      sig_pos = nSignal.getVal()*sigint.getVal() - spr_pos # count only signal changes (unlike bkg above) : not 100% accurat but avoids FP precision issues in (S+B)-B computation when S/B very low
       impact_s_pos = ((sig_pos/sig0)**(1/options.epsilon) - 1) if sig0 != 0 else 0
       impact_b_pos = ((bkg_pos/bkg0)**(1/options.epsilon) - 1) if bkg0 != 0 else 0
       par.setVal(par_nom[par] - delta)
+      poi.setVal(0)
       ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
-      sig_neg = nSignal.getVal()*sigint.getVal()
-      bkg_neg = ntot*totint.getVal() - sig0
+      spr_neg = nSignal.getVal()*sigint.getVal()
+      bkg_neg = ntot*totint.getVal()
+      poi.setVal(poi_nom)
+      ntot = main_pdf.expectedEvents(ROOT.RooArgSet(obs))
+      sig_neg = nSignal.getVal()*sigint.getVal() - spr_neg # count only signal changes (unlike bkg above) : not 100% accurat but avoids FP precision issues in (S+B)-B computation when S/B very low
       impact_s_neg = ((sig0/sig_neg)**(1/options.epsilon) - 1) if sig_neg != 0 else 0
       impact_b_neg = ((bkg0/bkg_neg)**(1/options.epsilon) - 1) if bkg_neg != 0 else 0
+      print(par.GetName(),sig0, sig_pos,sig_neg, bkg0, bkg_pos,bkg_neg,impact_s_pos,impact_s_neg,impact_b_pos,impact_b_neg)
       if par in alphas :
         #impacts_s[i,p] = impact_s_pos if abs(impact_s_pos) < abs(impact_s_neg) else impact_s_neg
         impacts_s[i,p] = math.sqrt((1 + impact_s_pos)*(1 + impact_s_neg)) - 1
