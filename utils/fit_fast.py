@@ -58,8 +58,8 @@ print('Global minimum :', opti.min_pars)
 min_pars = opti.min_pars
 
 if options.poi_hypo != None :
-  np_min = NPMinimizer(options.poi_hypo, data)
-  print('profile NLL @ %g = %g' % (options.poi_hypo, np_min.profile_nll()))
+  np_min = NPMinimizer(data)
+  print('profile NLL @ %g = %g' % (options.poi_hypo, np_min.profile_nll(options.poi_hypo)))
   print('Profiled NP values :', np_min.min_pars)
   min_pars = np_min.min_pars
   tmu   = opti.tmu(options.poi_hypo, options.poi_hypo)
