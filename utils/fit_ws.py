@@ -132,28 +132,28 @@ def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
      return result
 
 data = None
-asimov = None
 if options.data_name != '' :
   data = ws.data(options.data_name)
   if data == None :
     ds = [ d.GetName() for d in ws.allData() ]
     raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
   if options.binned : data = data.binnedClone()
-if not data :
-  if options.asimov :
-    asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
-    data = asimov
-  else :
-    raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
-    
-if not asimov :
-  poi.setVal(0)
-  poi.setConstant(True)
-  result_bkg_only = fit(data, robust=True)
-  asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
-nll = main_pdf.createNLL(data)
-asimov_nll = main_pdf.createNLL(asimov)
+if options.asimov :
+    data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+
+if data == None :
+  raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
+    
+poi.setVal(0)
+poi.setConstant(True)
+result_bkg_only = fit(data, robust=True)
+print('=== Generating an Asimov dataset with POI = 0 and NP values below:')
+nuis_pars.Print('V')
+asimov0 = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+
+nll  = main_pdf.createNLL(data)
+nll0 = main_pdf.createNLL(asimov0)
 
 if hypos == None : # we need to auto-define them based on the POI uncertainty
   ws.loadSnapshot('init')
@@ -167,44 +167,45 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
     return (3*math.exp(0.5/3*i))*math.exp(-unc**2/3) + (1 -math.exp(-unc**2/3))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + unc**2)
   poi.setConstant(False)
   poi.setVal(poi_init_val)
-  fit(asimov, robust=True)
-  free_nll = asimov_nll.getVal()
+  fit(asimov0, robust=True)
+  free_nll = nll0.getVal()
   free_val = poi.getVal()
   hypo_val = free_val + poi.getError()/10 # In principle shouldn't have the factor 100, but helps to protect against bad estimations of poi uncertainty
   poi.setVal(hypo_val)
   poi.setConstant(True)
-  print('Computing qA for poi = %g, computed from val = %g and error = %g' % (poi.getVal(), free_val, poi.getError()))
-  fit(asimov, robust=True)
-  hypo_nll = asimov_nll.getVal()
+  print('=== Computing qA for poi = %g, computed from val = %g and error = %g' % (poi.getVal(), free_val, poi.getError()))
+  fit(asimov0, robust=True)
+  hypo_nll = nll0.getVal()
   dll = 2*(hypo_nll - free_nll)
-  print('Hypo_nll = %10.2f, free_nll = %10.2f => t = %10.2f' % (hypo_nll, free_nll, dll))
+  print('=== Hypo_nll = %10.2f, free_nll = %10.2f => t = %10.2f' % (hypo_nll, free_nll, dll))
   sigma_A = (poi.getVal() - free_val)/math.sqrt(dll) if dll > 0 else poi.getError()
   poi2sig = nSignal.getVal()/poi.getVal()
-  print('Asimov qA uncertainty = %g (fit uncertainty = %g) evaluated at POI hypo = %g (nSignal = %g)' % (sigma_A, poi.getError(), poi.getVal(), nSignal.getVal()))
+  print('=== Asimov qA uncertainty = %g (fit uncertainty = %g) evaluated at POI hypo = %g (nSignal = %g)' % (sigma_A, poi.getError(), poi.getVal(), nSignal.getVal()))
   hypos_nS = np.array([ hypo_guess(i, sigma_A*poi2sig) for i in hypo_zs ])
   hypos = hypos_nS/poi2sig
-  print('Auto-defined the following hypotheses :')
+  print('=== Auto-defined the following hypotheses :')
   print('  ' + '\n  '.join([ '%5g : Nsig = %10g, POI = %10g' % (h_z, h_n, h_p) for h_z, h_n, h_p in zip(hypo_zs, hypos_nS, hypos) ] ))
 
   if poi_min == None :
     # Set min to the -5sigma hypothesis, should be enough...
     poi.setMin(-hypo_guess(5, sigma_A*poi2sig)/poi2sig)
-    print('Auto-set POI min to %g' % poi.getMin())
+    print('=== Auto-set POI min to %g' % poi.getMin())
 
   if poi_max == None :
     # Set max to the 20sigma hypothesis, should be enough...
     poi.setMax(hypo_guess(20, sigma_A*poi2sig)/poi2sig)
-    print('Auto-set POI max to %g' % poi.getMax())
+    print('=== Auto-set POI max to %g' % poi.getMax())
 
 jdict = collections.OrderedDict()
 fit_results = []
 
 for hypo in hypos :
-  # Set the hypothesis
-  ws.loadSnapshot('init')
-  poi.setVal(hypo)
   result = collections.OrderedDict()
   result[poi.GetName()] = hypo
+  # Fit the data first
+  print('=== Fitting data to hypothesis %g' % hypo)
+  ws.loadSnapshot('init')
+  poi.setVal(hypo)
   # Fixed-mu fit
   poi.setConstant(True)
   result_hypo = fit(data, robust=True)
@@ -218,24 +219,26 @@ for hypo in hypos :
   result['fit_val'] = poi.getVal()
   result['fit_err'] = poi.getError()
   for p in nuis_pars : result['free_' + p.GetName()] = result_free.floatParsFinal().find(p.GetName()).getVal()
-  # Repeat for Asimov
+  # Repeat for Asimov0
+  print('=== Fitting Asimov to hypothesis %g' % hypo)
   ws.loadSnapshot('init')
   poi.setVal(hypo)
+  # Fixed-mu fit
   poi.setConstant(True)
-  result_asimov_hypo = fit(asimov, robust=True)
-  result['asimov_nll_hypo'] = asimov_nll.getVal()
+  result0_hypo = fit(asimov0, robust=True)
+  result['nll0_hypo'] = nll0.getVal()
   # Free-mu fit
   poi.setConstant(False)
-  result_asimov_free = fit(asimov, robust=True)
-  result['asimov_nll_free'] = asimov_nll.getVal()
-  result_asimov_free.floatParsFinal().Print("V")
+  result0_free = fit(asimov0, robust=True)
+  result['nll0_free'] = nll0.getVal()
+  result0_free.floatParsFinal().Print("V")
   # Store results
   fit_results.append(result)
 
 nlls = np.array([ result['nll_free'] for result in fit_results ])
 nll_best = np.amin(nlls)
-asimov_nlls = np.array([ result['asimov_nll_free'] for result in fit_results ])
-asimov_nll_best = np.amin(asimov_nlls)
+nll0s = np.array([ result['nll0_free'] for result in fit_results ])
+nll0_best = np.amin(nll0s)
 best_fit_val = fit_results[np.argmin(nlls)]['fit_val']
 best_fit_err = fit_results[np.argmin(nlls)]['fit_err']
 for result in fit_results :
@@ -243,9 +246,8 @@ for result in fit_results :
   result['best_fit_val']    = best_fit_val
   result['best_fit_err']    = best_fit_err
   result['tmu']             = 2*(result['nll_hypo'] - nll_best)
-  result['asimov_nll_best'] = asimov_nll_best
-  result['tmu_A']           = 2*(result['asimov_nll_hypo'] - asimov_nll_best)
-  result['tmu_0']           = result['tmu_A'] # Since the Asimov is produced with mu=0 (A=0...)
+  result['nll0_best']       = nll0_best
+  result['tmu_0']           = 2*(result['nll0_hypo'] - nll0_best)
 
 jdict['POI_name'] = poi.GetName()
 jdict['POI_initial_value'] = poi_init_val
