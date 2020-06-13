@@ -9,21 +9,20 @@ from .core import Model, Parameters, Data
 
 # -------------------------------------------------------------------------
 class NPMinimizer :
-  def __init__(self, poi, data) :
+  def __init__(self, data) :
     self.model = data.model
-    self.poi = poi
     self.data = data
 
 # Same as above, more readable, and faster -- use by default
-  def pq_einsum(self, pars_nom) :
-    snom = self.model.s_exp(pars_nom)
-    bnom = self.model.b_exp(pars_nom)
+  def pq_einsum(self, hypo) :
+    snom = self.model.s_exp(hypo)
+    bnom = self.model.b_exp(hypo)
     nnom = snom + bnom
     rB = bnom/nnom
     rS = snom/nnom
     dN = nnom - self.data.n
-    qA = np.einsum('i,i,ij->j', rS, dN, self.model.a)
-    qB = np.einsum('i,i,ij->j', rB, dN, self.model.b)
+    qA = np.einsum('i,i,ij->j', rS, dN, self.model.a) + hypo.alphas + self.model.ref_alphas - self.data.aux_alphas
+    qB = np.einsum('i,i,ij->j', rB, dN, self.model.b) + hypo.betas  + self.model.ref_betas  - self.data.aux_betas
     qC = np.einsum('i,i,ij->j', rB, dN, self.model.c)
     pAA = np.einsum('i,i,ij,ik->jk',   rS, rS *self.data.n + dN, self.model.a, self.model.a) + self.model.diag_alphas
     pAB = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , self.model.a, self.model.b)
@@ -33,21 +32,24 @@ class NPMinimizer :
     pCC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , self.model.c, self.model.c) + self.model.diag_gammas
     return np.block([[pAA, pAB, pAC], [np.transpose(pAB), pBB, pBC], [np.transpose(pAC), np.transpose(pBC), pCC]]), np.block([qA, qB, qC])
   
-  def profile(self, pars_nom = None) :
-    if pars_nom == None : pars_nom = self.model.expected_pars(self.poi).set_from_aux(self.data)
-    p, q = self.pq_einsum(pars_nom)
+  def profile(self, hypo) :
+    if isinstance(hypo, (int, float)) :
+      hypo = self.model.expected_pars(hypo).set_from_aux(self.data)
+    p, q = self.pq_einsum(hypo)
     d = np.linalg.det(p)
     if abs(d) < 1E-8 :
       print('Linear system has an ill-conditioned coefficient matrix (det= %g), returning null result' % d)
       nps = self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
     else :
       v = np.linalg.inv(p).dot(q)
-      nps = pars_nom.alphas - v[:self.model.na], pars_nom.betas - v[self.model.na:self.model.nsyst], pars_nom.gammas - v[self.model.nsyst:]
-    self.min_pars = Parameters(self.poi, *nps, self.model)
+      nps = hypo.alphas - v[:self.model.na], \
+            hypo.betas  - v[self.model.na:self.model.nsyst], \
+            hypo.gammas - v[self.model.nsyst:]
+    self.min_pars = Parameters(hypo.poi, *nps, self.model)
     return self.min_pars
   
-  def profile_nll(self, pars_nom = None, floor = None) :
-    self.profile(pars_nom)
+  def profile_nll(self, hypo = None, floor = None) :
+    self.profile(hypo)
     return self.model.nll(self.min_pars, self.data, floor=floor)
   
   
@@ -65,7 +67,7 @@ class POIMinimizer :
   def profile_nps(self, hypo) :
     if isinstance(hypo, (int, float)) : 
       hypo = self.model.expected_pars(hypo)
-    self.np_min = NPMinimizer(hypo.poi, self.data)
+    self.np_min = NPMinimizer(self.data)
     self.min_pars = hypo
     for i in range(0, self.niter) :
       self.np_min.profile(self.min_pars)
@@ -120,8 +122,8 @@ class ScanMinimizer (POIMinimizer) :
     self.nlls = np.zeros(self.scan_pois.size)
     for i in range(0, len(self.scan_pois)) :
       scan_hypo = copy.deepcopy(init_hypo).set_poi(self.scan_pois[i])
-      np_min = NPMinimizer(scan_hypo, self.data)
-      self.nlls[i] = np_min.profile_nll()
+      np_min = NPMinimizer(self.data)
+      self.nlls[i] = np_min.profile_nll(scan_hypo)
       self.pars[i] = np_min.min_pars
       #print('@poi(', i, ') =', poi, self.nlls[i], ahat, bhat)
     smooth_nll = InterpolatedUnivariateSpline(self.scan_pois, self.nlls, k=4)
