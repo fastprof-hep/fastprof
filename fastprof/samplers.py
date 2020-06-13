@@ -10,7 +10,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from .core import Parameters
 from .test_statistics import QMu, QMuTilda
 from .sampling import SamplingDistribution
-from .minimizers import NPMinimizer, OptiMinimizer, ScanMinimizer
+from .minimizers import OptiMinimizer, ScanMinimizer
 
 # -------------------------------------------------------------------------
 class Sampler :
