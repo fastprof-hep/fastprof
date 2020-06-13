@@ -21,6 +21,7 @@ parser.add_argument("-m", "--model-file"    , type=str  , required=True      , h
 parser.add_argument("-f", "--fits-file"     , type=str  , required=True      , help="Name of JSON file containing full-model fit results")
 parser.add_argument("-n", "--ntoys"         , type=int  , default=10000      , help="Number of pseudo-datasets to produce")
 parser.add_argument("-s", "--seed"          , type=int  , default='0'        , help="Seed to use for random number generation")
+parser.add_argument("-c", "--cl"            , type=float, default=0.95       , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
 parser.add_argument("-o", "--output-file"   , type=str  , required=True      , help="Name of output file")
 parser.add_argument("-%", "--print-freq"    , type=int  , default=1000       , help="Verbosity level")
 parser.add_argument("-d", "--data-file"     , type=str  , default=''         , help="Perform checks using the dataset stored in the specified JSON file")
@@ -70,7 +71,7 @@ elif options.test_statistic == 'qmu' :
   calc = QMuCalculator(OptiMinimizer(data, mu0, bounds), res)
 else:
   raise ValueError('Unknown test statistic %s.' % options.test_statistic)
-calc.fill_qcl()
+calc.fill_qpv()
 calc.fill_fast_results()
 res.print(verbosity=1)
 
@@ -91,25 +92,27 @@ opti_samples = CLsSamples( \
   .generate_and_save(options.ntoys, break_locks=options.break_locks)
 
 for fit_result in fit_results :
-  fit_result['sampling_cl' ] = opti_samples.clsb.cl(fit_result[res.poi_name], fit_result['cl'])
-  fit_result['sampling_clb'] = opti_samples.cl_b.cl(fit_result[res.poi_name], fit_result['cl'])
-  fit_result['sampling_cls'] = opti_samples.cl     (fit_result[res.poi_name], fit_result['cl'])
+  fit_result['sampling_pv' ] = opti_samples.clsb.pv(fit_result[res.poi_name], fit_result['pv'])
+  fit_result['sampling_clb'] = opti_samples.cl_b.pv(fit_result[res.poi_name], fit_result['pv'])
+  fit_result['sampling_cls'] = opti_samples.pv     (fit_result[res.poi_name], fit_result['pv'])
 res.print(verbosity=1)
 
-limit_asy_full_clsb = res.solve('cl'          , 0.05, log_scale = True)
-limit_asy_fast_clsb = res.solve('fast_cl'     , 0.05, log_scale = True)
-limit_sampling_clsb = res.solve('sampling_cl' , 0.05, log_scale = True)
-limit_asy_full_cls  = res.solve('cls'         , 0.05, log_scale = True)
-limit_asy_fast_cls  = res.solve('fast_cls'    , 0.05, log_scale = True)
-limit_sampling_cls  = res.solve('sampling_cls', 0.05, log_scale = True)
+target_pv = 1 - options.cl
+
+limit_asy_full_clsb = res.solve('pv'          , target_pv, log_scale = True)
+limit_asy_fast_clsb = res.solve('fast_pv'     , target_pv, log_scale = True)
+limit_sampling_clsb = res.solve('sampling_pv' , target_pv, log_scale = True)
+limit_asy_full_cls  = res.solve('cls'         , target_pv, log_scale = True)
+limit_asy_fast_cls  = res.solve('fast_cls'    , target_pv, log_scale = True)
+limit_sampling_cls  = res.solve('sampling_cls', target_pv, log_scale = True)
 
 # Print results
-if limit_asy_full_clsb : print('Asymptotics, full model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asy_full_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_full_clsb)))))
-if limit_asy_fast_clsb : print('Asymptotics, fast model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_asy_fast_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_fast_clsb)))))
-if limit_sampling_clsb : print('Sampling   , fast model, CLsb : UL(95) = %g (N_signal = %g)' % (limit_sampling_clsb, np.sum(model.s_exp(model.expected_pars(limit_sampling_clsb)))))
-if limit_asy_full_cls  : print('Asymptotics, full model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asy_full_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_full_cls )))))
-if limit_asy_fast_cls  : print('Asymptotics, fast model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_asy_fast_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_fast_cls )))))
-if limit_sampling_cls  : print('Sampling   , fast model, CLs  : UL(95) = %g (N_signal = %g)' % (limit_sampling_cls , np.sum(model.s_exp(model.expected_pars(limit_sampling_cls )))))
+if limit_asy_full_clsb : print('Asymptotics, full model, CLsb : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_full_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_full_clsb)))))
+if limit_asy_fast_clsb : print('Asymptotics, fast model, CLsb : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_fast_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_fast_clsb)))))
+if limit_sampling_clsb : print('Sampling   , fast model, CLsb : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_sampling_clsb, np.sum(model.s_exp(model.expected_pars(limit_sampling_clsb)))))
+if limit_asy_full_cls  : print('Asymptotics, full model, CLs  : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_full_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_full_cls )))))
+if limit_asy_fast_cls  : print('Asymptotics, fast model, CLs  : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_fast_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_fast_cls )))))
+if limit_sampling_cls  : print('Sampling   , fast model, CLs  : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_sampling_cls , np.sum(model.s_exp(model.expected_pars(limit_sampling_cls )))))
 
 # Plot results
 if not options.batch_mode :
@@ -118,8 +121,8 @@ if not options.batch_mode :
   plt.suptitle('$CL_{s+b}$')
   plt.xlabel('$\mu$')
   plt.ylabel('$CL_{s+b}$')
-  plt.plot(res.hypos, [ fit_result['cl']          for fit_result in fit_results ], options.marker + 'r:' , label = 'Asymptotics')
-  plt.plot(res.hypos, [ fit_result['sampling_cl'] for fit_result in fit_results ], options.marker + 'b-'  , label = 'Sampling')
+  plt.plot(res.hypos, [ fit_result['pv']          for fit_result in fit_results ], options.marker + 'r:' , label = 'Asymptotics')
+  plt.plot(res.hypos, [ fit_result['sampling_pv'] for fit_result in fit_results ], options.marker + 'b-'  , label = 'Sampling')
   plt.legend()
 
   fig2 = plt.figure(2)
@@ -135,7 +138,7 @@ if not options.batch_mode :
   plt.show()
 
 jdict = {}
-jdict['CL'] = 0.05
+jdict['CL'] = options.cl
 jdict['POI'] = model.poi
 jdict['limit_sampling_CLs'] = limit_sampling_cls
 jdict['limit_asymptotics_CLs'] = limit_asy_full_cls

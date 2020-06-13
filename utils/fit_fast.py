@@ -68,7 +68,7 @@ if options.poi_hypo != None :
   print('min_poi  = % g' % opti.min_poi)
   print('tmu      = % g' % tmu)
   print('qmutilda = % g' % q.value())
-  print('clsb     = % g' % q.asymptotic_cl())
+  print('clsb     = % g' % q.asymptotic_pv())
   print('cls      = % g' % q.asymptotic_cls())
 plt.ion()
 plt.figure(1)

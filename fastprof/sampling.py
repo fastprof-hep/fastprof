@@ -31,8 +31,8 @@ class SamplingDistribution :
     if sort_before_saving : self.sort()
     np.save(filename, self.samples)
 
-  def cl(self, acl) :
-    return np.searchsorted(self.samples, acl)/len(self.samples)
+  def pv(self, apv) :
+    return np.searchsorted(self.samples, apv)/len(self.samples)
 
   def quantile(self, fraction=None, sigma=None) :
     if fraction == None :
@@ -43,7 +43,7 @@ class SamplingDistribution :
     if fraction < 0 or fraction > 1 :
       raise ValueError('Invalid fraction value %g, should be between 0 and 1.' % fraction)
     index = int(len(self.samples)*fraction)
-    #print('Quantile: frac = %g -> index = %d -> cl = %g' % (fraction, index, self.samples[index]))
+    #print('Quantile: frac = %g -> index = %d -> pv = %g' % (fraction, index, self.samples[index]))
     return self.samples[index]
 
 
@@ -124,14 +124,14 @@ class Samples (SamplesBase) :
       print('Done')
     return self
 
-  def cl(self, poi, acl) :
+  def pv(self, poi, apv) :
     try:
       samples = self.dists[poi]
     except Exception as inst :
       print(inst)
       print('Available samples are', self.dists.keys())
       raise KeyError('No sample available for POI = %g' % poi)
-    return samples.cl(acl)
+    return samples.pv(apv)
 
   def quantile(self, poi, fraction=None, sigma=None) :
     try:
@@ -167,9 +167,9 @@ class CLsSamples (SamplesBase) :
     self.cl_b.generate(ntoys)
     return self
 
-  def cl(self, poi, acl) :
-    clsb = self.clsb.cl(poi, acl)
-    cl_b = self.cl_b.cl(poi, acl)
+  def pv(self, poi, apv) :
+    clsb = self.clsb.pv(poi, apv)
+    cl_b = self.cl_b.pv(poi, apv)
     #print('Sampling CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
     return clsb/cl_b if cl_b > 0 else 1
 
@@ -181,8 +181,8 @@ class CLsSamples (SamplesBase) :
     for poi in self.pois :
       ns = len(self.cl_b.dists[poi].samples)
       sd = SamplingDistribution(ns)
-      for i, acl in enumerate(self.cl_b.dists[poi].samples) :
-        sd.samples[i] = self.cl(poi, acl)
+      for i, apv in enumerate(self.cl_b.dists[poi].samples) :
+        sd.samples[i] = self.pv(poi, apv)
       sd.sort()
       cls_samples.dists[poi] = sd
     return cls_samples.bands(max_sigmas)

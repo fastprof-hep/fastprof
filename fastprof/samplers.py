@@ -41,16 +41,16 @@ class Sampler :
       while not success :
         if self.debug : print('DEBUG: iteration %d generating data for hypo %g.' % (k, self.gen_hypo.poi))
         data = self.model.generate_data(self.gen_hypo)
-        cl = self.compute_cl(data, k)
-        if cl != None :
+        pv = self.compute_pv(data, k)
+        if pv != None :
           success = True
         else :
           print('Processing toy iteration %d failed, repeating it.' % k)
-      self.dist.samples[k] = cl
+      self.dist.samples[k] = pv
     return self.dist
 
   @abstractmethod
-  def compute_cl(self, data, toy_iter) :
+  def compute_pv(self, data, toy_iter) :
      pass
 
 
@@ -63,14 +63,14 @@ class ScanSampler (Sampler) :
     self.tmu_0 = tmu_0
     self.use_qtilda = True if tmu_A != None and tmu_0 != None else False
     
-  def compute_cl(self, data, toy_iter) :
+  def compute_pv(self, data, toy_iter) :
     opti = ScanMinimizer(data, self.scan_mus)
     tmu = opti.tmu(self.test_hypo, self.test_hypo)
     if self.use_qtilda :
       q = QMuTilda(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
     else :
       q = QMu(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi)
-    return q.asymptotic_cl()
+    return q.asymptotic_pv()
 
 
 # -------------------------------------------------------------------------
@@ -88,7 +88,7 @@ class OptiSampler (Sampler) :
     self.use_qtilda = True if tmu_A != None and tmu_0 != None else False
     self.debug_data = None
     
-  def compute_cl(self, data, toy_iter) :
+  def compute_pv(self, data, toy_iter) :
     opti = OptiMinimizer(data, self.mu0, self.bounds, self.method, self.niter, self.floor)
     tmu = opti.tmu(self.test_hypo, self.test_hypo)
     if tmu == 0 :
@@ -105,7 +105,7 @@ class OptiSampler (Sampler) :
       q = QMu(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi)
     if self.debug :
       if self.debug_data == None :
-        columns = [ 'cl', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev' ]
+        columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev' ]
         columns.extend( [ 'free_' + a for a in self.model.alphas ] )
         columns.extend( [ 'free_' + b for b in self.model.betas  ] )
         columns.extend( [ 'free_' + c for c in self.model.gammas ] )
@@ -115,7 +115,7 @@ class OptiSampler (Sampler) :
         columns.extend( [ 'aux_'  + a for a in self.model.alphas ] )
         columns.extend( [ 'aux_'  + b for b in self.model.betas  ] )
         self.debug_data = pd.DataFrame(columns=columns)
-      self.debug_data.at[toy_iter, 'cl'      ] = q.asymptotic_cl()
+      self.debug_data.at[toy_iter, 'pv'      ] = q.asymptotic_pv()
       self.debug_data.at[toy_iter, 'tmu'     ] = tmu
       self.debug_data.at[toy_iter, 'mu_hat'  ] = opti.min_poi
       self.debug_data.at[toy_iter, 'free_nll'] = opti.free_nll
@@ -133,4 +133,4 @@ class OptiSampler (Sampler) :
         self.debug_data.at[toy_iter, 'free_' + c] = opti.free_pars.gammas[i]
         self.debug_data.at[toy_iter, 'hypo_' + c] = opti.hypo_pars.gammas[i]
       data.save('data/data_%d.json' % toy_iter)
-    return q.asymptotic_cl()
+    return q.asymptotic_pv()

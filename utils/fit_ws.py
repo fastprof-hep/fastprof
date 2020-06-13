@@ -163,8 +163,8 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
     if nSignal == None :
       raise ValueError('Could not locate signal yield variable %s')
   def hypo_guess(i, unc) :
-    cl = 0.05
-    return (3*math.exp(0.5/3*i))*math.exp(-unc**2/3) + (1 -math.exp(-unc**2/3))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + unc**2)
+    pv = 0.05
+    return (3*math.exp(0.5/3*i))*math.exp(-unc**2/3) + (1 -math.exp(-unc**2/3))*(i + norm.isf(pv*norm.cdf(i)))*np.sqrt(9 + unc**2)
   poi.setConstant(False)
   poi.setVal(poi_init_val)
   fit(asimov0, robust=True)

@@ -6,8 +6,8 @@ import numpy as np
 from scipy import optimize
 from scipy.stats import poisson, norm
 
-cl = 0.05
-z_cls = norm.isf(cl/2)
+pv = 0.05
+z_cls = norm.isf(pv/2)
 
 # ==============================================
 #bkgs = np.linspace(0,100,101)
@@ -28,11 +28,11 @@ def poisson_pval(n,s,b) :
 
 def delta_clsb(s) :
    clsb = poisson.cdf(math.floor(bkg), s + bkg)
-   return clsb - cl
+   return clsb - pv
 
 def delta_cls(s) :
    cls = poisson.cdf(nobs, s + bkg)/poisson.cdf(nobs, bkg)
-   return cls - cl
+   return cls - pv
 
 def limit(n, b) :
   global bkg
@@ -48,15 +48,15 @@ def sampling_bands(toys, max_sigma = 2) :
     bands[i] = np.array([ toys[b,index] for b in range(0, len(bkgs)) ])
   return bands
 
-def asymptotic_band(bkgs, cl, n = 0) :
-  z = norm.isf(cl*norm.cdf(n))
+def asymptotic_band(bkgs, pv, n = 0) :
+  z = norm.isf(pv*norm.cdf(n))
   return np.array([ (n + z)**2/2*(1 + math.sqrt(1 + 4*b/(n+z)**2)) for b in bkgs ])
 
 def w(bkgs) :
   return np.exp(-bkgs/3)
 
 def guess(unc, i) :
-  return (3 + 0.5*i)*np.exp(-unc**2/3) + (1 - np.exp(-unc**2/3))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + unc**2)
+  return (3 + 0.5*i)*np.exp(-unc**2/3) + (1 - np.exp(-unc**2/3))*(i + norm.isf(pv*norm.cdf(i)))*np.sqrt(9 + unc**2)
 
 if toys[0,0] == 0 :
   for i, b in enumerate(bkgs) :
@@ -69,10 +69,10 @@ for b in range(0, len(bkgs)) : toys[b,:].sort()
 toylim = np.array([ np.median(toys[b,:]) for b in range(0, len(bkgs)) ])
 asilim = np.array([ limit(math.floor(b), b) for b in bkgs ])
 
-asymp = { i:asymptotic_band(bkgs, cl, i) for i in np.linspace(-2,2,5) }
+asymp = { i:asymptotic_band(bkgs, pv, i) for i in np.linspace(-2,2,5) }
 sampl = sampling_bands(toys, 2)
 
-approx = { i:((3 + 0.5*i)*w(bkgs) + (1 - w(bkgs))*(i + norm.isf(cl*norm.cdf(i)))*np.sqrt(9 + bkgs)) for i in np.linspace(-5,5,11) }
+approx = { i:((3 + 0.5*i)*w(bkgs) + (1 - w(bkgs))*(i + norm.isf(pv*norm.cdf(i)))*np.sqrt(9 + bkgs)) for i in np.linspace(-5,5,11) }
 approx = { i:np.array([ guess(math.sqrt(b), i) for b in bkgs]) for i in np.linspace(-5,5,11) }
 
 

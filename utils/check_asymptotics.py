@@ -35,17 +35,17 @@ if model == None : raise ValueError('No valid model definition found in file %s.
 res = FitResults(model, options.fits_file)
 fit_results = res.fit_results
 calc = QMuCalculator(None, res)
-calc.fill_qcl()
+calc.fill_qpv()
 
 opti_samples = CLsSamples(
   Samples(pois=res.hypos, file_root=options.samples),
   Samples(pois=res.hypos, file_root=options.samples + '_clb')).load()
 
-def sampling_cl(samples, acl) :
+def sampling_pv(samples, apv) :
   sd = SamplingDistribution()
   sd.samples = np.array(samples)
   sd.sort()
-  return sd.cl(acl)
+  return sd.pv(apv)
 
 plt.ion()
 for fit_result in fit_results :
@@ -57,15 +57,15 @@ for fit_result in fit_results :
   fig.suptitle('POI = %g'  % hypo)
   #bias = -0.065*hypo # test!!
   bias = 0
-  asym_clsb = [ QMu(hypo, tmu_A*(hypo-poi)**2/hypo**2, poi).asymptotic_cl() for poi in norm.rvs(hypo + bias, sigma_A, options.ntoys) ]
-  asym_cl_b = [ QMu(hypo, tmu_A*(hypo-poi)**2/hypo**2, poi).asymptotic_cl() for poi in norm.rvs(       bias, sigma_A, options.ntoys) ]
-  print('clsb CL: asymptotic value     = %g' % fit_result['cl'])
-  print('clsb CL: sampling from asympt = %g' % sampling_cl(asym_clsb, fit_result['cl']))
-  print('clsb CL: sampling from toys   = %g' % opti_samples.clsb.dists[hypo].cl(fit_result['cl']))
+  asym_clsb = [ QMu(hypo, tmu_A*(hypo-poi)**2/hypo**2, poi).asymptotic_pv() for poi in norm.rvs(hypo + bias, sigma_A, options.ntoys) ]
+  asym_cl_b = [ QMu(hypo, tmu_A*(hypo-poi)**2/hypo**2, poi).asymptotic_pv() for poi in norm.rvs(       bias, sigma_A, options.ntoys) ]
+  print('clsb CL: asymptotic value     = %g' % fit_result['pv'])
+  print('clsb CL: sampling from asympt = %g' % sampling_pv(asym_clsb, fit_result['pv']))
+  print('clsb CL: sampling from toys   = %g' % opti_samples.clsb.dists[hypo].pv(fit_result['pv']))
   print('---')
   print('cl_b CL: asymptotic value     = %g' % fit_result['clb'])
-  print('cl_b CL: sampling from asympt = %g' % sampling_cl(asym_cl_b, fit_result['cl']))
-  print('cl_b CL: sampling from toys   = %g' % opti_samples.cl_b.dists[hypo].cl(fit_result['cl']))
+  print('cl_b CL: sampling from asympt = %g' % sampling_pv(asym_cl_b, fit_result['pv']))
+  print('cl_b CL: sampling from toys   = %g' % opti_samples.cl_b.dists[hypo].pv(fit_result['pv']))
   print('---')
   ax1.hist(opti_samples.clsb.dists[hypo].samples, bins=options.nbins)
   ax1.hist(asym_clsb, bins=options.nbins, histtype='step')  

@@ -50,6 +50,6 @@ elif options.test_statistic == 'qmu' :
   calc = QMuCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
 else :
   raise ValueError('Unknown test statistic %s' % options.test_statistic)
-calc.fill_qcl()
+calc.fill_qpv()
 calc.fill_fast_results()
 results.print(verbosity = options.verbosity)

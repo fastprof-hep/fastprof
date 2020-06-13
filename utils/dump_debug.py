@@ -31,7 +31,7 @@ fig1,ax1 = plt.subplots(2,2)
 
 debug.hist('mu_hat', ax=ax1[0,0], bins=options.nbins)
 debug.hist('tmu'   , ax=ax1[0,1], bins=np.linspace(0, 10, options.nbins))
-debug.hist('cl'    , ax=ax1[1,0], bins=options.nbins)
+debug.hist('pv'    , ax=ax1[1,0], bins=options.nbins)
 debug.hist('nfev'  , ax=ax1[1,1])
 
 if options.log_scale :
