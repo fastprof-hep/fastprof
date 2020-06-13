@@ -107,7 +107,7 @@ class QMuCalculator :
     self.minimizer = minimizer
     self.results = results
 
-  def fill_qpv(self, q_key = 'qmu', pv_key = 'pv', cls_key = 'cls', clb_key = 'clb', tmu_key = 'tmu', best_poi_key = 'best_fit_val', tmu_0_key = 'tmu_0') :
+  def fill_qpv(self, q_key = 'q_mu', pv_key = 'pv', cls_key = 'cls', clb_key = 'clb', tmu_key = 'tmu', best_poi_key = 'best_fit_val', tmu_0_key = 'tmu_0') :
     for fit_result in self.results.fit_results :
       # since we use tmu_A to compute CLb, we need tmu_A = tmu_0 (computed from an Asimov with mu'=0)
       q = QMu(test_poi = fit_result[self.results.poi_name], tmu = fit_result[tmu_key], best_poi = fit_result[best_poi_key], tmu_A = fit_result[tmu_0_key])
@@ -134,7 +134,7 @@ class QMuCalculator :
       fit_result[q_key] = q.value()
       if hypo_key != '' and free_key != '' :
         fit_result[fast_tmu_full] = 2*(self.minimizer.model.nll(fit_result[hypo_key], self.minimizer.data) - self.minimizer.model.nll(fit_result[free_key], self.minimizer.data))
-    self.fill_qpv(q_key = 'fast_qmu', pv_key = 'fast_pv', cls_key = 'fast_cls', clb_key = 'fast_clb', tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_0_key = 'fast_tmu_0')
+    self.fill_qpv(q_key = 'fast_q_mu', pv_key = 'fast_pv', cls_key = 'fast_cls', clb_key = 'fast_clb', tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_0_key = 'fast_tmu_0')
     return self
 
 
@@ -144,7 +144,7 @@ class QMuTildaCalculator :
     self.results = results
     self.qs = []
     self.fast_qs = []
-  def fill_qpv(self, q_key = 'qmutilda', pv_key = 'pv', cls_key = 'cls', clb_key = 'clb', tmu_key = 'tmu', best_poi_key = 'best_fit_val', tmu_0_key = 'tmu_0') :
+  def fill_qpv(self, q_key = 'q~mu', pv_key = 'pv', cls_key = 'cls', clb_key = 'clb', tmu_key = 'tmu', best_poi_key = 'best_fit_val', tmu_0_key = 'tmu_0') :
     for fit_result in self.results.fit_results :
       # since we use tmu_A to compute CLb, we need tmu_A = tmu_0 (computed from an Asimov with mu'=0)
       q = QMuTilda(test_poi = fit_result[self.results.poi_name], tmu = fit_result[tmu_key], best_poi = fit_result[best_poi_key], tmu_A = fit_result[tmu_0_key], tmu_0 = fit_result[tmu_0_key])
@@ -156,7 +156,7 @@ class QMuTildaCalculator :
       self.qs.append(q)
     return self
 
-  def fill_fast_results(self, hypo_key = 'hypo_pars', free_key = 'free_pars', q_key = 'fast_qmu_tilda', pv_key = 'fast_pv', cls_key = 'fast_cls', clb_key = 'fast_clb', 
+  def fill_fast_results(self, hypo_key = 'hypo_pars', free_key = 'free_pars', q_key = 'fast_q~mu', pv_key = 'fast_pv', cls_key = 'fast_cls', clb_key = 'fast_clb', 
                         tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_0_key = 'fast_tmu_0',
                         free_pars_key = 'fast_free_pars', hypo_pars_key = 'fast_hypo_pars', fast_tmu_full = 'fast_tmu@full') :
     for fit_result in self.results.fit_results :
@@ -173,6 +173,6 @@ class QMuTildaCalculator :
       if hypo_key != '' and free_key != '' :
         fit_result[fast_tmu_full] = 2*(self.minimizer.model.nll(fit_result[hypo_key], self.minimizer.data) - self.minimizer.model.nll(fit_result[free_key], self.minimizer.data))
       self.fast_qs.append(q)
-    self.fill_qpv(q_key = 'fast_qmu_tilda', pv_key = 'fast_pv', cls_key = 'fast_cls', clb_key = 'fast_clb',
+    self.fill_qpv(q_key = 'fast_q~mu', pv_key = 'fast_pv', cls_key = 'fast_cls', clb_key = 'fast_clb',
                   tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_0_key = 'fast_tmu_0')
     return self

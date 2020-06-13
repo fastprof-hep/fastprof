@@ -42,7 +42,7 @@ class QMu(TestStatistic) :
     if self.comp_poi == self.test_poi : return 0
     if self.tmu_A != None :
       if self.tmu_A < 0 :
-        print('Warning: qmutilda tmu_A = % g < 0, returning 0' % self.tmu_A)
+        print('Warning: q_mu tmu_A = % g < 0, returning 0' % self.tmu_A)
         return 0
       return self.tmu_A
     elif self.sigma != None :
@@ -84,13 +84,13 @@ class QMuTilda(TestStatistic) :
   def non_centrality_parameter(self) : # tmu_A = (mu - mu')^2/sigma^2
     if self.comp_poi == self.test_poi : return 0
     if self.tmu_A < 0 :
-      print('Warning: qmutilda tmu_A = % g < 0, returning 0' % self.tmu_A)
+      print('Warning: q~mu tmu_A = % g < 0, returning 0' % self.tmu_A)
       return 0
     return self.tmu_A
 
   def threshold(self) : # mu^2/sigma^2
     if self.tmu_0 < 0 :
-      print('Warning: qmutilda threshold = % g < 0, returning 0' % self.tmu_0)
+      print('Warning: q~mu threshold = % g < 0, returning 0' % self.tmu_0)
       return 0
     return self.tmu_0
 

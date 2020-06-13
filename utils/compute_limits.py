@@ -17,24 +17,24 @@ from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimize
 
 parser = ArgumentParser("compute_limits.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
-parser.add_argument("-m", "--model-file"    , type=str  , required=True      , help="Name of JSON file defining model")
-parser.add_argument("-f", "--fits-file"     , type=str  , required=True      , help="Name of JSON file containing full-model fit results")
-parser.add_argument("-n", "--ntoys"         , type=int  , default=10000      , help="Number of pseudo-datasets to produce")
-parser.add_argument("-s", "--seed"          , type=int  , default='0'        , help="Seed to use for random number generation")
-parser.add_argument("-c", "--cl"            , type=float, default=0.95       , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
-parser.add_argument("-o", "--output-file"   , type=str  , required=True      , help="Name of output file")
-parser.add_argument("-%", "--print-freq"    , type=int  , default=1000       , help="Verbosity level")
-parser.add_argument("-d", "--data-file"     , type=str  , default=''         , help="Perform checks using the dataset stored in the specified JSON file")
-parser.add_argument("-a", "--asimov"        , type=float, default=None       , help="Perform checks using an Asimov dataset for the specified POI value")
-parser.add_argument("-i", "--iterations"    , type=int  , default=1          , help="Number of iterations to perform for NP computation")
-parser.add_argument("-r", "--regularize"    , type=float, default=None       , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
-parser.add_argument("-t", "--test-statistic", type=str  , default='qmu_tilda', help="Test statistic to use")
-parser.add_argument(      "--break-locks"   , action='store_true'            , help="Allow breaking locks from other sample production jobs")
-parser.add_argument(      "--debug"         , action='store_true'            , help="Produce debugging output")
-parser.add_argument("-b", "--batch-mode"    , action='store_true'            , help="Batch mode: no plots shown")
-parser.add_argument(      "--bands"         , type=int  , default=2          , help="Number of bands to show")
-parser.add_argument(      "--marker"        , type=str  , default=''         , help="Marker type for plots")
-parser.add_argument("-v", "--verbosity"     , type=int  , default=0          , help="Verbosity level")
+parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of JSON file defining model")
+parser.add_argument("-f", "--fits-file"     , type=str  , required=True , help="Name of JSON file containing full-model fit results")
+parser.add_argument("-n", "--ntoys"         , type=int  , default=10000 , help="Number of pseudo-datasets to produce")
+parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="Seed to use for random number generation")
+parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
+parser.add_argument("-%", "--print-freq"    , type=int  , default=1000  , help="Verbosity level")
+parser.add_argument("-d", "--data-file"     , type=str  , default=''    , help="Perform checks using the dataset stored in the specified JSON file")
+parser.add_argument("-a", "--asimov"        , type=float, default=None  , help="Perform checks using an Asimov dataset for the specified POI value")
+parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
+parser.add_argument("-r", "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use")
+parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
+parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
+parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
+parser.add_argument(      "--bands"         , type=int  , default=2     , help="Number of bands to show")
+parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
+parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
 
 options = parser.parse_args()
 if not options :
@@ -65,9 +65,9 @@ bounds = (res.poi_min, res.poi_max)
 # Check the fastprof CLs against the ones in the reference: in principle this should match well,
 # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
 print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
-if options.test_statistic == 'qmu_tilda' :
+if options.test_statistic == 'q~mu' :
   calc = QMuTildaCalculator(OptiMinimizer(data, mu0, bounds), res)
-elif options.test_statistic == 'qmu' :
+elif options.test_statistic == 'q_mu' :
   calc = QMuCalculator(OptiMinimizer(data, mu0, bounds), res)
 else:
   raise ValueError('Unknown test statistic %s.' % options.test_statistic)
