@@ -84,6 +84,12 @@ class Model (JSONSerializable) :
     self.diag_alphas = np.diag(1/self.sigma_alphas**2) if self.sigma_alphas.shape != (0,0) else np.identity(self.na)
     self.diag_betas  = np.diag(1/self.sigma_betas **2) if self.sigma_betas .shape != (0,0) else np.identity(self.nb)
     self.diag_gammas = np.diag(1/self.sigma_gammas**2) if self.sigma_gammas.shape != (0,0) else np.zeros((self.nc, self.nc))
+    try :
+      self.ref_alphas = np.array( [ self.pars[alpha]['nominal'] for alpha in self.alphas ] )
+      self.ref_betas  = np.array( [ self.pars[beta ]['nominal'] for beta  in self.betas  ] )
+    except :
+      self.ref_alphas = np.zeros(self.na)
+      self.ref_betas  = np.zeros(self.nb)
 
   def set_gamma_regularization(self, gamma_regularization) :
     self.sigma_gammas = np.ones(self.nc)*gamma_regularization
@@ -111,8 +117,8 @@ class Model (JSONSerializable) :
     return nexp if floor == None else np.maximum(nexp, floor)
 
   def nll(self, pars, data, offset = True, floor = None, no_constraints=False) :
-    da = data.aux_alphas - pars.alphas
-    db = data.aux_betas  - pars.betas
+    da = data.aux_alphas - pars.alphas - self.ref_alphas
+    db = data.aux_betas  - pars.betas  - self.ref_betas
     dc = pars.gammas
     nexp = self.n_exp(pars, floor)
     try :
@@ -153,7 +159,7 @@ class Model (JSONSerializable) :
     if minimizer :
       return minimizer.profile_nps(poi)
     else :
-      return Parameters(poi, np.zeros(self.na), np.zeros(self.nb), np.zeros(self.nc), self)
+      return Parameters(poi, self.ref_alphas, self.ref_betas, np.zeros(self.nc), self)
 
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
