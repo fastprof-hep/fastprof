@@ -66,7 +66,7 @@ if options.hypo != '' :
     print(inst)
     raise ValueError('Invalid hypothesis spec, should be in the format <filename>:<index>')
 
-z = 3
+z = 4
 pars = [ col[len('free_'):] for col in debug.columns if col.startswith('free_') and not col.endswith('nll') ]
 fig2,ax2 = plt.subplots(2, len(pars),figsize=(15,5), sharey=True)
 fig2.subplots_adjust(left=0.05,right=0.98)
