@@ -151,7 +151,7 @@ class OptiMinimizer (POIMinimizer) :
     self.alt_method = alt_method
     self.debug = 0
    
-  def minimize(self, init_hypo) :
+  def minimize(self, init_hypo = None) :
     if init_hypo == None :
       current_hypo = self.model.expected_pars(self.poi0, self)
     else :
@@ -198,6 +198,7 @@ class OptiMinimizer (POIMinimizer) :
       return None, None
     self.nll_min = result.fun
     self.min_poi = result.x
+    if isinstance(self.min_poi, np.ndarray) : self.min_poi = self.min_poi[0] # needed for L-BGS-B
     self.nfev = result.nfev
     #print(self.min_poi)
     return self.nll_min, self.min_poi
