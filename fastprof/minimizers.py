@@ -141,7 +141,7 @@ class ScanMinimizer (POIMinimizer) :
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
-  def __init__(self, data, poi0 = 0, bounds = (0, 10), method = 'scalar', niter = 1, floor = 1E-7, rebound = 0, alt_method = 'L-BFGS-B') :
+  def __init__(self, data, poi0 = 0, bounds = (0, 10), method = 'scalar', niter = 1, floor = 1E-7, rebound = 0, alt_method = None) :
     super().__init__(data, niter, floor)
     self.np_min = None
     self.poi0 = poi0
