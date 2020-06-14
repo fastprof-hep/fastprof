@@ -47,6 +47,8 @@ except Exception as inst :
 
 print('positions:', positions)
 results = []
+good_pos = []
+i = 0
 for pos in positions :
   filename = options.input_pattern.replace('*', str(pos)).replace('%', str(pos))
   try :
@@ -55,18 +57,17 @@ for pos in positions :
   except Exception as inst :
     print(inst)
     print('Skipping file %s with missing data' % filename)
-    jdict = None
-
-  if jdict != None :
-    try :
-      res = jdict[options.key]
-      results.append(float(res) if res != None else None)
-    except Exception as inst :
-      print(inst)
-      raise ValueError('Floating-point result not found at key %s in file %s. Available keys:\n%s' % (options.key, filename, '\n'.join(jdict.keys())))
-
+    continue
+  try :
+    res = jdict[options.key]
+    results.append(float(res) if res != None else None)
+  except Exception as inst :
+    print(inst)
+    raise ValueError('Floating-point result not found at key %s in file %s. Available keys:\n%s' % (options.key, filename, '\n'.join(jdict.keys())))
+  good_pos.append(pos)
+  
 jdict = {}
-jdict['positions'] = positions
+jdict['positions'] = good_pos
 jdict['results'] = results
 
 with open(options.output_file, 'w') as fd:
@@ -74,13 +75,14 @@ with open(options.output_file, 'w') as fd:
 
 if options.root_output :
   import ROOT
-  g = ROOT.TGraph(len(positions))
+  g = ROOT.TGraph(len(good_pos))
   g.SetName(options.key)
-  for i in range(0, len(positions)) : g.SetPoint(i, positions[i], results[i] if results[i] != None else 0)
+  for i in range(0, len(good_pos)) : 
+    g.SetPoint(i, good_pos[i], results[i] if results[i] != None else 0)
   f = ROOT.TFile.Open(options.root_output, 'RECREATE')
   g.Write()
   f.Close()
 
 plt.ion()
-plt.plot(positions, results, 'b')
+plt.plot(good_pos, results, 'b')
 plt.show()
