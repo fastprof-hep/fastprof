@@ -21,8 +21,8 @@ class NPMinimizer :
     rB = bnom/nnom
     rS = snom/nnom
     dN = nnom - self.data.n
-    qA = np.einsum('i,i,ij->j', rS, dN, self.model.a) + hypo.alphas + self.model.ref_alphas - self.data.aux_alphas
-    qB = np.einsum('i,i,ij->j', rB, dN, self.model.b) + hypo.betas  + self.model.ref_betas  - self.data.aux_betas
+    qA = np.einsum('i,i,ij->j', rS, dN, self.model.a) + hypo.alphas + self.model.nominal_alphas - self.data.aux_alphas
+    qB = np.einsum('i,i,ij->j', rB, dN, self.model.b) + hypo.betas  + self.model.nominal_betas  - self.data.aux_betas
     qC = np.einsum('i,i,ij->j', rB, dN, self.model.c)
     pAA = np.einsum('i,i,ij,ik->jk',   rS, rS *self.data.n + dN, self.model.a, self.model.a) + self.model.diag_alphas
     pAB = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , self.model.a, self.model.b)
