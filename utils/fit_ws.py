@@ -249,9 +249,9 @@ for result in fit_results :
   result['nll0_best']       = nll0_best
   result['tmu_0']           = 2*(result['nll0_hypo'] - nll0_best)
 
-jdict['POI_name'] = poi.GetName()
-jdict['POI_initial_value'] = poi_init_val
-jdict['POI_range'] = poi.getMin(), poi.getMax()
+jdict['poi_name'] = poi.GetName()
+jdict['poi_initial_value'] = poi_init_val
+jdict['poi_range'] = poi.getMin(), poi.getMax()
 jdict['fit_results'] = fit_results
 with open(options.output_file, 'w') as fd:
   json.dump(jdict, fd, ensure_ascii=True, indent=3)
