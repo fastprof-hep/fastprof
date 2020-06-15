@@ -50,7 +50,7 @@ class ValidationData (JSONSerializable) :
     if filename != '' : self.load(filename)
 
   def load_jdict(self, jdict) :
-    self.poi        = jdict[self.model.poi]
+    self.poi        = jdict[self.model.poi_name]
     self.points     = jdict['points']
     self.variations = {}
     for par in self.model.alphas + self.model.betas + self.model.gammas :
@@ -68,7 +68,7 @@ if model == None :
   raise ValueError('No valid model definition found in file %s.' % options.model_file)
 
 data = ValidationData(model, options.validation_data)
-print('Validating for POI value %s = %g' % (model.poi, data.poi))
+print('Validating for POI value %s = %g' % (model.poi_name, data.poi))
 plt.ion()
 nplots = model.n_nps
 nc = math.ceil(math.sqrt(nplots))
