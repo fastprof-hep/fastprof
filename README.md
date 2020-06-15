@@ -1,5 +1,4 @@
-# fastprof
-*A fast profiling tool for likelihood-based statistical analyses*
+# fastprof: *A fast profiling tool for likelihood-based statistical analyses*
 
 Presentation
 ============
@@ -13,6 +12,15 @@ The tool is written in python, with most of the work done by numpy.
 In the current implementation, only a single signal-strength parameter of interest is supported
 
 The model is intended to be used to perform statistical inference in the context of high-energy physics (HEP), and in particular set limits on new phenomena. Along with the likelihood itself, it includes a set of frequentist statistical tools, based on the techniques described in <https://arxiv.org/abs/1007.1727>
+
+Setup
+=====
+
+The package can be set up as follows
+    mkdir fastprof-work
+    git clone <url>
+   source fastprof/setup-enf.sh
+The last command sets up a python3 pyenv working environment. The numpy, pandas and matplotlib packages should also be installed within the environment using pip install if they are not already available.
 
 Setting upper limits
 ====================
