@@ -27,7 +27,7 @@ parser.add_argument("-p", "--nps"              , type=str  , default=''       , 
 parser.add_argument("-e", "--epsilon"          , type=float, default=1        , help="Scale factor applied to uncertainties for impact computations")
 parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
 parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Variables to set constant")
-parser.add_argument("-r", "--poi-range"        , type=str  , default=''       , help="POI allowed range, in the form min,max")
+parser.add_argument("-r",  "--poi-range"        , type=str  , default=''       , help="POI allowed range, in the form min,max")
 parser.add_argument("-d", "--data-name"        , type=str  , default=''       , help="Name of dataset object within the input workspace")
 parser.add_argument("-a", "--asimov"           , type=float, default=None     , help="Perform an Asimov fit before conversion")
 parser.add_argument("-x", "--data-only"        , action="store_true"          , help="Only dump the specified dataset, not the model")
@@ -36,6 +36,7 @@ parser.add_argument(      "--binned"           , action="store_true"          , 
 parser.add_argument("-u", "--asimov-errors"    , type=float, default=None     , help="Update uncertainties from a fit to an Asimov dataset")
 parser.add_argument(      "--signal"           , type=str  , default=''       , help="List of parameters to be assigned to the signal component")
 parser.add_argument(      "--bkg"              , type=str  , default=''       , help="List of parameters to be assigned to the background component")
+parser.add_argument(      "--regularize"       , type=float, default=0        , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
 parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
 parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
 parser.add_argument(      "--validation-data"  , type=str  , default=''       , help="Name of output file for validation data")
@@ -154,7 +155,7 @@ if options.signal != '' :
         raise ValueError("Cannot find variable '%s' in workspace" % p)
   except Exception as inst :
     print(inst)
-    raise ValueError("ERROR : invalid signal parameter specification '%s'." % options.signal)
+    raise ValueError("ERROR: invalid signal parameter specification '%s'." % options.signal)
 if options.bkg != '' :
   try:
     bkg_pars = options.bkg.split(',')
@@ -163,7 +164,7 @@ if options.bkg != '' :
         raise ValueError("Cannot find variable '%s' in workspace" % p)
   except Exception as inst :
     print(inst)
-    raise ValueError("ERROR : invalid background parameter specification '%s'." % options.bkg)
+    raise ValueError("ERROR: invalid background parameter specification '%s'." % options.bkg)
 
 aux_alphas = []
 aux_betas  = []
@@ -183,7 +184,7 @@ try:
         matching_pars = pdf.getDependents(nuis_pars)
         if len(matching_pars) == 1 :
           mpar = ROOT.RooArgList(matching_pars).at(0)
-          print('Matching aux %s to NP %s' % (aux.GetName(), mpar.GetName()))
+          print('INFO: Matching aux %s to NP %s' % (aux.GetName(), mpar.GetName()))
           if (len(signal_pdf.getDependents(matching_pars)) > 0 or len(nSignal.getDependents(matching_pars)) > 0 or mpar.GetName() in sig_pars) and not mpar.GetName() in bkg_pars :
             alphas.append(mpar)
             aux_alphas.append(aux)
@@ -253,10 +254,8 @@ if not options.data_only :
     fit(asimov, robust=True)
     # The S/B should be adjusted to the expected sensitivity value to get
     # reliable uncertainties on signal NPs. Choose POI = 2*uncertainty or this.
-    nuis_pars.Print("V")
     ws.loadSnapshot('nominalNPs')
     poi.setVal(2*poi.getError())
-    nuis_pars.Print("V")
 
   np_list = ROOT.RooArgList(nuis_pars)
   for p in range(0, len(np_list)) :
@@ -281,7 +280,7 @@ if not options.data_only :
         raise ValueError('Parameter %s has an uncertainty %g which is <= 0' % (par.GetName(), error))
     else :
       error = 1
-    print('Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.GetName(), error, par.getVal(), options.epsilon))
+    print('=== Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.GetName(), error, par.getVal(), options.epsilon))
     par_nom[par] = par.getVal()
     par_err[par] = error
 
@@ -289,7 +288,8 @@ if not options.data_only :
     raise ValueError('ERROR : POI %s is exactly 0, cannot extract signal component!' % poi.GetName())
 
   poi_nom = poi.getVal()
-  print('Signal component normalized to POI %s = %g -> nSignal = %g' % (poi.GetName(), poi_nom, nSignal.getVal()))
+  print('=== Signal component normalized to POI %s = %g -> nSignal = %g' % (poi.GetName(), poi_nom, nSignal.getVal()))
+  print('=== Nominal NP values :')
   nuis_pars.Print("V")
   impacts_s = np.ndarray((nbins, len(np_list)))
   impacts_b = np.ndarray((nbins, len(np_list)))
@@ -337,7 +337,6 @@ if not options.data_only :
       sig_neg = nSignal.getVal()*sigint.getVal() - spr_neg # count only signal changes (unlike bkg above) : not 100% accurat but avoids FP precision issues in (S+B)-B computation when S/B very low
       impact_s_neg = ((sig0/sig_neg)**(1/options.epsilon) - 1) if sig_neg != 0 else 0
       impact_b_neg = ((bkg0/bkg_neg)**(1/options.epsilon) - 1) if bkg_neg != 0 else 0
-      print(par.GetName(),sig0, sig_pos,sig_neg, bkg0, bkg_pos,bkg_neg,impact_s_pos,impact_s_neg,impact_b_pos,impact_b_neg)
       if par in alphas :
         #impacts_s[i,p] = impact_s_pos if abs(impact_s_pos) < abs(impact_s_neg) else impact_s_neg
         impacts_s[i,p] = math.sqrt((1 + impact_s_pos)*(1 + impact_s_neg)) - 1
@@ -381,6 +380,7 @@ if not options.data_only :
     od['name'] = alpha.GetName()
     od['nominal'] = par_nom[alpha]
     od['variation'] = par_err[alpha]
+    od['constraint'] = 1
     od['impact'] = impacts[alpha].tolist()
     alpha_specs.append(od)
   jdict['alphas'] = alpha_specs
@@ -391,6 +391,7 @@ if not options.data_only :
     od['name'] = beta.GetName()
     od['nominal'] = par_nom[beta]
     od['variation'] = par_err[beta]
+    od['constraint'] = 1
     od['impact'] = impacts[beta].tolist()
     beta_specs.append(od)
   jdict['betas'] = beta_specs
@@ -401,6 +402,7 @@ if not options.data_only :
     od['name'] = gamma.GetName()
     od['nominal'] = par_nom[gamma]
     od['variation'] = par_err[gamma]
+    od['constraint'] = options.regularize
     od['impact'] = impacts[gamma].tolist()
     gamma_specs.append(od)
   jdict['gammas'] = gamma_specs
