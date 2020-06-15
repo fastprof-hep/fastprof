@@ -17,10 +17,12 @@ Setup
 =====
 
 The package can be set up as follows
+```
     mkdir fastprof-work
     git clone <url>
    source fastprof/setup-enf.sh
-The last command sets up a python3 pyenv working environment. The numpy, pandas and matplotlib packages should also be installed within the environment using pip install if they are not already available.
+````
+The last command sets up a python3 `pyenv` working environment. The numpy, pandas and matplotlib packages should also be installed within the environment using pip install if they are not already available.
 
 Setting upper limits
 ====================
