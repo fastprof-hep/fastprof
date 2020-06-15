@@ -19,6 +19,7 @@ Setup
 The package can be set up as follows
 ```
 mkdir fastprof-work
+cd fastprof-work
 git clone <url>
 source fastprof/setup-env.sh
 ````
