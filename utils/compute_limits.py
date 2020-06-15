@@ -27,13 +27,13 @@ parser.add_argument("-%", "--print-freq"    , type=int  , default=1000  , help="
 parser.add_argument("-d", "--data-file"     , type=str  , default=''    , help="Perform checks using the dataset stored in the specified JSON file")
 parser.add_argument("-a", "--asimov"        , type=float, default=None  , help="Perform checks using an Asimov dataset for the specified POI value")
 parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
-parser.add_argument("-r", "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
 parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use")
 parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
 parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
-parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
 parser.add_argument(      "--bands"         , type=int  , default=2     , help="Number of bands to show")
 parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
+parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
 parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
 
 options = parser.parse_args()
@@ -119,7 +119,7 @@ if not options.batch_mode :
   plt.ion()
   fig1 = plt.figure(1)
   plt.suptitle('$CL_{s+b}$')
-  plt.xlabel('$\mu$')
+  plt.xlabel(model.poi_name)
   plt.ylabel('$CL_{s+b}$')
   plt.plot(res.hypos, [ fit_result['pv']          for fit_result in fit_results ], options.marker + 'r:' , label = 'Asymptotics')
   plt.plot(res.hypos, [ fit_result['sampling_pv'] for fit_result in fit_results ], options.marker + 'b-'  , label = 'Sampling')
@@ -127,7 +127,7 @@ if not options.batch_mode :
 
   fig2 = plt.figure(2)
   plt.suptitle('$CL_s$')
-  plt.xlabel('$\mu$')
+  plt.xlabel(model.poi_name)
   plt.ylabel('$CL_s$')
   opti_samples.plot_bands(options.bands)
   plt.plot(res.hypos, [ fit_result['cls']          for fit_result in fit_results ], options.marker + 'r:' , label = 'Asymptotics')
@@ -138,8 +138,8 @@ if not options.batch_mode :
   plt.show()
 
 jdict = {}
-jdict['CL'] = options.cl
-jdict['POI'] = model.poi
+jdict['cl'] = options.cl
+jdict['poi'] = model.poi_name
 jdict['limit_sampling_CLs'] = limit_sampling_cls
 jdict['limit_asymptotics_CLs'] = limit_asy_full_cls
 jdict['limit_asymptotics_CLs_fast'] = limit_asy_fast_cls
