@@ -17,9 +17,9 @@ class FitResults (JSONSerializable) :
       self.load(filename)
 
   def load_jdict(self, jdict) :
-    self.poi_name              = jdict['POI_name']
-    self.poi_initial_value     = jdict['POI_initial_value']
-    self.poi_min, self.poi_max = jdict['POI_range']
+    self.poi_name              = jdict['poi_name']
+    self.poi_initial_value     = jdict['poi_initial_value']
+    self.poi_min, self.poi_max = jdict['poi_range']
     self.fit_results           = jdict['fit_results']
     for fit_result in self.fit_results :
       fit_result['free_pars'] = self.make_pars(fit_result, 'free_', 'best_fit_val')
@@ -29,9 +29,9 @@ class FitResults (JSONSerializable) :
 
   def dump_jdict(self) :
     jdict = {}
-    jdict['POI_name'] = self.poi_name
-    jdict['POI_initial_value'] = self.poi_init_val
-    jdict['POI_range'] = self.poi_min, self.poi_max
+    jdict['poi_name'] = self.poi_name
+    jdict['poi_initial_value'] = self.poi_init_val
+    jdict['poi_range'] = self.poi_min, self.poi_max
     jdict['fit_results'] = self.fit_results
     return jdict
 
