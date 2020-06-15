@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.stats import norm, chi2
-from fastprof import Model, FitResults
+from fastprof import Model, FitResults, QMu
 
 ####################################################################################################################################
 ###
@@ -16,7 +16,7 @@ parser.add_argument('filename'          , type=str, nargs=1    , help='Name of t
 parser.add_argument("-b", "--nbins"     , type=int, default=100, help="Number of bins to use")
 parser.add_argument("-l", "--log-scale" , action='store_true'  , help="Use log scale for plotting")
 parser.add_argument("-r", "--reference" , action='store_true'  , help="Use log scale for plotting")
-parser.add_argument(      "--hypo"      , type=str, default='' , help="Generation hypothesis, format: <file>:<index>")
+parser.add_argument("-y", "--hypo"      , type=str, default='' , help="Generation hypothesis, format: <file>:<index>")
 parser.add_argument("-m", "--model-file", type=str, default='' , help="Name of JSON file defining model")
 
 options = parser.parse_args()
@@ -60,7 +60,7 @@ if options.hypo != '' :
     index = int(index)
     fit_result = FitResults(model, filename).fit_results[index]
     hypo_pars = fit_result['hypo_pars']
-    print('Got hypo pars for hypothesis %g :' % fit_result[model.poi])
+    print('Got hypo pars for hypothesis %g :' % fit_result[model.poi_name])
     print(hypo_pars)
   except Exception as inst :
     print(inst)
