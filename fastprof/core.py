@@ -34,14 +34,12 @@ class JSONSerializable :
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
   def __init__(self, sig = np.array([]), bkg = np.array([]), poi = None, alphas = [], betas = [], gammas = [],
-               a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0)), sigma_alphas = np.ndarray((0,0)), sigma_betas = np.ndarray((0,0)),
-               name=None, bins=[], linear_nps = False) :
+               a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0)), name=None, bins=[], linear_nps = False) :
     super().__init__()
-    self.poi    = poi
+    self.poi_name = poi
     self.alphas = alphas
     self.betas  = betas
     self.gammas = gammas
-    self.pars = {}
     if sig.ndim != 1 or bkg.ndim != 1 or a.ndim != 2 or b.ndim != 2 or c.ndim != 2 :
       raise ValueError('Input data to fastprof model should be 1D vectors for (sig, bkg) and 2D matrices for (a, b)')
     if sig.size != bkg.size :
@@ -63,12 +61,24 @@ class Model (JSONSerializable) :
     self.a = a
     self.b = b
     self.c = c
-    self.sigma_alphas = sigma_alphas
-    self.sigma_betas  = sigma_betas
-    self.sigma_gammas = np.ndarray((0,0))
     self.name = name
     self.bins = bins
     self.linear_nps = linear_nps
+    for alpha in alphas : self.pars[alpha] = {}
+    for alpha in alphas :
+      self.pars[alpha]['nominal']    = 0
+      self.pars[alpha]['variation']  = 1
+      self.pars[alpha]['constraint'] = 1
+    for beta  in betas  : self.pars[beta] = {}
+    for beta  in betas :
+      self.pars[beta ]['nominal']    = 0
+      self.pars[beta ]['variation']  = 1
+      self.pars[beta ]['constraint'] = 1
+    for gamma in gammas : self.pars[gamma] = {}
+    for gamma in gammas :
+      self.pars[gamma]['nominal']    = 0
+      self.pars[gamma]['variation']  = 1
+      self.pars[gamma]['constraint'] = 0
     self.init_vars()
 
   def init_vars(self) :
@@ -81,21 +91,21 @@ class Model (JSONSerializable) :
     self.ln_a = np.log(1 + self.a)
     self.ln_b = np.log(1 + self.b)
     self.ln_c = np.log(1 + self.c)
-    self.diag_alphas = np.diag(1/self.sigma_alphas**2) if self.sigma_alphas.shape != (0,0) else np.identity(self.na)
-    self.diag_betas  = np.diag(1/self.sigma_betas **2) if self.sigma_betas .shape != (0,0) else np.identity(self.nb)
-    self.diag_gammas = np.diag(1/self.sigma_gammas**2) if self.sigma_gammas.shape != (0,0) else np.zeros((self.nc, self.nc))
-    try :
-      self.ref_alphas = np.array( [ self.pars[alpha]['nominal'] for alpha in self.alphas ] )
-      self.ref_betas  = np.array( [ self.pars[beta ]['nominal'] for beta  in self.betas  ] )
-    except :
-      self.ref_alphas = np.zeros(self.na)
-      self.ref_betas  = np.zeros(self.nb)
+    self.nominal_alphas = np.array( [ self.pars[alpha]['nominal']    for alpha in self.alphas ] )
+    self.nominal_betas  = np.array( [ self.pars[beta ]['nominal']    for beta  in self.betas  ] )
+    self.nominal_gammas = np.array( [ self.pars[gamma]['nominal']    for gamma in self.gammas ] )
+    self.sigma_alphas   = np.array( [ self.pars[alpha]['constraint'] for alpha in self.alphas ] )
+    self.sigma_betas    = np.array( [ self.pars[beta ]['constraint'] for beta  in self.betas  ] )
+    self.sigma_gammas   = np.array( [ self.pars[gamma]['constraint'] for gamma in self.gammas ] )
+    self.diag_alphas = np.diag(1/self.sigma_alphas**2)
+    self.diag_betas  = np.diag(1/self.sigma_betas **2)
+    self.diag_gammas = np.diag(np.array( [1/sg**2 if sg != 0 else 0 for sg in self.sigma_gammas ]))
 
   def set_gamma_regularization(self, gamma_regularization) :
-    self.sigma_gammas = np.ones(self.nc)*gamma_regularization
+    for gamma in self.gammas : self.pars[gamma]['constraint'] = gamma_regularization
     self.init_vars()
 
-  def poi   (self) : return self.poi
+  def poi_name(self) : return self.poi_name
   def alphas(self) : return self.alphas
   def betas (self) : return self.betas
   def gammas(self) : return self.gammas
@@ -117,8 +127,8 @@ class Model (JSONSerializable) :
     return nexp if floor == None else np.maximum(nexp, floor)
 
   def nll(self, pars, data, offset = True, floor = None, no_constraints=False) :
-    da = data.aux_alphas - pars.alphas - self.ref_alphas
-    db = data.aux_betas  - pars.betas  - self.ref_betas
+    da = data.aux_alphas - pars.alphas - self.nominal_alphas
+    db = data.aux_betas  - pars.betas  - self.nominal_betas
     dc = pars.gammas
     nexp = self.n_exp(pars, floor)
     try :
@@ -157,7 +167,7 @@ class Model (JSONSerializable) :
     if minimizer :
       return minimizer.profile_nps(poi)
     else :
-      return Parameters(poi, self.ref_alphas, self.ref_betas, np.zeros(self.nc), self)
+      return Parameters(poi, self.nominal_alphas, self.nominal_betas, np.zeros(self.nc), self)
 
   def generate_data(self, pars) :
     return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
@@ -212,54 +222,71 @@ class Model (JSONSerializable) :
     if 'obs_name'   in jdict : self.obs_name = jdict['obs_name']
     if 'obs_unit'   in jdict : self.obs_unit = jdict['obs_unit']
     if 'bins'       in jdict : self.bins     = np.array(jdict['bins'])
-    self.poi = jdict['poi']
+    self.poi_name = jdict['poi']
+    self.pars = {}
 
     self.alphas = []
+    fields = { 'nominal' : 0, 'variation' : 1, 'constraint' : 1 }
     self.a = np.ndarray((self.sig.size, len(jdict['alphas'])))
     for i, spec in enumerate(jdict['alphas']) :
       self.alphas.append(spec['name'])
       self.a[:,i] = spec['impact']
-      self.pars[spec['name']] = { 'nominal' : spec['nominal'], 'variation' : spec['variation'] }
+      self.pars[spec['name']] = { f : spec[f] if f in spec else fields[f] for f in fields }
     
     self.betas = []
     self.b = np.ndarray((self.sig.size, len(jdict['betas'])))
     for i, spec in enumerate(jdict['betas']) :
       self.betas.append(spec['name'])
       self.b[:,i] = spec['impact']
-      self.pars[spec['name']] = { 'nominal' : spec['nominal'], 'variation' : spec['variation'] }
+      if not 'nominal' in spec : spec['nominal'] = 0
+      if not 'variation' in spec : spec['nominal'] = 0
+      if not 'constraint' in spec : spec['nominal'] = 0
+      self.pars[spec['name']] = { f : spec[f] if f in spec else fields[f] for f in fields }
 
+    fields['constraint'] = 0 # change default for gammas
     self.gammas = []
     self.c = np.ndarray((self.sig.size, len(jdict['gammas'])))
     for i, spec in enumerate(jdict['gammas']) :
       self.gammas.append(spec['name'])
       self.c[:,i] = spec['impact']
-      self.pars[spec['name']] = { 'nominal' : spec['nominal'], 'variation' : spec['variation'] }
+      self.pars[spec['name']] = { f : spec[f] if f in spec else fields[f] for f in fields }
 
     self.init_vars()
     return self
   
   def dump_jdict(self) :
     jdict = {}
-    jdict['signal']     = self.sig.tolist()
-    jdict['background'] = self.bkg.tolist()
     jdict['model_name'] = self.name
     jdict['obs_name']   = self.obs_name
     jdict['obs_unit']   = self.obs_unit
-    jdict['bins']       = self.bins.toarray()
+    jdict['bins']       = self.bins.tolist()
+    jdict['poi']        = self.poi_name
+    jdict['signal']     = self.sig.tolist()
+    jdict['background'] = self.bkg.tolist()
 
+    fields = [ 'nominal', 'variation', 'constraint' ]
     alphas = []
     for i, alpha in enumerate(self.alphas) :
-      alphas.append({ 'name' : alpha, 'impact' : self.a[:,i].tolist() })
+      spec = { 'name' : alpha }
+      for f in fields : spec[f] = self.pars[alpha][f]
+      spec['impact'] = self.a[:,i].tolist()
+      alphas.append(spec)
     jdict['alphas'] = alphas
 
     betas = []
     for i, beta in enumerate(self.betas) :
-      betas.append({ 'name' : beta, 'impact' : self.b[:,i].tolist() })
+      spec = { 'name' : beta }
+      for f in fields : spec[f] = self.pars[beta][f]
+      spec['impact'] = self.b[:,i].tolist()
+      betas.append(spec)
     jdict['betas'] = betas
 
     gammas= []
     for i, gamma in enumerate(self.gammas) :
-      gammas.append({ 'name' : gamma, 'impact' : self.c[:,i].tolist() })
+      spec = { 'name' : gamma }
+      for f in fields : spec[f] = self.pars[gamma][f]
+      spec['impact'] = self.c[:,i].tolist()
+      gammas.append(spec)
     jdict['gammas'] = gammas
     return jdict
     
@@ -326,14 +353,14 @@ class Parameters :
       s += 'betas  = ' + str(self.betas)  + '\n'
       s += 'gammas = ' + str(self.gammas)
     else :
-      s += 'poi    : %-12s = %8.4f' %  (self.model.poi, self.poi) + '\n'
+      s += 'poi    : %-12s = %8.4f' %  (self.model.poi_name, self.poi) + '\n'
       s += 'alphas : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.alphas, self.alphas) ] ) + '\n'
       s += 'betas  : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.betas , self.betas ) ] ) + '\n'
       s += 'gammas : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.gammas, self.gammas) ] )
     return s
 
   def __getitem__(self, par):
-    if par == self.model.poi : return self.poi
+    if par == self.model.poi_name : return self.poi
     try :
       i = self.model.alphas.index(par)
       return self.alphas[i]
