@@ -56,8 +56,9 @@ elif options.asimov != None :
   data = Data(model).set_expected(model.expected_pars(options.asimov))
   print('Using Asimov dataset with %s = %g.' % (res.poi_name, options.asimov))
 else :
-  print('Using dataset stored in file %s.' % options.model_file)
   data = Data(model).load(options.model_file)
+  if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
+  print('Using dataset stored in file %s.' % options.model_file)
 
 mu0 = res.poi_initial_value
 bounds = (res.poi_min, res.poi_max)
