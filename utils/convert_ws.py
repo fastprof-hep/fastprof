@@ -33,6 +33,7 @@ parser.add_argument("-a", "--asimov"           , type=float, default=None     , 
 parser.add_argument("-x", "--data-only"        , action="store_true"          , help="Only dump the specified dataset, not the model")
 parser.add_argument(      "--refit"            , type=float, default=None     , help="Fit the model to the specified dataset before conversion")
 parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
+parser.add_argument(      "--input_bins"       , type=int  , default=0        , help="Number of bins to use when binning the input dataset")
 parser.add_argument("-u", "--asimov-errors"    , type=float, default=None     , help="Update uncertainties from a fit to an Asimov dataset")
 parser.add_argument(      "--signal"           , type=str  , default=''       , help="List of parameters to be assigned to the signal component")
 parser.add_argument(      "--bkg"              , type=str  , default=''       , help="List of parameters to be assigned to the background component")
@@ -215,7 +216,12 @@ jdict['poi'] = poi.GetName()
 # ------------------------------
 
 def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
-   result = main_pdf.fitTo(dataset, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
+   if options.binned :
+     if options.input_bins > 0 : obs.setBins(options.input_bins)
+     fit_data = dataset.binnedClone()
+   else :
+     fit_data = dataset
+   result = main_pdf.fitTo(fit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
    if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
      return fit(dataset, robust, n_max - 1, result.minNll())
    else :
@@ -224,14 +230,14 @@ def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
 if options.refit != None :
   poi.setVal(options.refit)
   poi.setConstant(True)
-  refit_data = data.binnedClone() if options.binned else data
   print('=== Refitting PDF to specified dataset with under the POI = %g hypothesis.' % poi.getVal())
-  fit(refit_data, robust=True)
+  fit(data, robust=True)
 
 # If we specified both, then it means an Asimov with NP values profiled on the observed
 if options.data_name != '' and options.asimov != None :
   poi_current = poi.getVal()
   poi.setVal(options.asimov)
+  fit(data, robust=True)
   print('=== Generating the main dataset as an Asimov with POI = %g and NP values below:' % poi.getVal())
   nuis_pars.Print('V')
   data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
