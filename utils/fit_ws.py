@@ -29,6 +29,7 @@ parser.add_argument("-a", "--asimov"           , action="store_true"          , 
 parser.add_argument("-y", "--hypos"            , type=str  , default=''       , help="Comma-separated list of POI hypothesis values")
 parser.add_argument(      "--fit-options"      , type=str  , default=''       , help="RooFit fit options to use")
 parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
+parser.add_argument(      "--input_bins"       , type=int  , default=0        , help="Number of bins to use when binning the input dataset")
 parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
 parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Variables to set constant")
 parser.add_argument("-i", "--poi-initial-value", type=float, default=None     , help="POI allowed range, in the form min,max")
@@ -44,18 +45,8 @@ if not options :
   parser.print_help()
   sys.exit(0)
 
-try :
-  nhypos = int(options.hypos)
-  n1 = (nhypos + 1) // 6
-  pos = np.concatenate((np.linspace(0, 3, 2*n1 + 1)[1:-1], np.linspace(3, 8, n1))) # twice as many points in ]0,3[ as in [3,8]
-  hypo_zs = np.concatenate((np.flip(-pos), np.zeros(1), pos))
-  hypos = None
-except:
-  try :
-    hypos = [ float(h) for h in options.hypos.split(',') ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
+# 1. Load workspace and modify as specified
+# =========================================
 
 f = ROOT.TFile(options.ws_file)
 if not f or not f.IsOpen() :
@@ -124,8 +115,17 @@ nuis_pars = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
 ws.saveSnapshot('init', nuis_pars)
 poi_init_val = poi.getVal()
 
+
+# 2. Get the data and refit as needed
+# ===================================
+
 def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
-   result = main_pdf.fitTo(dataset, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
+   if options.binned :
+     if options.input_bins > 0 : obs.setBins(options.input_bins)
+     fit_data = dataset.binnedClone()
+   else :
+     fit_data = dataset
+   result = main_pdf.fitTo(fit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
    if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
      return fit(dataset, robust, n_max - 1, result.minNll())
    else :
@@ -137,13 +137,20 @@ if options.data_name != '' :
   if data == None :
     ds = [ d.GetName() for d in ws.allData() ]
     raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
-  if options.binned : data = data.binnedClone()
-
-if options.asimov :
-    data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+elif options.asimov :
+  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
 if data == None :
   raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
+
+# If we specified both, then it means an Asimov with NP values profiled on the observed
+if options.data_name != '' and options.asimov != None :
+  poi.setVal(options.asimov)
+  fit(data, robust=True)
+  print('=== Generating the main dataset as an Asimov with POI = %g and NP values below:' % poi.getVal())
+  nuis_pars.Print('V')
+  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+  ws.loadSnapshot('init')
     
 poi.setVal(0)
 poi.setConstant(True)
@@ -154,6 +161,28 @@ asimov0 = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArg
 
 nll  = main_pdf.createNLL(data)
 nll0 = main_pdf.createNLL(asimov0)
+
+
+# 3. Define hypothesis values
+# ===========================
+
+try :
+  fits_file = open(options.hypos)
+  fits_dict = json.load(fits_file)
+  hypos = [ fr[poi.GetName()] for fr in fits_dict['fit_results'] ]
+except :
+  try :
+    nhypos = int(options.hypos)
+    n1 = (nhypos + 1) // 6
+    pos = np.concatenate((np.linspace(0, 3, 2*n1 + 1)[1:-1], np.linspace(3, 8, n1))) # twice as many points in ]0,3[ as in [3,8]
+    hypo_zs = np.concatenate((np.flip(-pos), np.zeros(1), pos))
+    hypos = None
+  except:
+    try :
+      hypos = [ float(h) for h in options.hypos.split(',') ]
+    except Exception as inst :
+      print(inst)
+      raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
 
 if hypos == None : # we need to auto-define them based on the POI uncertainty
   ws.loadSnapshot('init')
