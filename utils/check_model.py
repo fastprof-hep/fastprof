@@ -15,15 +15,16 @@ from fastprof import Model, Data, FitResults, QMuCalculator, QMuTildaCalculator,
 
 parser = ArgumentParser("check_model.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
-parser.add_argument("-m", "--model-file"    , type=str  , default=''    , help="Name of JSON file defining model")
-parser.add_argument("-d", "--data-file"     , type=str  , default=''    , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
-parser.add_argument("-a", "--asimov"        , type=float, default=None  , help="Fit an Asimov dataset for the specified POI value")
-parser.add_argument("-f", "--fits-file"     , type=str  , default=''    , help="Name of JSON file containing full-model fit results")
-parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
-parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use in the check")
-parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
-parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
-parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
+parser.add_argument("-m", "--model-file"    , type=str  , default=''     , help="Name of JSON file defining model")
+parser.add_argument("-d", "--data-file"     , type=str  , default=''     , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
+parser.add_argument("-a", "--asimov"        , type=float, default=None   , help="Fit an Asimov dataset for the specified POI value")
+parser.add_argument("-f", "--fits-file"     , type=str  , default=''     , help="Name of JSON file containing full-model fit results")
+parser.add_argument(      "--regularize"    , type=float, default=None   , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu' , help="Test statistic to use in the check")
+parser.add_argument(      "--marker"        , type=str  , default=''     , help="Marker type for plots")
+parser.add_argument("-b", "--batch-mode"    , action='store_true'        , help="Batch mode: no plots shown")
+parser.add_argument("-v", "--verbosity"     , type=int  , default=0      , help="Verbosity level")
+parser.add_argument("-o", "--output-file"   , type=str  , default='check', help="Output file name")
 
 options = parser.parse_args()
 if not options :
