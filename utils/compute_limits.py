@@ -31,9 +31,10 @@ parser.add_argument(      "--regularize"    , type=float, default=None  , help="
 parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use")
 parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
 parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
-parser.add_argument(      "--bands"         , type=int  , default=2     , help="Number of bands to show")
+parser.add_argument(      "--bands"         , type=int  , default=None  , help="Number of bands to show")
 parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
 parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
+parser.add_argument(      "--truncate_dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
 parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
 
 options = parser.parse_args()
@@ -92,20 +93,31 @@ opti_samples = CLsSamples( \
   Samples(samplers_cl_b, options.output_file + '_clb')) \
   .generate_and_save(options.ntoys, break_locks=options.break_locks)
 
+if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
+
 for fit_result in fit_results :
   fit_result['sampling_pv' ] = opti_samples.clsb.pv(fit_result[res.poi_name], fit_result['pv'])
   fit_result['sampling_clb'] = opti_samples.cl_b.pv(fit_result[res.poi_name], fit_result['pv'])
   fit_result['sampling_cls'] = opti_samples.pv     (fit_result[res.poi_name], fit_result['pv'])
+
+if options.bands :
+  sampling_bands = opti_samples.bands(options.bands)
+  for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+    for fit_result, band_point in zip(fit_results, sampling_bands[band]) : fit_result['sampling_cls_%+d' % band] = band_point
+
 res.print(verbosity=1)
 
-target_pv = 1 - options.cl
+limit_asy_full_clsb = calc.limit('pv'          , options.cl)
+limit_asy_fast_clsb = calc.limit('fast_pv'     , options.cl)
+limit_sampling_clsb = calc.limit('sampling_pv' , options.cl)
+limit_asy_full_cls  = calc.limit('cls'         , options.cl)
+limit_asy_fast_cls  = calc.limit('fast_cls'    , options.cl)
+limit_sampling_cls  = calc.limit('sampling_cls', options.cl)
 
-limit_asy_full_clsb = res.solve('pv'          , target_pv, log_scale = True)
-limit_asy_fast_clsb = res.solve('fast_pv'     , target_pv, log_scale = True)
-limit_sampling_clsb = res.solve('sampling_pv' , target_pv, log_scale = True)
-limit_asy_full_cls  = res.solve('cls'         , target_pv, log_scale = True)
-limit_asy_fast_cls  = res.solve('fast_cls'    , target_pv, log_scale = True)
-limit_sampling_cls  = res.solve('sampling_cls', target_pv, log_scale = True)
+if options.bands :
+  limit_sampling_cls_bands = {}
+  for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+    limit_sampling_cls_bands[band] = calc.limit('sampling_cls_%+d' % band, options.cl)
 
 # Print results
 if limit_asy_full_clsb : print('Asymptotics, full model, CLsb : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_full_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_full_clsb)))))
@@ -147,6 +159,10 @@ jdict['limit_asymptotics_CLs_fast'] = limit_asy_fast_cls
 jdict['limit_sampling_CLsb'] = limit_sampling_clsb
 jdict['limit_asymptotics_CLsb'] = limit_asy_full_clsb
 jdict['limit_asymptotics_CLsb_fast'] = limit_asy_fast_clsb
+
+if options.bands :
+  for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+    jdict['limit_sampling_CLs_expected_band_%+d' % band] = limit_sampling_cls_bands[band]
 
 with open(options.output_file + '_results.json', 'w') as fd:
   json.dump(jdict, fd, ensure_ascii=True, indent=3)
