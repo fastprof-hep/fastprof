@@ -466,9 +466,15 @@ class Data (JSONSerializable) :
     return self
   
   def load_jdict(self, jdict) :
-    self.n          = np.array(jdict['data']['bin_counts'])
+    self.n = np.array(jdict['data']['bin_counts'])
+    if self.n.size != self.model.sig.size :
+      raise ValueError('Input data "n" should have the same size as the model expectations, got ' + str(self.n))
     self.aux_alphas = np.array(jdict['data']['aux_alphas'])
+    if self.aux_alphas.size != self.model.na :
+      raise ValueError('Input data "aux_alphas" should have the same size as the "alphas" of the model (%d), got %s.' % (self.model.na, str(self.aux_alphas)))
     self.aux_betas  = np.array(jdict['data']['aux_betas'])
+    if self.aux_betas.size != self.model.b.shape[1] :
+      raise ValueError('Input data "aux_beta" should have the same size as the "betas" of the model (%d), got %s.' % (self.model.nb, str(self.aux_betas)))
     return self
 
   def dump_jdict(self) :
