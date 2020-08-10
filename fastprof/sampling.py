@@ -46,6 +46,11 @@ class SamplingDistribution :
     #print('Quantile: frac = %g -> index = %d -> pv = %g' % (fraction, index, self.samples[index]))
     return self.samples[index]
 
+  def cut(self, min_val = None, max_val = None) :
+    if min_val : self.samples = self.samples[self.samples >= min_val]
+    if max_val : self.samples = self.samples[self.samples <= max_val]
+    return self
+
 
 # -------------------------------------------------------------------------
 class SamplesBase :
@@ -141,6 +146,11 @@ class Samples (SamplesBase) :
       raise KeyError('No sample available for POI = %g' % poi)
     return samples.quantile(fraction, sigma)
 
+  def cut(self, min_val = None, max_val = None) :
+    for poi in self.pois : self.dists[poi].cut(min_val, max_val)
+    return self
+
+
 # -------------------------------------------------------------------------
 class CLsSamples (SamplesBase) :
   def __init__(self, clsb_samples, cl_b_samples) :
@@ -186,3 +196,9 @@ class CLsSamples (SamplesBase) :
       sd.sort()
       cls_samples.dists[poi] = sd
     return cls_samples.bands(max_sigmas)
+
+  def cut(self, min_val = None, max_val = None) :
+    self.clsb.cut(min_val, max_val)
+    self.cl_b.cut(min_val, max_val)
+    return self
+
