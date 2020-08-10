@@ -10,31 +10,31 @@ from .core import Model, Parameters, Data
 # -------------------------------------------------------------------------
 class NPMinimizer :
   def __init__(self, data) :
-    self.model = data.model
     self.data = data
 
 # Same as above, more readable, and faster -- use by default
   def pq_einsum(self, hypo) :
-    snom = self.model.s_exp(hypo)
-    bnom = self.model.b_exp(hypo)
+    model = self.data.model
+    snom = model.s_exp(hypo)
+    bnom = model.b_exp(hypo)
     nnom = snom + bnom
     rB = bnom/nnom
     rS = snom/nnom
     dN = nnom - self.data.n
-    qA = np.einsum('i,i,ij->j', rS, dN, self.model.a) + hypo.alphas + self.model.nominal_alphas - self.data.aux_alphas
-    qB = np.einsum('i,i,ij->j', rB, dN, self.model.b) + hypo.betas  + self.model.nominal_betas  - self.data.aux_betas
-    qC = np.einsum('i,i,ij->j', rB, dN, self.model.c)
-    pAA = np.einsum('i,i,ij,ik->jk',   rS, rS *self.data.n + dN, self.model.a, self.model.a) + self.model.diag_alphas
-    pAB = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , self.model.a, self.model.b)
-    pAC = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , self.model.a, self.model.c)
-    pBB = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , self.model.b, self.model.b) + self.model.diag_betas
-    pBC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , self.model.b, self.model.c)
-    pCC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , self.model.c, self.model.c) + self.model.diag_gammas
+    qA = np.einsum('i,i,ij->j', rS, dN, model.a) + hypo.alphas + model.nominal_alphas - self.data.aux_alphas
+    qB = np.einsum('i,i,ij->j', rB, dN, model.b) + hypo.betas  + model.nominal_betas  - self.data.aux_betas
+    qC = np.einsum('i,i,ij->j', rB, dN, model.c)
+    pAA = np.einsum('i,i,ij,ik->jk',   rS, rS *self.data.n + dN, model.a, model.a) + model.diag_alphas
+    pAB = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , model.a, model.b)
+    pAC = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , model.a, model.c)
+    pBB = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , model.b, model.b) + model.diag_betas
+    pBC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , model.b, model.c)
+    pCC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , model.c, model.c) + model.diag_gammas
     return np.block([[pAA, pAB, pAC], [np.transpose(pAB), pBB, pBC], [np.transpose(pAC), np.transpose(pBC), pCC]]), np.block([qA, qB, qC])
   
   def profile(self, hypo) :
     if isinstance(hypo, (int, float)) :
-      hypo = self.model.expected_pars(hypo).set_from_aux(self.data)
+      hypo = self.data.model.expected_pars(hypo).set_from_aux(self.data)
     p, q = self.pq_einsum(hypo)
     d = np.linalg.det(p)
     if abs(d) < 1E-8 :
@@ -42,21 +42,20 @@ class NPMinimizer :
       nps = self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
     else :
       v = np.linalg.inv(p).dot(q)
-      nps = hypo.alphas - v[:self.model.na], \
-            hypo.betas  - v[self.model.na:self.model.nsyst], \
-            hypo.gammas - v[self.model.nsyst:]
-    self.min_pars = Parameters(hypo.poi, *nps, self.model)
+      nps = hypo.alphas - v[:self.data.model.na], \
+            hypo.betas  - v[self.data.model.na:self.data.model.nsyst], \
+            hypo.gammas - v[self.data.model.nsyst:]
+    self.min_pars = Parameters(hypo.poi, *nps, self.data.model)
     return self.min_pars
   
   def profile_nll(self, hypo = None, floor = None) :
     self.profile(hypo)
-    return self.model.nll(self.min_pars, self.data, floor=floor)
+    return self.data.model.nll(self.min_pars, self.data, floor=floor)
   
   
 # -------------------------------------------------------------------------
 class POIMinimizer :
   def __init__(self, data, niter = 1, floor = None) :
-    self.model = data.model
     self.data = data
     self.niter = niter
     self.floor = floor
@@ -66,21 +65,21 @@ class POIMinimizer :
     pass
   def profile_nps(self, hypo) :
     if isinstance(hypo, (int, float)) : 
-      hypo = self.model.expected_pars(hypo)
+      hypo = self.data.model.expected_pars(hypo)
     self.np_min = NPMinimizer(self.data)
     self.min_pars = hypo
     for i in range(0, self.niter) :
       self.np_min.profile(self.min_pars)
       self.min_pars = self.np_min.min_pars
-    self.nll_min = self.model.nll(self.min_pars, self.data, floor=self.floor)
+    self.nll_min = self.data.model.nll(self.min_pars, self.data, floor=self.floor)
     #print('profile NPs @ %g' % poi)
     #print(str(self.min_pars))
     return self.min_pars
   def tmu(self, hypo, free=None) :
     if isinstance(hypo, (int, float)) :
-      hypo = self.model.expected_pars(hypo, self)
+      hypo = self.data.model.expected_pars(hypo, self)
     if isinstance(free, (int, float)) :
-      free = self.model.expected_pars(free, self)
+      free = self.data.model.expected_pars(free, self)
     #print('tmu @ %g' % hypo.poi)
     self.profile_nps(hypo)
     self.hypo_nll = self.nll_min
@@ -106,7 +105,7 @@ class POIMinimizer :
   def asimov_clone(self, poi) :
     clone = copy.copy(self)
     #print('generating asimov')
-    clone.data = self.model.generate_expected(poi, self)
+    clone.data = self.data.model.generate_expected(poi, self)
     return clone
 
 # -------------------------------------------------------------------------
@@ -116,7 +115,7 @@ class ScanMinimizer (POIMinimizer) :
     self.scan_pois = scan_pois
     self.pars = []
     for poi in scan_pois :
-      self.pars.append(Parameters(poi, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc), self.model))
+      self.pars.append(Parameters(poi, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.data.model.nc), self.data.model))
 
   def minimize(self, init_hypo) :
     self.nlls = np.zeros(self.scan_pois.size)
@@ -153,7 +152,7 @@ class OptiMinimizer (POIMinimizer) :
    
   def minimize(self, init_hypo = None) :
     if init_hypo == None :
-      current_hypo = self.model.expected_pars(self.poi0, self)
+      current_hypo = self.data.model.expected_pars(self.poi0, self)
     else :
       current_hypo = copy.deepcopy(init_hypo)
     def objective(poi) :
@@ -168,14 +167,14 @@ class OptiMinimizer (POIMinimizer) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
       self.profile_nps(current_hypo.set_poi(poi))
-      if self.debug > 0 : print('== Jacobian:', self.np_min.model.grad_poi(self.np_min.min_pars, self.data))
-      return np.array([ self.np_min.model.grad_poi(self.np_min.min_pars, self.data) ])
+      if self.debug > 0 : print('== Jacobian:', self.np_min.data.model.grad_poi(self.np_min.min_pars, self.data))
+      return np.array([ self.np_min.data.model.grad_poi(self.np_min.min_pars, self.data) ])
     def hess_p(poi, v) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
       self.profile_nps(current_hypo.set_poi(poi))
-      if self.debug > 0 : print('== Hessian:', self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0])
-      return np.array([ self.np_min.model.hess_poi(self.np_min.min_pars, self.data)*v[0] ])
+      if self.debug > 0 : print('== Hessian:', self.np_min.data.model.hess_poi(self.np_min.min_pars, self.data)*v[0])
+      return np.array([ self.np_min.data.model.hess_poi(self.np_min.min_pars, self.data)*v[0] ])
     if self.method == 'scalar' :
       if self.debug > 0 : print('== Optimizer: using scalar  ----------------')
       result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xatol': 1e-5 })
