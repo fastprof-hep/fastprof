@@ -80,3 +80,5 @@ fastprof/utils/iterate.py -p 150:2500:200:logint -c "sub_lim_no_a0_17 % 3" -o al
 ./fastprof/utils/compute_limits.py -m models/highMass_NW-no-a0-17/model_highMass_NW-no-a0-17-log250-2939.json -d run/fastprof/data_highMass-log250.json -f fits/highMass_NW-no-a0-17/fits_highMass_NW-no-a0-17-2939.json -r 3 -o samples/ref-2939/samples-2939 -n 10000 >&! samples/log-ref-2939
 fastprof/utils/iterate.py -p 160:3000:500:logint -c "source mk_lyon_limit_no_a0_17 % 3" -o compute_lyon_limits-no_a0_17
 python -i ./fastprof/utils/collect_results.py -p 160:3000:500:logint -i samples/highMass_NW-no-a0-17/highMass_NW-no-a0-17-obs_%-r3/samples/highMass_NW-no-a0-17-obs_%-r3_results.json -k limit_sampling_CLs -o lyon_limit_sampling_CLs.json --root-output lyon_limit_sampling_CLs.root
+
+python -i ./fastprof/utils/compute_limits.py -m models/highMass_NW-no-a0-17/model_highMass_NW-no-a0-17-log250-2939.json -d run/fastprof/data_highMass-log250.json -f fits/highMass_NW-no-a0-17/fits_highMass_NW-no-a0-17-2939.json -o samples/highMass_NW-no-a0-17/highMass_NW-no-a0-17-obs_2939-r3/samples/highMass_NW-no-a0-17-obs_2939-r3 -n 10000 --truncate_dist 0.99 --bands 2
