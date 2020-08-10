@@ -16,23 +16,14 @@ from .minimizers import OptiMinimizer, ScanMinimizer
 class Sampler :
   def __init__(self, model, test_hypo, gen_hypo = None, print_freq = 1000) :
     self.model = model
-    if isinstance(test_hypo, (int, float)) :
-      self.test_hypo = model.expected_pars(test_hypo)
-    else :
-      self.test_hypo = test_hypo
-    if gen_hypo == None :
-      self.gen_hypo = copy.deepcopy(self.test_hypo)
-    elif isinstance(gen_hypo, (int, float)) :
-      self.gen_hypo = model.expected_pars(gen_hypo)
-    else :
-      self.gen_hypo = gen_hypo
+    self.gen_hypo = model.expected_pars(gen_hypo) if isinstance(gen_hypo, (int, float)) else gen_hypo
     self.freq = print_freq
 
   def progress(self, k, ntoys) :
     if k % self.freq == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
 
   def generate(self, ntoys) :
-    print('Generating POI hypothesis %g, and will compute at %g. Full gen hypo = ' % (self.gen_hypo.poi, self.test_hypo.poi))
+    print('Generating POI hypothesis %g. Full gen hypo = ' % self.gen_hypo.poi)
     print(str(self.gen_hypo))
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
@@ -41,29 +32,31 @@ class Sampler :
       while not success :
         if self.debug : print('DEBUG: iteration %d generating data for hypo %g.' % (k, self.gen_hypo.poi))
         data = self.model.generate_data(self.gen_hypo)
-        pv = self.compute_pv(data, k)
-        if pv != None :
+        result = self.compute(data, k)
+        if result != None :
           success = True
         else :
           print('Processing toy iteration %d failed, repeating it.' % k)
-      self.dist.samples[k] = pv
+      self.dist.samples[k] = result
     return self.dist
 
   @abstractmethod
-  def compute_pv(self, data, toy_iter) :
+  def compute(self, data, toy_iter) :
      pass
 
 
 # -------------------------------------------------------------------------
 class ScanSampler (Sampler) :
-  def __init__(self, model, test_hypo, scan_mus, gen_hypo = False, print_freq = 1000, tmu_A = None, tmu_0 = None) :
-    super().__init__(model, test_hypo, gen_hypo, print_freq)
+  def __init__(self, model, test_hypo, scan_mus, gen_hypo = None, print_freq = 1000, tmu_A = None, tmu_0 = None) :
+    super().__init__(model, gen_hypo, print_freq)
+    self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
+    if gen_hypo == None : self.gen_hypo = copy.deepcopy(self.test_hypo)
     self.scan_mus = scan_mus
     self.tmu_A = tmu_A
     self.tmu_0 = tmu_0
     self.use_qtilda = True if tmu_A != None and tmu_0 != None else False
     
-  def compute_pv(self, data, toy_iter) :
+  def compute(self, data, toy_iter) :
     opti = ScanMinimizer(data, self.scan_mus)
     tmu = opti.tmu(self.test_hypo, self.test_hypo)
     if self.use_qtilda :
@@ -76,7 +69,9 @@ class ScanSampler (Sampler) :
 # -------------------------------------------------------------------------
 class OptiSampler (Sampler) :
   def __init__(self, model, test_hypo, mu0 = 0, bounds = None, method = 'scalar', gen_hypo = None, print_freq = 1000, niter=1, tmu_A = None, tmu_0 = None, floor=1E-7, debug=False) :
-    super().__init__(model, test_hypo, gen_hypo, print_freq)
+    super().__init__(model, gen_hypo, print_freq)
+    self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
+    if gen_hypo == None : self.gen_hypo = copy.deepcopy(self.test_hypo)
     self.mu0 = mu0
     self.bounds = bounds
     self.method = method
@@ -88,10 +83,10 @@ class OptiSampler (Sampler) :
     self.use_qtilda = True if tmu_A != None and tmu_0 != None else False
     self.debug_data = pd.DataFrame()
     
-  def compute_pv(self, data, toy_iter) :
+  def compute(self, data, toy_iter) :
     opti = OptiMinimizer(data, self.mu0, self.bounds, self.method, self.niter, self.floor)
     tmu = opti.tmu(self.test_hypo, self.test_hypo)
-    if tmu == 0 :
+    if tmu < 1E-3 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
       if self.debug and opti.tmu_debug < -10 : data.save('data_%d.json' % toy_iter)
       return None
@@ -134,3 +129,15 @@ class OptiSampler (Sampler) :
         self.debug_data.at[toy_iter, 'hypo_' + c] = opti.hypo_pars.gammas[i]
       data.save('data/data_%d.json' % toy_iter)
     return q.asymptotic_pv()
+
+
+# -------------------------------------------------------------------------
+class LimitSampler (Sampler) :
+  def __init__(self, model, gen_hypo, limit_calc, cl = 0.95, print_freq = 1000) :
+    super().__init__(model, gen_hypo, print_freq)
+    self.limit_calc = limit_calc
+    self.cl = cl
+
+  def compute(self, data, toy_iter) :
+    self.limit_calc.fill_fast_results(data = data, pv_key = 'fast_pv')
+    return self.limit_calc.limit(pv_key = 'fast_pv', cl=self.cl)
