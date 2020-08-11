@@ -14,7 +14,7 @@ from .minimizers import OptiMinimizer, ScanMinimizer
 
 # -------------------------------------------------------------------------
 class Sampler :
-  def __init__(self, model, test_hypo, gen_hypo = None, print_freq = 1000) :
+  def __init__(self, model, gen_hypo = None, print_freq = 1000) :
     self.model = model
     self.gen_hypo = model.expected_pars(gen_hypo) if isinstance(gen_hypo, (int, float)) else gen_hypo
     self.freq = print_freq
@@ -50,7 +50,7 @@ class ScanSampler (Sampler) :
   def __init__(self, model, test_hypo, scan_mus, gen_hypo = None, print_freq = 1000, tmu_A = None, tmu_0 = None) :
     super().__init__(model, gen_hypo, print_freq)
     self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
-    if gen_hypo == None : self.gen_hypo = copy.deepcopy(self.test_hypo)
+    if self.gen_hypo == None : self.gen_hypo = copy.deepcopy(self.test_hypo)
     self.scan_mus = scan_mus
     self.tmu_A = tmu_A
     self.tmu_0 = tmu_0
@@ -71,7 +71,7 @@ class OptiSampler (Sampler) :
   def __init__(self, model, test_hypo, mu0 = 0, bounds = None, method = 'scalar', gen_hypo = None, print_freq = 1000, niter=1, tmu_A = None, tmu_0 = None, floor=1E-7, debug=False) :
     super().__init__(model, gen_hypo, print_freq)
     self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
-    if gen_hypo == None : self.gen_hypo = copy.deepcopy(self.test_hypo)
+    if self.gen_hypo == None : self.gen_hypo = copy.deepcopy(self.test_hypo)
     self.mu0 = mu0
     self.bounds = bounds
     self.method = method
