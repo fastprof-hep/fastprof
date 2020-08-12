@@ -142,7 +142,8 @@ if not options.batch_mode :
   plt.suptitle('$CL_s$')
   plt.xlabel(model.poi_name)
   plt.ylabel('$CL_s$')
-  opti_samples.plot_bands(options.bands)
+  if options.bands :
+    opti_samples.plot_bands(options.bands)
   plt.plot(res.hypos, [ fit_result['cls']          for fit_result in fit_results ], options.marker + 'r:' , label = 'Asymptotics')
   plt.plot(res.hypos, [ fit_result['sampling_cls'] for fit_result in fit_results ], options.marker + 'b-'  , label = 'Sampling')
   plt.legend()
