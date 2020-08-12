@@ -143,7 +143,7 @@ class QMuCalculator(LimitCalculator) :
       q = QMu(test_poi = hypo.poi, tmu = tmu, best_poi = self.minimizer.min_poi)
       fit_result[q_key] = q.value()
       if hypo_key != '' and free_key != '' :
-        fit_result[fast_tmu_full] = 2*(self.minimizer.model.nll(fit_result[hypo_key], self.minimizer.data) - self.minimizer.model.nll(fit_result[free_key], self.minimizer.data))
+        fit_result[fast_tmu_full] = 2*(self.minimizer.data.model.nll(fit_result[hypo_key], self.minimizer.data) - self.minimizer.data.model.nll(fit_result[free_key], self.minimizer.data))
     self.fill_qpv(q_key = 'fast_q_mu', pv_key = 'fast_pv', cls_key = 'fast_cls', clb_key = 'fast_clb', tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_0_key = 'fast_tmu_0')
     return self
 
