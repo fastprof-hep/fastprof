@@ -86,7 +86,7 @@ class OptiSampler (Sampler) :
   def compute(self, data, toy_iter) :
     opti = OptiMinimizer(data, self.mu0, self.bounds, self.method, self.niter, self.floor)
     tmu = opti.tmu(self.test_hypo, self.test_hypo)
-    if tmu < 1E-3 :
+    if tmu < 1E-7 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
       if self.debug and opti.tmu_debug < -10 : data.save('data_%d.json' % toy_iter)
       return None
