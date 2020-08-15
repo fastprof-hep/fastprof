@@ -10,7 +10,7 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, FitResults, QMuCalculator, QMuTildaCalculator
+from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, FitResults, QMuCalculator, QMuTildaCalculator, ParBound
 
 ####################################################################################################################################
 ###
@@ -24,7 +24,7 @@ parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="
 parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
 parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
 parser.add_argument("-%", "--print-freq"    , type=int  , default=1000  , help="Verbosity level")
-parser.add_argument("-d", "--data-file"     , type=str  , default=''    , help="Perform checks using the dataset stored in the specified JSON file")
+parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Perform checks using the dataset stored in the specified JSON file")
 parser.add_argument("-a", "--asimov"        , type=float, default=None  , help="Perform checks using an Asimov dataset for the specified POI value")
 parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
 parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
@@ -34,7 +34,8 @@ parser.add_argument(      "--debug"         , action='store_true'       , help="
 parser.add_argument(      "--bands"         , type=int  , default=None  , help="Number of bands to show")
 parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
 parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
-parser.add_argument(      "--truncate_dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
+parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
+parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1:[min]:[max],name2:[min]:[max],...")
 parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
 
 options = parser.parse_args()
@@ -62,15 +63,26 @@ else :
   print('Using dataset stored in file %s.' % options.model_file)
 
 mu0 = res.poi_initial_value
-bounds = (res.poi_min, res.poi_max)
+poi_bounds = (res.poi_min, res.poi_max)
+
+bounds = []
+if options.bounds :
+  bound_specs = options.bounds.split(',')
+  try :
+    for spec in bound_specs :
+      fields = spec.split(':')
+      bounds.append(ParBound(fields[0], float(fields[1]) if fields[1] != '' else None, float(fields[2]) if fields[2] != '' else None))
+  except Exception as inst:
+    print('ERROR: could not parse parameter bound specification "%s", expected in the form name1:[min]:[max],name2:[min]:[max],...' % options.bounds)
+    raise(inst)
 
 # Check the fastprof CLs against the ones in the reference: in principle this should match well,
 # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
 print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
 if options.test_statistic == 'q~mu' :
-  calc = QMuTildaCalculator(OptiMinimizer(data, mu0, bounds), res)
+  calc = QMuTildaCalculator(OptiMinimizer(data, mu0, poi_bounds), res)
 elif options.test_statistic == 'q_mu' :
-  calc = QMuCalculator(OptiMinimizer(data, mu0, bounds), res)
+  calc = QMuCalculator(OptiMinimizer(data, mu0, poi_bounds), res)
 else:
   raise ValueError('Unknown test statistic %s.' % options.test_statistic)
 calc.fill_qpv()
@@ -85,8 +97,8 @@ for fit_result in res.fit_results :
   test_hypo = fit_result['hypo_pars']
   tmu_0 = fit_result['fast_tmu_0']
   gen0_hypo = copy.deepcopy(test_hypo).set_poi(0)
-  samplers_clsb.append(OptiSampler(model, test_hypo, mu0=mu0, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
-  samplers_cl_b.append(OptiSampler(model, test_hypo, mu0=mu0, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
+  samplers_clsb.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
+  samplers_cl_b.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
 
 opti_samples = CLsSamples( \
   Samples(samplers_clsb, options.output_file), \
