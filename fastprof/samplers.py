@@ -68,11 +68,12 @@ class ScanSampler (Sampler) :
 
 # -------------------------------------------------------------------------
 class OptiSampler (Sampler) :
-  def __init__(self, model, test_hypo, mu0 = 0, bounds = None, method = 'scalar', gen_hypo = None, print_freq = 1000, niter=1, tmu_A = None, tmu_0 = None, floor=1E-7, debug=False) :
+  def __init__(self, model, test_hypo, mu0 = 0, poi_bounds = None, bounds = [], method = 'scalar', gen_hypo = None, print_freq = 1000, niter=1, tmu_A = None, tmu_0 = None, floor=1E-7, debug=False) :
     super().__init__(model, gen_hypo, print_freq)
     self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
     if self.gen_hypo == None : self.gen_hypo = copy.deepcopy(self.test_hypo)
     self.mu0 = mu0
+    self.poi_bounds = poi_bounds
     self.bounds = bounds
     self.method = method
     self.debug = debug
@@ -84,15 +85,24 @@ class OptiSampler (Sampler) :
     self.debug_data = pd.DataFrame()
     
   def compute(self, data, toy_iter) :
-    opti = OptiMinimizer(data, self.mu0, self.bounds, self.method, self.niter, self.floor)
+    opti = OptiMinimizer(data, self.mu0, self.poi_bounds, self.method, self.niter, self.floor)
     tmu = opti.tmu(self.test_hypo, self.test_hypo)
     if tmu < 1E-7 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
       if self.debug and opti.tmu_debug < -10 : data.save('data_%d.json' % toy_iter)
       return None
+    for bound in self.bounds :
+      if not bound.test(opti.free_deltas) :
+        print('Warning: free fit parameters below fail bound %s' % str(bound))
+        print(opti.free_pars)
+        return None
+      if not bound.test(opti.hypo_deltas) :
+        print('Warning: hypothesis fit parameters below fail bound %s' % str(bound))
+        print(opti.hypo_pars)
+        return None
     if self.debug :
-      print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' % (self.mu0, *self.bounds, tmu, opti.min_poi))
-      print(opti.min_pars)
+      print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' % (self.mu0, *self.poi_bounds, tmu, opti.min_poi))
+      print(opti.free_pars)
       print(opti.hypo_pars)
     if self.use_qtilda :
       q = QMuTilda(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
