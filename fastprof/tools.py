@@ -188,3 +188,20 @@ class QMuTildaCalculator(LimitCalculator) :
     self.fill_qpv(q_key = 'fast_q~mu', pv_key = 'fast_pv', cls_key = 'fast_cls', clb_key = 'fast_clb',
                   tmu_key = 'fast_tmu', best_poi_key = 'fast_best_fit_val', tmu_0_key = 'fast_tmu_0')
     return self
+
+class ParBound :
+  def __init__(self, par, minval = None, maxval = None) :
+    self.par = par
+    self.minval = minval
+    self.maxval = maxval
+  def test(self, pars) :
+    try :
+      return (pars[self.par] >= self.minval if self.minval != None else True) and (pars[self.par] <= self.maxval if self.maxval != None else True)
+    except KeyError :
+      return True
+  def __str__(self) :
+    smin = '%s >= %g' % (self.par, self.minval) if self.minval != None else ''
+    smax = '%s <= %g' % (self.par, self.maxval) if self.maxval != None else ''
+    if smin == '' : return smax
+    if smax == '' : return smin
+    return smin + ' and ' + smax
