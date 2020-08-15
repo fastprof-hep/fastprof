@@ -42,9 +42,11 @@ class NPMinimizer :
       nps = self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
     else :
       v = np.linalg.inv(p).dot(q)
-      nps = hypo.alphas - v[:self.data.model.na], \
-            hypo.betas  - v[self.data.model.na:self.data.model.nsyst], \
-            hypo.gammas - v[self.data.model.nsyst:]
+      deltas = v[:self.data.model.na], v[self.data.model.na:self.data.model.nsyst], v[self.data.model.nsyst:]
+      nps = hypo.alphas - deltas[0], \
+            hypo.betas  - deltas[1], \
+            hypo.gammas - deltas[2]
+    self.min_deltas = Parameters(hypo.poi, *deltas, self.data.model)
     self.min_pars = Parameters(hypo.poi, *nps, self.data.model)
     return self.min_pars
   
@@ -84,10 +86,12 @@ class POIMinimizer :
     self.profile_nps(hypo)
     self.hypo_nll = self.nll_min
     self.hypo_pars = self.min_pars
+    self.hypo_deltas = self.np_min.min_deltas
     self.minimize(free)
     if self.nll_min == None : return None
     self.free_nll = self.nll_min
     self.free_pars = self.min_pars
+    self.free_deltas = self.np_min.min_deltas
     #print(self.free_nll, str(self.free_pars))
     #print(self.hypo_nll, str(self.hypo_pars))
     tmu = 2*(self.hypo_nll - self.free_nll)
