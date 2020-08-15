@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-__doc__ = "Perform a fit to a fast model"
+__doc__ = "Plot validation data generated with convert_ws"
 __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys

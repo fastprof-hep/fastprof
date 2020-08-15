@@ -12,12 +12,14 @@ from fastprof import Model, FitResults, QMu
 
 parser = ArgumentParser("dump_debug.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
-parser.add_argument('filename'          , type=str, nargs=1    , help='Name of the CSV file in which samples are stored')
-parser.add_argument("-b", "--nbins"     , type=int, default=100, help="Number of bins to use")
-parser.add_argument("-l", "--log-scale" , action='store_true'  , help="Use log scale for plotting")
-parser.add_argument("-r", "--reference" , action='store_true'  , help="Use log scale for plotting")
-parser.add_argument("-y", "--hypo"      , type=str, default='' , help="Generation hypothesis, format: <file>:<index>")
-parser.add_argument("-m", "--model-file", type=str, default='' , help="Name of JSON file defining model")
+parser.add_argument('filename'          , type=str  , nargs=1    , help='Name of the CSV file in which samples are stored')
+parser.add_argument("-b", "--nbins"     , type=int  , default=100, help="Number of bins to use")
+parser.add_argument("-l", "--log-scale" , action='store_true'    , help="Use log scale for plotting")
+parser.add_argument("-r", "--reference" , action='store_true'    , help="Use log scale for plotting")
+parser.add_argument("-y", "--hypo"      , type=str  , default='' , help="Generation hypothesis, format: <file>:<index>")
+parser.add_argument("-m", "--model-file", type=str  , default='' , help="Name of JSON file defining model")
+parser.add_argument("-n", "--np-range"  , type=float, default=3  , help="X-axis range [-x, x] for NP histograms")
+parser.add_argument("-t", "--tmu-range" , type=float, default=10 , help="X-axis range [0, x] for tmu histograms")
 
 options = parser.parse_args()
 if not options :
@@ -30,7 +32,7 @@ plt.ion()
 fig1,ax1 = plt.subplots(2,2)
 
 debug.hist('mu_hat', ax=ax1[0,0], bins=options.nbins)
-debug.hist('tmu'   , ax=ax1[0,1], bins=np.linspace(0, 10, options.nbins))
+debug.hist('tmu'   , ax=ax1[0,1], bins=np.linspace(0, options.tmu_range, options.nbins))
 debug.hist('pv'    , ax=ax1[1,0], bins=options.nbins)
 debug.hist('nfev'  , ax=ax1[1,1])
 
@@ -45,7 +47,7 @@ if options.reference :
   yy = [ mu_hat.shape[0]*(xx[1] - xx[0])*norm.pdf(x, np.mean(mu_hat), np.std(mu_hat)) for x in xx ]
   ax1[0,0].plot(xx,yy)
   tmu = debug['tmu']
-  xx = np.linspace(0, 10, options.nbins)
+  xx = np.linspace(0, options.tmu_range, options.nbins)
   yy = [ tmu.shape[0]*(xx[1] - xx[0])*chi2.pdf(x, 1) for x in xx ]
   ax1[0,1].plot(xx,yy)
   xx = np.linspace(0,1, options.nbins)
@@ -66,7 +68,7 @@ if options.hypo != '' :
     print(inst)
     raise ValueError('Invalid hypothesis spec, should be in the format <filename>:<index>')
 
-z = 4
+z = options.np_range
 pars = [ col[len('free_'):] for col in debug.columns if col.startswith('free_') and not col.endswith('nll') ]
 fig2,ax2 = plt.subplots(2, len(pars),figsize=(15,5), sharey=True)
 fig2.subplots_adjust(left=0.05,right=0.98)
