@@ -359,6 +359,11 @@ class Parameters :
       s += 'gammas : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.gammas, self.gammas) ] )
     return s
 
+  def __contains__(self, par) :
+    if par == self.model.poi_name : return True
+    if par in self.model.alphas or par in self.model.betas or par in self.model.gammas : return True
+    return False
+
   def __getitem__(self, par):
     if par == self.model.poi_name : return self.poi
     try :
@@ -376,9 +381,11 @@ class Parameters :
           raise KeyError('Model parameter %s not found' % par)
     return None
 
+
   def set_poi(self, poi) :
     self.poi = poi
     return self
+
 
   def set_np(self, par, val, unscaled=False) :
     if unscaled :
@@ -401,7 +408,15 @@ class Parameters :
         except:
           raise KeyError('Model parameter %s not found' % par)
     return self
-  
+
+
+  def __setitem__(self, par, val) :
+    if par == self.model.poi_name :
+      return self.set_poi(poi)
+    else :
+      return self.set_np(par, val)
+
+
   def unscaled(self, par, val) :
     try :
       p = self.model.pars[par]
