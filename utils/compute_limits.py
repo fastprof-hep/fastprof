@@ -139,6 +139,11 @@ if limit_asy_full_cls  : print('Asymptotics, full model, CLs  : UL(%g%%) = %g (N
 if limit_asy_fast_cls  : print('Asymptotics, fast model, CLs  : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_fast_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_fast_cls )))))
 if limit_sampling_cls  : print('Sampling   , fast model, CLs  : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_sampling_cls , np.sum(model.s_exp(model.expected_pars(limit_sampling_cls )))))
 
+if options.bands :
+  for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+    if limit_sampling_cls_bands[band] :
+      print('Expected limit band, fast model, %+d sigma band : UL(%g%%) = %g (N_signal = %g)' % (band, 100*options.cl, limit_sampling_cls_bands[band], np.sum(model.s_exp(model.expected_pars(limit_sampling_cls_bands[band])))))
+
 # Plot results
 if not options.batch_mode :
   plt.ion()
