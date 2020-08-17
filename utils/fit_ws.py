@@ -30,13 +30,14 @@ parser.add_argument("-y", "--hypos"            , type=str  , default=''       , 
 parser.add_argument(      "--fit-options"      , type=str  , default=''       , help="RooFit fit options to use")
 parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
 parser.add_argument(      "--input_bins"       , type=int  , default=0        , help="Number of bins to use when binning the input dataset")
-parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
-parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Variables to set constant")
+parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="Change parameter values, in the form par1=val1,par2=val2,...")
+parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Parameters to set constant")
 parser.add_argument("-i", "--poi-initial-value", type=float, default=None     , help="POI allowed range, in the form min,max")
 parser.add_argument("-r", "--poi-range"        , type=str  , default=''       , help="POI allowed range, in the form min,max")
 parser.add_argument(      "--poi-min"          , type=float, default=0        , help="POI range minimum")
 parser.add_argument(      "--poi-max"          , type=float, default=None     , help="POI range maximum")
 parser.add_argument("-n", "--signal-yield"     , type=str  , default='nSignal', help="Name of signal yield variable")
+parser.add_argument(      "--nps"               , type=str  , default=''      , help="Constant parameters to include as NPs")
 parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
 parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
 
@@ -111,6 +112,17 @@ if options.poi_max != None :
   poi.setMax(poi_max)
 
 nuis_pars = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
+extra_nps = ROOT.RooArgSet()
+
+if options.nps != '' :
+  varlist = options.nps.split(',')
+  for var in varlist :
+    matching_vars = ROOT.RooArgList(ws.allVars().selectByName(var))
+    if matching_vars.getSize() == 0 :
+      print("ERROR : no variables matching '%s' in model" % var)
+      raise ValueError
+    for i in range(0, matching_vars.getSize()) :
+      extra_nps.add(matching_vars.at(i))
 
 ws.saveSnapshot('init', nuis_pars)
 poi_init_val = poi.getVal()
@@ -240,6 +252,7 @@ for hypo in hypos :
   result_hypo = fit(data, robust=True)
   result['nll_hypo'] = nll.getVal()
   for p in nuis_pars : result['hypo_' + p.GetName()] = result_hypo.floatParsFinal().find(p.GetName()).getVal()
+  for p in extra_nps : result['hypo_' + p.GetName()] = ws.var(p.GetName()).getVal()
   # Free-mu fit
   poi.setConstant(False)
   result_free = fit(data, robust=True)
@@ -248,6 +261,7 @@ for hypo in hypos :
   result['fit_val'] = poi.getVal()
   result['fit_err'] = poi.getError()
   for p in nuis_pars : result['free_' + p.GetName()] = result_free.floatParsFinal().find(p.GetName()).getVal()
+  for p in extra_nps : result['free_' + p.GetName()] = ws.var(p.GetName()).getVal()
   # Repeat for Asimov0
   print('=== Fitting Asimov to hypothesis %g' % hypo)
   ws.loadSnapshot('init')
