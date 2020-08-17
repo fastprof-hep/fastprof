@@ -40,6 +40,7 @@ if options.log_scale :
   ax1[0,0].set_yscale('log')
   ax1[0,1].set_yscale('log')
   ax1[0,1].set_ylim(bottom=1)
+  ax1[1,0].set_yscale('log')
 
 if options.reference :
   mu_hat = debug['mu_hat']
