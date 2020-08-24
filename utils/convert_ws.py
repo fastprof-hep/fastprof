@@ -195,8 +195,6 @@ for c in main_pdf.getComponents() :
     channel_pdf = c
     break
 
-# TODO: iterate this next part to support multi-channel models
-
 channels = []
 class Channel() : pass
 
@@ -211,6 +209,8 @@ else :
     
 # 6. Identify the samples for this channel
 # ---------------------------------------------------------
+
+# TODO: iterate this section to support multi-channel models
 
 channel = Channel()
 channel.type = 'binned_range'
@@ -274,7 +274,7 @@ for i in range(0, channel_pdf.pdfList().getSize()) :
   if sample.name == options.default_sample : default_sample = sample
 
 if default_sample == None : default_sample = channel.samples[-1] # if unspecified, take the last one
-
+channels.append(channel)
 
 # 7 - Fill the model information
 # ------------------------------
@@ -314,7 +314,7 @@ if not options.data_only :
   for sample in channel.samples :
     if sample.normpar.getMin() > 0 : sample.normpar.setMin(0) # allow setting variable to 0
 
-  # If a normpar is zero, we cannot get the expected yields for this component. In this case, fit an Asimov and set the parameter at the +2sigma level
+  # If a normpar is zero, we cannot get the expected nominal_yields for this component. In this case, fit an Asimov and set the parameter at the +2sigma level
   zero_normpars = []
   for sample in channel.samples : zero_normpars.append(sample.normpar.getVal() == 0)
   if any(zero_normpars) :
@@ -333,7 +333,7 @@ if not options.data_only :
       if z :
         sample.normpar.setVal(2*sample.normpar.getError())
         if sample.normpar.getVal() == 0 :
-          raise ValueError('ERROR : normalization parameter %s is exactly 0, cannot extract sample yields' % sample.normpar.GetName())
+          raise ValueError('ERROR : normalization parameter %s is exactly 0, cannot extract sample nominal_yields' % sample.normpar.GetName())
 
   if options.validation_data :
     validation_points = np.linspace(-3, 3, 13)
@@ -352,10 +352,22 @@ if not options.data_only :
       par.error = 1
     print('=== Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.name, par.error, par.nominal, options.epsilon))
 
+  def fill_yields(channel, key) :
+    for sample in channel.samples :
+      sample.yields[key] = 0
+      save_val = sample.normpar.getVal()
+      sample.normpar.setVal(0)
+      sample.n_unassigned = sample.normvar.getVal()*sample.bin_integral.getVal()
+      sample.normpar.setVal(save_val)
+    for sample in channel.samples :
+      sample.yields[key] += sample.normvar.getVal()*sample.bin_integral.getVal() - sample.n_unassigned
+      default_sample.yields[key] += sample.n_unassigned
+
   for sample in channel.samples :
     print('=== Sample %s normalized to POI %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), sample.normvar.getVal()))
-    sample.nom_norm = sample.normpar.getVal()
-    sample.yields = np.zeros(nbins) 
+    sample.nominal_norm = sample.normpar.getVal()
+    sample.nominal_yields = np.zeros(nbins) 
+    sample.yields = {}
     sample.impacts = {}
     for par in nuis_pars : sample.impacts[par.name] = np.zeros(nbins)
   print('=== Nominal NP values :')
@@ -364,40 +376,25 @@ if not options.data_only :
     xmin = bins[i]
     xmax = bins[i + 1]
     channel.obs.setRange('bin_%d' % i, xmin, xmax)
-    bin_integral = channel.pdf.createIntegral(ROOT.RooArgSet(channel.obs), ROOT.RooArgSet(channel.obs), 'bin_%d' % i)
-    for sample in channel.samples : sample.normpar.setVal(0)
-    #  sample.integral = sample.pdf.createIntegral(ROOT.RooArgSet(channel.obs), ROOT.RooArgSet(channel.obs), 'bin_%d' % i)
-    n_unassigned = main_pdf.expectedEvents(ROOT.RooArgSet(channel.obs))*bin_integral.getVal() # event yield which is not assigned to any sample (->goes into the default sample)
     for sample in channel.samples :
-      sample.normpar.setVal(sample.nom_norm)
-      sample.yields[i] = main_pdf.expectedEvents(ROOT.RooArgSet(channel.obs))*bin_integral.getVal() - n_unassigned
-      sample.normpar.setVal(0)
-    default_sample.yields[i] += n_unassigned # assign the unassigned to the default sample
-    for sample in channel.samples :
-      print('-- Nominal %s = %g' % (sample.name, sample.yields[i]))
+      sample.bin_integral = sample.pdf.createIntegral(ROOT.RooArgSet(channel.obs), ROOT.RooArgSet(channel.obs), 'bin_%d' % i)
+    fill_yields(channel, 'nominal')
+    for sample in channel.samples : 
+      sample.nominal_yields[i] = sample.yields['nominal']
+      print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
     for par in nuis_pars :
       delta = par.error*options.epsilon
       par.obj.setVal(par.nominal + delta)
-      n_unassigned_pos = main_pdf.expectedEvents(ROOT.RooArgSet(channel.obs))*bin_integral.getVal()
-      for sample in channel.samples :
-        sample.normpar.setVal(sample.nom_norm)
-        sample.n_pos = main_pdf.expectedEvents(ROOT.RooArgSet(channel.obs))*bin_integral.getVal() - n_unassigned_pos
-        sample.normpar.setVal(0)
-      default_sample.n_pos += n_unassigned_pos
+      fill_yields(channel, 'pos_var')
       par.obj.setVal(par.nominal - delta)
-      n_unassigned_neg = main_pdf.expectedEvents(ROOT.RooArgSet(channel.obs))*bin_integral.getVal()
+      fill_yields(channel, 'neg_var')
       for sample in channel.samples :
-        sample.normpar.setVal(sample.nom_norm)
-        sample.n_neg = main_pdf.expectedEvents(ROOT.RooArgSet(channel.obs))*bin_integral.getVal() - n_unassigned_neg
-        sample.normpar.setVal(0)
-      default_sample.n_neg += n_unassigned_neg
-      for sample in channel.samples :
-        impact_pos = ((sample.n_pos/sample.yields[i])**(1/options.epsilon) - 1) if sample.yields[i] != 0 else 0
-        impact_neg = ((sample.yields[i]/sample.n_neg)**(1/options.epsilon) - 1) if sample.n_neg     != 0 else 0
-        sample.impacts[par.name][i] = math.sqrt((1 + impact_pos)*(1 + impact_neg)) - 1
-        print('-- sample %s, parameter %-10s : +1 sigma sig impact = %g' % (sample.name, par.name, impact_pos))
-        print('-- sample %s, parameter %-10s : -1 sigma sig impact = %g' % (sample.name, ''      , impact_neg))
-        print('-- sample %s, parameter %-10s : selected sig impact = %g' % (sample.name, ''      , sample.impacts[par.name][i]))
+        sample.impact_pos = ((sample.yields['pos_var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
+        sample.impact_neg = ((sample.yields['nominal']/sample.yields['neg_var'])**(1/options.epsilon) - 1) if sample.yields['neg_var'] != 0 else 0
+        sample.impacts[par.name][i] = math.sqrt((1 + sample.impact_pos)*(1 + sample.impact_neg)) - 1
+        print('-- sample %s, parameter %-10s : +1 sigma sig impact = %g' % (sample.name, par.name, sample.impact_pos))
+        print('--                            : -1 sigma sig impact = %g' % (                       sample.impact_neg))
+        print('--                            : selected sig impact = %g' % (                       sample.impacts[par.name][i]))
       par.obj.setVal(par.nominal)
       if options.validation_data :
         par_data = valid_data[par.name]
@@ -414,65 +411,83 @@ if not options.data_only :
 # --------------------------------
 
 jdict = {}
-jdict['model_name'] = options.output_name
 
-poi_specs = []
-for poi in pois :
-  poi_spec = {}
-  poi_spec['name'] = poi.GetName()
-  poi_spec['min'] = poi.getMin()
-  poi_spec['max'] = poi.getMax()
-  poi_specs.append(poi_spec)
-jdict['pois'] = poi_specs
-
-np_specs = []
-for par in nuis_pars :
-  np_spec = {}
-  np_spec['name'] = par.name
-  np_spec['nominal_val'] = par.nominal
-  np_spec['variation'] = par.error
-  np_spec['constraint'] = None if par.is_free else 1
-  np_spec['aux_obs'] = None if par.is_free else cons_aux[par.name].GetName()
-  np_specs.append(np_spec)
-jdict['nps'] = np_specs
-
-channel_specs = []
-
-# TODO :iterate the block below for multiple channels
-channel_spec = {}
-channel_spec['name'] = channel.name
-channel_spec['type'] = channel.type
-
-bin_data = []
-for b in range(0, nbins) :
-  bin_datum = {}
-  bin_datum['lo_edge'] = bins[b]
-  bin_datum['hi_edge'] = bins[b+1]
-  bin_data.append(bin_datum)
-channel_spec['obs_name'] = channel.obs.GetTitle().replace('#','\\')
-channel_spec['obs_unit'] = channel.obs.getUnit()
-channel_spec['bins'] = bin_data
-sample_specs = []
-for sample in channel.samples :
-  sample_spec = {}
-  sample_spec['name'] = sample.name
-  sample_spec['normalization'] = sample.normpar.GetName()
-  sample_spec['yields'] = sample.yields.tolist()
-  sample_spec['impacts'] = { par : sample.impacts[par].tolist() for par in sample.impacts }
-  sample_specs.append(sample_spec)
-channel_spec['samples'] = sample_specs
-
-channel_specs.append(channel_spec)
-jdict['channels'] = channel_specs
+if not options.data_only :
+  model_dict = {}
+  model_dict['name'] = options.output_name
+  # POIs
+  poi_specs = []
+  for poi in pois :
+    poi_spec = {}
+    poi_spec['name'] = poi.GetName()
+    poi_spec['min'] = poi.getMin()
+    poi_spec['max'] = poi.getMax()
+    poi_specs.append(poi_spec)
+  model_dict['pois'] = poi_specs
+  # NPs
+  np_specs = []
+  for par in nuis_pars :
+    np_spec = {}
+    np_spec['name'] = par.name
+    np_spec['nominal_val'] = par.nominal
+    np_spec['variation'] = par.error
+    np_spec['constraint'] = None if par.is_free else 1
+    np_spec['aux_obs'] = None if par.is_free else cons_aux[par.name].GetName()
+    np_specs.append(np_spec)
+  model_dict['nps'] = np_specs
+  # Channels
+  channel_specs = []
+  for channel in channels :
+    channel_spec = {}
+    channel_spec['name'] = channel.name
+    channel_spec['type'] = channel.type
+    bin_specs = []
+    for b in range(0, nbins) :
+      bin_spec = {}
+      bin_spec['lo_edge'] = bins[b]
+      bin_spec['hi_edge'] = bins[b+1]
+      bin_specs.append(bin_spec)
+    channel_spec['obs_name'] = channel.obs.GetTitle().replace('#','\\')
+    channel_spec['obs_unit'] = channel.obs.getUnit()
+    channel_spec['bins'] = bin_specs
+    sample_specs = []
+    for sample in channel.samples :
+      sample_spec = {}
+      sample_spec['name'] = sample.name
+      sample_spec['normalization'] = sample.normpar.GetName()
+      sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
+      sample_spec['impacts'] = { par : sample.impacts[par].tolist() for par in sample.impacts }
+      sample_specs.append(sample_spec)
+    channel_spec['samples'] = sample_specs
+    channel_specs.append(channel_spec)
+  model_dict['channels'] = channel_specs
+jdict['model'] = model_dict
 
 # 9 - Fill the dataset information
 # --------------------------------
-bin_array = array.array('d', bins)
-hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
-data.fillHistogram(hist, ROOT.RooArgList(channel.obs))
-bin_counts = [ hist.GetBinContent(i+1) for i in range(0, nbins) ]
 data_dict = {}
-data_dict['bin_counts'] = bin_counts
+# Channels
+channel_data = []
+for channel in channels :
+  channel_datum = {}
+  channel_datum['name'] = channel.name
+  channel_datum['type'] = channel.type
+  channel_datum['obs_name'] = channel.obs.GetTitle().replace('#','\\')
+  channel_datum['obs_unit'] = channel.obs.getUnit()
+  bin_array = array.array('d', bins)
+  hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
+  data.fillHistogram(hist, ROOT.RooArgList(channel.obs))
+  bin_specs = []
+  for b in range(0, nbins) :
+    bin_spec = {}
+    bin_spec['counts'] = hist.GetBinContent(i+1)
+    bin_spec['lo_edge'] = bins[b]
+    bin_spec['hi_edge'] = bins[b+1]
+    bin_specs.append(bin_spec)
+  channel_datum['bins'] = bin_specs
+  channel_data.append(channel_datum)
+data_dict['channels'] = channel_data
+# Aux obs
 aux_specs = []
 for par in cons_nps :
   aux_spec = {}
@@ -483,6 +498,7 @@ for par in cons_nps :
   aux_spec['max']   = aux.getMax()
   aux_specs.append(aux_spec)
 data_dict['aux_obs'] = aux_specs
+
 jdict['data'] = data_dict
 
 # 10 - Write everything to file
