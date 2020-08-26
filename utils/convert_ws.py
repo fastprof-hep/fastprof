@@ -83,7 +83,6 @@ def process_setval(opt) :
         raise ValueError("ERROR: Cannot find variable '%s' in workspace" % var)
       save_val = ws.var(var).getVal()
       ws.var(var).setVal(float(val))
-      print("INFO : setting %s=%g for Asimov generation" % (var, float(val)))
       output.append((ws.var(var), float(val), save_val))
   except Exception as inst :
     print(inst)
@@ -280,20 +279,20 @@ channels.append(channel)
 # ------------------------------
 
 def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
-   if options.binned :
-     if options.input_bins > 0 : obs.setBins(options.input_bins)
-     fit_data = dataset.binnedClone()
-   else :
-     fit_data = dataset
-   result = main_pdf.fitTo(fit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
-   if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
-     return fit(dataset, robust, n_max - 1, result.minNll())
-   else :
-     return result
+  main_pdf.getVariables().Print('V')
+  if options.binned :
+    if options.input_bins > 0 : obs.setBins(options.input_bins)
+    fit_data = dataset.binnedClone()
+  else :
+    fit_data = dataset
+  result = main_pdf.fitTo(fit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
+  if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
+    return fit(dataset, robust, n_max - 1, result.minNll())
+  else :
+    return result
 
 if options.refit != None :
   saves = process_setval(options.refit)
-  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
   print('=== Refitting PDF to specified dataset with under the hypothesis :')
   for (var, val, save_val) in saves :
     print("INFO :   %s=%g" % (var.GetName(), val))
@@ -393,8 +392,8 @@ if not options.data_only :
         sample.impact_neg = ((sample.yields['nominal']/sample.yields['neg_var'])**(1/options.epsilon) - 1) if sample.yields['neg_var'] != 0 else 0
         sample.impacts[par.name][i] = math.sqrt((1 + sample.impact_pos)*(1 + sample.impact_neg)) - 1
         print('-- sample %s, parameter %-10s : +1 sigma sig impact = %g' % (sample.name, par.name, sample.impact_pos))
-        print('--                            : -1 sigma sig impact = %g' % (                       sample.impact_neg))
-        print('--                            : selected sig impact = %g' % (                       sample.impacts[par.name][i]))
+        print('--        %s            %-10s : -1 sigma sig impact = %g' % (         '',       '', sample.impact_neg))
+        print('--        %s            %-10s : selected sig impact = %g' % (         '',       '', sample.impacts[par.name][i]))
       par.obj.setVal(par.nominal)
       if options.validation_data :
         par_data = valid_data[par.name]
@@ -420,10 +419,10 @@ if not options.data_only :
   for poi in pois :
     poi_spec = {}
     poi_spec['name'] = poi.GetName()
-    poi_spec['min'] = poi.getMin()
-    poi_spec['max'] = poi.getMax()
+    poi_spec['min_val'] = poi.getMin()
+    poi_spec['max_val'] = poi.getMax()
     poi_specs.append(poi_spec)
-  model_dict['pois'] = poi_specs
+  model_dict['POIs'] = poi_specs
   # NPs
   np_specs = []
   for par in nuis_pars :
@@ -434,7 +433,17 @@ if not options.data_only :
     np_spec['constraint'] = None if par.is_free else 1
     np_spec['aux_obs'] = None if par.is_free else cons_aux[par.name].GetName()
     np_specs.append(np_spec)
-  model_dict['nps'] = np_specs
+  model_dict['NPs'] = np_specs
+  # Aux obs
+  aux_specs = []
+  for par in cons_nps :
+    aux_spec = {}
+    aux = cons_aux[par.GetName()]
+    aux_spec['name']  = aux.GetName()
+    aux_spec['min_val'] = aux.getMin()
+    aux_spec['max_val'] = aux.getMax()
+    aux_specs.append(aux_spec)
+  model_dict['aux_obs'] = aux_specs
   # Channels
   channel_specs = []
   for channel in channels :
@@ -454,7 +463,8 @@ if not options.data_only :
     for sample in channel.samples :
       sample_spec = {}
       sample_spec['name'] = sample.name
-      sample_spec['normalization'] = sample.normpar.GetName()
+      sample_spec['norm'] = sample.normpar.GetName()
+      sample_spec['nominal_norm'] = sample.nominal_norm
       sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
       sample_spec['impacts'] = { par : sample.impacts[par].tolist() for par in sample.impacts }
       sample_specs.append(sample_spec)
@@ -494,8 +504,6 @@ for par in cons_nps :
   aux = cons_aux[par.GetName()]
   aux_spec['name']  = aux.GetName()
   aux_spec['value'] = aux.getVal()
-  aux_spec['min']   = aux.getMin()
-  aux_spec['max']   = aux.getMax()
   aux_specs.append(aux_spec)
 data_dict['aux_obs'] = aux_specs
 
