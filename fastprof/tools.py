@@ -27,13 +27,11 @@ class FitResults (JSONSerializable) :
     self.hypos= np.array([ fit_result[self.poi_name] for fit_result in self.fit_results ])
     return self
 
-  def dump_jdict(self) :
-    jdict = {}
+  def fill_jdict(self) :
     jdict['poi_name'] = self.poi_name
     jdict['poi_initial_value'] = self.poi_init_val
     jdict['poi_range'] = self.poi_min, self.poi_max
     jdict['fit_results'] = self.fit_results
-    return jdict
 
   def make_pars(self, fr, prefix, poi_key) :
     pars = Parameters(model=self.model)

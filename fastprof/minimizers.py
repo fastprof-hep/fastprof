@@ -15,22 +15,18 @@ class NPMinimizer :
 # Same as above, more readable, and faster -- use by default
   def pq_einsum(self, hypo) :
     model = self.data.model
-    snom = model.s_exp(hypo)
-    bnom = model.b_exp(hypo)
-    nnom = snom + bnom
-    rB = bnom/nnom
-    rS = snom/nnom
-    dN = nnom - self.data.n
-    qA = np.einsum('i,i,ij->j', rS, dN, model.a) + hypo.alphas + model.nominal_alphas - self.data.aux_alphas
-    qB = np.einsum('i,i,ij->j', rB, dN, model.b) + hypo.betas  + model.nominal_betas  - self.data.aux_betas
-    qC = np.einsum('i,i,ij->j', rB, dN, model.c)
-    pAA = np.einsum('i,i,ij,ik->jk',   rS, rS *self.data.n + dN, model.a, model.a) + model.diag_alphas
-    pAB = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , model.a, model.b)
-    pAC = np.einsum('i,i,i,ij,ik->jk', rS, rB, self.data.n     , model.a, model.c)
-    pBB = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , model.b, model.b) + model.diag_betas
-    pBC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , model.b, model.c)
-    pCC = np.einsum('i,i,i,ij,ik->jk', rB, rB, self.data.n     , model.c, model.c) + model.diag_gammas
-    return np.block([[pAA, pAB, pAC], [np.transpose(pAB), pBB, pBC], [np.transpose(pAC), np.transpose(pBC), pCC]]), np.block([qA, qB, qC])
+    n_nom = model.n_exp(hypo)
+    t_nom = n_nom.sum(axis=0)
+    delta_obs = t_nom - self.data.counts
+    ratio_nom = n_nom / t_nom
+    # i : bin index
+    # k,l : sample indices
+    # a,b,c : NP indices
+    q  = np.einsum('ki,i,aki->a', ratio_nom, delta_obs, model.impacts) + hypo.unscaled_nps() - self.data.aux_obs
+    p1 = np.einsum('ki,ki,aki,bki->ab', ratio_nom, delta_obs, model.impacts, model.impacts)
+    p2 = np.einsum('i,ki,li,aki,bli->ab', self.data.n, ratio_nom, ratio_nom, model.impacts, model.impacts)
+    p = p1 + p2 + model.diag
+    return (p,q)
   
   def profile(self, hypo) :
     if isinstance(hypo, (int, float)) :
@@ -39,15 +35,12 @@ class NPMinimizer :
     d = np.linalg.det(p)
     if abs(d) < 1E-8 :
       print('Linear system has an ill-conditioned coefficient matrix (det= %g), returning null result' % d)
-      nps = self.data.aux_alphas, self.data.aux_betas, np.zeros(self.model.nc)
+      nps = self.data.aux_obs, np.zeros(self.model.f_dim)
     else :
-      v = np.linalg.inv(p).dot(q)
-      deltas = v[:self.data.model.na], v[self.data.model.na:self.data.model.nsyst], v[self.data.model.nsyst:]
-      nps = hypo.alphas - deltas[0], \
-            hypo.betas  - deltas[1], \
-            hypo.gammas - deltas[2]
-    self.min_deltas = Parameters(hypo.poi, *deltas, self.data.model)
-    self.min_pars = Parameters(hypo.poi, *nps, self.data.model)
+      deltas = np.linalg.inv(p).dot(q)
+      nps = hypo.vals - deltas
+    self.min_deltas = Parameters(hypo.poi_vals, deltas, self.data.model)
+    self.min_pars   = Parameters(hypo.poi_vals, nps   , self.data.model)
     return self.min_pars
   
   def profile_nll(self, hypo = None, floor = None) :
