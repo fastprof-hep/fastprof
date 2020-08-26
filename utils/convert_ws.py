@@ -490,7 +490,7 @@ for channel in channels :
   bin_specs = []
   for b in range(0, nbins) :
     bin_spec = {}
-    bin_spec['counts'] = hist.GetBinContent(i+1)
+    bin_spec['counts'] = hist.GetBinContent(b+1)
     bin_spec['lo_edge'] = bins[b]
     bin_spec['hi_edge'] = bins[b+1]
     bin_specs.append(bin_spec)

@@ -28,11 +28,12 @@ class JSONSerializable :
     jdict = {}
     self.fill_jdict(jdict)
     return jdict
-  def load_field(key, dic, default = None, types = []) :
+  def load_field(self, key, dic, default = None, types = []) :
     if not key in dic :
       if default != None : return default
       raise KeyError('Key %s not found in JSON dictionary' % key)
     val = dic[key]
+    if not isinstance(types, list) : types = [ types ]
     if types != [] and not any([isinstance(val, t) for t in types]) :
       raise TypeError('Object at key %s in JSON dictionary has type %s, not the expected %s' % 
                       (key, val.__class__.__name__, '|'.join([t.__name__ for t in types])))
@@ -51,9 +52,9 @@ class ModelPOI(JSONSerializable) :
     self.min_val = min_val
     self.max_val = max_val
   def load_jdict(self, jdict) : 
-    self.name = load_field('name', jdict, '', str)
-    self.min_val = load_field('min_val', jdict, '', [int, float])
-    self.max_val = load_field('max_val', jdict, '', [int, float])
+    self.name = self.load_field('name', jdict, '', str)
+    self.min_val = self.load_field('min_val', jdict, '', [int, float])
+    self.max_val = self.load_field('max_val', jdict, '', [int, float])
     return self
   def fill_jdict(self, jdict) :
     jdict['name'] = self.name
@@ -66,9 +67,9 @@ class ModelAux(JSONSerializable) :
     self.min_val = min_val
     self.max_val = max_val
   def load_jdict(self, jdict) : 
-    self.name = load_field('name', jdict, '', str)
-    self.min_val = load_field('min_val', jdict, '', [int, float])
-    self.max_val = load_field('max_val', jdict, '', [int, float])
+    self.name = self.load_field('name', jdict, '', str)
+    self.min_val = self.load_field('min_val', jdict, '', [int, float])
+    self.max_val = self.load_field('max_val', jdict, '', [int, float])
     return self
   def fill_jdict(self, jdict) :
     jdict['name'] = self.name
@@ -76,9 +77,9 @@ class ModelAux(JSONSerializable) :
     jdict['max_val'] = self.max_val
   
 class ModelNP(JSONSerializable) :
-  def __init__(self, name = '', nominal_val = 0, variation = 1, constraint = None, aux_obs = None) :
+  def __init__(self, name = '', nominal_value = 0, variation = 1, constraint = None, aux_obs = None) :
     self.name = name
-    self.nominal_val = nominal_val
+    self.nominal_value = nominal_value
     self.variation = variation
     self.constraint = constraint
     self.aux_obs = aux_obs
@@ -88,18 +89,18 @@ class ModelNP(JSONSerializable) :
     if self.constraint == None : return 0
     return np.random.normal(value, self.constraint)
   def load_jdict(self, jdict) : 
-    self.name = load_field('name', jdict, '', str)
-    self.nominal_val = load_field('nominal_val', jdict, None, [int, float])
-    self.variation = load_field('variation', jdict, None, [int, float])
-    self.constraint = load_field('constraint', jdict)
+    self.name = self.load_field('name', jdict, '', str)
+    self.nominal_value = self.load_field('nominal_val', jdict, None, [int, float])
+    self.variation = self.load_field('variation', jdict, None, [int, float])
+    self.constraint = self.load_field('constraint', jdict)
     if self.constraint != None :
-      par.aux_obs = load_field('aux_obs', jdict, '', str)
+      self.aux_obs = self.load_field('aux_obs', jdict, '', str)
     else :
-      par.aux_obs = None
+      self.aux_obs = None
     return self
   def fill_jdict(self, jdict) :
     jdict['name'] = self.name
-    jdict['nominal_val'] = self.nominal_val
+    jdict['nominal_val'] = self.nominal_value
     jdict['variation'] = self.variation
     jdict['constraint'] = self.constraint
     jdict['aux_obs'] = self.aux_obs
@@ -112,11 +113,11 @@ class Sample(JSONSerializable) :
     self.nominal_yields = nominal_yields
     self.impacts = impacts
   def load_jdict(self, jdict) : 
-    self.name = load_field('name', jdict, '', str)
-    self.norm = load_field('norm', jdict, '', str)
-    self.nominal_norm = load_field('nominal_norm', jdict, None, [float, int])
-    self.nominal_yields = load_field('nominal_yields', jdict, None, list)
-    self.impacts = load_field('impacts', jdict, None, list)
+    self.name = self.load_field('name', jdict, '', str)
+    self.norm = self.load_field('norm', jdict, '', str)
+    self.nominal_norm = self.load_field('nominal_norm', jdict, None, [float, int])
+    self.nominal_yields = self.load_field('nominal_yields', jdict, None, list)
+    self.impacts = self.load_field('impacts', jdict, None, dict)
     return self
   def fill_jdict(self, jdict) :
     jdict['name'] = self.name
@@ -126,20 +127,20 @@ class Sample(JSONSerializable) :
     jdict['impacts'] = self.impacts
   
 class Channel(JSONSerializable) :
-  def __init__(self, name '', chan_type = 'count', bins = []) :
+  def __init__(self, name = '', chan_type = 'count', bins = []) :
     self.name = name
     self.type = chan_type
     self.bins = bins
     self.samples = {}
   def dim(self) :
-    return len(bins)
+    return len(self.bins)
   def load_jdict(self, jdict) : 
     self.name = jdict['name']
     self.type = jdict['type']
     if self.type == 'binned_range' :
       self.bins = np.array(jdict['bins'])
-      self.obs_name = load_field('obs_name', jdict, '', str)
-      self.obs_unit = load_field('obs_unit', jdict, '', str)
+      self.obs_name = self.load_field('obs_name', jdict, '', str)
+      self.obs_unit = self.load_field('obs_unit', jdict, '', str)
       for json_sample in jdict['samples'] :
         sample = Sample()
         sample.load_jdict(json_sample)
@@ -163,36 +164,40 @@ class Model (JSONSerializable) :
     self.nps  = {}
     for np in nps :
       if not np.is_free() : self.nps[par.name] = par
-    self.ncons = len(self.nps)
+    ncons = len(self.nps)
     for np in nps :
       if np.is_free() : self.nps[par.name] = par
-    self.nnps = len(self.nps)
-    self.nfree = self.nnps - self.ncons
     self.aux_obs = { par.name : par for par in aux_obs }
-    if len(self.aux_obs) != self.ncons :
+    if len(self.aux_obs) != ncons :
       raise ValueError('Number of auxiliary observables (%d) does not match the number of constrained NPs (%d)' % (len(self.aux_obs), self.ncons))
+    self.channels = { channel.name : channel for channel in channels }
+    self.linear_nps = linear_nps
     self.init_vars()
 
   def init_vars(self) :
+    self.npois = len(self.pois)
+    self.nnps  = len(self.nps)
+    self.ncons = len(self.aux_obs)
+    self.nfree = self.nnps - self.ncons
     self.samples = {}
     self.channel_offsets = {}
     self.nbins = 0
     for channel in self.channels.values() :
       self.channel_offsets[channel.name] = self.nbins
       self.nbins += channel.dim()
-      for sample in channel.samples :
+      for sample in channel.samples.values() :
         if not sample.name in self.samples : self.samples[sample.name] = len(self.samples)
     self.nominal_yields = np.zeros((len(self.samples), self.nbins))
     self.impacts = np.zeros((len(self.samples), self.nbins, len(self.nps)))
     for channel in self.channels.values() :
       for sample in channel.samples.values() :
         self.nominal_yields[self.samples[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
-        for p, par in enumerate(self.nps) :
+        for p, par in enumerate(self.nps.values()) :
           self.impacts[self.samples[sample.name], self.channel_offsets[channel.name]:, p] = sample.impacts[par.name]
     self.log_impacts = np.log(1 + self.impacts)
     self.diag = np.zeros((self.ncons, self.ncons))
-    self.np_nominal_vals = np.array([ par.nominal_val for par in self.nps ])
-    self.np_variations   = np.array([ par.variation   for par in self.nps ])
+    self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ])
+    self.np_variations     = np.array([ par.variation     for par in self.nps.values() ])
     for p, par in enumerate(self.nps.values()) :
       if par.constraint == None : break # we've reached the end of the constrained NPs in the NP list
       self.diag[p,p] = 1/par.constraint**2
@@ -232,8 +237,8 @@ class Model (JSONSerializable) :
 
   def plot(self, pars, data = None, channel = None, exclude = [], variations = [], residuals = False, canvas=None) :
     if canvas == None : canvas = plt.gca()
-    channel = None :
-      channel = self.channels[0]
+    if channel == None :
+      channel = self.channels[list(self.channels)[0]]
     else :
       if not channel in self.channels : raise ValueError('ERROR: Channel %s is not defined.' % channel)
       channel = self.channels[channel]
@@ -244,7 +249,7 @@ class Model (JSONSerializable) :
       grid = np.linspace(0, channel.nbins, channel.nbins)
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     offset = self.channel_offsets[channel.name]
-    nexp = self.n_exp(pars)[:,offset:offset + channel.nbins]
+    nexp = self.n_exp(pars)[:,offset:offset + channel.dim()]
     if len(exclude) == 0 :
       tot_exp = nexp.sum(axis=0)
       line_style = '-'
@@ -262,7 +267,7 @@ class Model (JSONSerializable) :
     if data : 
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.counts ]
       yvals = data.counts if not residuals else np.zeros(channel.nbins)
-      canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins, yerr=yerrs, fmt='ko', label='Data')
+      canvas.errorbar(xvals, yvals, xerr=[0]*channel.dim(), yerr=yerrs, fmt='ko', label='Data')
     canvas.set_xlim(grid[0], grid[-1])
     for v in variations :
       vpars = copy.deepcopy(pars)
@@ -273,7 +278,7 @@ class Model (JSONSerializable) :
       canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
       canvas.legend()
     canvas.set_title(self.name)
-    canvas.set_xlabel('$' + self.obs_name + '$' + ((' ['  + self.obs_unit + ']') if self.obs_unit != '' else ''))
+    canvas.set_xlabel('$' + channel.obs_name + '$' + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
     canvas.set_ylabel('Events / bin')
     #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
 
@@ -294,13 +299,14 @@ class Model (JSONSerializable) :
     return s
     
   def expected_pars(self, pois, minimizer = None) :
+    if not isinstance(pois, np.ndarray) : pois = np.array([ pois ])
     if minimizer :
       return minimizer.profile_nps(pois)
     else :
-      return Parameters(pois, [ par.nominal_value for par in self.nps ], self)
+      return Parameters(pois, np.zeros(self.nnps), self)
 
   def generate_data(self, pars) :
-    return Data(self, np.random.poisson(self.n_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps ])
+    return Data(self, np.random.poisson(self.n_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
 
   def generate_asimov(self, pars) :
     return Data(self).set_data(self.n_exp(pars), pars.nps)
@@ -313,14 +319,13 @@ class Model (JSONSerializable) :
     return Model().load(filename)
   
   def load_jdict(self, jdict) :
-    self.name = load_field('name', jdict, '', str)
+    self.name = self.load_field('name', jdict, '', str)
     self.pois = {}
     if not 'model'    in jdict : raise KeyError("No 'model' section in specified JSON file")
     if not 'POIs'     in jdict['model'] : raise KeyError("No 'POIs' section in specified JSON file")
     if not 'NPs'      in jdict['model'] : raise KeyError("No 'NPs' section in specified JSON file")
     if not 'aux_obs'  in jdict['model'] : raise KeyError("No 'aux_obs' section in specified JSON file")
     if not 'channels' in jdict['model'] : raise KeyError("No 'channels' section in specified JSON file")
-    if not 'samples'  in jdict['model']['channels'] : raise KeyError("No 'samples' section in specified JSON file")
     for json_poi in jdict['model']['POIs'] :
       poi = ModelPOI()
       poi.load_jdict(json_poi)
@@ -338,7 +343,7 @@ class Model (JSONSerializable) :
     for json_np in jdict['model']['NPs'] :
       par = ModelNP()
       par.load_jdict(json_np)
-      if not par.aux_obs in self.aux_obs :
+      if par.aux_obs != None and not par.aux_obs in self.aux_obs :
         raise ValueError('ERROR: auxiliary observable %s for NP %s was not defined.' % (par.aux_obs, par.name))
       if par.name in self.nps :
         raise ValueError('ERROR: multiple NPs defined with the same name (%s)' % par.name)
@@ -381,7 +386,7 @@ class Parameters :
     if nps.ndim != 1 :
         raise ValueError('Input POI array should be a 1D vector, got ' + str(nps))
     if model :
-      if nps.size == 0 : nps = model.np_nominal_vals
+      if nps.size == 0 : nps = np.zeros(model.nnps)
       if pois.size != model.npois : raise ValueError('Cannot initialize Parameters with %d POIs, when %d are defined in the model' % (pois.size, model.npois))
       if nps .size != model.nnps  : raise ValueError('Cannot initialize Parameters with %d NPs, when %d are defined in the model'  % (nps .size, model.nnps))
     self.pois = pois
@@ -394,8 +399,8 @@ class Parameters :
       s += 'pois = ' + str(self.pois) + '\n'
       s += 'nps  = ' + str(self.nps)  + '\n'
     else :
-      s += 'pois : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p,v)) for p, v in zip(self.model.pois, self.pois) ] ) + '\n'
-      s += 'nps  : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p,v)) for p, v in zip(self.model.nps , self.nps ) ] ) + '\n'
+      s += 'pois : ' + '\n        '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
+      s += 'nps  : ' + '\n       '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name,v)) for p, v in zip(self.model.nps .values(), self.nps ) ] ) + '\n'
     return s
 
   def __contains__(self, par) :
@@ -416,7 +421,7 @@ class Parameters :
     if par in self.model.nps :
       if unscaled :
         par_obj = self.model.nps[par]
-        val = (val - par_obj.nominal_val)/par_obj.variation
+        val = (val - par_obj.nominal_value)/par_obj.variation
       self.nps[list(self.model.nps ).index(par)] = val
       return self
     raise KeyError('Model parameter %s not found' % par)
@@ -426,12 +431,13 @@ class Parameters :
 
   def unscaled_nps(self) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
-    return model.np_nominal_vals + self.nps*model.np_variations
+    return model.np_nominal_values + self.nps*model.np_variations
 
   def unscaled(self, par, val) :
-    if self.model == None : raise ValueError('Cannot perform operation without a model.')    if par in self.model.nps :
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    if par in self.model.nps :
       par_obj = self.model.nps[par]
-      return par_obj.nominal_val + val*par_obj.variation
+      return par_obj.nominal_value + val*par_obj.variation
     raise KeyError('Model nuisance parameter %s not found' % par)
 
   def set_from_aux(self, data) :
@@ -456,19 +462,19 @@ class Data (JSONSerializable) :
         raise ValueError('Input data counts should have a size equal to the number of model bins (%d), got %d.' % (model.nbins, len(counts)))
       self.counts = counts
     else :
-      self.counts = self.model.nominal_yields
+      self.counts = np.zeros(self.model.nbins)
     return self
 
   def set_aux_obs(self, aux_obs) : 
     if aux_obs.size == 0 :
-      self.aux_obs = self.model.np_nominal_vals
+      self.aux_obs = self.model.np_nominal_values
     else :
       if aux_obs.ndim != 1 :
         raise ValueError('Input aux data should be a 1D vector, got ' + str(aux_obs))
       if aux_obs.size == self.model.nnps :
         self.aux_obs = aux_obs
       elif aux_obs.size == self.model.ncons :
-        self.aux_obs = np.concatenate((aux_obs, self.model.np_nominal_vals[self.model.ncons:]))
+        self.aux_obs = np.concatenate((aux_obs, self.model.np_nominal_values[self.model.ncons:]))
       else :
         raise ValueError('Input aux data should have a size equal to the number of model auxiliary observables (%d), got %d.' % (self.model.ncons, str(aux_obs)))
     return self
@@ -484,10 +490,22 @@ class Data (JSONSerializable) :
   
   def load_jdict(self, jdict) :
     if not 'data'    in jdict : raise KeyError("No 'data' section in specified JSON file")
-    if not 'counts'  in jdict['data'] : raise KeyError("No 'counts' section in specified JSON file")
-    if not 'aux_obs' in jdict['data'] : raise KeyError("No 'aux_obs' section in specified JSON file")
-    self.set_counts(np.array(jdict['data']['counts']))
-    self.set_aux_obs(np.array(jdict['data']['aux_obs'])
+    if not 'channels'  in jdict['data'] : raise KeyError("No 'channels' section in specified JSON file")
+    for channel in jdict['data']['channels'] :
+      name = channel['name'] if 'name' in channel else ''
+      if not name in self.model.channels : raise ValueError("Data channel '%s' in specified JSON file is not defined in the model." % name)
+      model_channel = self.model.channels[name]
+      if not 'bins'  in channel : raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % name)
+      if len(channel['bins']) != model_channel.dim() :
+        raise ValueError("Data channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (len(channel['bins']), model_channel.dim()))
+      offset = self.model.channel_offsets[name]
+      for b, bin_data in enumerate(channel['bins']) :
+        if bin_data['lo_edge'] != model_channel.bins[b]['lo_edge'] or bin_data['hi_edge'] != model_channel.bins[b]['hi_edge'] :
+          raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." % 
+                           (bin_data['lo_edge'], bin_data['hi_edge'], model_channel.bins[b]['lo_edge'], model_channel.bins[b]['hi_edge']))
+        self.counts[offset + b] = bin_data['counts'] 
+    if not 'aux_obs' in jdict['data'] : raise KeyError("No 'aux_obs' section defined in specified JSON file." % name)
+    self.set_aux_obs(np.array(jdict['data']['aux_obs']))
     return self
 
   def fill_jdict(self, jdict) :
