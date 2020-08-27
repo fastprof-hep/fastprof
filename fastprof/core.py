@@ -108,20 +108,27 @@ class ModelNP(JSONSerializable) :
 class Sample(JSONSerializable) :
   def __init__(self, name = '', norm = '', nominal_norm = None, nominal_yields = None, impacts = None) :
     self.name = name
-    self.norm = norm
+    self.norm_expr = norm
     self.nominal_norm = nominal_norm
     self.nominal_yields = nominal_yields
     self.impacts = impacts
+  def norm(self, pars) :
+    try:
+      return eval(self.norm_expr, pars.dict())/self.nominal_norm
+    except Exception as inst:
+      print('Error while evaluating the normalization %s of sample %s.' % (self.norm_expr, self.name))
+      print(inst)
+      return None
   def load_jdict(self, jdict) : 
     self.name = self.load_field('name', jdict, '', str)
-    self.norm = self.load_field('norm', jdict, '', str)
+    self.norm_expr = self.load_field('norm', jdict, '', str)
     self.nominal_norm = self.load_field('nominal_norm', jdict, None, [float, int])
     self.nominal_yields = self.load_field('nominal_yields', jdict, None, list)
     self.impacts = self.load_field('impacts', jdict, None, dict)
     return self
   def fill_jdict(self, jdict) :
     jdict['name'] = self.name
-    jdict['norm'] = self.norm
+    jdict['norm'] = self.norm_expr
     jdict['nominal_norm'] = self.nominal_norm
     jdict['nominal_yields'] = self.nominal_yields
     jdict['impacts'] = self.impacts
@@ -180,20 +187,23 @@ class Model (JSONSerializable) :
     self.ncons = len(self.aux_obs)
     self.nfree = self.nnps - self.ncons
     self.samples = {}
+    self.sample_indices = {}
     self.channel_offsets = {}
     self.nbins = 0
     for channel in self.channels.values() :
       self.channel_offsets[channel.name] = self.nbins
       self.nbins += channel.dim()
       for sample in channel.samples.values() :
-        if not sample.name in self.samples : self.samples[sample.name] = len(self.samples)
-    self.nominal_yields = np.zeros((len(self.samples), self.nbins))
-    self.impacts = np.zeros((len(self.samples), self.nbins, len(self.nps)))
+        if not sample.name in self.sample_indices :
+          self.samples[sample.name] = sample
+          self.sample_indices[sample.name] = len(self.sample_indices)
+    self.nominal_yields = np.zeros((len(self.sample_indices), self.nbins))
+    self.impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
     for channel in self.channels.values() :
       for sample in channel.samples.values() :
-        self.nominal_yields[self.samples[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
+        self.nominal_yields[self.sample_indices[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
         for p, par in enumerate(self.nps.values()) :
-          self.impacts[self.samples[sample.name], self.channel_offsets[channel.name]:, p] = sample.impacts[par.name]
+          self.impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impacts[par.name]
     self.log_impacts = np.log(1 + self.impacts)
     self.diag = np.zeros((self.ncons, self.ncons))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ])
@@ -208,10 +218,11 @@ class Model (JSONSerializable) :
     self.init_vars()
 
   def n_exp(self, pars) :
+    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ])).T
     if self.linear_nps : 
-      return self.nominal_yields*(1 + self.impacts.dot(pars.nps))
+      return nnom*(1 + self.impacts.dot(pars.nps))
     else :
-      return self.nominal_yields*np.exp(self.log_impacts.dot(pars.nps))
+      return nnom*np.exp(self.log_impacts.dot(pars.nps))
 
   def tot_exp(self, pars, floor = None) :
     ntot = self.n_exp(pars).sum(axis=0)
@@ -400,7 +411,7 @@ class Parameters :
       s += 'nps  = ' + str(self.nps)  + '\n'
     else :
       s += 'pois : ' + '\n        '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
-      s += 'nps  : ' + '\n       '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name,v)) for p, v in zip(self.model.nps .values(), self.nps ) ] ) + '\n'
+      s += 'nps  : ' + '\n       '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name)) for p, v in zip(self.model.nps .values(), self.nps ) ] ) + '\n'
     return s
 
   def __contains__(self, par) :
@@ -431,14 +442,21 @@ class Parameters :
 
   def unscaled_nps(self) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
-    return model.np_nominal_values + self.nps*model.np_variations
+    return self.model.np_nominal_values + self.nps*self.model.np_variations
 
-  def unscaled(self, par, val) :
+  def unscaled(self, par) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
     if par in self.model.nps :
       par_obj = self.model.nps[par]
-      return par_obj.nominal_value + val*par_obj.variation
+      return par_obj.nominal_value + self.__getitem__(par)*par_obj.variation
     raise KeyError('Model nuisance parameter %s not found' % par)
+
+  def dict(self, unscaled = True) :
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    dic = {}
+    for poi, val in zip(self.model.pois.keys(), self.pois) : dic[poi] = val
+    for par, val in zip(self.model.nps .keys(), self.unscaled_nps() if unscaled else self.nps) : dic[par] = val
+    return dic
 
   def set_from_aux(self, data) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
