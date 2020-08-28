@@ -37,7 +37,7 @@ parser.add_argument("-r", "--poi-range"        , type=str  , default=''       , 
 parser.add_argument(      "--poi-min"          , type=float, default=0        , help="POI range minimum")
 parser.add_argument(      "--poi-max"          , type=float, default=None     , help="POI range maximum")
 parser.add_argument("-n", "--signal-yield"     , type=str  , default='nSignal', help="Name of signal yield variable")
-parser.add_argument(      "--nps"              , type=str  , default=''      , help="Constant parameters to include as NPs")
+parser.add_argument(      "--nps"              , type=str  , default=''       , help="Constant parameters to include as NPs")
 parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
 parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
 
@@ -132,16 +132,17 @@ poi_init_val = poi.getVal()
 # ===================================
 
 def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
-   if options.binned :
-     if options.input_bins > 0 : obs.setBins(options.input_bins)
-     fit_data = dataset.binnedClone()
-   else :
-     fit_data = dataset
-   result = main_pdf.fitTo(fit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
-   if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
-     return fit(dataset, robust, n_max - 1, result.minNll())
-   else :
-     return result
+  main_pdf.getVariables().Print('V')
+  if options.binned :
+    if options.input_bins > 0 : obs.setBins(options.input_bins)
+    fit_data = dataset.binnedClone()
+  else :
+    fit_data = dataset
+  result = main_pdf.fitTo(fit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
+  if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
+    return fit(dataset, robust, n_max - 1, result.minNll())
+  else :
+    return result
 
 data = None
 if options.data_name != '' :
@@ -156,7 +157,7 @@ if data == None :
   raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
 
 # If we specified both, then it means an Asimov with NP values profiled on the observed
-if options.data_name != '' and options.asimov != None :
+if options.data_name != '' and options.asimov :
   poi.setVal(options.asimov)
   fit(data, robust=True)
   print('=== Generating the main dataset as an Asimov with POI = %g and NP values below:' % poi.getVal())
