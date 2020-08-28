@@ -471,7 +471,7 @@ if not options.data_only :
     channel_spec['samples'] = sample_specs
     channel_specs.append(channel_spec)
   model_dict['channels'] = channel_specs
-jdict['model'] = model_dict
+  jdict['model'] = model_dict
 
 # 9 - Fill the dataset information
 # --------------------------------
