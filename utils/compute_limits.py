@@ -36,6 +36,7 @@ parser.add_argument(      "--marker"        , type=str  , default=''    , help="
 parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
 parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
 parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1:[min]:[max],name2:[min]:[max],...")
+parser.add_argument(      "--sethypo"       , type=str  , default=''    , help="Change hypo parameter values, in the form par1=val1,par2=val2,...")
 parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
 
 options = parser.parse_args()
@@ -95,7 +96,18 @@ samplers_clsb = []
 samplers_cl_b = []
 for fit_result in res.fit_results :
   test_hypo = fit_result['hypo_pars']
-  tmu_0 = fit_result['fast_tmu_0']
+  if options.sethypo != '' :
+    try:
+      sets = [ v.replace(' ', '').split('=') for v in options.sethypo.split(',') ]
+      for (var, val) in sets :
+        if not var in test_hypo :
+          raise ValueError("Cannot find '%s' among hypothesis parameters." % var)
+        test_hypo[var] = float(val)
+        print("INFO : setting %s=%g in hypothesis for %s = %g" % (var, float(val), model.poi_name, test_hypo.poi))
+    except Exception as inst :
+      print(inst)
+      raise ValueError("ERROR : invalid variable assignment string '%s'." % options.sethypo)
+    tmu_0 = fit_result['fast_tmu_0']
   gen0_hypo = copy.deepcopy(test_hypo).set_poi(0)
   samplers_clsb.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
   samplers_cl_b.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
@@ -153,7 +165,8 @@ if not options.batch_mode :
   plt.ylabel('$CL_{s+b}$')
   plt.plot(res.hypos, [ fit_result['pv']          for fit_result in fit_results ], options.marker + 'r:' , label = 'Asymptotics')
   plt.plot(res.hypos, [ fit_result['sampling_pv'] for fit_result in fit_results ], options.marker + 'b-'  , label = 'Sampling')
-  plt.legend()
+  plt.legend(loc=1) # 1 -> upper right
+  plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
 
   fig2 = plt.figure(2)
   plt.suptitle('$CL_s$')
@@ -163,7 +176,8 @@ if not options.batch_mode :
     opti_samples.plot_bands(options.bands)
   plt.plot(res.hypos, [ fit_result['cls']          for fit_result in fit_results ], options.marker + 'r:' , label = 'Asymptotics')
   plt.plot(res.hypos, [ fit_result['sampling_cls'] for fit_result in fit_results ], options.marker + 'b-'  , label = 'Sampling')
-  plt.legend()
+  plt.legend(loc=1) # 1 -> upper right
+  plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
   fig1.savefig(options.output_file + '_clsb.pdf')
   fig2.savefig(options.output_file + '_cls.pdf')
   plt.show()
