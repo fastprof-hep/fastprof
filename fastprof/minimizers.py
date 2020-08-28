@@ -22,9 +22,11 @@ class NPMinimizer :
     # i : bin index
     # k,l : sample indices
     # a,b,c : NP indices
-    q  = np.einsum('ki,i,aki->a', ratio_nom, delta_obs, model.impacts) + hypo.unscaled_nps() - self.data.aux_obs
-    p1 = np.einsum('ki,ki,aki,bki->ab', ratio_nom, delta_obs, model.impacts, model.impacts)
-    p2 = np.einsum('i,ki,li,aki,bli->ab', self.data.n, ratio_nom, ratio_nom, model.impacts, model.impacts)
+    q  = np.einsum('ki,i,kia->a', ratio_nom, delta_obs, model.impacts) + model.diag.dot(hypo.nps - self.data.aux_obs)
+    print(q, hypo.nps - self.data.aux_obs)
+    print(ratio_nom.shape, delta_obs.shape, model.impacts.shape)
+    p1 = np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, model.impacts, model.impacts)
+    p2 = np.einsum('i,ki,li,kia,lib->ab', self.data.counts, ratio_nom, ratio_nom, model.impacts, model.impacts)
     p = p1 + p2 + model.diag
     return (p,q)
   
@@ -38,9 +40,9 @@ class NPMinimizer :
       nps = self.data.aux_obs, np.zeros(self.model.f_dim)
     else :
       deltas = np.linalg.inv(p).dot(q)
-      nps = hypo.vals - deltas
-    self.min_deltas = Parameters(hypo.poi_vals, deltas, self.data.model)
-    self.min_pars   = Parameters(hypo.poi_vals, nps   , self.data.model)
+      nps = hypo.nps - deltas
+    self.min_deltas = Parameters(hypo.pois, deltas, self.data.model)
+    self.min_pars   = Parameters(hypo.pois, nps   , self.data.model)
     return self.min_pars
   
   def profile_nll(self, hypo = None, floor = None) :

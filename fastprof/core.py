@@ -205,7 +205,7 @@ class Model (JSONSerializable) :
         for p, par in enumerate(self.nps.values()) :
           self.impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impacts[par.name]
     self.log_impacts = np.log(1 + self.impacts)
-    self.diag = np.zeros((self.ncons, self.ncons))
+    self.diag = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ])
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ])
     for p, par in enumerate(self.nps.values()) :
@@ -229,7 +229,7 @@ class Model (JSONSerializable) :
     return ntot if floor == None else np.maximum(ntot, floor)
 
   def nll(self, pars, data, offset = True, floor = None, no_constraints=False) :
-    delta = data.aux_obs - pars.unscaled_nps()
+    delta = data.aux_obs - pars.nps
     ntot = self.tot_exp(pars, floor)
     try :
       if not offset :
@@ -420,14 +420,14 @@ class Parameters :
 
   def __getitem__(self, par):
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
-    if par in self.model.pois : return self.pars[list(self.model.pois).index(par)]
+    if par in self.model.pois : return self.pois[list(self.model.pois).index(par)]
     if par in self.model.nps  : return self.nps [list(self.model.nps ).index(par)]
     raise KeyError('Model parameter %s not found' % par)
 
   def set(self, par, val, unscaled=False) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
     if par in self.model.pois :
-      self.pars[list(self.model.pois).index(par)] = val
+      self.pois[list(self.model.pois).index(par)] = val
       return self
     if par in self.model.nps :
       if unscaled :
@@ -523,7 +523,15 @@ class Data (JSONSerializable) :
                            (bin_data['lo_edge'], bin_data['hi_edge'], model_channel.bins[b]['lo_edge'], model_channel.bins[b]['hi_edge']))
         self.counts[offset + b] = bin_data['counts'] 
     if not 'aux_obs' in jdict['data'] : raise KeyError("No 'aux_obs' section defined in specified JSON file." % name)
-    self.set_aux_obs(np.array(jdict['data']['aux_obs']))
+    data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in jdict['data']['aux_obs'] }
+    aux_obs_values = []
+    for par in self.model.nps.values() :
+      if par.aux_obs == None : 
+        aux_obs_values.append(0)
+        continue
+      if not par.aux_obs in data_aux_obs : raise('Auxiliary observable %s defined in model, but not provided in the data' % par.aux_obs)
+      aux_obs_values.append((data_aux_obs[par.aux_obs] - par.nominal_value)/par.variation)
+    self.set_aux_obs(np.array(aux_obs_values))
     return self
 
   def fill_jdict(self, jdict) :
