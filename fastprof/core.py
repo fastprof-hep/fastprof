@@ -248,6 +248,7 @@ class Model (JSONSerializable) :
 
   def plot(self, pars, data = None, channel = None, exclude = [], variations = [], residuals = False, canvas=None) :
     if canvas == None : canvas = plt.gca()
+    if not isinstance(exclude, list) : exclude = [ exclude ]
     if channel == None :
       channel = self.channels[list(self.channels)[0]]
     else :
@@ -270,7 +271,7 @@ class Model (JSONSerializable) :
       for ex in exclude :
         if not ex in channel.samples : raise ValueError('Sample %s is not defined.' % ex)
         samples.append(list(channel.samples).index(ex))
-      tot_exp = np[samples,:].sum(nexp, axis=0)
+      tot_exp = nexp[samples,:].sum(axis=0)
       line_style = '--'
       title = 'Model excluding ' + ','.join(exclude)     
     yvals = tot_exp if not residuals or not data else tot_exp - data.counts
@@ -411,7 +412,7 @@ class Parameters :
       s += 'nps  = ' + str(self.nps)  + '\n'
     else :
       s += 'pois : ' + '\n        '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
-      s += 'nps  : ' + '\n       '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name)) for p, v in zip(self.model.nps .values(), self.nps ) ] ) + '\n'
+      s += 'nps  : ' + '\n       ' .join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name)) for p, v in zip(self.model.nps .values(), self.nps ) ] )
     return s
 
   def __contains__(self, par) :
