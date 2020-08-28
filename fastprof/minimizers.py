@@ -22,12 +22,12 @@ class NPMinimizer :
     # i : bin index
     # k,l : sample indices
     # a,b,c : NP indices
-    q  = np.einsum('ki,i,kia->a', ratio_nom, delta_obs, model.impacts) + model.diag.dot(hypo.nps - self.data.aux_obs)
+    q  = np.einsum('ki,i,kia->a', ratio_nom, delta_obs, model.impacts) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
     print(q, hypo.nps - self.data.aux_obs)
     print(ratio_nom.shape, delta_obs.shape, model.impacts.shape)
     p1 = np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, model.impacts, model.impacts)
     p2 = np.einsum('i,ki,li,kia,lib->ab', self.data.counts, ratio_nom, ratio_nom, model.impacts, model.impacts)
-    p = p1 + p2 + model.diag
+    p = p1 + p2 + model.constraint_hessian
     return (p,q)
   
   def profile(self, hypo) :
