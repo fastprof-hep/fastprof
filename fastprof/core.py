@@ -205,12 +205,12 @@ class Model (JSONSerializable) :
         for p, par in enumerate(self.nps.values()) :
           self.impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impacts[par.name]
     self.log_impacts = np.log(1 + self.impacts)
-    self.diag = np.zeros((self.nnps, self.nnps))
+    self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ])
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ])
     for p, par in enumerate(self.nps.values()) :
       if par.constraint == None : break # we've reached the end of the constrained NPs in the NP list
-      self.diag[p,p] = 1/par.constraint**2
+      self.constraint_hessian[p,p] = 1/par.constraint**2
 
   def set_constraint(self, par, val) :
     for par in self.nps :
@@ -238,7 +238,7 @@ class Model (JSONSerializable) :
         nexp0 = self.nominal_yields.sum(axis=0)
         result = np.sum(ntot - nexp0 - data.counts*(np.log(ntot/nexp0)))
       if not no_constraints :
-         result += 0.5*np.linalg.multi_dot((delta, self.diag, delta))
+         result += 0.5*np.linalg.multi_dot((delta, self.constraint_hessian, delta))
       if math.isnan(result) : result = math.inf
       return result
     except Exception as inst:
