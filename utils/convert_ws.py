@@ -216,6 +216,7 @@ jdict['poi'] = poi.GetName()
 # ------------------------------
 
 def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
+   main_pdf.getVariables().Print('V')
    if options.binned :
      if options.input_bins > 0 : obs.setBins(options.input_bins)
      fit_data = dataset.binnedClone()
