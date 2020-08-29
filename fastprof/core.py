@@ -85,7 +85,7 @@ class ModelNP(JSONSerializable) :
     self.aux_obs = aux_obs
   def is_free(self) :
     return self.constraint == None
-  def generate_aux(value) :
+  def generate_aux(self, value) :
     if self.constraint == None : return 0
     return np.random.normal(value, self.constraint)
   def load_jdict(self, jdict) : 
@@ -312,16 +312,17 @@ class Model (JSONSerializable) :
     
   def expected_pars(self, pois, minimizer = None) :
     if not isinstance(pois, np.ndarray) : pois = np.array([ pois ])
+    pars = Parameters(pois, np.zeros(self.nnps), self)
     if minimizer :
-      return minimizer.profile_nps(pois)
+      return minimizer.profile_nps(pars)
     else :
-      return Parameters(pois, np.zeros(self.nnps), self)
+      return pars
 
   def generate_data(self, pars) :
-    return Data(self, np.random.poisson(self.n_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
+    return Data(self, np.random.poisson(self.tot_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
 
   def generate_asimov(self, pars) :
-    return Data(self).set_data(self.n_exp(pars), pars.nps)
+    return Data(self).set_data(self.tot_exp(pars), pars.nps)
 
   def generate_expected(self, pois, minimizer = None) :
     return self.generate_asimov(self.expected_pars(pois, minimizer))
@@ -391,8 +392,8 @@ class Model (JSONSerializable) :
 # -------------------------------------------------------------------------
 class Parameters :
   def __init__(self, pois, nps = np.array([]), model = None) :
-    if not isinstance(pois, np.ndarray) : pois = np.array(pois)
-    if not isinstance(nps , np.ndarray) : nps  = np.array(nps)
+    if not isinstance(pois, np.ndarray) : pois = np.array([ pois])
+    if not isinstance(nps , np.ndarray) : nps  = np.array([ nps ])
     if pois.ndim != 1 :
         raise ValueError('Input POI array should be a 1D vector, got ' + str(pois))
     if nps.ndim != 1 :
@@ -473,11 +474,13 @@ class Data (JSONSerializable) :
     self.set_counts(counts)
     self.set_aux_obs(aux_obs)
 
-  def set_counts(self, counts) : 
+  def set_counts(self, counts) :
+    if isinstance(counts, list) : counts = np.array( counts )
+    if not isinstance(counts, np.ndarray) : counts = np.array([ counts ])
     if counts.size > 0 :
       if counts.ndim != 1 :
         raise ValueError('Input data counts should be a 1D vector, got ' + str(counts))
-      if counts.size != model.nbins :
+      if counts.size != self.model.nbins :
         raise ValueError('Input data counts should have a size equal to the number of model bins (%d), got %d.' % (model.nbins, len(counts)))
       self.counts = counts
     else :
@@ -485,6 +488,8 @@ class Data (JSONSerializable) :
     return self
 
   def set_aux_obs(self, aux_obs) : 
+    if isinstance(aux_obs, list) : aux_obs = np.array( aux_obs )
+    if not isinstance(aux_obs, np.ndarray) : aux_obs = np.array([ aux_obs ])
     if aux_obs.size == 0 :
       self.aux_obs = self.model.np_nominal_values
     else :
