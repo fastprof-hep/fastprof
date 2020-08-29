@@ -107,8 +107,8 @@ for fit_result in res.fit_results :
     except Exception as inst :
       print(inst)
       raise ValueError("ERROR : invalid variable assignment string '%s'." % options.sethypo)
-    tmu_0 = fit_result['fast_tmu_0']
-  gen0_hypo = copy.deepcopy(test_hypo).set_poi(0)
+  tmu_0 = fit_result['fast_tmu_0']
+  gen0_hypo = copy.deepcopy(test_hypo).set(list(model.pois)[0], 0)
   samplers_clsb.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
   samplers_cl_b.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
 
@@ -129,39 +129,30 @@ if options.bands :
   for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
     for fit_result, band_point in zip(fit_results, sampling_bands[band]) : fit_result['sampling_cls_%+d' % band] = band_point
 
+def limit(key, description) :
+  limit_value = calc.limit(key, options.cl)
+  if limit_value : print(description + ' : UL(%g%%) = %g (N = %s)' % (100*options.cl, limit_value, str(model.n_exp(model.expected_pars(limit_value)).sum(axis=1))) )
+
 res.print(verbosity=1)
 
-limit_asy_full_clsb = calc.limit('pv'          , options.cl)
-limit_asy_fast_clsb = calc.limit('fast_pv'     , options.cl)
-limit_sampling_clsb = calc.limit('sampling_pv' , options.cl)
-limit_asy_full_cls  = calc.limit('cls'         , options.cl)
-limit_asy_fast_cls  = calc.limit('fast_cls'    , options.cl)
-limit_sampling_cls  = calc.limit('sampling_cls', options.cl)
+limit_asy_full_clsb = limit('pv'          , 'Asymptotics, full model, CLsb')
+limit_asy_fast_clsb = limit('fast_pv'     , 'Asymptotics, fast model, CLsb')
+limit_sampling_clsb = limit('sampling_pv' , 'Sampling   , fast model, CLsb')
+limit_asy_full_cls  = limit('cls'         , 'Asymptotics, full model, CLs ')
+limit_asy_fast_cls  = limit('fast_cls'    , 'Asymptotics, fast model, CLs ')
+limit_sampling_cls  = limit('sampling_cls', 'Sampling   , fast model, CLs ')
 
 if options.bands :
   limit_sampling_cls_bands = {}
   for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-    limit_sampling_cls_bands[band] = calc.limit('sampling_cls_%+d' % band, options.cl)
-
-# Print results
-if limit_asy_full_clsb : print('Asymptotics, full model, CLsb : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_full_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_full_clsb)))))
-if limit_asy_fast_clsb : print('Asymptotics, fast model, CLsb : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_fast_clsb, np.sum(model.s_exp(model.expected_pars(limit_asy_fast_clsb)))))
-if limit_sampling_clsb : print('Sampling   , fast model, CLsb : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_sampling_clsb, np.sum(model.s_exp(model.expected_pars(limit_sampling_clsb)))))
-if limit_asy_full_cls  : print('Asymptotics, full model, CLs  : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_full_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_full_cls )))))
-if limit_asy_fast_cls  : print('Asymptotics, fast model, CLs  : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_asy_fast_cls , np.sum(model.s_exp(model.expected_pars(limit_asy_fast_cls )))))
-if limit_sampling_cls  : print('Sampling   , fast model, CLs  : UL(%g%%) = %g (N_signal = %g)' % (100*options.cl, limit_sampling_cls , np.sum(model.s_exp(model.expected_pars(limit_sampling_cls )))))
-
-if options.bands :
-  for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-    if limit_sampling_cls_bands[band] :
-      print('Expected limit band, fast model, %+d sigma band : UL(%g%%) = %g (N_signal = %g)' % (band, 100*options.cl, limit_sampling_cls_bands[band], np.sum(model.s_exp(model.expected_pars(limit_sampling_cls_bands[band])))))
+    limit_sampling_cls_bands[band] = limit('sampling_cls_%+d' % band, 'Expected limit band, fast model, %+d sigma band')
 
 # Plot results
 if not options.batch_mode :
   plt.ion()
   fig1 = plt.figure(1)
   plt.suptitle('$CL_{s+b}$')
-  plt.xlabel(model.poi_name)
+  plt.xlabel(list(model.pois)[0])
   plt.ylabel('$CL_{s+b}$')
   plt.plot(res.hypos, [ fit_result['pv']          for fit_result in fit_results ], options.marker + 'r:' , label = 'Asymptotics')
   plt.plot(res.hypos, [ fit_result['sampling_pv'] for fit_result in fit_results ], options.marker + 'b-'  , label = 'Sampling')
@@ -170,7 +161,7 @@ if not options.batch_mode :
 
   fig2 = plt.figure(2)
   plt.suptitle('$CL_s$')
-  plt.xlabel(model.poi_name)
+  plt.xlabel(list(model.pois)[0])
   plt.ylabel('$CL_s$')
   if options.bands :
     opti_samples.plot_bands(options.bands)
@@ -184,7 +175,7 @@ if not options.batch_mode :
 
 jdict = {}
 jdict['cl'] = options.cl
-jdict['poi'] = model.poi_name
+jdict['poi'] = list(model.pois)[0]
 jdict['limit_sampling_CLs'] = limit_sampling_cls
 jdict['limit_asymptotics_CLs'] = limit_asy_full_cls
 jdict['limit_asymptotics_CLs_fast'] = limit_asy_fast_cls
