@@ -23,14 +23,14 @@ class Sampler :
     if k % self.freq == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
 
   def generate(self, ntoys) :
-    print('Generating POI hypothesis %g. Full gen hypo = ' % self.gen_hypo.poi)
+    print('Generating POI hypothesis %s. Full gen hypo = ' % str(self.gen_hypo.pois))
     print(str(self.gen_hypo))
     self.dist = SamplingDistribution(ntoys)
     for k in range(0, ntoys) :
       self.progress(k, ntoys)
       success = False
       while not success :
-        if self.debug : print('DEBUG: iteration %d generating data for hypo %g.' % (k, self.gen_hypo.poi))
+        if self.debug : print('DEBUG: iteration %d generating data for hypo %s.' % (k, str(self.gen_hypo.pois)))
         data = self.model.generate_data(self.gen_hypo)
         result = self.compute(data, k)
         if result != None :
@@ -60,9 +60,9 @@ class ScanSampler (Sampler) :
     opti = ScanMinimizer(data, self.scan_mus)
     tmu = opti.tmu(self.test_hypo, self.test_hypo)
     if self.use_qtilda :
-      q = QMuTilda(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
+      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
     else :
-      q = QMu(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi)
+      q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi)
     return q.asymptotic_pv()
 
 
@@ -105,9 +105,9 @@ class OptiSampler (Sampler) :
       print(opti.free_pars)
       print(opti.hypo_pars)
     if self.use_qtilda :
-      q = QMuTilda(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
+      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
     else :
-      q = QMu(test_poi = self.test_hypo.poi, tmu = tmu, best_poi = opti.min_poi)
+      q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi)
     if self.debug :
       if self.debug_data.shape[0] == 0 :
         columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev' ]

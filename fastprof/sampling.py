@@ -78,7 +78,7 @@ class Samples (SamplesBase) :
       raise ValueError('Should specify either samplers or hypotheses, but not both.')
     if len(samplers) == 0 and len(pois) == 0 :
       raise ValueError('Should specify either samplers or hypotheses.')
-    if len(samplers) > 0  and len(pois) == 0 : pois = [ sampler.test_hypo.poi for sampler in samplers ]
+    if len(samplers) > 0  and len(pois) == 0 : pois = [ sampler.test_hypo.pois[0] for sampler in samplers ]
     super().__init__(pois)
     self.samplers = samplers
     self.file_root = file_root

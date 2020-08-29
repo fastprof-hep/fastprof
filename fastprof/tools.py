@@ -34,10 +34,9 @@ class FitResults (JSONSerializable) :
     jdict['fit_results'] = self.fit_results
 
   def make_pars(self, fr, prefix, poi_key) :
-    pars = Parameters(model=self.model)
-    pars.poi = fr[poi_key]
+    pars = Parameters(fr[poi_key], model=self.model)
     for par in fr :
-      if par.startswith(prefix) : pars.set_np(par[len(prefix):], fr[par], unscaled=True)
+      if par.startswith(prefix) : pars.set(par[len(prefix):], fr[par], unscaled=True)
     return pars
 
   def str_rep(self, print_keys = [], verbosity = 0) :
@@ -138,7 +137,7 @@ class QMuCalculator(LimitCalculator) :
       fit_result[hypo_pars_key] = self.minimizer.hypo_pars
       tmu_0 = self.minimizer.asimov_clone(0).tmu(hypo, hypo)
       fit_result[tmu_0_key] = tmu_0
-      q = QMu(test_poi = hypo.poi, tmu = tmu, best_poi = self.minimizer.min_poi)
+      q = QMu(test_poi = hypo.pois[0], tmu = tmu, best_poi = self.minimizer.min_poi)
       fit_result[q_key] = q.value()
       if hypo_key != '' and free_key != '' :
         fit_result[fast_tmu_full] = 2*(self.minimizer.data.model.nll(fit_result[hypo_key], self.minimizer.data) - self.minimizer.data.model.nll(fit_result[free_key], self.minimizer.data))
@@ -178,7 +177,7 @@ class QMuTildaCalculator(LimitCalculator) :
       fit_result[hypo_pars_key] = self.minimizer.hypo_pars
       tmu_0 = self.minimizer.asimov_clone(0).tmu(hypo, hypo)
       fit_result[tmu_0_key] = tmu_0
-      q = QMuTilda(test_poi = hypo.poi, tmu = tmu, best_poi = self.minimizer.min_poi)
+      q = QMuTilda(test_poi = hypo.pois[0], tmu = tmu, best_poi = self.minimizer.min_poi)
       fit_result[q_key] = q.value()
       if hypo_key != '' and free_key != '' :
         fit_result[fast_tmu_full] = 2*(self.minimizer.data.model.nll(fit_result[hypo_key], self.minimizer.data) - self.minimizer.data.model.nll(fit_result[free_key], self.minimizer.data))
