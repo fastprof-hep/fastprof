@@ -23,8 +23,6 @@ class NPMinimizer :
     # k,l : sample indices
     # a,b,c : NP indices
     q  = np.einsum('ki,i,kia->a', ratio_nom, delta_obs, model.impacts) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
-    print(q, hypo.nps - self.data.aux_obs)
-    print(ratio_nom.shape, delta_obs.shape, model.impacts.shape)
     p1 = np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, model.impacts, model.impacts)
     p2 = np.einsum('i,ki,li,kia,lib->ab', self.data.counts, ratio_nom, ratio_nom, model.impacts, model.impacts)
     p = p1 + p2 + model.constraint_hessian
@@ -97,7 +95,7 @@ class POIMinimizer :
         print('Hypothesis fit result   :', self.hypo_pars)
         print('Free fit starting value :', free)
         print('Free fit result         :', self.free_pars)
-        print(self.data.aux_alphas, self.data.aux_betas)
+        print(self.data.aux_obs)
       self.tmu_debug = tmu
       tmu = 0
     return tmu
@@ -157,7 +155,7 @@ class OptiMinimizer (POIMinimizer) :
     def objective(poi) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
-      self.profile_nps(current_hypo.set_poi(poi))
+      self.profile_nps(current_hypo.set(list(self.data.model.pois)[0], poi))
       if self.debug > 0 : print('== OptMinimizer: eval at %g -> %g' % (poi, self.nll_min))
       if self.debug > 1 : print(current_hypo)
       if self.debug > 1 : print(self.min_pars)
