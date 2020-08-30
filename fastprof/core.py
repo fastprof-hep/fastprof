@@ -165,7 +165,7 @@ class Channel(JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
-  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], linear_nps = False) :
+  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], linear_nps = False, lognormal_terms = False) :
     super().__init__()
     self.pois = { poi.name : poi for poi in pois }
     self.nps  = {}
@@ -179,6 +179,7 @@ class Model (JSONSerializable) :
       raise ValueError('Number of auxiliary observables (%d) does not match the number of constrained NPs (%d)' % (len(self.aux_obs), self.ncons))
     self.channels = { channel.name : channel for channel in channels }
     self.linear_nps = linear_nps
+    self.lognormal_terms = lognormal_terms
     self.init_vars()
 
   def init_vars(self) :
@@ -405,6 +406,9 @@ class Parameters :
     self.pois = pois
     self.nps  = nps
     self.model = model
+
+  def clone(self) :
+    return Parameters(np.array(self.pois), np.array(self.nps), self.model)
 
   def __str__(self) :
     s = ''
