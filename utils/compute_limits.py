@@ -107,7 +107,7 @@ for fit_result in res.fit_results :
     except Exception as inst :
       print(inst)
       raise ValueError("ERROR : invalid variable assignment string '%s'." % options.sethypo)
-    tmu_0 = fit_result['fast_tmu_0']
+  tmu_0 = fit_result['fast_tmu_0']
   gen0_hypo = copy.deepcopy(test_hypo).set_poi(0)
   samplers_clsb.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
   samplers_cl_b.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
