@@ -245,14 +245,14 @@ class Model (JSONSerializable) :
     nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ])).T
     if self.asym_impacts :
       if self.linear_nps :
-        return nnom*(1 + self.pos_impacts.dot(np.maximum(pars.nps, 0)) + self.neg_impacts.dot(np.mininum(pars.nps, 0)))
+        return nnom*(1 + self.pos_impacts.dot(np.maximum(pars.nps, 0)) + self.neg_impacts.dot(np.minimum(pars.nps, 0)))
       else :
-        return nnom*np.exp(self.log_pos_impacts.dot(np.maximum(pars.nps, 0)) + self.log_neg_impacts.dot(np.mininum(pars.nps, 0)))
+        return nnom*np.exp(self.log_pos_impacts.dot(np.maximum(pars.nps, 0)) + self.log_neg_impacts.dot(np.minimum(pars.nps, 0)))
     else :
       if self.linear_nps :
-        return nnom*(1 + self.impacts.dot(pars.nps))
+        return nnom*(1 + self.sym_impacts.dot(pars.nps))
       else :
-        return nnom*np.exp(self.log_impacts.dot(pars.nps))
+        return nnom*np.exp(self.log_sym_impacts.dot(pars.nps))
 
   def tot_exp(self, pars, floor = None) :
     ntot = self.n_exp(pars).sum(axis=0)
