@@ -22,10 +22,14 @@ class NPMinimizer :
     # i : bin index
     # k,l : sample indices
     # a,b,c : NP indices
-    q  = np.einsum('ki,i,kia->a', ratio_nom, delta_obs, model.impacts) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
-    p1 = np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, model.impacts, model.impacts)
-    p2 = np.einsum('i,ki,li,kia,lib->ab', self.data.counts, ratio_nom, ratio_nom, model.impacts, model.impacts)
-    p = p1 + p2 + model.constraint_hessian
+    #q  = np.einsum('ki,i,kia->a', ratio_nom, delta_obs, model.impacts) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    #p1 = np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, model.impacts, model.impacts)
+    #p2 = np.einsum('i,ki,li,kia,lib->ab', self.data.counts, ratio_nom, ratio_nom, model.impacts, model.impacts)
+    ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, model.impacts)
+    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts)
+    if model.lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, model.impacts, model.impacts)
+    p += model.constraint_hessian
     return (p,q)
   
   def profile(self, hypo) :
@@ -117,7 +121,7 @@ class ScanMinimizer (POIMinimizer) :
   def minimize(self, init_hypo) :
     self.nlls = np.zeros(self.scan_pois.size)
     for i in range(0, len(self.scan_pois)) :
-      scan_hypo = copy.deepcopy(init_hypo).set_poi(self.scan_pois[i])
+      scan_hypo = init_hypo.clone().set_poi(self.scan_pois[i])
       np_min = NPMinimizer(self.data)
       self.nlls[i] = np_min.profile_nll(scan_hypo)
       self.pars[i] = np_min.min_pars
@@ -151,7 +155,7 @@ class OptiMinimizer (POIMinimizer) :
     if init_hypo == None :
       current_hypo = self.data.model.expected_pars(self.poi0, self)
     else :
-      current_hypo = copy.deepcopy(init_hypo)
+      current_hypo = init_hypo.clone()
     def objective(poi) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
