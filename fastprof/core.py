@@ -115,16 +115,17 @@ class Sample(JSONSerializable) :
   def impact(self, par, which = 'pos') :
     if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
     try:
-      return np.array([ imp[which] for imp in self.impacts[par] ])
+      imp = np.array([ imp[which] for imp in self.impacts[par] ])
+      return imp if which == 'pos' else 1/(1+imp) - 1
     except Exception as inst:
       print('Impact computation failed for sample %s, parameter %s, impact %s' % (self.name, par, which))
       print(inst)
       return None
   def sym_impact(self, par) :
     try:
-      return np.sqrt((1 + self.impact(par, 'pos'))/(1 + self.impact(par, 'neg'))) - 1
+      return np.sqrt((1 + self.impact(par, 'pos'))*(1 + self.impact(par, 'neg'))) - 1
     except Exception as inst:
-      print('Symmatric impact computation failed, returning the positive impacts instead')
+      print('Symmetric impact computation failed, returning the positive impacts instead')
       print(inst)
       return self.impact(par, 'pos')
   def norm(self, pars) :
@@ -180,7 +181,7 @@ class Channel(JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
-  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], linear_nps = False, lognormal_terms = True) :
+  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], asym_impacts = False, linear_nps = False, lognormal_terms = True) :
     super().__init__()
     self.pois = { poi.name : poi for poi in pois }
     self.nps  = {}
@@ -193,6 +194,7 @@ class Model (JSONSerializable) :
     if len(self.aux_obs) != ncons :
       raise ValueError('Number of auxiliary observables (%d) does not match the number of constrained NPs (%d)' % (len(self.aux_obs), self.ncons))
     self.channels = { channel.name : channel for channel in channels }
+    self.asym_impacts = asym_impacts
     self.linear_nps = linear_nps
     self.lognormal_terms = lognormal_terms
     self.init_vars()
@@ -214,13 +216,19 @@ class Model (JSONSerializable) :
           self.samples[sample.name] = sample
           self.sample_indices[sample.name] = len(self.sample_indices)
     self.nominal_yields = np.zeros((len(self.sample_indices), self.nbins))
-    self.impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
+    self.pos_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
+    self.neg_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
+    self.sym_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
     for channel in self.channels.values() :
       for sample in channel.samples.values() :
         self.nominal_yields[self.sample_indices[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
         for p, par in enumerate(self.nps.values()) :
-          self.impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.sym_impact(par.name)
-    self.log_impacts = np.log(1 + self.impacts)
+          self.pos_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, 'pos')
+          self.neg_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, 'neg')
+          self.sym_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.sym_impact(par.name)
+    self.log_pos_impacts = np.log(1 + self.pos_impacts)
+    self.log_neg_impacts = np.log(1 + self.neg_impacts)
+    self.log_sym_impacts = np.log(1 + self.sym_impacts)
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ])
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ])
@@ -235,10 +243,16 @@ class Model (JSONSerializable) :
 
   def n_exp(self, pars) :
     nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ])).T
-    if self.linear_nps : 
-      return nnom*(1 + self.impacts.dot(pars.nps))
+    if self.asym_impacts :
+      if self.linear_nps :
+        return nnom*(1 + self.pos_impacts.dot(np.maximum(pars.nps, 0)) + self.neg_impacts.dot(np.mininum(pars.nps, 0)))
+      else :
+        return nnom*np.exp(self.log_pos_impacts.dot(np.maximum(pars.nps, 0)) + self.log_neg_impacts.dot(np.mininum(pars.nps, 0)))
     else :
-      return nnom*np.exp(self.log_impacts.dot(pars.nps))
+      if self.linear_nps :
+        return nnom*(1 + self.impacts.dot(pars.nps))
+      else :
+        return nnom*np.exp(self.log_impacts.dot(pars.nps))
 
   def tot_exp(self, pars, floor = None) :
     ntot = self.n_exp(pars).sum(axis=0)
