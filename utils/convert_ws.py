@@ -368,7 +368,7 @@ if not options.data_only :
     sample.nominal_yields = np.zeros(nbins) 
     sample.yields = {}
     sample.impacts = {}
-    for par in nuis_pars : sample.impacts[par.name] = np.zeros(nbins)
+    for par in nuis_pars : sample.impacts[par.name] = []
   print('=== Nominal NP values :')
   nuis_par_set.Print("V")
   for i in range(0, nbins) :
@@ -389,11 +389,10 @@ if not options.data_only :
       fill_yields(channel, 'neg_var')
       for sample in channel.samples :
         sample.impact_pos = ((sample.yields['pos_var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
-        sample.impact_neg = ((sample.yields['nominal']/sample.yields['neg_var'])**(1/options.epsilon) - 1) if sample.yields['neg_var'] != 0 else 0
-        sample.impacts[par.name][i] = math.sqrt((1 + sample.impact_pos)*(1 + sample.impact_neg)) - 1
+        sample.impact_neg = ((sample.yields['neg_var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
+        sample.impacts[par.name].append({ 'pos' : sample.impact_pos, 'neg' : sample.impact_neg })
         print('-- sample %s, parameter %-10s : +1 sigma sig impact = %g' % (sample.name, par.name, sample.impact_pos))
         print('--        %s            %-10s : -1 sigma sig impact = %g' % (         '',       '', sample.impact_neg))
-        print('--        %s            %-10s : selected sig impact = %g' % (         '',       '', sample.impacts[par.name][i]))
       par.obj.setVal(par.nominal)
       if options.validation_data :
         par_data = valid_data[par.name]
@@ -466,7 +465,7 @@ if not options.data_only :
       sample_spec['norm'] = sample.normpar.GetName()
       sample_spec['nominal_norm'] = sample.nominal_norm
       sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
-      sample_spec['impacts'] = { par : sample.impacts[par].tolist() for par in sample.impacts }
+      sample_spec['impacts'] = { par : [{ 'pos' : impact['pos'], 'neg' : impact['neg'] } for impact in sample.impacts[par]] for par in sample.impacts }
       sample_specs.append(sample_spec)
     channel_spec['samples'] = sample_specs
     channel_specs.append(channel_spec)
