@@ -112,6 +112,21 @@ class Sample(JSONSerializable) :
     self.nominal_norm = nominal_norm
     self.nominal_yields = nominal_yields
     self.impacts = impacts
+  def impact(self, par, which = 'pos') :
+    if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
+    try:
+      return np.array([ imp[which] for imp in self.impacts[par] ])
+    except Exception as inst:
+      print('Impact computation failed for sample %s, parameter %s, impact %s' % (self.name, par, which))
+      print(inst)
+      return None
+  def sym_impact(self, par) :
+    try:
+      return np.sqrt((1 + self.impact(par, 'pos'))/(1 + self.impact(par, 'neg'))) - 1
+    except Exception as inst:
+      print('Symmatric impact computation failed, returning the positive impacts instead')
+      print(inst)
+      return self.impact(par, 'pos')
   def norm(self, pars) :
     try:
       return eval(self.norm_expr, pars.dict())/self.nominal_norm
@@ -132,7 +147,7 @@ class Sample(JSONSerializable) :
     jdict['nominal_norm'] = self.nominal_norm
     jdict['nominal_yields'] = self.nominal_yields
     jdict['impacts'] = self.impacts
-  
+
 class Channel(JSONSerializable) :
   def __init__(self, name = '', chan_type = 'count', bins = []) :
     self.name = name
@@ -165,7 +180,7 @@ class Channel(JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
-  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], linear_nps = False, lognormal_terms = False) :
+  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], linear_nps = False, lognormal_terms = True) :
     super().__init__()
     self.pois = { poi.name : poi for poi in pois }
     self.nps  = {}
@@ -204,7 +219,7 @@ class Model (JSONSerializable) :
       for sample in channel.samples.values() :
         self.nominal_yields[self.sample_indices[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
         for p, par in enumerate(self.nps.values()) :
-          self.impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impacts[par.name]
+          self.impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.sym_impact(par.name)
     self.log_impacts = np.log(1 + self.impacts)
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ])
