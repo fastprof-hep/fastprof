@@ -37,7 +37,7 @@ parser.add_argument(      "--input_bins"       , type=int  , default=0        , 
 parser.add_argument(      "--regularize"       , type=float, default=0        , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
 parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
 parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
-parser.add_argument(      "--validation-data"  , type=str  , default=''       , help="Name of output file for validation data")
+parser.add_argument("-l", "--validation-data"  , type=str  , default=''       , help="Name of output file for validation data")
 parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
 
 options = parser.parse_args()
@@ -336,10 +336,10 @@ if not options.data_only :
 
   if options.validation_data :
     validation_points = np.linspace(-3, 3, 13)
-    valid_data = collections.OrderedDict()
+    valid_data = {}
     valid_data['points'] = np.array(validation_points)
     for par in nuis_pars :
-      valid_data[par.GetName()] = np.ndarray((nbins, len(validation_points)))
+      valid_data[par.name] = np.ndarray((len(channel.samples), nbins, len(validation_points)))
   
   for par in nuis_pars :
     par.nominal = par.obj.getVal()
@@ -391,17 +391,19 @@ if not options.data_only :
         sample.impact_pos = ((sample.yields['pos_var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
         sample.impact_neg = ((sample.yields['neg_var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
         sample.impacts[par.name].append({ 'pos' : sample.impact_pos, 'neg' : sample.impact_neg })
-        print('-- sample %s, parameter %-10s : +1 sigma sig impact = %g' % (sample.name, par.name, sample.impact_pos))
-        print('--        %s            %-10s : -1 sigma sig impact = %g' % (         '',       '', sample.impact_neg))
+        print('-- sample %10s, parameter %-10s : +1 sigma sig impact = %g' % (sample.name, par.name, sample.impact_pos))
+        print('--        %10s            %-10s : -1 sigma sig impact = %g' % (         '',       '', sample.impact_neg))
       par.obj.setVal(par.nominal)
       if options.validation_data :
         par_data = valid_data[par.name]
-        nref = main_pdf.expectedEvents(channel.obs)*total_integral.getVal()
+        fill_yields(channel, 'ref')
+        nref = np.array([sample.yields['ref'] for sample in channel.samples])
         for k, val in enumerate(validation_points) :
           par.obj.setVal(par.nominal + val*delta)
-          nvar = main_pdf.expectedEvents(channel.obs)*total_integral.getVal()
-          par_data[i,k] = nvar/nref if nref != 0 else 0
-          print('== validation %-10s: %+6g variation = %g' % ('', val, par_data[i,k]))
+          fill_yields(channel, 'var')
+          nvar = np.array([sample.yields['var'] for sample in channel.samples])
+          par_data[:,i,k] = nvar/nref
+          print('== validation %-10s: %+6g variation = %s' % (par.name, val, str(par_data[:,i,k])))
         par.obj.setVal(par.nominal)
 
 
