@@ -42,8 +42,14 @@ if options.data_file :
   if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
   print('Using dataset stored in file %s.' % options.data_file)
 elif options.asimov != None :
-  data = Data(model).set_expected(model.expected_pars(options.asimov))
-  print('Using Asimov dataset with %s = %g.' % (results.poi_name, options.asimov))
+  try:
+    pars = model.expected_pars()
+    sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
+    data = Data(model).set_expected(model.expected_pars(sets))
+  except Exception as inst :
+    print(inst)
+    raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
+  print('Using Asimov dataset with POIs %s.' % str(sets))
 else :
   print('Using dataset stored in file %s.' % options.model_file)
   data = Data(model).load(options.model_file)
@@ -63,7 +69,7 @@ if not options.batch_mode :
   plt.ion()
   fig1 = plt.figure(1)
   plt.suptitle('$CL_{s+b}$')
-  plt.xlabel(model.poi_name)
+  plt.xlabel(list(model.pois)[0])
   plt.ylabel('$CL_{s+b}$')
   plt.plot(results.hypos, [ fit_result['pv']      for fit_result in results.fit_results ], options.marker + 'r:' , label = 'Full model')
   plt.plot(results.hypos, [ fit_result['fast_pv'] for fit_result in results.fit_results ], options.marker + 'g-' , label = 'Fast model')
@@ -71,7 +77,7 @@ if not options.batch_mode :
 
   fig2 = plt.figure(2)
   plt.suptitle('$CL_s$')
-  plt.xlabel(model.poi_name)
+  plt.xlabel(list(model.pois)[0])
   plt.ylabel('$CL_s$')
   plt.plot(results.hypos, [ fit_result['cls']      for fit_result in results.fit_results ], options.marker + 'r:' , label = 'Full model')
   plt.plot(results.hypos, [ fit_result['fast_cls'] for fit_result in results.fit_results ], options.marker + 'g-' , label = 'Fast model')
