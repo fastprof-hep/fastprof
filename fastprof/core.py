@@ -130,11 +130,14 @@ class Sample(JSONSerializable) :
       return self.impact(par, 'pos')
   def norm(self, pars) :
     try:
-      return eval(self.norm_expr, pars.dict())/self.nominal_norm
+      return eval(self.norm_expr, pars.dict(nominal_nps=True))/self.nominal_norm
     except Exception as inst:
-      print('Error while evaluating the normalization %s of sample %s.' % (self.norm_expr, self.name))
+      print("Error while evaluating the normalization '%s' of sample '%s'." % (self.norm_expr, self.name))
       print(inst)
       return None
+  def __str__(self) :
+    s = "Sample '%s', norm = %s (nominal = %g)" % (self.name, self.norm_expr, self.nominal_norm)
+    return s
   def load_jdict(self, jdict) : 
     self.name = self.load_field('name', jdict, '', str)
     self.norm_expr = self.load_field('norm', jdict, '', str)
@@ -486,11 +489,12 @@ class Parameters :
       return par_obj.nominal_value + self.__getitem__(par)*par_obj.variation
     raise KeyError('Model nuisance parameter %s not found' % par)
 
-  def dict(self, unscaled = True) :
+  def dict(self, nominal_nps = False, unscaled_nps = True) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    if nominal_nps : return Parameters(self.pois, model=self.model).dict(nominal_nps=False, unscaled_nps=unscaled_nps)
     dic = {}
     for poi, val in zip(self.model.pois.keys(), self.pois) : dic[poi] = val
-    for par, val in zip(self.model.nps .keys(), self.unscaled_nps() if unscaled else self.nps) : dic[par] = val
+    for par, val in zip(self.model.nps .keys(), self.unscaled_nps() if unscaled_nps else self.nps) : dic[par] = val
     return dic
 
   def set_from_aux(self, data) :
