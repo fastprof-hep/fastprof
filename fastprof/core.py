@@ -51,6 +51,9 @@ class ModelPOI(JSONSerializable) :
     self.name = name
     self.min_val = min_val
     self.max_val = max_val
+  def __str__(self) :
+    s = "Parameter of interest '%s' : min = %g, max = %g" % (self.name, self.min_val, self.max_val)
+    return s
   def load_jdict(self, jdict) : 
     self.name = self.load_field('name', jdict, '', str)
     self.min_val = self.load_field('min_val', jdict, '', [int, float])
@@ -66,6 +69,9 @@ class ModelAux(JSONSerializable) :
     self.name = name
     self.min_val = min_val
     self.max_val = max_val
+  def __str__(self) :
+    s = "Auxiliary observable '%s' : min = %g, max = %g" % (self.name, self.min_val, self.max_val)
+    return s
   def load_jdict(self, jdict) : 
     self.name = self.load_field('name', jdict, '', str)
     self.min_val = self.load_field('min_val', jdict, '', [int, float])
@@ -88,6 +94,10 @@ class ModelNP(JSONSerializable) :
   def generate_aux(self, value) :
     if self.constraint == None : return 0
     return np.random.normal(value, self.constraint)
+  def __str__(self) :
+    s = "Nuisance parameter '%s' : nominal = %g, variation = %g, " % (self.name, self.nominal_value, self.variation)
+    s += 'constraint = %g' % self.constraint if self.constraint != None else 'free parameter'
+    return s
   def load_jdict(self, jdict) : 
     self.name = self.load_field('name', jdict, '', str)
     self.nominal_value = self.load_field('nominal_val', jdict, None, [int, float])
@@ -160,6 +170,12 @@ class Channel(JSONSerializable) :
     self.samples = {}
   def dim(self) :
     return len(self.bins)
+  def sample(self, name) :
+    return self.samples[name] if name in self.samples else None
+  def __str__(self) :
+    s = "Channel '%s', type = %s" % (self.name, self.type)
+    for sample in self.samples.values() : s += '\n    o ' + str(sample)
+    return s
   def load_jdict(self, jdict) : 
     self.name = jdict['name']
     self.type = jdict['type']
@@ -238,6 +254,9 @@ class Model (JSONSerializable) :
     for p, par in enumerate(self.nps.values()) :
       if par.constraint == None : break # we've reached the end of the constrained NPs in the NP list
       self.constraint_hessian[p,p] = 1/par.constraint**2
+
+  def channel(self, name) :
+    return self.channels[name] if name in self.channels else None
 
   def set_constraint(self, par, val) :
     for par in self.nps :
@@ -414,12 +433,12 @@ class Model (JSONSerializable) :
     for channel in self.channels : jdict['model']['channels'].append(channel.dump_jdict())
     
   def __str__(self) :
-    s = 'POIs :\n'
-    for poi in self.pois : s += str(poi) + '\n'
-    s = 'NPs :\n'
-    for par in self.nps : s += str(par) + '\n'
-    s = 'Channels :\n'
-    for channel in channels : s += str(channel) + '\n'
+    s = 'POIs :'
+    for poi in self.pois.values() : s += '\n  - %s' % str(poi)
+    s += '\nNPs :'
+    for par in self.nps.values() : s += '\n  - %s' % str(par)
+    s += '\nChannels :'
+    for channel in self.channels.values() : s += '\n  - %s' % str(channel)
     return s
 
 # -------------------------------------------------------------------------
@@ -445,11 +464,11 @@ class Parameters :
   def __str__(self) :
     s = ''
     if self.model == None :
-      s += 'pois = ' + str(self.pois) + '\n'
-      s += 'nps  = ' + str(self.nps)  + '\n'
+      s += 'POIs = ' + str(self.pois) + '\n'
+      s += 'NPs  = ' + str(self.nps)  + '\n'
     else :
-      s += 'pois : ' + '\n        '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
-      s += 'nps  : ' + '\n       ' .join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name)) for p, v in zip(self.model.nps .values(), self.nps ) ] )
+      s += 'POIs : ' + '\n        '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
+      s += 'NPs  : ' + '\n       ' .join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name)) for p, v in zip(self.model.nps .values(), self.nps ) ] )
     return s
 
   def __contains__(self, par) :
