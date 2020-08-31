@@ -82,3 +82,4 @@ fastprof/utils/iterate.py -p 160:3000:500:logint -c "source mk_lyon_limit_no_a0_
 python -i ./fastprof/utils/collect_results.py -p 160:3000:500:logint -i samples/highMass_NW-no-a0-17/highMass_NW-no-a0-17-obs_%-r3/samples/highMass_NW-no-a0-17-obs_%-r3_results.json -k limit_sampling_CLs -o lyon_limit_sampling_CLs.json --root-output lyon_limit_sampling_CLs.root
 
 python -i ./fastprof/utils/compute_limits.py -m models/highMass_NW-no-a0-17/model_highMass_NW-no-a0-17-log250-2939.json -d run/fastprof/data_highMass-log250.json -f fits/highMass_NW-no-a0-17/fits_highMass_NW-no-a0-17-2939.json -o samples/highMass_NW-no-a0-17/highMass_NW-no-a0-17-obs_2939-r3/samples/highMass_NW-no-a0-17-obs_2939-r3 -n 10000 --truncate_dist 0.99 --bands 2
+python -i utils/plot_valid.py -m run/fastprof/models/highMass_NW-asym/model_highMass_NW-asym-log250-1164.json -v run/fastprof/models/highMass_NW-asym/val_highMass_NW-asym-log250-1164.json -b 156 -s Background
