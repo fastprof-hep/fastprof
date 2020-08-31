@@ -399,7 +399,7 @@ if not options.data_only :
         fill_yields(channel, 'ref')
         nref = np.array([sample.yields['ref'] for sample in channel.samples])
         for k, val in enumerate(validation_points) :
-          par.obj.setVal(par.nominal + val*delta)
+          par.obj.setVal(par.nominal + val*par.error)
           fill_yields(channel, 'var')
           nvar = np.array([sample.yields['var'] for sample in channel.samples])
           par_data[:,i,k] = nvar/nref
