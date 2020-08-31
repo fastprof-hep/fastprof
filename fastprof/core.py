@@ -363,6 +363,12 @@ class Model (JSONSerializable) :
     return s
     
   def expected_pars(self, pois, minimizer = None) :
+    if isinstance(pois, dict) :
+      poi_array = np.zeros(self.npois)
+      for i, poi in enumerate(self.pois) :
+        if not poi in pois : raise KeyError("Cannot initialize from dictionary, POI '%s' is missing" % poi)
+        poi_array[i] = pois[poi]
+      pois = poi_array
     if not isinstance(pois, np.ndarray) : pois = np.array([ pois ])
     pars = Parameters(pois, np.zeros(self.nnps), self)
     if minimizer :
