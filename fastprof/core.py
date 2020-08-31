@@ -184,7 +184,7 @@ class Channel(JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
-  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], asym_impacts = False, linear_nps = False, lognormal_terms = False) :
+  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], asym_impacts = True, linear_nps = False, lognormal_terms = False) :
     super().__init__()
     self.pois = { poi.name : poi for poi in pois }
     self.nps  = {}
