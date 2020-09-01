@@ -10,6 +10,7 @@ import json
 import array
 import math
 import ROOT
+from workspace_tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
 
 ####################################################################################################################################
 ###
@@ -67,64 +68,26 @@ ws = f.Get(options.ws_name)
 if not ws :
   raise KeyError('Workspace %s not found in file %s.' % (options.ws_name, options.ws_file))
 
-mconfig = ws.obj(options.model_config_name)
-if not mconfig :
-  raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
 
 # 2 - Update parameter values and constness as specified in options
 # -----------------------------------------------------------------
 
-def process_setval(opt) :
-  try:
-    sets = [ v.replace(' ', '').split('=') for v in opt.split(',') ]
-    output = []
-    for (var, val) in sets :
-      if not ws.var(var) :
-        raise ValueError("ERROR: Cannot find variable '%s' in workspace" % var)
-      save_val = ws.var(var).getVal()
-      ws.var(var).setVal(float(val))
-      output.append((ws.var(var), float(val), save_val))
-  except Exception as inst :
-    print(inst)
-    raise ValueError("ERROR : invalid variable assignment string '%s'." % opt)
-  return output
+if options.setval   != '' : process_setvals  (options.setval  , ws)
+if options.setconst != '' : process_setconsts(options.setconst, ws)
+if options.setrange != '' : process_setranges(options.setrange, ws)
 
-if options.setval != '' :
-  process_setval(options.setval)
-
-if options.setconst != '' :
-  varlist = options.setconst.split(',')
-  for var in varlist :
-    matching_vars = ROOT.RooArgList(ws.allVars().selectByName(var))
-    if matching_vars.getSize() == 0 :
-      print("ERROR : no variables matching '%s' in model" % var)
-      raise ValueError
-    for i in range(0, matching_vars.getSize()) :
-      thisvar =  matching_vars.at(i)
-      thisvar.setConstant()
-      print("INFO : setting variable '%s' constant (current value: %g)" % (thisvar.GetName(), thisvar.getVal()))
-
-if options.setrange != '' :
-  try:
-    sets = [ v.replace(' ', '').split(':') for v in options.setrange.split(',') ]
-    for (var, minval, maxval) in sets :
-      if not ws.var(var) :
-        raise ValueError("Cannot find variable '%s' in workspace" % var)
-      if minval == '' : 
-        ws.var(var).setMax(float(maxval))
-        print("INFO : setting upper bound of %s to %g" % (var, float(maxval)))
-      elif maxval == '' :
-        ws.var(var).setMin(float(minval))
-        print("INFO : setting lower bound of %s to %g" % (var, float(minval)))
-      else :
-        ws.var(var).setRange(float(minval), float(maxval))
-        print("INFO : setting range of %s to [%g, %g]" % (var, float(minval), float(maxval)))
-  except Exception as inst :
-    print(inst)
-    raise ValueError("ERROR : invalid variable range specification '%s'." % options.setrange)
 
 # 3 - Define the primary dataset
 # ------------------------------
+
+mconfig = ws.obj(options.model_config_name)
+if not mconfig : raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
+
+main_pdf = mconfig.GetPdf()
+poi_set = mconfig.GetParametersOfInterest()
+np_set = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
+aux_obs = mconfig.GetGlobalObservables()
+
 data = None
 if options.data_name != '' :
   data = ws.data(options.data_name)
@@ -132,35 +95,24 @@ if options.data_name != '' :
     ds = [ d.GetName() for d in ws.allData() ]
     raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
 elif options.asimov != None :
-  saves = process_setval(options.asimov)
-  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
-  print("INFO : generating Asimov for parameter values :")
-  for (var, val, save_val) in saves :
-    print("INFO :   %s=%g" % (var.GetName(), val))
-    var.setVal(save_val)
+  data = make_asimov(mconfig, options.asimov)
 else:
   raise ValueError('ERROR: no dataset was specified either using --data-name or --asimov')
+
 
 # 4 - Identify the model parameters and main PDF
 # ----------------------------------------------
 
-main_pdf = mconfig.GetPdf()
-pois = mconfig.GetParametersOfInterest()
-
 cons_aux = {}
 cons_nps = []
 free_nps = []
-aux_obs = ROOT.RooArgList(mconfig.GetGlobalObservables())
-nuis_par_set = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
 
 pdfs = main_pdf.pdfList()
 try:
-  for o in range(0, len(aux_obs)) :
-    aux = aux_obs.at(o)
-    for p in range(0, len(pdfs)) :
-      pdf = pdfs.at(p)
+  for aux in aux_obs :
+    for pdf in pdfs :
       if len(pdf.getDependents(ROOT.RooArgSet(aux))) > 0 :
-        matching_pars = pdf.getDependents(nuis_par_set)
+        matching_pars = pdf.getDependents(np_set)
         if len(matching_pars) == 1 :
           mpar = ROOT.RooArgList(matching_pars).at(0)
           print('INFO: Matching aux %s to NP %s' % (aux.GetName(), mpar.GetName()))
@@ -173,9 +125,7 @@ except Exception as inst :
 nuis_pars = []
 class NuisancePar : pass
 
-np_list = ROOT.RooArgList(nuis_par_set)
-for p in range(0, len(np_list)) :
-  par = np_list.at(p)
+for par in np_set :
   nuis_par = NuisancePar()
   nuis_par.name = par.GetName()
   nuis_par.obj = par
@@ -265,7 +215,7 @@ for i in range(0, channel_pdf.pdfList().getSize()) :
     if isinstance(sample.normvar, ROOT.RooRealVar) :
       sample.normpar = sample.normvar
     else :
-      poi_candidates = sample.normvar.getVariables().selectCommon(pois)
+      poi_candidates = sample.normvar.getVariables().selectCommon(poi_set)
       if poi_candidates.getSize() == 1 : sample.normpar = ROOT.RooArgList(poi_candidates).at(0)
   if sample.normpar == None :
     raise ValueError('Cannot identify normalization variable for sample %s, please specify manually.' % sample.name)
@@ -278,53 +228,38 @@ channels.append(channel)
 # 7 - Fill the model information
 # ------------------------------
 
-def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
-  main_pdf.getVariables().Print('V')
-  if options.binned :
-    if options.input_bins > 0 : obs.setBins(options.input_bins)
-    fit_data = dataset.binnedClone()
-  else :
-    fit_data = dataset
-  result = main_pdf.fitTo(fit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
-  if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
-    return fit(dataset, robust, n_max - 1, result.minNll())
-  else :
-    return result
+if options.binned : 
+  unbinned_data = data
+  data = make_binned(data, channel.obs, options.input_bins)
 
 if options.refit != None :
-  saves = process_setval(options.refit)
+  saves = process_setvals(options.refit, ws)
   print('=== Refitting PDF to specified dataset with under the hypothesis :')
   for (var, val, save_val) in saves :
     print("INFO :   %s=%g" % (var.GetName(), val))
     var.setConstant()
-  fit(data, robust=True)
+  fit(main_pdf, data, robust=True)
 
 # If we specified both, then it means an Asimov with NP values profiled on the observed
 if options.data_name != '' and options.asimov != None :
-  saves = process_setval(options.asimov)
-  print('=== Generating the main dataset as an Asimov with parameter values :')
-  for (var, val, save_val) in saves : print("INFO :   %s=%g" % (var.GetName(), val))  
-  fit(data, robust=True)
-  nuis_par_set.Print('V')
-  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
-  for (var, val, save_val) in saves : var.setVal(save_val)
+  print('=== Generating the main dataset as an Asimov, fitted as below')
+  data = make_asimov(option.asimov, mconfig, main_pdf, data)
 
 if not options.data_only :
   for sample in channel.samples :
     if sample.normpar.getMin() > 0 : sample.normpar.setMin(0) # allow setting variable to 0
-
   # If a normpar is zero, we cannot get the expected nominal_yields for this component. In this case, fit an Asimov and set the parameter at the +2sigma level
   zero_normpars = []
   for sample in channel.samples : zero_normpars.append(sample.normpar.getVal() == 0)
   if any(zero_normpars) :
-    ws.saveSnapshot('nominalNPs', nuis_par_set)
+    ws.saveSnapshot('nominalNPs', np_set)
     asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
     print('=== Determining POI uncertainty using an Asimov dataset with parameters :')
     for sample in channel.samples :
       sample.normpar.setConstant(False)
       print('===   %s=%g' % (sample.normpar.GetName(), sample.normpar.getVal()))
-    nuis_par_set.Print('V')
-    fit(asimov, robust=True)
+    np_set.Print('V')
+    fit(main_pdf, asimov, robust=True)
     # The S/B should be adjusted to the expected sensitivity value to get
     # reliable uncertainties on signal NPs. Choose POI = 2*uncertainty or this.
     ws.loadSnapshot('nominalNPs')
@@ -370,7 +305,7 @@ if not options.data_only :
     sample.impacts = {}
     for par in nuis_pars : sample.impacts[par.name] = []
   print('=== Nominal NP values :')
-  nuis_par_set.Print("V")
+  np_set.Print("V")
   for i in range(0, nbins) :
     xmin = bins[i]
     xmax = bins[i + 1]
@@ -417,7 +352,7 @@ if not options.data_only :
   model_dict['name'] = options.output_name
   # POIs
   poi_specs = []
-  for poi in pois :
+  for poi in poi_set :
     poi_spec = {}
     poi_spec['name'] = poi.GetName()
     poi_spec['min_val'] = poi.getMin()
@@ -487,7 +422,7 @@ for channel in channels :
   channel_datum['obs_unit'] = channel.obs.getUnit()
   bin_array = array.array('d', bins)
   hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
-  data.fillHistogram(hist, ROOT.RooArgList(channel.obs))
+  unbinned_data.fillHistogram(hist, ROOT.RooArgList(channel.obs))
   bin_specs = []
   for b in range(0, nbins) :
     bin_spec = {}
@@ -519,7 +454,7 @@ with open(options.output_file, 'w') as fd:
 # --------------------------------------------------
 if options.validation_data :
   valid_lists = {}
-  for poi in pois : valid_lists[poi.GetName()] = poi.getVal()
+  for poi in poi_set : valid_lists[poi.GetName()] = poi.getVal()
   valid_lists['points'] = valid_data['points'].tolist()
   for par in nuis_pars : valid_lists[par.name] = valid_data[par.name].tolist()
   with open(options.validation_data, 'w') as fd:
