@@ -12,9 +12,7 @@ from scipy.stats import norm
 import collections
 import ROOT
 
-# TODO: 
-# - add fit options support
-# - other test statistics than q_mu
+from workspace_tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
 
 ####################################################################################################################################
 ###
@@ -26,14 +24,13 @@ parser.add_argument("-w", "--ws-name"          , type=str  , default='modelWS', 
 parser.add_argument("-m", "--model-config-name", type=str  , default='mconfig', help="Name of model config within the specified workspace")
 parser.add_argument("-d", "--data-name"        , type=str  , default=''       , help="Name of dataset object within the input workspace")
 parser.add_argument("-a", "--asimov"           , action="store_true"          , help="Fit an Asimov dataset")
-parser.add_argument("-y", "--hypos"            , type=str  , default=''       , help="Comma-separated list of POI hypothesis values")
+parser.add_argument("-y", "--hypos"            , type=str  , default=''       , help="Colon-separated list of POI hypothesis values")
 parser.add_argument(      "--fit-options"      , type=str  , default=''       , help="RooFit fit options to use")
 parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
 parser.add_argument(      "--input_bins"       , type=int  , default=0        , help="Number of bins to use when binning the input dataset")
 parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="Variables to set, in the form var1=val1,var2=val2,...")
 parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="Variables to set constant")
-parser.add_argument("-i", "--poi-initial-value", type=float, default=None     , help="POI allowed range, in the form min,max")
-parser.add_argument("-r", "--poi-range"        , type=str  , default=''       , help="POI allowed range, in the form min,max")
+parser.add_argument("-r", "--setrange"         , type=str  , default=''       , help="List of variable range changes, in the form var1:[min1]:[max1],var2:[min2]:[max2],...")
 parser.add_argument(      "--poi-min"          , type=float, default=0        , help="POI range minimum")
 parser.add_argument(      "--poi-max"          , type=float, default=None     , help="POI range maximum")
 parser.add_argument("-n", "--signal-yield"     , type=str  , default='nSignal', help="Name of signal yield variable")
@@ -54,64 +51,24 @@ if not f or not f.IsOpen() :
   raise FileNotFoundError('Cannot open file %s' % options.ws_file)
 
 ws = f.Get(options.ws_name)
-if not ws :
-  raise KeyError('Workspace %s not found in file %s.' % (options.ws_name, options.ws_file))
+if not ws : raise KeyError('Workspace %s not found in file %s.' % (options.ws_name, options.ws_file))
+
+if options.setval   != '' : process_setvals  (options.setval  , ws)
+if options.setconst != '' : process_setconsts(options.setconst, ws)
+if options.setrange != '' : process_setranges(options.setrange, ws)
 
 mconfig = ws.obj(options.model_config_name)
-if not mconfig :
-  raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
+if not mconfig : raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
 
 main_pdf = mconfig.GetPdf()
-poi = ROOT.RooArgList(mconfig.GetParametersOfInterest()).at(0) # make safer!
+poi_set = mconfig.GetParametersOfInterest()
 
-if options.setval != '' :
-  try:
-    sets = [ v.replace(' ', '').split('=') for v in options.setval.split(',') ]
-    for (var, val) in sets :
-      if not ws.var(var) :
-        raise ValueError("Cannot find variable '%s' in workspace" % var)
-      ws.var(var).setVal(float(val))
-      print("INFO : setting %s=%g" % (var, float(val)))
-  except Exception as inst :
-    print(inst)
-    raise ValueError("ERROR : invalid variable assignment string '%s'." % options.setval)
-
-if options.setconst != '' :
-  varlist = options.setconst.split(',')
-  for var in varlist :
-    matching_vars = ROOT.RooArgList(ws.allVars().selectByName(var))
-    if matching_vars.getSize() == 0 :
-      print("ERROR : no variables matching '%s' in model" % var)
-      raise ValueError
-    for i in range(0, matching_vars.getSize()) :
-      thisvar =  matching_vars.at(i)
-      thisvar.setConstant()
-      print("INFO : setting variable '%s' constant (current value: %g)" % (thisvar.GetName(), thisvar.getVal()))
-
-if options.poi_initial_value != None :
-  poi.setVal(options.poi_initial_value)
-
-poi_min = None
-poi_max = None
-
-if options.poi_range != '' :
-  try:
-    poi_min, poi_max = [ float(p) for p in options.poi_range.split(',') ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError('Invalid POI range specification %s, expected poi_min,poi_max' % options.poi_range)
-  if poi_min > poi_max : poi_min, poi_max = poi_max, poi_min
-  poi.setRange(poi_min, poi_max)
-
-if options.poi_min != None :
-  poi_min = options.poi_min
-  poi.setMin(poi_min)
-
+if options.poi_min != None : 
+  for poi in poi_set : poi.setMin(options.poi_min)
 if options.poi_max != None :
-  poi_max = options.poi_max
-  poi.setMax(poi_max)
+  for poi in poi_set : poi.setMax(options.poi_max)
 
-nuis_pars = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
+np_set = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
 extra_nps = ROOT.RooArgSet()
 
 if options.nps != '' :
@@ -124,25 +81,12 @@ if options.nps != '' :
     for i in range(0, matching_vars.getSize()) :
       extra_nps.add(matching_vars.at(i))
 
-ws.saveSnapshot('init', nuis_pars)
-poi_init_val = poi.getVal()
+ws.saveSnapshot('init', np_set)
+poi_init_vals = [ poi.getVal() for poi in poi_set ]
 
 
 # 2. Get the data and refit as needed
 # ===================================
-
-def fit(dataset, robust = False, n_max = 3, ref_nll = 0) :
-  main_pdf.getVariables().Print('V')
-  if options.binned :
-    if options.input_bins > 0 : obs.setBins(options.input_bins)
-    fit_data = dataset.binnedClone()
-  else :
-    fit_data = dataset
-  result = main_pdf.fitTo(fit_data, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True), ROOT.RooFit.Save())
-  if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
-    return fit(dataset, robust, n_max - 1, result.minNll())
-  else :
-    return result
 
 data = None
 if options.data_name != '' :
@@ -151,25 +95,21 @@ if options.data_name != '' :
     ds = [ d.GetName() for d in ws.allData() ]
     raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
 elif options.asimov :
-  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+  data = make_asimov(options.asimov, mconfig)
 
 if data == None :
   raise ValueError('Should specify an input dataset, using either the --data-name or --asimov argument.')
 
 # If we specified both, then it means an Asimov with NP values profiled on the observed
-if options.data_name != '' and options.asimov :
-  poi.setVal(options.asimov)
-  fit(data, robust=True)
-  print('=== Generating the main dataset as an Asimov with POI = %g and NP values below:' % poi.getVal())
-  nuis_pars.Print('V')
-  data = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
-  ws.loadSnapshot('init')
+if options.data_name != '' and options.asimov : 
+  print('=== Generating the main dataset as an Asimov, fitted as below')
+  data = make_asimov(options.asimov, mconfig, main_pdf, data)
     
 poi.setVal(0)
 poi.setConstant(True)
-result_bkg_only = fit(data, robust=True)
+result_bkg_only = fit(main_pdf, data, robust=True)
 print('=== Generating an Asimov dataset with POI = 0 and NP values below:')
-nuis_pars.Print('V')
+np_set.Print('V')
 asimov0 = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
 
 nll  = main_pdf.createNLL(data)
@@ -198,6 +138,7 @@ except :
       raise ValueError("Could not parse list of hypothesis values '%s' : expected comma-separated list of real values" % options.hypos)
 
 if hypos == None : # we need to auto-define them based on the POI uncertainty
+  if len(poi_set) > 1 : raise('Cannot auto-set hypotheses for more than 1 POI')
   ws.loadSnapshot('init')
   nSignal = ws.var(options.signal_yield)
   if nSignal == None :
@@ -209,14 +150,14 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
     return (3*math.exp(0.5/3*i))*math.exp(-unc**2/3) + (1 -math.exp(-unc**2/3))*(i + norm.isf(pv*norm.cdf(i)))*np.sqrt(9 + unc**2)
   poi.setConstant(False)
   poi.setVal(poi_init_val)
-  fit(asimov0, robust=True)
+  fit(main_pdf, asimov0, robust=True)
   free_nll = nll0.getVal()
   free_val = poi.getVal()
-  hypo_val = free_val + poi.getError()/10 # In principle shouldn't have the factor 100, but helps to protect against bad estimations of poi uncertainty
+  hypo_val = free_val + poi.getError()/10 # In principle shouldn't have the factor 10, but helps to protect against bad estimations of poi uncertainty
   poi.setVal(hypo_val)
   poi.setConstant(True)
   print('=== Computing qA for poi = %g, computed from val = %g and error = %g' % (poi.getVal(), free_val, poi.getError()))
-  fit(asimov0, robust=True)
+  fit(main_pdf, asimov0, robust=True)
   hypo_nll = nll0.getVal()
   dll = 2*(hypo_nll - free_nll)
   print('=== Hypo_nll = %10.2f, free_nll = %10.2f => t = %10.2f' % (hypo_nll, free_nll, dll))
@@ -228,12 +169,12 @@ if hypos == None : # we need to auto-define them based on the POI uncertainty
   print('=== Auto-defined the following hypotheses :')
   print('  ' + '\n  '.join([ '%5g : Nsig = %10g, POI = %10g' % (h_z, h_n, h_p) for h_z, h_n, h_p in zip(hypo_zs, hypos_nS, hypos) ] ))
 
-  if poi_min == None :
+  if options.poi_min == None : 
     # Set min to the -5sigma hypothesis, should be enough...
     poi.setMin(-hypo_guess(5, sigma_A*poi2sig)/poi2sig)
     print('=== Auto-set POI min to %g' % poi.getMin())
 
-  if poi_max == None :
+  if options.poi_max == None :
     # Set max to the 20sigma hypothesis, should be enough...
     poi.setMax(hypo_guess(20, sigma_A*poi2sig)/poi2sig)
     print('=== Auto-set POI max to %g' % poi.getMax())
@@ -250,18 +191,18 @@ for hypo in hypos :
   poi.setVal(hypo)
   # Fixed-mu fit
   poi.setConstant(True)
-  result_hypo = fit(data, robust=True)
+  result_hypo = fit(main_pdf, data, robust=True)
   result['nll_hypo'] = nll.getVal()
-  for p in nuis_pars : result['hypo_' + p.GetName()] = result_hypo.floatParsFinal().find(p.GetName()).getVal()
+  for p in np_set    : result['hypo_' + p.GetName()] = result_hypo.floatParsFinal().find(p.GetName()).getVal()
   for p in extra_nps : result['hypo_' + p.GetName()] = ws.var(p.GetName()).getVal()
   # Free-mu fit
   poi.setConstant(False)
-  result_free = fit(data, robust=True)
+  result_free = fit(main_pdf, data, robust=True)
   result_free.floatParsFinal().Print("V")
   result['nll_free'] = nll.getVal()
   result['fit_val'] = poi.getVal()
   result['fit_err'] = poi.getError()
-  for p in nuis_pars : result['free_' + p.GetName()] = result_free.floatParsFinal().find(p.GetName()).getVal()
+  for p in np_set    : result['free_' + p.GetName()] = result_free.floatParsFinal().find(p.GetName()).getVal()
   for p in extra_nps : result['free_' + p.GetName()] = ws.var(p.GetName()).getVal()
   # Repeat for Asimov0
   print('=== Fitting Asimov to hypothesis %g' % hypo)
@@ -269,11 +210,11 @@ for hypo in hypos :
   poi.setVal(hypo)
   # Fixed-mu fit
   poi.setConstant(True)
-  result0_hypo = fit(asimov0, robust=True)
+  result0_hypo = fit(main_pdf, asimov0, robust=True)
   result['nll0_hypo'] = nll0.getVal()
   # Free-mu fit
   poi.setConstant(False)
-  result0_free = fit(asimov0, robust=True)
+  result0_free = fit(main_pdf, asimov0, robust=True)
   result['nll0_free'] = nll0.getVal()
   result0_free.floatParsFinal().Print("V")
   # Store results
