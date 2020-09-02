@@ -9,7 +9,6 @@ import copy
 class JSONSerializable :
   def __init__(self) :
     pass
-
   def load(self, filename) :
     with open(filename, 'r') as fd :
       jdict = json.load(fd)
@@ -46,6 +45,7 @@ class JSONSerializable :
   def fill_jdict(self, jdict) :
     pass
 
+
 class ModelPOI(JSONSerializable) :
   def __init__(self, name = '', min_val = None, max_val = None) :
     self.name = name
@@ -64,6 +64,7 @@ class ModelPOI(JSONSerializable) :
     jdict['min_val'] = self.min_val
     jdict['max_val'] = self.max_val
 
+
 class ModelAux(JSONSerializable) :
   def __init__(self, name = '', min_val = None, max_val = None) :
     self.name = name
@@ -81,6 +82,7 @@ class ModelAux(JSONSerializable) :
     jdict['name'] = self.name
     jdict['min_val'] = self.min_val
     jdict['max_val'] = self.max_val
+
   
 class ModelNP(JSONSerializable) :
   def __init__(self, name = '', nominal_value = 0, variation = 1, constraint = None, aux_obs = None) :
@@ -114,6 +116,7 @@ class ModelNP(JSONSerializable) :
     jdict['variation'] = self.variation
     jdict['constraint'] = self.constraint
     jdict['aux_obs'] = self.aux_obs
+
 
 class Sample(JSONSerializable) :
   def __init__(self, name = '', norm = '', nominal_norm = None, nominal_yields = None, impacts = None) :
@@ -162,6 +165,7 @@ class Sample(JSONSerializable) :
     jdict['nominal_yields'] = self.nominal_yields
     jdict['impacts'] = self.impacts
 
+
 class Channel(JSONSerializable) :
   def __init__(self, name = '', chan_type = 'count', bins = []) :
     self.name = name
@@ -197,6 +201,7 @@ class Channel(JSONSerializable) :
       jdict['obs_unit'] = self.obs_unit
       jdict['samples'] = []
       for sample in self.samples : jdict['samples'].append(sample.dump_jdict())
+
 
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
@@ -514,13 +519,18 @@ class Parameters :
       return par_obj.nominal_value + self.__getitem__(par)*par_obj.variation
     raise KeyError('Model nuisance parameter %s not found' % par)
 
-  def dict(self, nominal_nps = False, unscaled_nps = True) :
+  def dict(self, nominal_nps = False, unscaled_nps = True, pois_only = False) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
     if nominal_nps : return Parameters(self.pois, model=self.model).dict(nominal_nps=False, unscaled_nps=unscaled_nps)
     dic = {}
     for poi, val in zip(self.model.pois.keys(), self.pois) : dic[poi] = val
+    if pois_only : return dic
     for par, val in zip(self.model.nps .keys(), self.unscaled_nps() if unscaled_nps else self.nps) : dic[par] = val
     return dic
+
+  def set_from_dict(self, dic, unscaled_nps=False) :
+    for par in dic : set(par, dic[par], unscaled_nps)
+    return self
 
   def set_from_aux(self, data) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
