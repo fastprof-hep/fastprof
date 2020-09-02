@@ -51,31 +51,30 @@ class NPMinimizer :
   
 # -------------------------------------------------------------------------
 class POIMinimizer :
-  def __init__(self, data, niter = 1, floor = None) :
-    self.data = data
+  def __init__(self, niter = 1, floor = None) :
     self.niter = niter
     self.floor = floor
     self.tmu_debug = 0
   @abstractmethod
-  def minimize(self, init_hypo) :
+  def minimize(self, data, init_hypo = None) :
     pass
-  def profile_nps(self, hypo) :
+  def profile_nps(self, hypo, data) :
     if isinstance(hypo, (int, float)) : 
-      hypo = self.data.model.expected_pars(hypo)
-    self.np_min = NPMinimizer(self.data)
+      hypo = data.model.expected_pars(hypo)
+    self.np_min = NPMinimizer(data)
     self.min_pars = hypo
     for i in range(0, self.niter) :
       self.np_min.profile(self.min_pars)
       self.min_pars = self.np_min.min_pars
-    self.nll_min = self.data.model.nll(self.min_pars, self.data, floor=self.floor)
+    self.nll_min = data.model.nll(self.min_pars, data, floor=self.floor)
     #print('profile NPs @ %g' % poi)
     #print(str(self.min_pars))
     return self.min_pars
-  def tmu(self, hypo, free=None) :
+  def tmu(self, hypo, data, free=None) :
     if isinstance(hypo, (int, float)) :
-      hypo = self.data.model.expected_pars(hypo, self)
+      hypo = data.model.expected_pars(hypo, self)
     if isinstance(free, (int, float)) :
-      free = self.data.model.expected_pars(free, self)
+      free = data.model.expected_pars(free, self)
     #print('tmu @ %g' % hypo.poi)
     self.profile_nps(hypo)
     self.hypo_nll = self.nll_min
@@ -96,30 +95,25 @@ class POIMinimizer :
         print('Hypothesis fit result   :', self.hypo_pars)
         print('Free fit starting value :', free)
         print('Free fit result         :', self.free_pars)
-        print(self.data.aux_obs)
+        print(data.aux_obs)
       self.tmu_debug = tmu
       tmu = 0
     return tmu
-  def asimov_clone(self, poi) :
-    clone = copy.copy(self)
-    #print('generating asimov')
-    clone.data = self.data.model.generate_expected(poi, self)
-    return clone
 
 # -------------------------------------------------------------------------
 class ScanMinimizer (POIMinimizer) :
-  def __init__(self, data, scan_pois, niter=1) :
-    super().__init__(data, niter)
+  def __init__(self, model, scan_pois, niter=1) :
+    super().__init__(niter)
     self.scan_pois = scan_pois
     self.pars = []
     for poi in scan_pois :
-      self.pars.append(Parameters(poi, self.data.aux_alphas, self.data.aux_betas, np.zeros(self.data.model.nc), self.data.model))
+      self.pars.append(Parameters(poi, model.aux_obs, model)) # FIXME
 
-  def minimize(self, init_hypo) :
+  def minimize(self, data, init_hypo = None) :
     self.nlls = np.zeros(self.scan_pois.size)
     for i in range(0, len(self.scan_pois)) :
       scan_hypo = init_hypo.clone().set_poi(self.scan_pois[i])
-      np_min = NPMinimizer(self.data)
+      np_min = NPMinimizer(data)
       self.nlls[i] = np_min.profile_nll(scan_hypo)
       self.pars[i] = np_min.min_pars
       #print('@poi(', i, ') =', poi, self.nlls[i], ahat, bhat)
@@ -138,8 +132,8 @@ class ScanMinimizer (POIMinimizer) :
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
-  def __init__(self, data, poi0 = 0, bounds = (0, 10), method = 'scalar', niter = 1, floor = 1E-7, rebound = 0, alt_method = None) :
-    super().__init__(data, niter, floor)
+  def __init__(self, poi0 = 0, bounds = (0, 10), method = 'scalar', niter = 1, floor = 1E-7, rebound = 0, alt_method = None) :
+    super().__init__(niter, floor)
     self.np_min = None
     self.poi0 = poi0
     self.bounds = bounds
@@ -148,15 +142,15 @@ class OptiMinimizer (POIMinimizer) :
     self.alt_method = alt_method
     self.debug = 0
    
-  def minimize(self, init_hypo = None) :
+  def minimize(self, data, init_hypo = None) :
     if init_hypo == None :
-      current_hypo = self.data.model.expected_pars(self.poi0, self)
+      current_hypo = data.model.expected_pars(self.poi0, self)
     else :
       current_hypo = init_hypo.clone()
     def objective(poi) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
-      self.profile_nps(current_hypo.set(list(self.data.model.pois)[0], poi))
+      self.profile_nps(current_hypo.set(list(data.model.pois)[0], poi))
       if self.debug > 0 : print('== OptMinimizer: eval at %g -> %g' % (poi, self.nll_min))
       if self.debug > 1 : print(current_hypo)
       if self.debug > 1 : print(self.min_pars)
@@ -165,14 +159,14 @@ class OptiMinimizer (POIMinimizer) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
       self.profile_nps(current_hypo.set_poi(poi))
-      if self.debug > 0 : print('== Jacobian:', self.np_min.data.model.grad_poi(self.np_min.min_pars, self.data))
-      return np.array([ self.np_min.data.model.grad_poi(self.np_min.min_pars, self.data) ])
+      if self.debug > 0 : print('== Jacobian:', self.np_min.data.model.grad_poi(self.np_min.min_pars, data))
+      return np.array([ self.np_min.data.model.grad_poi(self.np_min.min_pars, data) ])
     def hess_p(poi, v) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
       self.profile_nps(current_hypo.set_poi(poi))
-      if self.debug > 0 : print('== Hessian:', self.np_min.data.model.hess_poi(self.np_min.min_pars, self.data)*v[0])
-      return np.array([ self.np_min.data.model.hess_poi(self.np_min.min_pars, self.data)*v[0] ])
+      if self.debug > 0 : print('== Hessian:', self.np_min.data.model.hess_poi(self.np_min.min_pars, data)*v[0])
+      return np.array([ self.np_min.data.model.hess_poi(self.np_min.min_pars, data)*v[0] ])
     if self.method == 'scalar' :
       if self.debug > 0 : print('== Optimizer: using scalar  ----------------')
       result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xatol': 1e-5 })
@@ -200,7 +194,7 @@ class OptiMinimizer (POIMinimizer) :
     #print(self.min_poi)
     return self.nll_min, self.min_poi
 
-  def tmu(self, hypo, free=None) :
+  def tmu(self, hypo, data, free=None) :
     tmu = super().tmu(hypo, free)
     if tmu == 0 and self.tmu_debug < 0 :
       if self.method == 'scalar' and self.rebound > 0 :
