@@ -1,6 +1,6 @@
 import ROOT
 
-def process_setvals(setvals, ws) :
+def process_setvals(setvals, ws, parse_only = True) :
   try:
     sets = [ v.replace(' ', '').split('=') for v in setvals.split(',') ]
     output = []
@@ -8,7 +8,7 @@ def process_setvals(setvals, ws) :
       if not ws.var(var) :
         raise ValueError("ERROR: Cannot find variable '%s' in workspace" % var)
       save_val = ws.var(var).getVal()
-      ws.var(var).setVal(float(val))
+      if not parse_only : ws.var(var).setVal(float(val))
       output.append((ws.var(var), float(val), save_val))
   except Exception as inst :
     print(inst)
