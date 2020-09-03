@@ -70,17 +70,17 @@ class POIMinimizer :
     #print('profile NPs @ %g' % poi)
     #print(str(self.min_pars))
     return self.min_pars
-  def tmu(self, hypo, data, free=None) :
+  def tmu(self, hypo, data, init_hypo=None) :
     if isinstance(hypo, (int, float)) :
       hypo = data.model.expected_pars(hypo, self)
-    if isinstance(free, (int, float)) :
-      free = data.model.expected_pars(free, self)
+    if isinstance(init_hypo, (int, float)) :
+      init_hypo = data.model.expected_pars(init_hypo, self)
     #print('tmu @ %g' % hypo.poi)
     self.profile_nps(hypo)
     self.hypo_nll = self.nll_min
     self.hypo_pars = self.min_pars
     self.hypo_deltas = self.np_min.min_deltas
-    self.minimize(free)
+    self.minimize(init_hypo, data)
     if self.nll_min == None : return None
     self.free_nll = self.nll_min
     self.free_pars = self.min_pars
@@ -93,7 +93,7 @@ class POIMinimizer :
       if tmu < -5 :
         print('Hypothesis definition   :', hypo)
         print('Hypothesis fit result   :', self.hypo_pars)
-        print('Free fit starting value :', free)
+        print('Free fit starting value :', init_hypo)
         print('Free fit result         :', self.free_pars)
         print(data.aux_obs)
       self.tmu_debug = tmu
@@ -194,18 +194,18 @@ class OptiMinimizer (POIMinimizer) :
     #print(self.min_poi)
     return self.nll_min, self.min_poi
 
-  def tmu(self, hypo, data, free=None) :
-    tmu = super().tmu(hypo, free)
+  def tmu(self, hypo, data, init_hypo=None) :
+    tmu = super().tmu(hypo, data, init_hypo)
     if tmu == 0 and self.tmu_debug < 0 :
       if self.method == 'scalar' and self.rebound > 0 :
         new_bounds = ((self.poi0 + self.bounds[0])/2, (self.poi0 + self.bounds[1])/2)
         print('Warning: tmu computation failed (tmu < 0) with bounds', self.bounds, ', repeating with narrower bounds: ', new_bounds, ' (%d attempts left).' % self.rebound)
         self.bounds = new_bounds
         self.rebound -= 1
-        return self.tmu(hypo, free)
+        return self.tmu(hypo, data, init_hypo)
       if self.alt_method != None :
         print('Warning: tmu computation failed (tmu < 0) with method %s, repeating with alternate method %s.' % (self.method, self.alt_method))
         self.method = self.alt_method
         self.alt_method = None
-        return self.tmu(hypo, free)
+        return self.tmu(hypo, data, init_hypo)
     return tmu
