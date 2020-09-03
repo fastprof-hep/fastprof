@@ -47,41 +47,41 @@ class JSONSerializable :
 
 
 class ModelPOI(JSONSerializable) :
-  def __init__(self, name = '', min_val = None, max_val = None) :
+  def __init__(self, name = '', min_value = None, max_value = None) :
     self.name = name
-    self.min_val = min_val
-    self.max_val = max_val
+    self.min_value = min_value
+    self.max_value = max_value
   def __str__(self) :
-    s = "Parameter of interest '%s' : min = %g, max = %g" % (self.name, self.min_val, self.max_val)
+    s = "Parameter of interest '%s' : min = %g, max = %g" % (self.name, self.min_value, self.max_value)
     return s
   def load_jdict(self, jdict) : 
     self.name = self.load_field('name', jdict, '', str)
-    self.min_val = self.load_field('min_val', jdict, '', [int, float])
-    self.max_val = self.load_field('max_val', jdict, '', [int, float])
+    self.min_value = self.load_field('min_value', jdict, '', [int, float])
+    self.max_value = self.load_field('max_value', jdict, '', [int, float])
     return self
   def fill_jdict(self, jdict) :
     jdict['name'] = self.name
-    jdict['min_val'] = self.min_val
-    jdict['max_val'] = self.max_val
+    jdict['min_value'] = self.min_value
+    jdict['max_value'] = self.max_value
 
 
 class ModelAux(JSONSerializable) :
-  def __init__(self, name = '', min_val = None, max_val = None) :
+  def __init__(self, name = '', min_value = None, max_value = None) :
     self.name = name
-    self.min_val = min_val
-    self.max_val = max_val
+    self.min_value = min_value
+    self.max_value = max_value
   def __str__(self) :
-    s = "Auxiliary observable '%s' : min = %g, max = %g" % (self.name, self.min_val, self.max_val)
+    s = "Auxiliary observable '%s' : min = %g, max = %g" % (self.name, self.min_value, self.max_value)
     return s
   def load_jdict(self, jdict) : 
     self.name = self.load_field('name', jdict, '', str)
-    self.min_val = self.load_field('min_val', jdict, '', [int, float])
-    self.max_val = self.load_field('max_val', jdict, '', [int, float])
+    self.min_value = self.load_field('min_value', jdict, '', [int, float])
+    self.max_value = self.load_field('max_value', jdict, '', [int, float])
     return self
   def fill_jdict(self, jdict) :
     jdict['name'] = self.name
-    jdict['min_val'] = self.min_val
-    jdict['max_val'] = self.max_val
+    jdict['min_value'] = self.min_value
+    jdict['max_value'] = self.max_value
 
   
 class ModelNP(JSONSerializable) :
@@ -102,7 +102,7 @@ class ModelNP(JSONSerializable) :
     return s
   def load_jdict(self, jdict) : 
     self.name = self.load_field('name', jdict, '', str)
-    self.nominal_value = self.load_field('nominal_val', jdict, None, [int, float])
+    self.nominal_value = self.load_field('nominal_value', jdict, None, [int, float])
     self.variation = self.load_field('variation', jdict, None, [int, float])
     self.constraint = self.load_field('constraint', jdict)
     if self.constraint != None :
