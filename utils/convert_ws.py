@@ -84,8 +84,8 @@ mconfig = ws.obj(options.model_config_name)
 if not mconfig : raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
 
 main_pdf = mconfig.GetPdf()
-poi_set = mconfig.GetParametersOfInterest()
-np_set = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
+pois = mconfig.GetParametersOfInterest()
+nps = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
 aux_obs = mconfig.GetGlobalObservables()
 
 data = None
@@ -112,7 +112,7 @@ try:
   for aux in aux_obs :
     for pdf in pdfs :
       if len(pdf.getDependents(ROOT.RooArgSet(aux))) > 0 :
-        matching_pars = pdf.getDependents(np_set)
+        matching_pars = pdf.getDependents(nps)
         if len(matching_pars) == 1 :
           mpar = ROOT.RooArgList(matching_pars).at(0)
           print('INFO: Matching aux %s to NP %s' % (aux.GetName(), mpar.GetName()))
@@ -125,7 +125,7 @@ except Exception as inst :
 nuis_pars = []
 class NuisancePar : pass
 
-for par in np_set :
+for par in nps :
   nuis_par = NuisancePar()
   nuis_par.name = par.GetName()
   nuis_par.obj = par
@@ -215,7 +215,7 @@ for i in range(0, channel_pdf.pdfList().getSize()) :
     if isinstance(sample.normvar, ROOT.RooRealVar) :
       sample.normpar = sample.normvar
     else :
-      poi_candidates = sample.normvar.getVariables().selectCommon(poi_set)
+      poi_candidates = sample.normvar.getVariables().selectCommon(pois)
       if poi_candidates.getSize() == 1 : sample.normpar = ROOT.RooArgList(poi_candidates).at(0)
   if sample.normpar == None :
     raise ValueError('Cannot identify normalization variable for sample %s, please specify manually.' % sample.name)
@@ -252,13 +252,13 @@ if not options.data_only :
   zero_normpars = []
   for sample in channel.samples : zero_normpars.append(sample.normpar.getVal() == 0)
   if any(zero_normpars) :
-    ws.saveSnapshot('nominalNPs', np_set)
+    ws.saveSnapshot('nominalNPs', nps)
     asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
     print('=== Determining POI uncertainty using an Asimov dataset with parameters :')
     for sample in channel.samples :
       sample.normpar.setConstant(False)
       print('===   %s=%g' % (sample.normpar.GetName(), sample.normpar.getVal()))
-    np_set.Print('V')
+    nps.Print('V')
     fit(main_pdf, asimov, robust=True)
     # The S/B should be adjusted to the expected sensitivity value to get
     # reliable uncertainties on signal NPs. Choose POI = 2*uncertainty or this.
@@ -305,7 +305,7 @@ if not options.data_only :
     sample.impacts = {}
     for par in nuis_pars : sample.impacts[par.name] = []
   print('=== Nominal NP values :')
-  np_set.Print("V")
+  nps.Print("V")
   for i in range(0, nbins) :
     xmin = bins[i]
     xmax = bins[i + 1]
@@ -352,11 +352,11 @@ if not options.data_only :
   model_dict['name'] = options.output_name
   # POIs
   poi_specs = []
-  for poi in poi_set :
+  for poi in pois :
     poi_spec = {}
     poi_spec['name'] = poi.GetName()
-    poi_spec['min_val'] = poi.getMin()
-    poi_spec['max_val'] = poi.getMax()
+    poi_spec['min_value'] = poi.getMin()
+    poi_spec['max_vauel'] = poi.getMax()
     poi_specs.append(poi_spec)
   model_dict['POIs'] = poi_specs
   # NPs
@@ -364,7 +364,7 @@ if not options.data_only :
   for par in nuis_pars :
     np_spec = {}
     np_spec['name'] = par.name
-    np_spec['nominal_val'] = par.nominal
+    np_spec['nominal_value'] = par.nominal
     np_spec['variation'] = par.error
     np_spec['constraint'] = None if par.is_free else 1
     np_spec['aux_obs'] = None if par.is_free else cons_aux[par.name].GetName()
@@ -376,8 +376,8 @@ if not options.data_only :
     aux_spec = {}
     aux = cons_aux[par.GetName()]
     aux_spec['name']  = aux.GetName()
-    aux_spec['min_val'] = aux.getMin()
-    aux_spec['max_val'] = aux.getMax()
+    aux_spec['min_value'] = aux.getMin()
+    aux_spec['max_value'] = aux.getMax()
     aux_specs.append(aux_spec)
   model_dict['aux_obs'] = aux_specs
   # Channels
@@ -454,7 +454,7 @@ with open(options.output_file, 'w') as fd:
 # --------------------------------------------------
 if options.validation_data :
   valid_lists = {}
-  for poi in poi_set : valid_lists[poi.GetName()] = poi.getVal()
+  for poi in pois : valid_lists[poi.GetName()] = poi.getVal()
   valid_lists['points'] = valid_data['points'].tolist()
   for par in nuis_pars : valid_lists[par.name] = valid_data[par.name].tolist()
   with open(options.validation_data, 'w') as fd:
