@@ -72,15 +72,15 @@ class POIMinimizer :
     return self.min_pars
   def tmu(self, hypo, data, init_hypo=None) :
     if isinstance(hypo, (int, float)) :
-      hypo = data.model.expected_pars(hypo, self)
+      hypo = data.model.expected_pars(hypo, self, data)
     if isinstance(init_hypo, (int, float)) :
-      init_hypo = data.model.expected_pars(init_hypo, self)
+      init_hypo = data.model.expected_pars(init_hypo, self, data)
     #print('tmu @ %g' % hypo.poi)
-    self.profile_nps(hypo)
+    self.profile_nps(hypo, data)
     self.hypo_nll = self.nll_min
     self.hypo_pars = self.min_pars
     self.hypo_deltas = self.np_min.min_deltas
-    self.minimize(init_hypo, data)
+    self.minimize(data, init_hypo)
     if self.nll_min == None : return None
     self.free_nll = self.nll_min
     self.free_pars = self.min_pars
@@ -150,7 +150,7 @@ class OptiMinimizer (POIMinimizer) :
     def objective(poi) :
       if isinstance(poi, np.ndarray) : poi = poi[0]
       if isinstance(poi, np.ndarray) : poi = poi[0]
-      self.profile_nps(current_hypo.set(list(data.model.pois)[0], poi))
+      self.profile_nps(current_hypo.set(list(data.model.pois)[0], poi), data)
       if self.debug > 0 : print('== OptMinimizer: eval at %g -> %g' % (poi, self.nll_min))
       if self.debug > 1 : print(current_hypo)
       if self.debug > 1 : print(self.min_pars)

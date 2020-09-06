@@ -47,22 +47,35 @@ class JSONSerializable :
 
 
 class ModelPOI(JSONSerializable) :
-  def __init__(self, name = '', min_value = None, max_value = None) :
+  def __init__(self, name = '', value = None, error = None, min_value = None, max_value = None, initial_value = None) :
     self.name = name
+    self.value = value
+    self.error = error
     self.min_value = min_value
     self.max_value = max_value
+    self.initial_value = initial_value
   def __str__(self) :
-    s = "Parameter of interest '%s' : min = %g, max = %g" % (self.name, self.min_value, self.max_value)
+    s = "parameter '%s' :" % self.name
+    if not self.value is None : s += ' %g' % self.value
+    if not self.error is None : s += ' +/- %g'  % self.error
+    s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
+    if not self.initial_value is None : s += ' init = %g' % self.initial_value
     return s
   def load_jdict(self, jdict) : 
-    self.name = self.load_field('name', jdict, '', str)
-    self.min_value = self.load_field('min_value', jdict, '', [int, float])
-    self.max_value = self.load_field('max_value', jdict, '', [int, float])
+    self.name      = self.load_field('name'     , jdict,  self.name, str)
+    self.value     = self.load_field('value'    , jdict,  0, [int, float])
+    self.error     = self.load_field('error'    , jdict,  0, [int, float])
+    self.min_value = self.load_field('min_value', jdict,  0, [int, float])
+    self.max_value = self.load_field('max_value', jdict,  0, [int, float])
+    self.initial_value = self.load_field('initial_value', jdict, 0, [int, float])
     return self
   def fill_jdict(self, jdict) :
-    jdict['name'] = self.name
+    jdict['name']      = self.name
+    jdict['value']     = self.value
+    jdict['error']     = self.error
     jdict['min_value'] = self.min_value
     jdict['max_value'] = self.max_value
+    jdict['initial_value'] = self.max_value
 
 
 class ModelAux(JSONSerializable) :
@@ -132,8 +145,7 @@ class Sample(JSONSerializable) :
       return imp if which == 'pos' else 1/(1+imp) - 1
     except Exception as inst:
       print('Impact computation failed for sample %s, parameter %s, impact %s' % (self.name, par, which))
-      print(inst)
-      return None
+      raise(inst)
   def sym_impact(self, par) :
     try:
       return np.sqrt((1 + self.impact(par, 'pos'))*(1 + self.impact(par, 'neg'))) - 1
@@ -146,8 +158,7 @@ class Sample(JSONSerializable) :
       return eval(self.norm_expr, pars.dict(nominal_nps=True))/self.nominal_norm
     except Exception as inst:
       print("Error while evaluating the normalization '%s' of sample '%s'." % (self.norm_expr, self.name))
-      print(inst)
-      return None
+      raise(inst)
   def __str__(self) :
     s = "Sample '%s', norm = %s (nominal = %g)" % (self.name, self.norm_expr, self.nominal_norm)
     return s
@@ -205,10 +216,10 @@ class Channel(JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
-  def __init__(self, pois = [], nps = [], aux_obs = [], channels = [], asym_impacts = True, linear_nps = False, lognormal_terms = False) :
+  def __init__(self, pois = {}, nps = {}, aux_obs = {}, channels = {}, asym_impacts = True, linear_nps = False, lognormal_terms = False) :
     super().__init__()
     self.pois = { poi.name : poi for poi in pois }
-    self.nps  = {}
+    self.nps = {}
     for np in nps :
       if not np.is_free() : self.nps[par.name] = par
     ncons = len(self.nps)
@@ -263,6 +274,12 @@ class Model (JSONSerializable) :
   def channel(self, name) :
     return self.channels[name] if name in self.channels else None
 
+  def all_pars(self) :
+    pars = {}
+    for par in self.pois.values() : pars[par.name] = par
+    for par in self.nps.values()  : pars[par.name] = par
+    return pars
+
   def set_constraint(self, par, val) :
     for par in self.nps :
       if par.name == par or par == None : par.constraint = val
@@ -303,7 +320,7 @@ class Model (JSONSerializable) :
       print(inst)
       return np.Infinity
 
-  def plot(self, pars, data = None, channel = None, exclude = [], variations = [], residuals = False, canvas=None) :
+  def plot(self, pars, data = None, channel = None, exclude = None, variations = None, residuals = False, canvas=None) :
     if canvas == None : canvas = plt.gca()
     if not isinstance(exclude, list) : exclude = [ exclude ]
     if channel == None :
@@ -338,14 +355,15 @@ class Model (JSONSerializable) :
       yvals = data.counts if not residuals else np.zeros(channel.nbins)
       canvas.errorbar(xvals, yvals, xerr=[0]*channel.dim(), yerr=yerrs, fmt='ko', label='Data')
     canvas.set_xlim(grid[0], grid[-1])
-    for v in variations :
-      vpars = copy.deepcopy(pars)
-      vpars.set(v[0], v[1])
-      col = 'r' if len(v) < 3 else v[2]
-      style = '--' if v[1] > 0 else '-.'
-      tot_exp = self.n_exp(vpars)[:,offset:offset + channel.nbins].sum(axis=0)
-      canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
-      canvas.legend()
+    if variations != None :
+      for v in variations :
+        vpars = copy.deepcopy(pars)
+        vpars.set(v[0], v[1])
+        col = 'r' if len(v) < 3 else v[2]
+        style = '--' if v[1] > 0 else '-.'
+        tot_exp = self.n_exp(vpars)[:,offset:offset + channel.nbins].sum(axis=0)
+        canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
+        canvas.legend()
     canvas.set_title(self.name)
     canvas.set_xlabel('$' + channel.obs_name + '$' + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
     canvas.set_ylabel('Events / bin')
@@ -366,18 +384,20 @@ class Model (JSONSerializable) :
     s = 0
     for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
     return s
-    
-  def expected_pars(self, pois, minimizer = None) :
-    if isinstance(pois, dict) :
-      poi_array = np.zeros(self.npois)
-      for i, poi in enumerate(self.pois) :
-        if not poi in pois : raise KeyError("Cannot initialize from dictionary, POI '%s' is missing" % poi)
-        poi_array[i] = pois[poi]
-      pois = poi_array
+
+  def poi_array_from_dict(self, poi_dict) :
+    poi_array = np.zeros(self.npois)
+    for i, poi in enumerate(self.pois) :
+      if not poi in poi_dict : raise KeyError("Cannot initialize from dictionary, POI '%s' is missing" % poi)
+      poi_array[i] = poi_dict[poi]
+    return poi_array
+
+  def expected_pars(self, pois, minimizer = None, data = None) :
+    if isinstance(pois, dict) : pois = self.poi_array_from_dict(pois)
     if not isinstance(pois, np.ndarray) : pois = np.array([ pois ])
     pars = Parameters(pois, np.zeros(self.nnps), self)
-    if minimizer :
-      return minimizer.profile_nps(pars)
+    if minimizer and data :
+      return minimizer.profile_nps(pars, data)
     else :
       return pars
 
@@ -387,8 +407,8 @@ class Model (JSONSerializable) :
   def generate_asimov(self, pars) :
     return Data(self).set_data(self.tot_exp(pars), pars.nps)
 
-  def generate_expected(self, pois, minimizer = None) :
-    return self.generate_asimov(self.expected_pars(pois, minimizer))
+  def generate_expected(self, pois, minimizer = None, data = None) :
+    return self.generate_asimov(self.expected_pars(pois, minimizer, data))
 
   @staticmethod
   def create(filename) :
@@ -454,7 +474,9 @@ class Model (JSONSerializable) :
 
 # -------------------------------------------------------------------------
 class Parameters :
-  def __init__(self, pois, nps = np.array([]), model = None) :
+  def __init__(self, pois, nps = None, model = None) :
+    if isinstance(pois, dict) and model != None : pois = model.poi_array_from_dict(pois)
+    if nps is None : nps  = np.array([])
     if not isinstance(pois, np.ndarray) : pois = np.array([ pois])
     if not isinstance(nps , np.ndarray) : nps  = np.array([ nps ])
     if pois.ndim != 1 :
@@ -529,7 +551,7 @@ class Parameters :
     return dic
 
   def set_from_dict(self, dic, unscaled_nps=False) :
-    for par in dic : set(par, dic[par], unscaled_nps)
+    for par in dic : self.set(par, dic[par], unscaled_nps)
     return self
 
   def set_from_aux(self, data) :
