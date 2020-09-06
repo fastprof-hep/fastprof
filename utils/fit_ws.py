@@ -210,7 +210,6 @@ def plr_spec(hypo, dataset) :
   init_vals = {}
   for p in pois : init_vals[p.GetName()] = p.getVal()
   for p in nps  : init_vals[p.GetName()] = p.getVal()
-  spec['initial_values'] = init_vals
   # Fixed-POI fit
   hypo_fit_spec = {}
   for poi in hypo :

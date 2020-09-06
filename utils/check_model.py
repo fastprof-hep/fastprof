@@ -8,7 +8,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import matplotlib.pyplot as plt
 import json
 
-from fastprof import Model, Data, FitResults, QMuCalculator, QMuTildaCalculator, OptiMinimizer
+from fastprof import Model, Data, Raster, QMuCalculator, QMuTildaCalculator, OptiMinimizer
 
 ####################################################################################################################################
 ###
@@ -35,7 +35,7 @@ model = Model.create(options.model_file)
 if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
 if options.regularize != None : model.set_gamma_regularization(options.regularize)
 
-results = FitResults(model, options.fits_file)
+raster = Raster('data', model=model, filename=options.fits_file)
 
 if options.data_file :
   data = Data(model).load(options.data_file)
@@ -55,14 +55,19 @@ else :
   data = Data(model).load(options.model_file)
 
 if options.test_statistic == 'q~mu' :
-  calc = QMuTildaCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
+  if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+  poi = list(raster.pois().values())[0]
+  calc = QMuTildaCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
 elif options.test_statistic == 'q_mu' :
-  calc = QMuCalculator(OptiMinimizer(data, results.poi_initial_value, (results.poi_min, results.poi_max)), results)
+  if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+  poi = list(raster.pois().values())[0]
+  calc = QMuCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
 else :
   raise ValueError('Unknown test statistic %s' % options.test_statistic)
-calc.fill_qpv()
-calc.fill_fast_results()
-results.print(verbosity = options.verbosity)
+calc.fill_all_pv(raster)
+faster = calc.compute_fast_results(raster, data)
+raster.print(verbosity = options.verbosity)
+faster.print(verbosity = options.verbosity)
 
 # Plot results
 if not options.batch_mode :
@@ -71,16 +76,16 @@ if not options.batch_mode :
   plt.suptitle('$CL_{s+b}$')
   plt.xlabel(list(model.pois)[0])
   plt.ylabel('$CL_{s+b}$')
-  plt.plot(results.hypos, [ fit_result['pv']      for fit_result in results.fit_results ], options.marker + 'r:' , label = 'Full model')
-  plt.plot(results.hypos, [ fit_result['fast_pv'] for fit_result in results.fit_results ], options.marker + 'g-' , label = 'Fast model')
+  plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ full.pvs['pv'] for full in raster.plr_data.values() ], options.marker + 'r:' , label = 'Full model')
+  plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ fast.pvs['pv'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')
   plt.legend()
 
   fig2 = plt.figure(2)
   plt.suptitle('$CL_s$')
   plt.xlabel(list(model.pois)[0])
   plt.ylabel('$CL_s$')
-  plt.plot(results.hypos, [ fit_result['cls']      for fit_result in results.fit_results ], options.marker + 'r:' , label = 'Full model')
-  plt.plot(results.hypos, [ fit_result['fast_cls'] for fit_result in results.fit_results ], options.marker + 'g-' , label = 'Fast model')
+  plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ full.pvs['cls'] for full in raster.plr_data.values() ], options.marker + 'r:' , label = 'Full model')
+  plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ fast.pvs['cls'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')
   plt.legend()
   fig1.savefig(options.output_file + '_clsb.pdf')
   fig2.savefig(options.output_file + '_cls.pdf')
