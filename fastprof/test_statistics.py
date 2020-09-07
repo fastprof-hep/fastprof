@@ -44,7 +44,7 @@ class QMu(TestStatistic) :
     self.tmu = tmu
     self.best_poi = best_poi
     self.comp_poi = comp_poi if comp_poi != None else self.test_poi
-    self.tmu_A = tmu_A # corresponds to the mu=0 hypo
+    self.tmu_A = tmu_A # Should correspond to mu' = self.test_poi (when test_poi != comp_poi). In practice mu'=0 to compute CL_b
     self.sigma = sigma
 
   def value(self) :
@@ -54,13 +54,13 @@ class QMu(TestStatistic) :
   def signed_sqrt(x) :
     return math.sqrt(x) if x >= 0 else -math.sqrt(-x)
 
-  def non_centrality_parameter(self) : # tmu_A = (mu - mu')^2/sigma^2
+  def non_centrality_parameter(self) : # tmu_A = (mu - mu')^2/sigma^2, here for mu'=0 for the CL_b computation
     if self.comp_poi == self.test_poi : return 0
     if self.tmu_A != None :
       if self.tmu_A < 0 :
         print('WARNING: tmu_A = % g < 0, returning 0' % self.tmu_A)
         return 0
-      return self.tmu_A
+      return self.tmu_A # Must be the right value for test_poi! (=> tmu_A and comp_poi should be set together consistently)
     elif self.sigma != None :
       return ((self.comp_poi - self.test_poi)/self.sigma)**2
     else :
