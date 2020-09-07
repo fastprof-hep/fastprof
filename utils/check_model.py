@@ -23,6 +23,7 @@ parser.add_argument(      "--regularize"    , type=float, default=None   , help=
 parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu' , help="Test statistic to use in the check")
 parser.add_argument(      "--marker"        , type=str  , default=''     , help="Marker type for plots")
 parser.add_argument("-b", "--batch-mode"    , action='store_true'        , help="Batch mode: no plots shown")
+parser.add_argument(      "--sethypo"       , type=str  , default=''     , help="Change hypo parameter values, in the form par1=val1,par2=val2,...")
 parser.add_argument("-v", "--verbosity"     , type=int  , default=0      , help="Verbosity level")
 parser.add_argument("-o", "--output-file"   , type=str  , default='check', help="Output file name")
 
@@ -36,6 +37,18 @@ if model == None : raise ValueError('No valid model definition found in file %s.
 if options.regularize != None : model.set_gamma_regularization(options.regularize)
 
 raster = Raster('data', model=model, filename=options.fits_file)
+
+if options.sethypo != '' :
+  try:
+    sets = [ v.replace(' ', '').split('=') for v in options.sethypo.split(',') ]
+    for plr_data in raster.plr_data.values() :
+      for (var, val) in sets :
+        if not var in plr_data.hypo : raise ValueError("Cannot find '%s' among hypothesis parameters." % var)
+        plr_data.ref_pars[var] = float(val)
+        print("INFO : setting %s=%g in reference parameters for %s" % (var, float(val), model.poi_name, plr_data.hypoi))
+  except Exception as inst :
+    print(inst)
+    raise ValueError("ERROR : invalid hypo assignment string '%s'." % options.sethypo)
 
 if options.data_file :
   data = Data(model).load(options.data_file)
@@ -56,11 +69,11 @@ else :
 
 if options.test_statistic == 'q~mu' :
   if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-  poi = list(raster.pois().values())[0]
+  poi = model.pois[raster.pois()[0]]
   calc = QMuTildaCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
 elif options.test_statistic == 'q_mu' :
   if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-  poi = list(raster.pois().values())[0]
+  poi = model.pois[raster.pois()[0]]
   calc = QMuCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
 else :
   raise ValueError('Unknown test statistic %s' % options.test_statistic)
