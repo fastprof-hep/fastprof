@@ -1,6 +1,6 @@
 import ROOT
 
-def process_setvals(setvals, ws, parse_only = True) :
+def process_setvals(setvals, ws, parse_only = False) :
   try:
     sets = [ v.replace(' ', '').split('=') for v in setvals.split(',') ]
     output = []

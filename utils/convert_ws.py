@@ -189,7 +189,7 @@ else :
     normpar_names = options.normpar_names.split(',')
   except Exception as inst :
     print(inst)
-    raise ValueError('Invalid sample name %s : should be of the form par1,par2,...' % options.normpar_names)
+    raise ValueError('Invalid sample normpar name specification %s : should be of the form par1,par2,...' % options.normpar_names)
 normpars = []
 for normpar_name in normpar_names :
   if normpar_name == '' :
@@ -231,6 +231,8 @@ channels.append(channel)
 if options.binned : 
   unbinned_data = data
   data = make_binned(data, channel.obs, options.input_bins)
+else :
+  unbinned_data = data
 
 if options.refit != None :
   saves = process_setvals(options.refit, ws)
@@ -298,7 +300,7 @@ if not options.data_only :
       default_sample.yields[key] += sample.n_unassigned
 
   for sample in channel.samples :
-    print('=== Sample %s normalized to POI %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), sample.normvar.getVal()))
+    print('=== Sample %s normalized to normalization parameter %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), sample.normvar.getVal()))
     sample.nominal_norm = sample.normpar.getVal()
     sample.nominal_yields = np.zeros(nbins) 
     sample.yields = {}
@@ -399,7 +401,7 @@ if not options.data_only :
     for sample in channel.samples :
       sample_spec = {}
       sample_spec['name'] = sample.name
-      sample_spec['norm'] = sample.normpar.GetName()
+      sample_spec['norm'] = sample.normpar.GetName() if pois.find(sample.normpar.GetName()) or nps.find(sample.normpar.GetName()) else ''
       sample_spec['nominal_norm'] = sample.nominal_norm
       sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
       sample_spec['impacts'] = { par : [{ 'pos' : impact['pos'], 'neg' : impact['neg'] } for impact in sample.impacts[par]] for par in sample.impacts }
