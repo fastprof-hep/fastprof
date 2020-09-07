@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-__doc__ = "Ccompute limits from sampling distributions"
+__doc__ = "Compute limits from sampling distributions"
 __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
