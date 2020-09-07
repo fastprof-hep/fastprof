@@ -36,7 +36,7 @@ class JSONSerializable :
     if types != [] and not any([isinstance(val, t) for t in types]) :
       raise TypeError('Object at key %s in JSON dictionary has type %s, not the expected %s' % 
                       (key, val.__class__.__name__, '|'.join([t.__name__ for t in types])))
-    if types == [ list ] : val = np.array(val)
+    if types == [ list ] : val = np.array(val, dtype=float)
     return val
   @abstractmethod
   def load_jdict(self, jdict) :
@@ -106,6 +106,10 @@ class ModelNP(JSONSerializable) :
     self.aux_obs = aux_obs
   def is_free(self) :
     return self.constraint == None
+  def unscaled_value(self, scaled_value) :
+    return self.nominal_value + scaled_value*self.variation
+  def scaled_value(self, unscaled_value) :
+    return (unscaled_value - self.nominal_value)/self.variation
   def generate_aux(self, value) :
     if self.constraint == None : return 0
     return np.random.normal(value, self.constraint)
@@ -141,7 +145,7 @@ class Sample(JSONSerializable) :
   def impact(self, par, which = 'pos') :
     if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
     try:
-      imp = np.array([ imp[which] for imp in self.impacts[par] ])
+      imp = np.array([ imp[which] for imp in self.impacts[par] ], dtype=float)
       return imp if which == 'pos' else 1/(1+imp) - 1
     except Exception as inst:
       print('Impact computation failed for sample %s, parameter %s, impact %s' % (self.name, par, which))
@@ -154,6 +158,7 @@ class Sample(JSONSerializable) :
       print(inst)
       return self.impact(par, 'pos')
   def norm(self, pars) :
+    if self.norm_expr == '' : return 1
     try:
       return eval(self.norm_expr, pars.dict(nominal_nps=True))/self.nominal_norm
     except Exception as inst:
@@ -195,7 +200,7 @@ class Channel(JSONSerializable) :
     self.name = jdict['name']
     self.type = jdict['type']
     if self.type == 'binned_range' :
-      self.bins = np.array(jdict['bins'])
+      self.bins = jdict['bins']
       self.obs_name = self.load_field('obs_name', jdict, '', str)
       self.obs_unit = self.load_field('obs_unit', jdict, '', str)
       for json_sample in jdict['samples'] :
@@ -265,8 +270,8 @@ class Model (JSONSerializable) :
     self.log_neg_impacts = np.log(1 + self.neg_impacts)
     self.log_sym_impacts = np.log(1 + self.sym_impacts)
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
-    self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ])
-    self.np_variations     = np.array([ par.variation     for par in self.nps.values() ])
+    self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
+    self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
     for p, par in enumerate(self.nps.values()) :
       if par.constraint == None : break # we've reached the end of the constrained NPs in the NP list
       self.constraint_hessian[p,p] = 1/par.constraint**2
@@ -286,7 +291,7 @@ class Model (JSONSerializable) :
     self.init_vars()
 
   def n_exp(self, pars) :
-    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ])).T
+    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ], dtype=float)).T
     if self.asym_impacts :
       if self.linear_nps :
         return nnom*(1 + self.pos_impacts.dot(np.maximum(pars.nps, 0)) + self.neg_impacts.dot(np.minimum(pars.nps, 0)))
@@ -322,7 +327,7 @@ class Model (JSONSerializable) :
 
   def plot(self, pars, data = None, channel = None, exclude = None, variations = None, residuals = False, canvas=None) :
     if canvas == None : canvas = plt.gca()
-    if not isinstance(exclude, list) : exclude = [ exclude ]
+    if not isinstance(exclude, list) and not exclude is None : exclude = [ exclude ]
     if channel == None :
       channel = self.channels[list(self.channels)[0]]
     else :
@@ -336,7 +341,7 @@ class Model (JSONSerializable) :
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     offset = self.channel_offsets[channel.name]
     nexp = self.n_exp(pars)[:,offset:offset + channel.dim()]
-    if len(exclude) == 0 :
+    if exclude is None :
       tot_exp = nexp.sum(axis=0)
       line_style = '-'
       title = 'Model'
@@ -394,7 +399,7 @@ class Model (JSONSerializable) :
 
   def expected_pars(self, pois, minimizer = None, data = None) :
     if isinstance(pois, dict) : pois = self.poi_array_from_dict(pois)
-    if not isinstance(pois, np.ndarray) : pois = np.array([ pois ])
+    if not isinstance(pois, np.ndarray) : pois = np.array([ pois ], dtype=float)
     pars = Parameters(pois, np.zeros(self.nnps), self)
     if minimizer and data :
       return minimizer.profile_nps(pars, data)
@@ -476,9 +481,9 @@ class Model (JSONSerializable) :
 class Parameters :
   def __init__(self, pois, nps = None, model = None) :
     if isinstance(pois, dict) and model != None : pois = model.poi_array_from_dict(pois)
-    if nps is None : nps  = np.array([])
-    if not isinstance(pois, np.ndarray) : pois = np.array([ pois])
-    if not isinstance(nps , np.ndarray) : nps  = np.array([ nps ])
+    if nps is None : nps  = np.array([], dtype=float)
+    if not isinstance(pois, np.ndarray) : pois = np.array([ pois], dtype=float)
+    if not isinstance(nps , np.ndarray) : nps  = np.array([ nps ], dtype=float)
     if pois.ndim != 1 :
         raise ValueError('Input POI array should be a 1D vector, got ' + str(pois))
     if nps.ndim != 1 :
@@ -492,7 +497,7 @@ class Parameters :
     self.model = model
 
   def clone(self) :
-    return Parameters(np.array(self.pois), np.array(self.nps), self.model)
+    return Parameters(np.array(self.pois, dtype=float), np.array(self.nps, dtype=float), self.model)
 
   def __str__(self) :
     s = ''
@@ -520,10 +525,7 @@ class Parameters :
       self.pois[list(self.model.pois).index(par)] = val
       return self
     if par in self.model.nps :
-      if unscaled :
-        par_obj = self.model.nps[par]
-        val = (val - par_obj.nominal_value)/par_obj.variation
-      self.nps[list(self.model.nps ).index(par)] = val
+      self.nps[list(self.model.nps).index(par)] = val if not unscaled else self.model.nps[par].scaled_value(val)
       return self
     raise KeyError('Model parameter %s not found' % par)
 
@@ -536,9 +538,7 @@ class Parameters :
 
   def unscaled(self, par) :
     if self.model == None : raise ValueError('Cannot perform operation without a model.')
-    if par in self.model.nps :
-      par_obj = self.model.nps[par]
-      return par_obj.nominal_value + self.__getitem__(par)*par_obj.variation
+    if par in self.model.nps : return self.model.nps[par].unscaled_value(self.__getitem__(par))
     raise KeyError('Model nuisance parameter %s not found' % par)
 
   def dict(self, nominal_nps = False, unscaled_nps = True, pois_only = False) :
@@ -562,15 +562,15 @@ class Parameters :
 
 # -------------------------------------------------------------------------
 class Data (JSONSerializable) :
-  def __init__(self, model, counts = np.array([]), aux_obs = np.array([])) :
+  def __init__(self, model, counts = None, aux_obs = None) :
     super().__init__()
     self.model = model
-    self.set_counts(counts)
-    self.set_aux_obs(aux_obs)
+    self.set_counts(counts if not counts is None else [])
+    self.set_aux_obs(aux_obs if not aux_obs is None else [])
 
   def set_counts(self, counts) :
-    if isinstance(counts, list) : counts = np.array( counts )
-    if not isinstance(counts, np.ndarray) : counts = np.array([ counts ])
+    if isinstance(counts, list) : counts = np.array( counts, dtype=float )
+    if not isinstance(counts, np.ndarray) : counts = np.array([ counts ], dtype=float)
     if counts.size > 0 :
       if counts.ndim != 1 :
         raise ValueError('Input data counts should be a 1D vector, got ' + str(counts))
@@ -582,8 +582,8 @@ class Data (JSONSerializable) :
     return self
 
   def set_aux_obs(self, aux_obs) : 
-    if isinstance(aux_obs, list) : aux_obs = np.array( aux_obs )
-    if not isinstance(aux_obs, np.ndarray) : aux_obs = np.array([ aux_obs ])
+    if isinstance(aux_obs, list) : aux_obs = np.array( aux_obs, dtype=float )
+    if not isinstance(aux_obs, np.ndarray) : aux_obs = np.array([ aux_obs ], dtype=float)
     if aux_obs.size == 0 :
       self.aux_obs = self.model.np_nominal_values
     else :
@@ -615,7 +615,7 @@ class Data (JSONSerializable) :
       model_channel = self.model.channels[name]
       if not 'bins'  in channel : raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % name)
       if len(channel['bins']) != model_channel.dim() :
-        raise ValueError("Data channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (len(channel['bins']), model_channel.dim()))
+        raise ValueError("Data channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), model_channel.dim()))
       offset = self.model.channel_offsets[name]
       for b, bin_data in enumerate(channel['bins']) :
         if bin_data['lo_edge'] != model_channel.bins[b]['lo_edge'] or bin_data['hi_edge'] != model_channel.bins[b]['hi_edge'] :
@@ -631,7 +631,7 @@ class Data (JSONSerializable) :
         continue
       if not par.aux_obs in data_aux_obs : raise('Auxiliary observable %s defined in model, but not provided in the data' % par.aux_obs)
       aux_obs_values.append((data_aux_obs[par.aux_obs] - par.nominal_value)/par.variation)
-    self.set_aux_obs(np.array(aux_obs_values))
+    self.set_aux_obs(np.array(aux_obs_values, dtype=float))
     return self
 
   def fill_jdict(self, jdict) :
