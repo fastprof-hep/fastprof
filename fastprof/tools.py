@@ -10,15 +10,20 @@ from .test_statistics import QMu, QMuTilda
 
 
 class FitResult(JSONSerializable) :
-  def __init__(self, name = '', fitpars = None, nll = None, model=None) :
+  def __init__(self, name = '', fitpars = None, nll = None, model=None, hypo = None) :
     super().__init__()
     self.name = name
-    self.fitpars = { name : ModelPOI(name, value=fitpars[name]) for name in model.all_pars() } if not fitpars is None and not model is None else {}
+    self.fitpars = {}
+    if not fitpars is None and not model is None :
+      for name in model.pois : self.fitpars[name] = ModelPOI(name, value=fitpars[name])
+      for name in model.nps  : self.fitpars[name] = ModelPOI(name, value=model.nps[name].unscaled_value(fitpars[name]))
+    if not hypo is None :
+      for name, value in hypo.dict(pois_only = True).items() : self.fitpars[name] = ModelPOI(name, value=value)
     self.nll = nll
     self.model = model
   def pars(self) :
-    par_dict = { par.name : par.value for par in self.fitpars }
-    return Parameters(par_dict, model=self.model).set_from_dict(par_dict)
+    par_dict = { par.name : par.value for par in self.fitpars.values() }
+    return Parameters(par_dict, model=self.model).set_from_dict(par_dict, unscaled_nps=True)
   def load_jdict(self, jdict) :
     for par_name, par_dict in jdict['fit_pars'].items() :
       fitpar = ModelPOI(par_name).load_jdict(par_dict)
@@ -29,7 +34,7 @@ class FitResult(JSONSerializable) :
     jdict['fit_pars'] = { par.name : par.dump_jdict() for par in self.fitpars }
     jdict['nll'] = self.nll
   def __str__(self) :
-    return  "  Fit '%s' : nll = %g, pars : %s" % (self.name, self.nll, str(self.pars))
+    return  "  Fit '%s' : nll = %g, pars :\n%s" % (self.name, self.nll, str(self.pars()))
 
 
 class PLRData(JSONSerializable) :
@@ -39,24 +44,26 @@ class PLRData(JSONSerializable) :
     self.hypo = hypo
     self.free_fit = free_fit
     self.hypo_fit = hypo_fit
+    self.ref_pars = hypo_fit.pars() if not hypo_fit is None else None
     self.test_statistics = test_statistics if test_statistics != None else {}
     self.pvs = pvs if pvs != None else {}
     self.asimov = asimov
     self.model = model
     if self.free_fit != None and self.hypo_fit != None and not 'tmu' in self.test_statistics : self.compute_tmu()
   def pois(self) :
-    return self.hypo.model.pois
+    return list(self.hypo.model.pois.keys())
   def hypo_pars(self) :
     return Parameters(model=self.model).set_from_dict(self.hypo)
   def compute_tmu(self) :
-    self.test_statistics['tmu'] = -2*(self.hypo_fit.nll - self.free_fit.nll)
+    self.test_statistics['tmu'] = 2*(self.hypo_fit.nll - self.free_fit.nll)
   def set_asimov(self, asimov_plr_data, local_key = 'tmu_0') :
     self.test_statistics[local_key] = asimov_plr_data.test_statistics['tmu']
     self.asimov = asimov_plr_data
   def load_jdict(self, jdict) :
     self.hypo = Parameters(jdict['hypo'], model=self.model)
     self.free_fit = FitResult('free_fit', model=self.model).load_jdict(jdict['free_fit'])
-    self.hypo_fit = FitResult('hypo_fit', model=self.model).load_jdict(jdict['hypo_fit'])
+    self.hypo_fit = FitResult('hypo_fit', model=self.model, hypo=self.hypo).load_jdict(jdict['hypo_fit'])
+    self.ref_pars = self.hypo_fit.pars()
     self.test_statistics = jdict['test_statistics'] if 'test_statistics' in jdict else {}
     self.pvs = jdict['pvs'] if 'pvs' in jdict else {}
     if not 'tmu' in self.test_statistics : self.compute_tmu()
@@ -67,11 +74,12 @@ class PLRData(JSONSerializable) :
     jdict['test_statistics'] = self.test_statistics
     jdict['pvs'] = self.pvs
   def __str__(self) :
-    s = 'Profile-likelihood ratio data for hypothesis:' + str(self.hypo)
+    s = 'Profile-likelihood ratio data for hypothesis:' + str(self.hypo.dict(pois_only=True))
     s += '\n  test statistics : %s' % str(self.test_statistics)
     s += '\n  p-values : %s' % str(self.pvs)
     s += '\n  Unconditional fit:' + str(self.free_fit)
     s += '\n  Conditional fit:' + str(self.hypo_fit)
+    return s
 
 
 class Raster(JSONSerializable) :
@@ -106,7 +114,7 @@ class Raster(JSONSerializable) :
 
   def compute_limit(self, pv_key = 'cls', cl = 0.05, order = 3, log_scale = True) :
     if len(self.pois()) > 1 : raise ValueError('Cannot interpolate limit in more than 1 dimension.')
-    poi_name = list(self.pois())[0]
+    poi_name = self.pois()[0]
     hypos = [ hypo[poi_name] for hypo in self.plr_data.keys() ]
     values = []
     for hypo, plr_data in self.plr_data.items() :
@@ -147,18 +155,17 @@ class Raster(JSONSerializable) :
 
   def __str__(self) :
     s = ''
-    s += 'POIs : ' + str(self.pois().keys()) + '\n'
     s += 'PLR data : '
     for hypo, plr_data in self.plr_data.items() :
       s += '\nHypo :' + str(hypo.dict(pois_only=True))
-      s += '\n' + str(pv_result)
+      s += '\n' + str(plr_data)
     return s
 
   def key_value(self, key, hypo) :
     if not hypo in self.plr_data : raise KeyError('While trying to access key %s, hypo %s was not found in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
-    for poi in self.pois().keys() :
+    for poi in self.pois() :
       if key == poi : return hypo[poi]
-      if key == 'best_' + poi : return self.plr_data[hypo].free_fitpars[poi].value
+      if key == 'best_' + poi : return self.plr_data[hypo].free_fit.fitpars[poi].value
     if key in self.plr_data[hypo].pvs : return self.plr_data[hypo].pvs[key]
     if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
     raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
@@ -167,20 +174,18 @@ class Raster(JSONSerializable) :
     if len(self.plr_data) == 0 : return ''
     plr_template = list(self.plr_data.values())[0]
     if print_keys == None :
-      print_keys = list(self.pois().keys())
+      print_keys = self.pois()
       if 'pv' in plr_template.pvs : print_keys += [ 'pv' ]
       if verbosity > 0 :
         if 'cls' in plr_template.pvs : print_keys += [ 'cls' ]
         if 'clb' in plr_template.pvs : print_keys += [ 'clb' ]
       if verbosity > 1 :
-        print_keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois().keys() ])
+        print_keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois() ])
     s = ''
     for k in print_keys : s += '| %-15s ' % k
     for hypo, plr_data in self.plr_data.items() :
       s += '\n'
-      for key in print_keys :
-        if key in self.pois().keys() : 
-          s += '| %-15g ' % self.key_value(key, hypo)
+      for key in print_keys : s += '| %-15g ' % self.key_value(key, hypo)
     if print_limits and len(self.pois()) == 1 and 'cls' in plr_template.pvs :
       limit = self.compute_limit('cls', 0.05)
       limit_str = '%g' % limit if limit != None else 'not computable'
@@ -195,7 +200,7 @@ class TestStatisticCalculator :
 
   def poi(self, plr_data) :
     if len(plr_data.pois()) != 1 : raise ValueError('Can currently only compute test statistics for a single POI.')
-    return list(plr_data.pois().values())[0]
+    return plr_data.pois()[0]
 
   @abstractmethod
   def fill_pv(self, plr_data) :
@@ -207,12 +212,13 @@ class TestStatisticCalculator :
     plr_data.test_statistics['tmu'] = tmu
     plr_data.free_fit = FitResult('free_fit', self.minimizer.free_pars, self.minimizer.free_nll, model=data.model)
     plr_data.hypo_fit = FitResult('hypo_fit', self.minimizer.hypo_pars, self.minimizer.hypo_nll, model=data.model)
+    plr_data.ref_pars = plr_data.hypo_fit.pars()
     return plr_data
 
   def compute_fast_q(self, hypo, data) :
     fast_plr_data = self.compute_fast_plr(hypo, data, 'fast')
-    asimov = data.model.generate_expected(self.poi(fast_plr_data).value, self.minimizer, data)
-    asimov_plr_data = self.compute_fast_plr(hypo, data, 'fast_asimov')
+    asimov = data.model.generate_expected(0, self.minimizer, data)
+    asimov_plr_data = self.compute_fast_plr(hypo, asimov, 'fast_asimov')
     fast_plr_data.set_asimov(asimov_plr_data)
     self.fill_pv(fast_plr_data)
     return fast_plr_data
@@ -222,8 +228,8 @@ class TestStatisticCalculator :
 
   def compute_fast_results(self, raster, data, name = 'fast') :
     fast_plr_data = {}
-    for hypo in raster.plr_data :
-      fast_plr_data[hypo] = self.compute_fast_q(hypo, data)
+    for plr_data in raster.plr_data.values() :
+      fast_plr_data[plr_data.hypo] = self.compute_fast_q(plr_data.ref_pars, data)
     fast = Raster(name, fast_plr_data)
     self.fill_all_pv(fast)
     return fast
@@ -236,8 +242,8 @@ class QMuCalculator(TestStatisticCalculator) :
   def fill_pv(self, plr_data) :
     try :
       # since we use tmu_A to compute CLb, we need tmu_A = tmu_0 (computed from an Asimov with mu'=0)
-      q = QMu(test_poi = plr_data.hypo[self.poi(plr_data).name], tmu = plr_data.test_statistics['tmu'],
-              best_poi = plr_data.free_fit.fitpars[self.poi(plr_data).name].value, tmu_A = plr_data.test_statistics['tmu_0'])
+      q = QMu(test_poi = plr_data.hypo[self.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
+              best_poi = plr_data.free_fit.fitpars[self.poi(plr_data)].value, tmu_A = plr_data.test_statistics['tmu_0'])
       plr_data.test_statistics['q_mu'] = q.value()
       plr_data.pvs['pv' ] = q.asymptotic_pv()
       plr_data.pvs['cls'] = q.asymptotic_cls()
@@ -256,8 +262,8 @@ class QMuTildaCalculator(TestStatisticCalculator) :
   def fill_pv(self, plr_data) :
     try :
       # since we use tmu_A to compute CLb, we need tmu_A = tmu_0 (computed from an Asimov with mu'=0)
-      q = QMuTilda(test_poi = plr_data.hypo[self.poi(plr_data).name], tmu = plr_data.test_statistics['tmu'],
-                   best_poi = plr_data.free_fit.fitpars[self.poi(plr_data).name].value, tmu_A = plr_data.test_statistics['tmu_0'],
+      q = QMuTilda(test_poi = plr_data.hypo[self.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
+                   best_poi = plr_data.free_fit.fitpars[self.poi(plr_data)].value, tmu_A = plr_data.test_statistics['tmu_0'],
                    tmu_0 = plr_data.test_statistics['tmu_0'])
       plr_data.test_statistics['qm~u'] = q.value()
       plr_data.pvs['pv' ] = q.asymptotic_pv()
