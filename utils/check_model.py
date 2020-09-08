@@ -69,11 +69,11 @@ else :
 
 if options.test_statistic == 'q~mu' :
   if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-  poi = model.pois[raster.pois()[0]]
+  poi = raster.pois()[list(raster.pois())[0]]
   calc = QMuTildaCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
 elif options.test_statistic == 'q_mu' :
   if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-  poi = model.pois[raster.pois()[0]]
+  poi = raster.pois()[list(raster.pois())[0]]
   calc = QMuCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
 else :
   raise ValueError('Unknown test statistic %s' % options.test_statistic)
