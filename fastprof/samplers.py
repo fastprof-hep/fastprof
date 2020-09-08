@@ -90,7 +90,7 @@ class OptiSampler (Sampler) :
     tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
     if tmu < 1E-7 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
-      if self.debug and opti.tmu_debug < -10 : data.save('data_%d.json' % toy_iter)
+      if self.debug and opti.tmu_debug < -10 : data.save('data/debug_data_neg_tmu_%d.json' % toy_iter)
       return None
     for bound in self.bounds :
       if not bound.test(opti.free_deltas) :
@@ -125,7 +125,7 @@ class OptiSampler (Sampler) :
         self.debug_data.at[toy_iter, 'free_' + p] = opti.free_pars[p]
         self.debug_data.at[toy_iter, 'hypo_' + p] = opti.hypo_pars[p]
         self.debug_data.at[toy_iter, 'aux_'  + p] = data.aux_obs[i]
-      data.save('data/data_%d.json' % toy_iter)
+      data.save('data/debug_data_%d.json' % toy_iter)
     return q.asymptotic_pv()
 
 
