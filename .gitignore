@@ -1,1 +1,8 @@
 fastprof/__pycache__/
+utils/__pycache__/
+bin/
+lib/
+lib64
+share/
+pyvenv.cfg
+run/
