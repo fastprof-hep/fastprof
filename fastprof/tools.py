@@ -170,7 +170,7 @@ class Raster(JSONSerializable) :
     if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
     raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
   
-  def print(self, print_keys = None, verbosity = 0, print_limits=True) :
+  def print(self, print_keys = None, verbosity = 0, print_limits=True, other=None) :
     if len(self.plr_data) == 0 : return ''
     plr_template = list(self.plr_data.values())[0]
     if print_keys == None :
@@ -182,14 +182,22 @@ class Raster(JSONSerializable) :
       if verbosity > 1 :
         print_keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois() ])
     s = ''
-    for k in print_keys : s += '| %-15s ' % k
+    for key in print_keys :
+      s += '| %-15s ' % key
+      if not other is None and not key in self.pois() : s += '| %-15s ' % ('%s (%s)' % (key, other.name))
     for hypo, plr_data in self.plr_data.items() :
       s += '\n'
-      for key in print_keys : s += '| %-15g ' % self.key_value(key, hypo)
+      for key in print_keys :
+        s += '| %-15g ' % self.key_value(key, hypo)
+        if not other is None and not key in self.pois() : s += '| %-15g ' % other.key_value(key, hypo)
     if print_limits and len(self.pois()) == 1 and 'cls' in plr_template.pvs :
       limit = self.compute_limit('cls', 0.05)
       limit_str = '%g' % limit if limit != None else 'not computable'
       s += '\n' + "Asymptotic 95%% CLs limit for raster '%s' = %s" % (self.name, limit_str)
+      if not other is None :
+        limit = other.compute_limit('cls', 0.05)
+        limit_str = '%g' % limit if limit != None else 'not computable'
+        s += '\n' + "Asymptotic 95%% CLs limit for raster '%s' = %s" % (other.name, limit_str)
     print(s)
     return s
 
