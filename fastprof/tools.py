@@ -44,14 +44,16 @@ class PLRData(JSONSerializable) :
     self.hypo = hypo
     self.free_fit = free_fit
     self.hypo_fit = hypo_fit
-    self.ref_pars = hypo_fit.pars() if not hypo_fit is None else None
     self.test_statistics = test_statistics if test_statistics != None else {}
     self.pvs = pvs if pvs != None else {}
     self.asimov = asimov
     self.model = model
+    self.pois = {}
+    self.update()
+  def update(self) :
+    self.ref_pars = self.hypo_fit.pars() if not self.hypo_fit is None else None
+    if self.hypo and self.free_fit : self.pois = { name : self.free_fit.fitpars[name] for name in self.hypo.model.pois.keys() }
     if self.free_fit != None and self.hypo_fit != None and not 'tmu' in self.test_statistics : self.compute_tmu()
-  def pois(self) :
-    return list(self.hypo.model.pois.keys())
   def hypo_pars(self) :
     return Parameters(model=self.model).set_from_dict(self.hypo)
   def compute_tmu(self) :
@@ -63,10 +65,9 @@ class PLRData(JSONSerializable) :
     self.hypo = Parameters(jdict['hypo'], model=self.model)
     self.free_fit = FitResult('free_fit', model=self.model).load_jdict(jdict['free_fit'])
     self.hypo_fit = FitResult('hypo_fit', model=self.model, hypo=self.hypo).load_jdict(jdict['hypo_fit'])
-    self.ref_pars = self.hypo_fit.pars()
     self.test_statistics = jdict['test_statistics'] if 'test_statistics' in jdict else {}
     self.pvs = jdict['pvs'] if 'pvs' in jdict else {}
-    if not 'tmu' in self.test_statistics : self.compute_tmu()
+    self.update()
     return self
   def save_jdict(self, jdict) :
     jdict['free_fit'] = self.free_fit.dump_jdict()
@@ -95,7 +96,7 @@ class Raster(JSONSerializable) :
     if self.fill_missing : self.compute_tmu()
 
   def pois(self) :
-    return list(self.plr_data.values())[0].pois() if len(self.plr_data) > 0 else None
+    return list(self.plr_data.values())[0].pois if len(self.plr_data) > 0 else None
 
   def set_global_best_fit(self) :
     if len(self.plr_data) == 0 : return
@@ -114,7 +115,7 @@ class Raster(JSONSerializable) :
 
   def compute_limit(self, pv_key = 'cls', cl = 0.05, order = 3, log_scale = True) :
     if len(self.pois()) > 1 : raise ValueError('Cannot interpolate limit in more than 1 dimension.')
-    poi_name = self.pois()[0]
+    poi_name = list(self.pois())[0]
     hypos = [ hypo[poi_name] for hypo in self.plr_data.keys() ]
     values = []
     for hypo, plr_data in self.plr_data.items() :
@@ -174,22 +175,22 @@ class Raster(JSONSerializable) :
     if len(self.plr_data) == 0 : return ''
     plr_template = list(self.plr_data.values())[0]
     if print_keys == None :
-      print_keys = self.pois()
+      print_keys = list(self.pois().keys())
       if 'pv' in plr_template.pvs : print_keys += [ 'pv' ]
       if verbosity > 0 :
         if 'cls' in plr_template.pvs : print_keys += [ 'cls' ]
         if 'clb' in plr_template.pvs : print_keys += [ 'clb' ]
       if verbosity > 1 :
-        print_keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois() ])
+        print_keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois().keys() ])
     s = ''
     for key in print_keys :
       s += '| %-15s ' % key
-      if not other is None and not key in self.pois() : s += '| %-15s ' % ('%s (%s)' % (key, other.name))
+      if not other is None and not key in self.pois().keys() : s += '| %-15s ' % ('%s (%s)' % (key, other.name))
     for hypo, plr_data in self.plr_data.items() :
       s += '\n'
       for key in print_keys :
         s += '| %-15g ' % self.key_value(key, hypo)
-        if not other is None and not key in self.pois() : s += '| %-15g ' % other.key_value(key, hypo)
+        if not other is None and not key in self.pois().keys() : s += '| %-15g ' % other.key_value(key, hypo)
     if print_limits and len(self.pois()) == 1 and 'cls' in plr_template.pvs :
       limit = self.compute_limit('cls', 0.05)
       limit_str = '%g' % limit if limit != None else 'not computable'
@@ -207,8 +208,8 @@ class TestStatisticCalculator :
     self.minimizer = minimizer
 
   def poi(self, plr_data) :
-    if len(plr_data.pois()) != 1 : raise ValueError('Can currently only compute test statistics for a single POI.')
-    return plr_data.pois()[0]
+    if len(plr_data.pois) != 1 : raise ValueError('Can currently only compute test statistics for a single POI, here %s has %d.' % (plr_data.name, len(plr_data.pois)))
+    return list(plr_data.pois)[0]
 
   @abstractmethod
   def fill_pv(self, plr_data) :
@@ -220,11 +221,11 @@ class TestStatisticCalculator :
     plr_data.test_statistics['tmu'] = tmu
     plr_data.free_fit = FitResult('free_fit', self.minimizer.free_pars, self.minimizer.free_nll, model=data.model)
     plr_data.hypo_fit = FitResult('hypo_fit', self.minimizer.hypo_pars, self.minimizer.hypo_nll, model=data.model)
-    plr_data.ref_pars = plr_data.hypo_fit.pars()
+    plr_data.update()
     return plr_data
 
-  def compute_fast_q(self, hypo, data) :
-    fast_plr_data = self.compute_fast_plr(hypo, data, 'fast')
+  def compute_fast_q(self, hypo, data, name='fast') :
+    fast_plr_data = self.compute_fast_plr(hypo, data, name)
     asimov = data.model.generate_expected(0, self.minimizer, data)
     asimov_plr_data = self.compute_fast_plr(hypo, asimov, 'fast_asimov')
     fast_plr_data.set_asimov(asimov_plr_data)
@@ -236,8 +237,8 @@ class TestStatisticCalculator :
 
   def compute_fast_results(self, raster, data, name = 'fast') :
     fast_plr_data = {}
-    for plr_data in raster.plr_data.values() :
-      fast_plr_data[plr_data.hypo] = self.compute_fast_q(plr_data.ref_pars, data)
+    for i, plr_data in enumerate(raster.plr_data.values()) :
+      fast_plr_data[plr_data.hypo] = self.compute_fast_q(plr_data.ref_pars, data, '%s_%g' % (name, i))
     fast = Raster(name, fast_plr_data)
     self.fill_all_pv(fast)
     return fast
