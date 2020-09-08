@@ -10,7 +10,7 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, FitResults, QMuCalculator, QMuTildaCalculator, ParBound
+from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound
 
 ####################################################################################################################################
 ###
@@ -48,8 +48,19 @@ model = Model.create(options.model_file)
 if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
 if options.regularize != None : model.set_gamma_regularization(options.regularize)
 
-res = FitResults(model, options.fits_file)
-fit_results = res.fit_results
+raster = Raster('data', model=model, filename=options.fits_file)
+
+if options.sethypo != '' :
+  try:
+    sets = [ v.replace(' ', '').split('=') for v in options.sethypo.split(',') ]
+    for plr_data in raster.plr_data.values() :
+      for (var, val) in sets :
+        if not var in plr_data.hypo : raise ValueError("Cannot find '%s' among hypothesis parameters." % var)
+        plr_data.ref_pars[var] = float(val)
+        print("INFO : setting %s=%g in reference parameters for %s" % (var, float(val), model.poi_name, plr_data.hypoi))
+  except Exception as inst :
+    print(inst)
+    raise ValueError("ERROR : invalid hypo assignment string '%s'." % options.sethypo)
 
 if options.data_file :
   data = Data(model).load(options.data_file)
@@ -63,9 +74,6 @@ else :
   if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
   print('Using dataset stored in file %s.' % options.model_file)
 
-mu0 = res.poi_initial_value
-poi_bounds = (res.poi_min, res.poi_max)
-
 bounds = []
 if options.bounds :
   bound_specs = options.bounds.split(',')
@@ -77,40 +85,35 @@ if options.bounds :
     print('ERROR: could not parse parameter bound specification "%s", expected in the form name1:[min]:[max],name2:[min]:[max],...' % options.bounds)
     raise(inst)
 
+if options.test_statistic == 'q~mu' :
+  if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+  poi = model.pois[raster.pois()[0]]
+  calc = QMuTildaCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
+elif options.test_statistic == 'q_mu' :
+  if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+  poi = model.pois[raster.pois()[0]]
+  calc = QMuCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
+else :
+  raise ValueError('Unknown test statistic %s' % options.test_statistic)
+
 # Check the fastprof CLs against the ones in the reference: in principle this should match well,
 # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
 print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
-if options.test_statistic == 'q~mu' :
-  calc = QMuTildaCalculator(OptiMinimizer(data, mu0, poi_bounds), res)
-elif options.test_statistic == 'q_mu' :
-  calc = QMuCalculator(OptiMinimizer(data, mu0, poi_bounds), res)
-else:
-  raise ValueError('Unknown test statistic %s.' % options.test_statistic)
-calc.fill_qpv()
-calc.fill_fast_results()
-res.print(verbosity=1)
+calc.fill_all_pv(raster)
+faster = calc.compute_fast_results(raster, data)
+raster.print(verbosity = options.verbosity, other=faster)
 
 if options.seed != None : np.random.seed(options.seed)
 niter = options.iterations
 samplers_clsb = []
 samplers_cl_b = []
-for fit_result in res.fit_results :
-  test_hypo = fit_result['hypo_pars']
-  if options.sethypo != '' :
-    try:
-      sets = [ v.replace(' ', '').split('=') for v in options.sethypo.split(',') ]
-      for (var, val) in sets :
-        if not var in test_hypo :
-          raise ValueError("Cannot find '%s' among hypothesis parameters." % var)
-        test_hypo[var] = float(val)
-        print("INFO : setting %s=%g in hypothesis for %s = %g" % (var, float(val), model.poi_name, test_hypo.poi))
-    except Exception as inst :
-      print(inst)
-      raise ValueError("ERROR : invalid variable assignment string '%s'." % options.sethypo)
-  tmu_0 = fit_result['fast_tmu_0']
+
+for plr_data, fast_plr_data in zip(raster.plr_data.values(), faster.plr_data.values()) :
+  test_hypo = plr_data.hypo
+  tmu_0 = fast_plr_data.test_statistics['tmu_0']
   gen0_hypo = copy.deepcopy(test_hypo).set(list(model.pois)[0], 0)
-  samplers_clsb.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
-  samplers_cl_b.append(OptiSampler(model, test_hypo, mu0=mu0, poi_bounds=poi_bounds, bounds=bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
+  samplers_clsb.append(OptiSampler(model, test_hypo, poi.initial_value, (poi.min_value, poi.max_value), print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
+  samplers_cl_b.append(OptiSampler(model, test_hypo, poi.initial_value, (poi.min_value, poi.max_value), print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
 
 opti_samples = CLsSamples( \
   Samples(samplers_clsb, options.output_file), \
@@ -120,17 +123,17 @@ opti_samples = CLsSamples( \
 if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
 
 for fit_result in fit_results :
-  fit_result['sampling_pv' ] = opti_samples.clsb.pv(fit_result[res.poi_name], fit_result['pv'])
-  fit_result['sampling_clb'] = opti_samples.cl_b.pv(fit_result[res.poi_name], fit_result['pv'])
-  fit_result['sampling_cls'] = opti_samples.pv     (fit_result[res.poi_name], fit_result['pv'])
+  plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'])
+  plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'])
+  plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo[poi.name], plr_data.pvs['pv'])
 
 if options.bands :
   sampling_bands = opti_samples.bands(options.bands)
   for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-    for fit_result, band_point in zip(fit_results, sampling_bands[band]) : fit_result['sampling_cls_%+d' % band] = band_point
+    for plr_data, band_point in zip(raster.plr_data.values(), sampling_bands[band]) : plr_data.pvs['sampling_cls_%+d' % band] = band_point
 
 def limit(key, description) :
-  limit_value = calc.limit(key, options.cl)
+  limit_value = calc.compute_limit(raster, key, options.cl)
   if limit_value : print(description + ' : UL(%g%%) = %g (N = %s)' % (100*options.cl, limit_value, str(model.n_exp(model.expected_pars(limit_value)).sum(axis=1))) )
 
 res.print(verbosity=1)
