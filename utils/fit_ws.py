@@ -236,7 +236,9 @@ def plr_spec(hypo, dataset) :
 
 data_specs = []
 asimov_specs = []
-for hypo in hypos :
+for i, hypo in enumerate(hypos) :
+  sys.stderr.write('\rProcessing hypothesis %3d of %3d' % (i+1, len(hypos)))
+  sys.stderr.flush()
   data_specs.append(plr_spec(hypo, data))
   asimov_specs.append(plr_spec(hypo, asimov0))
 
