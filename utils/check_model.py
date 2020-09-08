@@ -79,8 +79,7 @@ else :
   raise ValueError('Unknown test statistic %s' % options.test_statistic)
 calc.fill_all_pv(raster)
 faster = calc.compute_fast_results(raster, data)
-raster.print(verbosity = options.verbosity)
-faster.print(verbosity = options.verbosity)
+raster.print(verbosity = options.verbosity, other=faster)
 
 # Plot results
 if not options.batch_mode :
