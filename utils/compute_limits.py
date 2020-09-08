@@ -87,11 +87,11 @@ if options.bounds :
 
 if options.test_statistic == 'q~mu' :
   if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-  poi = model.pois[raster.pois()[0]]
+  poi = raster.pois()[list(raster.pois())[0]]
   calc = QMuTildaCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
 elif options.test_statistic == 'q_mu' :
   if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-  poi = model.pois[raster.pois()[0]]
+  poi = raster.pois()[list(raster.pois())[0]]
   calc = QMuCalculator(OptiMinimizer(poi.initial_value, (poi.min_value, poi.max_value)))
 else :
   raise ValueError('Unknown test statistic %s' % options.test_statistic)
@@ -108,12 +108,14 @@ niter = options.iterations
 samplers_clsb = []
 samplers_cl_b = []
 
+print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(poi), str(bounds), niter))
+
 for plr_data, fast_plr_data in zip(raster.plr_data.values(), faster.plr_data.values()) :
   test_hypo = plr_data.hypo
   tmu_0 = fast_plr_data.test_statistics['tmu_0']
   gen0_hypo = copy.deepcopy(test_hypo).set(list(model.pois)[0], 0)
-  samplers_clsb.append(OptiSampler(model, test_hypo, poi.initial_value, (poi.min_value, poi.max_value), print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
-  samplers_cl_b.append(OptiSampler(model, test_hypo, poi.initial_value, (poi.min_value, poi.max_value), print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
+  samplers_clsb.append(OptiSampler(model, test_hypo, poi.initial_value, (poi.min_value, poi.max_value), bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
+  samplers_cl_b.append(OptiSampler(model, test_hypo, poi.initial_value, (poi.min_value, poi.max_value), bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
 
 opti_samples = CLsSamples( \
   Samples(samplers_clsb, options.output_file), \
