@@ -15,7 +15,7 @@ class JSONSerializable :
       return self.load_jdict(jdict)
   def save(self, filename) :
     with open(filename, 'w') as fd :
-      jdict = self.dump_jdict(jdict)
+      jdict = self.dump_jdict()
       return json.dump(jdict, fd, ensure_ascii=True, indent=3)
   def load_json(self, js) :
     jdict = json.loads(js)
