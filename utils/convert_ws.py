@@ -308,7 +308,10 @@ if not options.data_only :
     for par in nuis_pars : sample.impacts[par.name] = []
   print('=== Nominal NP values :')
   nps.Print("V")
+  print('\n')
   for i in range(0, nbins) :
+    sys.stderr.write('\rProcessing bin %5d of %5d' % (i+1, nbins))
+    sys.stderr.flush()
     xmin = bins[i]
     xmax = bins[i + 1]
     channel.obs.setRange('bin_%d' % i, xmin, xmax)
