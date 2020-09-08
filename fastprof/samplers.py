@@ -57,8 +57,8 @@ class ScanSampler (Sampler) :
     self.use_qtilda = True if tmu_A != None and tmu_0 != None else False
     
   def compute(self, data, toy_iter) :
-    opti = ScanMinimizer(data, self.scan_mus)
-    tmu = opti.tmu(self.test_hypo, self.test_hypo)
+    opti = ScanMinimizer(self.scan_mus)
+    tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
     if self.use_qtilda :
       q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
     else :
@@ -85,8 +85,9 @@ class OptiSampler (Sampler) :
     self.debug_data = pd.DataFrame()
     
   def compute(self, data, toy_iter) :
-    opti = OptiMinimizer(data, self.mu0, self.poi_bounds, self.method, self.niter, self.floor)
-    tmu = opti.tmu(self.test_hypo, self.test_hypo)
+    opti = OptiMinimizer(self.mu0, self.poi_bounds, self.method, self.niter, self.floor)
+    if self.debug : opti.debug = 2
+    tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
     if tmu < 1E-7 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
       if self.debug and opti.tmu_debug < -10 : data.save('data_%d.json' % toy_iter)
@@ -111,14 +112,8 @@ class OptiSampler (Sampler) :
     if self.debug :
       if self.debug_data.shape[0] == 0 :
         columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev' ]
-        columns.extend( [ 'free_' + a for a in self.model.alphas ] )
-        columns.extend( [ 'free_' + b for b in self.model.betas  ] )
-        columns.extend( [ 'free_' + c for c in self.model.gammas ] )
-        columns.extend( [ 'hypo_' + a for a in self.model.alphas ] )
-        columns.extend( [ 'hypo_' + b for b in self.model.betas  ] )
-        columns.extend( [ 'hypo_' + c for c in self.model.gammas ] )
-        columns.extend( [ 'aux_'  + a for a in self.model.alphas ] )
-        columns.extend( [ 'aux_'  + b for b in self.model.betas  ] )
+        columns.extend( [ 'free_' + p for p in self.model.nps ] )
+        columns.extend( [ 'hypo_' + p for p in self.model.nps ] )
         self.debug_data = pd.DataFrame(columns=columns)
       self.debug_data.at[toy_iter, 'pv'      ] = q.asymptotic_pv()
       self.debug_data.at[toy_iter, 'tmu'     ] = tmu
@@ -126,17 +121,10 @@ class OptiSampler (Sampler) :
       self.debug_data.at[toy_iter, 'free_nll'] = opti.free_nll
       self.debug_data.at[toy_iter, 'hypo_nll'] = opti.hypo_nll
       self.debug_data.at[toy_iter, 'nfev'    ] = opti.nfev
-      for i, a in enumerate(self.model.alphas) :
-        self.debug_data.at[toy_iter, 'free_' + a] = opti.free_pars.alphas[i]
-        self.debug_data.at[toy_iter, 'hypo_' + a] = opti.hypo_pars.alphas[i]
-        self.debug_data.at[toy_iter, 'aux_'  + a] = data.aux_alphas[i]
-      for i, b in enumerate(self.model.betas) :
-        self.debug_data.at[toy_iter, 'free_' + b] = opti.free_pars.betas [i]
-        self.debug_data.at[toy_iter, 'hypo_' + b] = opti.hypo_pars.betas [i]
-        self.debug_data.at[toy_iter, 'aux_'  + b] = data.aux_betas[i]
-      for i, c in enumerate(self.model.gammas) :
-        self.debug_data.at[toy_iter, 'free_' + c] = opti.free_pars.gammas[i]
-        self.debug_data.at[toy_iter, 'hypo_' + c] = opti.hypo_pars.gammas[i]
+      for i, p in enumerate(self.model.nps) :
+        self.debug_data.at[toy_iter, 'free_' + p] = opti.free_pars[p]
+        self.debug_data.at[toy_iter, 'hypo_' + p] = opti.hypo_pars[p]
+        self.debug_data.at[toy_iter, 'aux_'  + p] = data.aux_obs[i]
       data.save('data/data_%d.json' % toy_iter)
     return q.asymptotic_pv()
 
