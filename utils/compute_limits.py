@@ -158,7 +158,7 @@ def run(argv = None) :
   if options.bands :
     limit_sampling_cls_bands = {}
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-      limit_sampling_cls_bands[band] = limit(raster, 'sampling_cls_%+d' % band, 'Expected limit band, fast model, %+d sigma band')
+      limit_sampling_cls_bands[band] = limit(raster, 'sampling_cls_%+d' % band, 'Expected limit band, fast model, %+d sigma band' % band)
 
   # Plot results
   if not options.batch_mode :
