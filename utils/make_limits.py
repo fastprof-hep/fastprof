@@ -11,7 +11,7 @@ basedir     = 'run/fastprof'              # Base directory for file paths
 name        = 'highMass_NW-prod1000'      # Base name of output files
 scan_var    = 'mX'                        # Scan variable
 ntoys       = 10000                       # Number of toys
-                                         
+bands       = 2
 computation = 'limit'                     # Name of computation
 
 opts = [ '--break-locks' ]
@@ -40,6 +40,7 @@ args += [ '-d', dname ]
 args += [ '-f', fname ]
 args += [ '-o', oname ]
 args += [ '-n', str(ntoys) ]
+args += [ '--bands', str(bands) ]
 args += opts
 
 import compute_limits
