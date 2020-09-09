@@ -58,7 +58,8 @@ def run(argv = None) :
         for (var, val) in sets :
           if not var in plr_data.hypo : raise ValueError("Cannot find '%s' among hypothesis parameters." % var)
           plr_data.ref_pars[var] = float(val)
-          print("INFO : setting %s=%g in reference parameters for %s" % (var, float(val), model.poi_name, plr_data.hypoi))
+          print("INFO : setting %s=%g in reference parameters for hypothesis %s, new generation parameters are" % (var, float(val), plr_data.hypo.dict(pois_only=True)))
+          print(plr_data.ref_pars)
     except Exception as inst :
       print(inst)
       raise ValueError("ERROR : invalid hypo assignment string '%s'." % options.sethypo)
@@ -117,7 +118,7 @@ def run(argv = None) :
   print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(poi), str(bounds), niter))
 
   for plr_data, fast_plr_data in zip(raster.plr_data.values(), faster.plr_data.values()) :
-    test_hypo = plr_data.hypo
+    test_hypo = plr_data.ref_pars
     tmu_0 = fast_plr_data.test_statistics['tmu_0']
     gen0_hypo = copy.deepcopy(test_hypo).set(list(model.pois)[0], 0)
     samplers_clsb.append(OptiSampler(model, test_hypo, poi.initial_value, (poi.min_value, poi.max_value), bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
