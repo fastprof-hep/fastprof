@@ -1,4 +1,4 @@
 python3 -m venv .
 source bin/activate
-mkdir -p ./run
+pip install -q numpy scipy pandas matplotlib
 export PYTHONPATH=$PYTHONPATH:`pwd`
