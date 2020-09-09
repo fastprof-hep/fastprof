@@ -17,7 +17,7 @@ parser = ArgumentParser("check_model.py", formatter_class=ArgumentDefaultsHelpFo
 parser.description = __doc__
 parser.add_argument("-m", "--model-file"    , type=str  , default=''     , help="Name of JSON file defining model")
 parser.add_argument("-d", "--data-file"     , type=str  , default=''     , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
-parser.add_argument("-a", "--asimov"        , type=float, default=None   , help="Fit an Asimov dataset for the specified POI value")
+parser.add_argument("-a", "--asimov"        , type=str  , default=None   , help="Fit an Asimov dataset for the specified POI value")
 parser.add_argument("-f", "--fits-file"     , type=str  , default=''     , help="Name of JSON file containing full-model fit results")
 parser.add_argument(      "--regularize"    , type=float, default=None   , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
 parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu' , help="Test statistic to use in the check")
@@ -56,7 +56,6 @@ if options.data_file :
   print('Using dataset stored in file %s.' % options.data_file)
 elif options.asimov != None :
   try:
-    pars = model.expected_pars()
     sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
     data = Data(model).set_expected(model.expected_pars(sets))
   except Exception as inst :
