@@ -22,13 +22,15 @@ def run(argv = None) :
   parser.add_argument("-f", "--fits-file"     , type=str  , required=True , help="Name of JSON file containing full-model fit results")
   parser.add_argument("-n", "--ntoys"         , type=int  , default=10000 , help="Number of pseudo-datasets to produce")
   parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="Seed to use for random number generation")
-  parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+  parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
   parser.add_argument("-%", "--print-freq"    , type=int  , default=1000  , help="Verbosity level")
   parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Perform checks using the dataset stored in the specified JSON file")
-  parser.add_argument("-a", "--asimov"        , type=float, default=None  , help="Perform checks using an Asimov dataset for the specified POI value")
+  parser.add_argument("-a", "--asimov"        , type=str  , default=None  , help="Perform checks using an Asimov dataset for the specified POI value")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+  parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1:[min]:[max],name2:[min]:[max],...")
+  parser.add_argument(      "--sethypo"       , type=str  , default=''    , help="Change hypo parameter values, in the form par1=val1,par2=val2,...")
   parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use")
   parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
   parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
@@ -36,8 +38,6 @@ def run(argv = None) :
   parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
   parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
-  parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1:[min]:[max],name2:[min]:[max],...")
-  parser.add_argument(      "--sethypo"       , type=str  , default=''    , help="Change hypo parameter values, in the form par1=val1,par2=val2,...")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
 
   options = parser.parse_args(argv)
@@ -68,8 +68,13 @@ def run(argv = None) :
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
     print('Using dataset stored in file %s.' % options.data_file)
   elif options.asimov != None :
-    data = Data(model).set_expected(model.expected_pars(options.asimov))
-    print('Using Asimov dataset with %s = %g.' % (res.poi_name, options.asimov))
+    try:
+      sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
+      data = Data(model).set_expected(model.expected_pars(sets))
+    except Exception as inst :
+      print(inst)
+      raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
+    print('Using Asimov dataset with POIs %s.' % str(sets))
   else :
     data = Data(model).load(options.model_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
@@ -151,7 +156,7 @@ def run(argv = None) :
   if options.bands :
     limit_sampling_cls_bands = {}
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-      limit_sampling_cls_bands[band] = limit('sampling_cls_%+d' % band, 'Expected limit band, fast model, %+d sigma band')
+      limit_sampling_cls_bands[band] = limit(raster, 'sampling_cls_%+d' % band, 'Expected limit band, fast model, %+d sigma band')
 
   # Plot results
   if not options.batch_mode :
