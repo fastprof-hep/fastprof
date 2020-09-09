@@ -113,26 +113,28 @@ class Raster(JSONSerializable) :
   def compute_tmu(self) :
     for plr_data in self.plr_data.values() : plr_data.compute_tmu()
 
-  def compute_limit(self, pv_key = 'cls', cl = 0.05, order = 3, log_scale = True) :
+  def compute_limit(self, pv_key = 'cls', target_pv = 0.05, order = 3, log_scale = True) :
     if len(self.pois()) > 1 : raise ValueError('Cannot interpolate limit in more than 1 dimension.')
     poi_name = list(self.pois())[0]
-    hypos = [ hypo[poi_name] for hypo in self.plr_data.keys() ]
+    hypos  = []
     values = []
     for hypo, plr_data in self.plr_data.items() :
       if not pv_key in plr_data.pvs : raise KeyError("P-value '%s' not found at hypo %s." % (pv_key, str(hypo.dict(pois_only=True))))
       if log_scale :
-        value = math.log(plr_data.pvs[pv_key]/cl) if plr_data.pvs[pv_key] > 0 else -999
+        if plr_data.pvs[pv_key] <= 0 : continue
+        value = math.log(plr_data.pvs[pv_key]/target_pv)
       else :
-        value = plr_data.pvs[pv_key] - cl
+        value = plr_data.pvs[pv_key] - target_pv
       values.append(value)
+      hypos.append(hypo[poi_name])
     finder = scipy.interpolate.InterpolatedUnivariateSpline(hypos, values, k=order)
     roots = finder.roots() 
     if len(roots) == 0 :
-      print("No solution found for %s[%s] = %g. Interpolation set:" % (pv_key, poi_name, cl))
+      print("No solution found for %s[%s] = %g. Interpolation set:" % (pv_key, poi_name, target_pv))
       print([a for a in zip(hypos, values)])
       return None
     if len(roots) > 1 :
-      print('Multiple solutions found for %s[%s] = %g, returning the first one' % (pv_key, poi_name, cl))
+      print('Multiple solutions found for %s[%s] = %g (%s), returning the first one' % (pv_key, poi_name, target_pv, str(roots)))
     return roots[0]
 
   def load_jdict(self, jdict) :
@@ -171,24 +173,26 @@ class Raster(JSONSerializable) :
     if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
     raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
   
-  def print(self, print_keys = None, verbosity = 0, print_limits=True, other=None) :
+  def print(self, keys = None, verbosity = 0, print_limits=True, other=None) :
     if len(self.plr_data) == 0 : return ''
     plr_template = list(self.plr_data.values())[0]
-    if print_keys == None :
-      print_keys = list(self.pois().keys())
-      if 'pv' in plr_template.pvs : print_keys += [ 'pv' ]
-      if verbosity > 0 :
-        if 'cls' in plr_template.pvs : print_keys += [ 'cls' ]
-        if 'clb' in plr_template.pvs : print_keys += [ 'clb' ]
-      if verbosity > 1 :
-        print_keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois().keys() ])
+    if keys is None :
+      keys = []
+      if verbosity == 0 : verbosity = 1
+    print(keys)
+    if verbosity > 0 :
+      keys = list(self.pois().keys()) + keys
+      if 'pv' in plr_template.pvs : keys += [ 'pv' ]
+      if 'cls' in plr_template.pvs : keys += [ 'cls' ]
+      if 'clb' in plr_template.pvs : keys += [ 'clb' ]
+      if verbosity > 1 : keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois().keys() ])
     s = ''
-    for key in print_keys :
+    for key in keys :
       s += '| %-15s ' % key
       if not other is None and not key in self.pois().keys() : s += '| %-15s ' % ('%s (%s)' % (key, other.name))
     for hypo, plr_data in self.plr_data.items() :
       s += '\n'
-      for key in print_keys :
+      for key in keys :
         s += '| %-15g ' % self.key_value(key, hypo)
         if not other is None and not key in self.pois().keys() : s += '| %-15g ' % other.key_value(key, hypo)
     if print_limits and len(self.pois()) == 1 and 'cls' in plr_template.pvs :
