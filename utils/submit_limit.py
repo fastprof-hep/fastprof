@@ -22,9 +22,13 @@ parser.add_argument("-n", "--ntoys"         , type=int  , default=10000      , h
 parser.add_argument("-s", "--seed"          , type=int  , default='0'        , help="Random generation seed")
 parser.add_argument("-%", "--print-freq"    , type=int  , default=1000       , help="Verbosity level")
 parser.add_argument("-d", "--data-file"     , type=str  , default=''         , help="Perform checks using the dataset stored in the specified JSON file")
-parser.add_argument("-a", "--asimov"        , type=float, default=None       , help="Perform checks using an Asimov dataset for the specified POI value")
+parser.add_argument("-a", "--asimov"        , type=str  , default=None       , help="Perform checks using an Asimov dataset for the specified POI value")
 parser.add_argument("-i", "--iterations"    , type=int  , default=1          , help="Numer of iterations to perform for NP computation")
 parser.add_argument("-r", "--regularize"    , type=float, default=None       , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+parser.add_argument(      "--truncate-dist" , type=float, default=None       , help="Truncate high p-values (just below 1) to get reasonable bands")
+parser.add_argument(      "--bounds"        , type=str  , default=None       , help="Parameter bounds in the form name1:[min]:[max],name2:[min]:[max],...")
+parser.add_argument(      "--sethypo"       , type=str  , default=''         , help="Change hypo parameter values, in the form par1=val1,par2=val2,...")
+parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu'     , help="Test statistic to use")
 parser.add_argument(      "--break-locks"   , action='store_true'            , help="Allow breaking locks from other sample production jobs")
 parser.add_argument(      "--resume"        , type=int  , default=0          , help="Resume an interrupted job ")
 parser.add_argument(      "--debug"         , action='store_true'            , help="Produce debugging output")
@@ -55,14 +59,18 @@ if options.resume == 0 :
   os.makedirs('samples')
 
 opts = ''
-if options.asimov      : opts += ' --asimov %d' % options.asimov
-if options.data_file   : opts += ' --data-file %s' % options.data_file
-if options.regularize  : opts += ' --regularize %d' % options.regularize
-if options.iterations  : opts += ' --iterations %d' % options.iterations
-if options.print_freq  : opts += ' --print-freq %d' % options.print_freq
-if options.verbosity   : opts += ' --verbosity %d' % options.verbosity
-if options.debug       : opts += ' --debug'
-if options.break_locks : opts += ' --break-locks'
+if options.asimov         : opts += ' --asimov %s' % options.asimov
+if options.data_file      : opts += ' --data-file %s' % options.data_file
+if options.iterations     : opts += ' --iterations %d' % options.iterations
+if options.regularize     : opts += ' --regularize %g' % options.regularize
+if options.truncate_dist  : opts += ' --truncate-dist %g' % options.truncate_dist
+if options.bounds         : opts += ' --bounds %s' % options.bounds
+if options.sethypo        : opts += ' --sethypo %s' % options.sethypo
+if options.test_statistic : opts += ' --test-statistic %s' % options.test_statistic
+if options.print_freq     : opts += ' --print-freq %d' % options.print_freq
+if options.verbosity      : opts += ' --verbosity %d' % options.verbosity
+if options.debug          : opts += ' --debug'
+if options.break_locks    : opts += ' --break-locks'
 
 job = 'job_%d.sh' % options.resume
 out = 'stdout_%d' % options.resume
