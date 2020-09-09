@@ -144,6 +144,7 @@ def run(argv = None) :
   def limit(rast, key, description) :
     limit_value = rast.compute_limit(key, 1 - options.cl)
     if limit_value : print(description + ' : UL(%g%%) = %g (N = %s)' % (100*options.cl, limit_value, str(model.n_exp(model.expected_pars(limit_value)).sum(axis=1))) )
+    return limit_value
 
   raster.print(keys=[ 'sampling_pv' ], verbosity=1)
 
