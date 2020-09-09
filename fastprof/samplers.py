@@ -90,7 +90,7 @@ class OptiSampler (Sampler) :
     tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
     if tmu < 1E-7 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
-      if self.debug and opti.tmu_debug < -10 : data.save('data/debug_data_neg_tmu_%d.json' % toy_iter)
+      if self.debug and opti.tmu_debug < -10 : data.save('run/data/debug_data_neg_tmu_%d.json' % toy_iter)
       return None
     for bound in self.bounds :
       if not bound.test(opti.free_deltas) :
