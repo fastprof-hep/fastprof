@@ -179,7 +179,6 @@ class Raster(JSONSerializable) :
     if keys is None :
       keys = []
       if verbosity == 0 : verbosity = 1
-    print(keys)
     if verbosity > 0 :
       keys = list(self.pois().keys()) + keys
       if 'pv' in plr_template.pvs : keys += [ 'pv' ]
