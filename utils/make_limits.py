@@ -7,12 +7,19 @@
 # User-modifiable configuration options
 # =====================================
 
+# Base arguments
 basedir     = 'run/fastprof'              # Base directory for file paths
 name        = 'highMass_NW-prod1000'      # Base name of output files
 scan_var    = 'mX'                        # Scan variable
 ntoys       = 10000                       # Number of toys
 bands       = 2
-computation = 'limit'                     # Name of computation
+computation = 'limit-reg'                 # Name of computation
+
+# Regularization arguments
+regularize     = ''
+sethypo        = 'dSig=0'
+bounds         = 'dSig:-2:2'
+truncate_dists = ''
 
 opts = [ '--break-locks' ]
 
@@ -41,6 +48,10 @@ args += [ '-f', fname ]
 args += [ '-o', oname ]
 args += [ '-n', str(ntoys) ]
 args += [ '--bands', str(bands) ]
+if regularize     != '' : args += [ '--regularize', regularize ]
+if sethypo        != '' : args += [ '--sethypo', sethypo ]
+if bounds         != '' : args += [ '--bounds', bounds ]
+if truncate_dists != '' : args += [ '--truncate-dists', truncate_dists ]
 args += opts
 
 import compute_limits
