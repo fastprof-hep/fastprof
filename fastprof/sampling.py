@@ -23,6 +23,7 @@ class SamplingDistribution :
       print('Could not load samples from file %s, exception below:' % filename)
       raise(inst)
       raise IOError
+    nafter =  self.samples.shape[0]
     if nbefore > 0 and nafter < nbefore :
       raise IOError('File %s did not contain enough samples (expected %d, got %d).' % (filename, nbefore, nafter))
     return self
