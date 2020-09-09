@@ -211,6 +211,7 @@ class TestStatisticCalculator :
   def __init__(self, minimizer) :
     self.minimizer = minimizer
 
+  @classmethod
   def poi(self, plr_data) :
     if len(plr_data.pois) != 1 : raise ValueError('Can currently only compute test statistics for a single POI, here %s has %d.' % (plr_data.name, len(plr_data.pois)))
     return list(plr_data.pois)[0]
@@ -252,11 +253,15 @@ class QMuCalculator(TestStatisticCalculator) :
   def __init__(self, minimizer) :
     super().__init__(minimizer)
 
+  @classmethod
+  def make_q(cls, plr_data) :
+    return QMu(test_poi = plr_data.hypo[cls.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
+               best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_A = plr_data.test_statistics['tmu_0'])
+
   def fill_pv(self, plr_data) :
     try :
       # since we use tmu_A to compute CLb, we need tmu_A = tmu_0 (computed from an Asimov with mu'=0)
-      q = QMu(test_poi = plr_data.hypo[self.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
-              best_poi = plr_data.free_fit.fitpars[self.poi(plr_data)].value, tmu_A = plr_data.test_statistics['tmu_0'])
+      q = self.make_q(plr_data)
       plr_data.test_statistics['q_mu'] = q.value()
       plr_data.pvs['pv' ] = q.asymptotic_pv()
       plr_data.pvs['cls'] = q.asymptotic_cls()
@@ -272,12 +277,16 @@ class QMuTildaCalculator(TestStatisticCalculator) :
     super().__init__(minimizer)
     self.qs = []
 
+  @classmethod
+  def make_q(cls, plr_data) :
+    return QMuTilda(test_poi = plr_data.hypo[cls.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
+                    best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_A = plr_data.test_statistics['tmu_0'],
+                    tmu_0 = plr_data.test_statistics['tmu_0'])
+
   def fill_pv(self, plr_data) :
     try :
       # since we use tmu_A to compute CLb, we need tmu_A = tmu_0 (computed from an Asimov with mu'=0)
-      q = QMuTilda(test_poi = plr_data.hypo[self.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
-                   best_poi = plr_data.free_fit.fitpars[self.poi(plr_data)].value, tmu_A = plr_data.test_statistics['tmu_0'],
-                   tmu_0 = plr_data.test_statistics['tmu_0'])
+      q = self.make_q(plr_data)
       plr_data.test_statistics['qm~u'] = q.value()
       plr_data.pvs['pv' ] = q.asymptotic_pv()
       plr_data.pvs['cls'] = q.asymptotic_cls()
