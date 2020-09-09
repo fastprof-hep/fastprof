@@ -20,8 +20,9 @@ class SamplingDistribution :
     try:
       self.samples = np.load(filename)
     except Exception as inst :
-      print(inst)
-      raise IOError('Could not load samples from file %s.' % filename)
+      print('Could not load samples from file %s, exception below:' % filename)
+      raise(inst)
+      raise IOError
     nafter =  self.samples.shape[0]
     if nbefore > 0 and nafter < nbefore :
       raise IOError('File %s did not contain enough samples (expected %d, got %d).' % (filename, nbefore, nafter))
@@ -78,7 +79,7 @@ class Samples (SamplesBase) :
       raise ValueError('Should specify either samplers or hypotheses, but not both.')
     if len(samplers) == 0 and len(pois) == 0 :
       raise ValueError('Should specify either samplers or hypotheses.')
-    if len(samplers) > 0  and len(pois) == 0 : pois = [ sampler.test_hypo.poi for sampler in samplers ]
+    if len(samplers) > 0  and len(pois) == 0 : pois = [ sampler.test_hypo.pois[0] for sampler in samplers ]
     super().__init__(pois)
     self.samplers = samplers
     self.file_root = file_root
@@ -115,8 +116,8 @@ class Samples (SamplesBase) :
         self.dists[poi] = SamplingDistribution()
         self.dists[poi].load(self.file_name(poi, '.npy'))
       except Exception as inst :
-        print(inst)
-        raise FileNotFoundError('File %s not found, for samples at POI = %g' % (fname, poi))
+        print('Cannot load from file %s, for samples at POI = %g, exception below:' % (fname, poi))
+        raise(inst)
     return self
 
   def generate(self, ntoys) : # on the fly generation -- for fast cases only!
@@ -133,17 +134,16 @@ class Samples (SamplesBase) :
     try:
       samples = self.dists[poi]
     except Exception as inst :
-      print(inst)
-      print('Available samples are', self.dists.keys())
-      raise KeyError('No sample available for POI = %g' % poi)
+      print('No sample available for POI = %g, available samples are %s' (poi, self.dists.keys()))
+      raise(inst)
     return samples.pv(apv)
 
   def quantile(self, poi, fraction=None, sigma=None) :
     try:
       samples = self.dists[poi]
     except Exception as inst :
-      print(inst)
-      raise KeyError('No sample available for POI = %g' % poi)
+      print('No sample available for POI = %g' % poi)
+      raise(inst)
     return samples.quantile(fraction, sigma)
 
   def cut(self, min_val = None, max_val = None) :

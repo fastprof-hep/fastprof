@@ -9,7 +9,6 @@ import copy
 class JSONSerializable :
   def __init__(self) :
     pass
-
   def load(self, filename) :
     with open(filename, 'r') as fd :
       jdict = json.load(fd)
@@ -22,126 +21,303 @@ class JSONSerializable :
     jdict = json.loads(js)
     return self.load_jdict(jdict)
   def dump_json(self) :
-    jdict = self.dump_jdict()
+    jdict = self.dump_jdict(jdict)
     return json.dumps(jdict)
+  def dump_jdict(self) :
+    jdict = {}
+    self.fill_jdict(jdict)
+    return jdict
+  def load_field(self, key, dic, default = None, types = []) :
+    if not key in dic :
+      if default != None : return default
+      raise KeyError('Key %s not found in JSON dictionary' % key)
+    val = dic[key]
+    if not isinstance(types, list) : types = [ types ]
+    if types != [] and not any([isinstance(val, t) for t in types]) :
+      raise TypeError('Object at key %s in JSON dictionary has type %s, not the expected %s' % 
+                      (key, val.__class__.__name__, '|'.join([t.__name__ for t in types])))
+    if types == [ list ] : val = np.array(val, dtype=float)
+    return val
   @abstractmethod
   def load_jdict(self, jdict) :
     pass
   @abstractmethod
-  def dump_jdict(self) :
+  def fill_jdict(self, jdict) :
     pass
+
+
+class ModelPOI(JSONSerializable) :
+  def __init__(self, name = '', value = None, error = None, min_value = None, max_value = None, initial_value = None) :
+    self.name = name
+    self.value = value
+    self.error = error
+    self.min_value = min_value
+    self.max_value = max_value
+    self.initial_value = initial_value
+  def __str__(self) :
+    s = "parameter '%s' :" % self.name
+    if not self.value is None : s += ' %g' % self.value
+    if not self.error is None : s += ' +/- %g'  % self.error
+    s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
+    if not self.initial_value is None : s += ' init = %g' % self.initial_value
+    return s
+  def load_jdict(self, jdict) : 
+    self.name      = self.load_field('name'     , jdict,  self.name, str)
+    self.value     = self.load_field('value'    , jdict,  0, [int, float])
+    self.error     = self.load_field('error'    , jdict,  0, [int, float])
+    self.min_value = self.load_field('min_value', jdict,  0, [int, float])
+    self.max_value = self.load_field('max_value', jdict,  0, [int, float])
+    self.initial_value = self.load_field('initial_value', jdict, 0, [int, float])
+    return self
+  def fill_jdict(self, jdict) :
+    jdict['name']      = self.name
+    jdict['value']     = self.value
+    jdict['error']     = self.error
+    jdict['min_value'] = self.min_value
+    jdict['max_value'] = self.max_value
+    jdict['initial_value'] = self.max_value
+
+
+class ModelAux(JSONSerializable) :
+  def __init__(self, name = '', min_value = None, max_value = None) :
+    self.name = name
+    self.min_value = min_value
+    self.max_value = max_value
+  def __str__(self) :
+    s = "Auxiliary observable '%s' : min = %g, max = %g" % (self.name, self.min_value, self.max_value)
+    return s
+  def load_jdict(self, jdict) : 
+    self.name = self.load_field('name', jdict, '', str)
+    self.min_value = self.load_field('min_value', jdict, '', [int, float])
+    self.max_value = self.load_field('max_value', jdict, '', [int, float])
+    return self
+  def fill_jdict(self, jdict) :
+    jdict['name'] = self.name
+    jdict['min_value'] = self.min_value
+    jdict['max_value'] = self.max_value
+
+  
+class ModelNP(JSONSerializable) :
+  def __init__(self, name = '', nominal_value = 0, variation = 1, constraint = None, aux_obs = None) :
+    self.name = name
+    self.nominal_value = nominal_value
+    self.variation = variation
+    self.constraint = constraint
+    self.aux_obs = aux_obs
+  def is_free(self) :
+    return self.constraint == None
+  def unscaled_value(self, scaled_value) :
+    return self.nominal_value + scaled_value*self.variation
+  def scaled_value(self, unscaled_value) :
+    return (unscaled_value - self.nominal_value)/self.variation
+  def generate_aux(self, value) :
+    if self.constraint == None : return 0
+    return np.random.normal(value, self.constraint)
+  def __str__(self) :
+    s = "Nuisance parameter '%s' : nominal = %g, variation = %g, " % (self.name, self.nominal_value, self.variation)
+    s += 'constraint = %g' % self.constraint if self.constraint != None else 'free parameter'
+    return s
+  def load_jdict(self, jdict) : 
+    self.name = self.load_field('name', jdict, '', str)
+    self.nominal_value = self.load_field('nominal_value', jdict, None, [int, float])
+    self.variation = self.load_field('variation', jdict, None, [int, float])
+    self.constraint = self.load_field('constraint', jdict)
+    if self.constraint != None :
+      self.aux_obs = self.load_field('aux_obs', jdict, '', str)
+    else :
+      self.aux_obs = None
+    return self
+  def fill_jdict(self, jdict) :
+    jdict['name'] = self.name
+    jdict['nominal_val'] = self.nominal_value
+    jdict['variation'] = self.variation
+    jdict['constraint'] = self.constraint
+    jdict['aux_obs'] = self.aux_obs
+
+
+class Sample(JSONSerializable) :
+  def __init__(self, name = '', norm = '', nominal_norm = None, nominal_yields = None, impacts = None) :
+    self.name = name
+    self.norm_expr = norm
+    self.nominal_norm = nominal_norm
+    self.nominal_yields = nominal_yields
+    self.impacts = impacts
+  def impact(self, par, which = 'pos') :
+    if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
+    try:
+      imp = np.array([ imp[which] for imp in self.impacts[par] ], dtype=float)
+      return imp if which == 'pos' else 1/(1+imp) - 1
+    except Exception as inst:
+      print('Impact computation failed for sample %s, parameter %s, impact %s' % (self.name, par, which))
+      raise(inst)
+  def sym_impact(self, par) :
+    try:
+      return np.sqrt((1 + self.impact(par, 'pos'))*(1 + self.impact(par, 'neg'))) - 1
+    except Exception as inst:
+      print('Symmetric impact computation failed, returning the positive impacts instead')
+      print(inst)
+      return self.impact(par, 'pos')
+  def norm(self, pars) :
+    if self.norm_expr == '' : return 1
+    try:
+      return eval(self.norm_expr, pars.dict(nominal_nps=True))/self.nominal_norm
+    except Exception as inst:
+      print("Error while evaluating the normalization '%s' of sample '%s'." % (self.norm_expr, self.name))
+      raise(inst)
+  def __str__(self) :
+    s = "Sample '%s', norm = %s (nominal = %g)" % (self.name, self.norm_expr, self.nominal_norm)
+    return s
+  def load_jdict(self, jdict) : 
+    self.name = self.load_field('name', jdict, '', str)
+    self.norm_expr = self.load_field('norm', jdict, '', str)
+    self.nominal_norm = self.load_field('nominal_norm', jdict, None, [float, int])
+    self.nominal_yields = self.load_field('nominal_yields', jdict, None, list)
+    self.impacts = self.load_field('impacts', jdict, None, dict)
+    return self
+  def fill_jdict(self, jdict) :
+    jdict['name'] = self.name
+    jdict['norm'] = self.norm_expr
+    jdict['nominal_norm'] = self.nominal_norm
+    jdict['nominal_yields'] = self.nominal_yields
+    jdict['impacts'] = self.impacts
+
+
+class Channel(JSONSerializable) :
+  def __init__(self, name = '', chan_type = 'count', bins = []) :
+    self.name = name
+    self.type = chan_type
+    self.bins = bins
+    self.samples = {}
+  def dim(self) :
+    return len(self.bins)
+  def sample(self, name) :
+    return self.samples[name] if name in self.samples else None
+  def __str__(self) :
+    s = "Channel '%s', type = %s" % (self.name, self.type)
+    for sample in self.samples.values() : s += '\n    o ' + str(sample)
+    return s
+  def load_jdict(self, jdict) : 
+    self.name = jdict['name']
+    self.type = jdict['type']
+    if self.type == 'binned_range' :
+      self.bins = jdict['bins']
+      self.obs_name = self.load_field('obs_name', jdict, '', str)
+      self.obs_unit = self.load_field('obs_unit', jdict, '', str)
+      for json_sample in jdict['samples'] :
+        sample = Sample()
+        sample.load_jdict(json_sample)
+        self.samples[sample.name] = sample
+    return self
+  def fill_jdict(self, jdict) :
+    jdict['name'] = self.name
+    jdict['type'] = self.type
+    if self.type == 'binned_range' :
+      jdict['bins'] = self.bins
+      jdict['obs_name'] = self.obs_name
+      jdict['obs_unit'] = self.obs_unit
+      jdict['samples'] = []
+      for sample in self.samples : jdict['samples'].append(sample.dump_jdict())
+
 
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
-  def __init__(self, sig = np.array([]), bkg = np.array([]), poi = None, alphas = [], betas = [], gammas = [],
-               a = np.ndarray((0,0)), b = np.ndarray((0,0)), c = np.ndarray((0,0)), name=None, bins=[], linear_nps = False) :
+  def __init__(self, pois = {}, nps = {}, aux_obs = {}, channels = {}, asym_impacts = True, linear_nps = False, lognormal_terms = False) :
     super().__init__()
-    self.poi_name = poi
-    self.alphas = alphas
-    self.betas  = betas
-    self.gammas = gammas
-    if sig.ndim != 1 or bkg.ndim != 1 or a.ndim != 2 or b.ndim != 2 or c.ndim != 2 :
-      raise ValueError('Input data to fastprof model should be 1D vectors for (sig, bkg) and 2D matrices for (a, b)')
-    if sig.size != bkg.size :
-      raise ValueError('Inputs (sig, bkg) to fastprof model have different dimensions (%d, %d). Both dimensions should be equal to the number of bins in the model.' % (sig.size, bkg.size))
-    if a.shape != (0,0) and a.shape[0] != sig.size :
-      raise ValueError('Input "a" to fastprof model should have a row count equal to the number of bins (%d). ' % sig.size)
-    if b.shape != (0,0) and b.shape[0] != sig.size :
-      raise ValueError('Input "b" to fastprof model should have a row count equal to the number of bins (%d). ' % sig.size)
-    if c.shape != (0,0) and c.shape[0] != sig.size :
-      raise ValueError('Input "c" to fastprof model should have a row count equal to the number of bins (%d). ' % sig.size)
-    if a.shape != (0,0) and a.shape[1] != len(alphas) :
-      raise ValueError('Input "a" to fastprof model should have a column count (here %g) equal to the number of alpha parameters (%d).' % (a.shape[1], len(alphas)))
-    if b.shape != (0,0) and b.shape[1] != len(betas) :
-      raise ValueError('Input "b" to fastprof model should have a column count (here %g) equal to the number of beta parameters (%d).' % (b.shape[1], len(betas)))
-    if c.shape != (0,0) and c.shape[1] != len(gammas) :
-      raise ValueError('Input "c" to fastprof model should have a column count (here %g) equal to the number of gamma parameters (%d).' % (c.shape[1], len(gammas)))
-    self.sig = sig
-    self.bkg = bkg
-    self.a = a
-    self.b = b
-    self.c = c
-    self.name = name
-    self.bins = bins
+    self.pois = { poi.name : poi for poi in pois }
+    self.nps = {}
+    for np in nps :
+      if not np.is_free() : self.nps[par.name] = par
+    ncons = len(self.nps)
+    for np in nps :
+      if np.is_free() : self.nps[par.name] = par
+    self.aux_obs = { par.name : par for par in aux_obs }
+    if len(self.aux_obs) != ncons :
+      raise ValueError('Number of auxiliary observables (%d) does not match the number of constrained NPs (%d)' % (len(self.aux_obs), self.ncons))
+    self.channels = { channel.name : channel for channel in channels }
+    self.asym_impacts = asym_impacts
     self.linear_nps = linear_nps
-    for alpha in alphas : self.pars[alpha] = {}
-    for alpha in alphas :
-      self.pars[alpha]['nominal']    = 0
-      self.pars[alpha]['variation']  = 1
-      self.pars[alpha]['constraint'] = 1
-    for beta  in betas  : self.pars[beta] = {}
-    for beta  in betas :
-      self.pars[beta ]['nominal']    = 0
-      self.pars[beta ]['variation']  = 1
-      self.pars[beta ]['constraint'] = 1
-    for gamma in gammas : self.pars[gamma] = {}
-    for gamma in gammas :
-      self.pars[gamma]['nominal']    = 0
-      self.pars[gamma]['variation']  = 1
-      self.pars[gamma]['constraint'] = 0
+    self.lognormal_terms = lognormal_terms
     self.init_vars()
 
   def init_vars(self) :
-    self.na = self.a.shape[1] if self.a.shape != (0,) else 0
-    self.nb = self.b.shape[1] if self.b.shape != (0,) else 0
-    self.nc = self.c.shape[1] if self.c.shape != (0,) else 0
-    self.nbins = self.sig.size
-    self.nsyst = self.na + self.nb
-    self.n_nps = self.na + self.nb + self.nc
-    self.ln_a = np.log(1 + self.a)
-    self.ln_b = np.log(1 + self.b)
-    self.ln_c = np.log(1 + self.c)
-    self.nominal_alphas = np.array( [ self.pars[alpha]['nominal']    for alpha in self.alphas ] )
-    self.nominal_betas  = np.array( [ self.pars[beta ]['nominal']    for beta  in self.betas  ] )
-    self.nominal_gammas = np.array( [ self.pars[gamma]['nominal']    for gamma in self.gammas ] )
-    self.sigma_alphas   = np.array( [ self.pars[alpha]['constraint'] for alpha in self.alphas ] )
-    self.sigma_betas    = np.array( [ self.pars[beta ]['constraint'] for beta  in self.betas  ] )
-    self.sigma_gammas   = np.array( [ self.pars[gamma]['constraint'] for gamma in self.gammas ] )
-    self.diag_alphas = np.diag(1/self.sigma_alphas**2)
-    self.diag_betas  = np.diag(1/self.sigma_betas **2)
-    self.diag_gammas = np.diag(np.array( [1/sg**2 if sg != 0 else 0 for sg in self.sigma_gammas ]))
+    self.npois = len(self.pois)
+    self.nnps  = len(self.nps)
+    self.ncons = len(self.aux_obs)
+    self.nfree = self.nnps - self.ncons
+    self.samples = {}
+    self.sample_indices = {}
+    self.channel_offsets = {}
+    self.nbins = 0
+    for channel in self.channels.values() :
+      self.channel_offsets[channel.name] = self.nbins
+      self.nbins += channel.dim()
+      for sample in channel.samples.values() :
+        if not sample.name in self.sample_indices :
+          self.samples[sample.name] = sample
+          self.sample_indices[sample.name] = len(self.sample_indices)
+    self.nominal_yields = np.zeros((len(self.sample_indices), self.nbins))
+    self.pos_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
+    self.neg_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
+    self.sym_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
+    for channel in self.channels.values() :
+      for sample in channel.samples.values() :
+        self.nominal_yields[self.sample_indices[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
+        for p, par in enumerate(self.nps.values()) :
+          self.pos_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, 'pos')
+          self.neg_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, 'neg')
+          self.sym_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.sym_impact(par.name)
+    self.log_pos_impacts = np.log(1 + self.pos_impacts)
+    self.log_neg_impacts = np.log(1 + self.neg_impacts)
+    self.log_sym_impacts = np.log(1 + self.sym_impacts)
+    self.constraint_hessian = np.zeros((self.nnps, self.nnps))
+    self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
+    self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
+    for p, par in enumerate(self.nps.values()) :
+      if par.constraint == None : break # we've reached the end of the constrained NPs in the NP list
+      self.constraint_hessian[p,p] = 1/par.constraint**2
 
-  def set_gamma_regularization(self, gamma_regularization) :
-    for gamma in self.gammas : self.pars[gamma]['constraint'] = gamma_regularization
+  def channel(self, name) :
+    return self.channels[name] if name in self.channels else None
+
+  def all_pars(self) :
+    pars = {}
+    for par in self.pois.values() : pars[par.name] = par
+    for par in self.nps.values()  : pars[par.name] = par
+    return pars
+
+  def set_constraint(self, par, val) :
+    for par in self.nps :
+      if par.name == par or par == None : par.constraint = val
     self.init_vars()
 
-  def poi_name(self) : return self.poi_name
-  def alphas(self) : return self.alphas
-  def betas (self) : return self.betas
-  def gammas(self) : return self.gammas
+  def n_exp(self, pars) :
+    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ], dtype=float)).T
+    if self.asym_impacts :
+      if self.linear_nps :
+        return nnom*(1 + self.pos_impacts.dot(np.maximum(pars.nps, 0)) + self.neg_impacts.dot(np.minimum(pars.nps, 0)))
+      else :
+        return nnom*np.exp(self.log_pos_impacts.dot(np.maximum(pars.nps, 0)) + self.log_neg_impacts.dot(np.minimum(pars.nps, 0)))
+    else :
+      if self.linear_nps :
+        return nnom*(1 + self.sym_impacts.dot(pars.nps))
+      else :
+        return nnom*np.exp(self.log_sym_impacts.dot(pars.nps))
 
-  def s_exp(self, pars) :
-    if self.linear_nps : return pars.poi*self.sig*(1 + self.a.dot(pars.alphas))
-    ks = np.exp(self.ln_a.dot(pars.alphas))
-    return pars.poi*self.sig*ks
-
-  def b_exp(self, pars) :
-    if self.linear_nps : return self.bkg*(1 + self.b.dot(pars.betas) + self.c.dot(pars.gammas))
-    bexp = self.bkg.copy()
-    if self.nb != 0 : bexp *= np.exp(self.ln_b.dot(pars.betas))
-    if self.nc != 0 : bexp *= np.exp(self.ln_c.dot(pars.gammas))
-    return bexp
-
-  def n_exp(self, pars, floor = None) :
-    nexp = self.s_exp(pars) + self.b_exp(pars)
-    return nexp if floor == None else np.maximum(nexp, floor)
+  def tot_exp(self, pars, floor = None) :
+    ntot = self.n_exp(pars).sum(axis=0)
+    return ntot if floor == None else np.maximum(ntot, floor)
 
   def nll(self, pars, data, offset = True, floor = None, no_constraints=False) :
-    da = data.aux_alphas - pars.alphas - self.nominal_alphas
-    db = data.aux_betas  - pars.betas  - self.nominal_betas
-    dc = pars.gammas
-    nexp = self.n_exp(pars, floor)
+    delta = data.aux_obs - pars.nps
+    ntot = self.tot_exp(pars, floor)
     try :
       if not offset :
-        result = np.sum(nexp - data.n*np.log(nexp))
+        result = np.sum(ntot - data.counts*np.log(ntot))
       else :
-        nexp0 = self.sig + self.bkg
-        result = np.sum(nexp - nexp0 - data.n*(np.log(nexp/nexp0)))
+        nexp0 = self.nominal_yields.sum(axis=0)
+        result = np.sum(ntot - nexp0 - data.counts*(np.log(ntot/nexp0)))
       if not no_constraints :
-         result += \
-          + 0.5*np.linalg.multi_dot((da, self.diag_alphas, da)) \
-          + 0.5*np.linalg.multi_dot((db, self.diag_betas , db)) \
-          + 0.5*np.linalg.multi_dot((dc, self.diag_gammas, dc))
+         result += 0.5*np.linalg.multi_dot((delta, self.constraint_hessian, delta))
       if math.isnan(result) : result = math.inf
       return result
     except Exception as inst:
@@ -149,6 +325,56 @@ class Model (JSONSerializable) :
       print(inst)
       return np.Infinity
 
+  def plot(self, pars, data = None, channel = None, exclude = None, variations = None, residuals = False, canvas=None) :
+    if canvas == None : canvas = plt.gca()
+    if not isinstance(exclude, list) and not exclude is None : exclude = [ exclude ]
+    if channel == None :
+      channel = self.channels[list(self.channels)[0]]
+    else :
+      if not channel in self.channels : raise ValueError('ERROR: Channel %s is not defined.' % channel)
+      channel = self.channels[channel]
+    if len(channel.bins) > 0 :
+      grid = [ b['lo_edge'] for b in channel.bins ]
+      grid.append(channel.bins[-1]['hi_edge'])
+    else :
+      grid = np.linspace(0, channel.nbins, channel.nbins)
+    xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
+    offset = self.channel_offsets[channel.name]
+    nexp = self.n_exp(pars)[:,offset:offset + channel.dim()]
+    if exclude is None :
+      tot_exp = nexp.sum(axis=0)
+      line_style = '-'
+      title = 'Model'
+    else :
+      samples = []
+      for ex in exclude :
+        if not ex in channel.samples : raise ValueError('Sample %s is not defined.' % ex)
+        samples.append(list(channel.samples).index(ex))
+      tot_exp = nexp[samples,:].sum(axis=0)
+      line_style = '--'
+      title = 'Model excluding ' + ','.join(exclude)     
+    yvals = tot_exp if not residuals or not data else tot_exp - data.counts
+    canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title)
+    if data : 
+      yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.counts ]
+      yvals = data.counts if not residuals else np.zeros(channel.nbins)
+      canvas.errorbar(xvals, yvals, xerr=[0]*channel.dim(), yerr=yerrs, fmt='ko', label='Data')
+    canvas.set_xlim(grid[0], grid[-1])
+    if variations != None :
+      for v in variations :
+        vpars = copy.deepcopy(pars)
+        vpars.set(v[0], v[1])
+        col = 'r' if len(v) < 3 else v[2]
+        style = '--' if v[1] > 0 else '-.'
+        tot_exp = self.n_exp(vpars)[:,offset:offset + channel.nbins].sum(axis=0)
+        canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
+        canvas.legend()
+    canvas.set_title(self.name)
+    canvas.set_xlabel('$' + channel.obs_name + '$' + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
+    canvas.set_ylabel('Events / bin')
+    #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
+
+# TODO: update to a proper POI scheme
   def grad_poi(self, pars, data) :
     sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
@@ -156,360 +382,265 @@ class Model (JSONSerializable) :
     for i in range(0, sexp.size) : s += sexp[i]*(1 - data.n[i]/nexp[i])
     return s
   
+# TODO: update to a proper POI scheme  
   def hess_poi(self, pars, data) : # Hessian wrt to a mu-type POI
     sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     s = 0
     for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
     return s
-    
-  def expected_pars(self, poi, minimizer = None) :
-    if minimizer :
-      return minimizer.profile_nps(poi)
+
+  def poi_array_from_dict(self, poi_dict) :
+    poi_array = np.zeros(self.npois)
+    for i, poi in enumerate(self.pois) :
+      if not poi in poi_dict : raise KeyError("Cannot initialize from dictionary, POI '%s' is missing" % poi)
+      poi_array[i] = poi_dict[poi]
+    return poi_array
+
+  def expected_pars(self, pois, minimizer = None, data = None) :
+    if isinstance(pois, dict) : pois = self.poi_array_from_dict(pois)
+    if not isinstance(pois, np.ndarray) : pois = np.array([ pois ], dtype=float)
+    pars = Parameters(pois, np.zeros(self.nnps), self)
+    if minimizer and data :
+      return minimizer.profile_nps(pars, data)
     else :
-      return Parameters(poi, self.nominal_alphas, self.nominal_betas, np.zeros(self.nc), self)
+      return pars
 
   def generate_data(self, pars) :
-    return Data(self, np.random.poisson(self.n_exp(pars)), np.random.normal(pars.alphas, 1), np.random.normal(pars.betas, 1))
+    return Data(self, np.random.poisson(self.tot_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
 
   def generate_asimov(self, pars) :
-    return Data(self).set_data(self.n_exp(pars), pars.alphas, pars.betas)
+    return Data(self).set_data(self.tot_exp(pars), pars.nps)
 
-  def generate_expected(self, poi, minimizer = None) :
-    return self.generate_asimov(self.expected_pars(poi, minimizer))
-
-  def plot(self, pars, data = None, bkg_only = True, variations=[], residuals = False, canvas=None) :
-    if canvas == None : canvas = plt.gca()
-    if len(self.bins) > 0 :
-      grid = [ b['lo_edge'] for b in self.bins ]
-      grid.append(self.bins[-1]['hi_edge'])
-    else :
-      grid = np.linspace(0, self.nbins, self.nbins)
-    xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
-    nex = self.n_exp(pars)
-    if bkg_only :
-      yvals = self.b_exp(pars) if not residuals else self.s_exp(pars)
-      canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle='--', label='bkg-only')
-    yvals = nex if not residuals or not data else nex - data.n
-    canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', label='Model')
-    if data : 
-      yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.n ]
-      yvals = data.n if not residuals else np.zeros(self.nbins)
-      canvas.errorbar(xvals, yvals, xerr=[0]*self.nbins, yerr=yerrs, fmt='ko', label='Data')
-    canvas.set_xlim(grid[0], grid[-1])
-    for v in variations :
-      vpars = copy.deepcopy(pars)
-      if v[0] in self.alphas : vpars.alphas[self.alphas.index(v[0])] = v[1]
-      if v[0] in self.betas  : vpars.betas [self.betas .index(v[0])] = v[1]
-      if v[0] in self.gammas : vpars.gammas[self.gammas.index(v[0])] = v[1]
-      col = 'r' if len(v) < 3 else v[2]
-      style = '--' if v[1] > 0 else '-.'
-      canvas.hist(xvals, weights=self.n_exp(vpars), bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
-      canvas.legend()
-    canvas.set_title(self.name)
-    canvas.set_xlabel('$' + self.obs_name + '$' + ((' ['  + self.obs_unit + ']') if self.obs_unit != '' else ''))
-    canvas.set_ylabel('Events / bin')
-    #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
+  def generate_expected(self, pois, minimizer = None, data = None) :
+    return self.generate_asimov(self.expected_pars(pois, minimizer, data))
 
   @staticmethod
   def create(filename) :
     return Model().load(filename)
   
   def load_jdict(self, jdict) :
-    self.sig  = np.array(jdict['signal'])
-    self.bkg  = np.array(jdict['background'])
-    if 'model_name' in jdict : self.name     = jdict['model_name']
-    if 'obs_name'   in jdict : self.obs_name = jdict['obs_name']
-    if 'obs_unit'   in jdict : self.obs_unit = jdict['obs_unit']
-    if 'bins'       in jdict : self.bins     = np.array(jdict['bins'])
-    self.poi_name = jdict['poi']
-    self.pars = {}
-
-    self.alphas = []
-    fields = { 'nominal' : 0, 'variation' : 1, 'constraint' : 1 }
-    self.a = np.ndarray((self.sig.size, len(jdict['alphas'])))
-    for i, spec in enumerate(jdict['alphas']) :
-      self.alphas.append(spec['name'])
-      self.a[:,i] = spec['impact']
-      self.pars[spec['name']] = { f : spec[f] if f in spec else fields[f] for f in fields }
-    
-    self.betas = []
-    self.b = np.ndarray((self.sig.size, len(jdict['betas'])))
-    for i, spec in enumerate(jdict['betas']) :
-      self.betas.append(spec['name'])
-      self.b[:,i] = spec['impact']
-      if not 'nominal' in spec : spec['nominal'] = 0
-      if not 'variation' in spec : spec['nominal'] = 0
-      if not 'constraint' in spec : spec['nominal'] = 0
-      self.pars[spec['name']] = { f : spec[f] if f in spec else fields[f] for f in fields }
-
-    fields['constraint'] = 0 # change default for gammas
-    self.gammas = []
-    self.c = np.ndarray((self.sig.size, len(jdict['gammas'])))
-    for i, spec in enumerate(jdict['gammas']) :
-      self.gammas.append(spec['name'])
-      self.c[:,i] = spec['impact']
-      self.pars[spec['name']] = { f : spec[f] if f in spec else fields[f] for f in fields }
-
+    self.name = self.load_field('name', jdict, '', str)
+    self.pois = {}
+    if not 'model'    in jdict : raise KeyError("No 'model' section in specified JSON file")
+    if not 'POIs'     in jdict['model'] : raise KeyError("No 'POIs' section in specified JSON file")
+    if not 'NPs'      in jdict['model'] : raise KeyError("No 'NPs' section in specified JSON file")
+    if not 'aux_obs'  in jdict['model'] : raise KeyError("No 'aux_obs' section in specified JSON file")
+    if not 'channels' in jdict['model'] : raise KeyError("No 'channels' section in specified JSON file")
+    for json_poi in jdict['model']['POIs'] :
+      poi = ModelPOI()
+      poi.load_jdict(json_poi)
+      if poi.name in self.pois :
+        raise ValueError('ERROR: multiple POIs defined with the same name (%s)' % poi.name)
+      self.pois[poi.name] = poi
+    self.aux_obs = {}
+    for json_aux in jdict['model']['aux_obs'] :
+      par = ModelAux()
+      par.load_jdict(json_aux)
+      if par.name in self.aux_obs :
+        raise ValueError('ERROR: multiple auxiliary observables defined with the same name (%s)' % par.name)
+      self.aux_obs[par.name] = par
+    self.nps = {}
+    for json_np in jdict['model']['NPs'] :
+      par = ModelNP()
+      par.load_jdict(json_np)
+      if par.aux_obs != None and not par.aux_obs in self.aux_obs :
+        raise ValueError('ERROR: auxiliary observable %s for NP %s was not defined.' % (par.aux_obs, par.name))
+      if par.name in self.nps :
+        raise ValueError('ERROR: multiple NPs defined with the same name (%s)' % par.name)
+      self.nps[par.name] = par
+    self.channels = {}
+    for json_channel in jdict['model']['channels'] :
+      channel = Channel()
+      channel.load_jdict(json_channel)
+      if channel.name in self.channels :
+        raise ValueError('ERROR: multiple channels defined with the same name (%s)' % channel.name)
+      self.channels[channel.name] = channel
     self.init_vars()
     return self
   
-  def dump_jdict(self) :
-    jdict = {}
-    jdict['model_name'] = self.name
-    jdict['obs_name']   = self.obs_name
-    jdict['obs_unit']   = self.obs_unit
-    jdict['bins']       = self.bins.tolist()
-    jdict['poi']        = self.poi_name
-    jdict['signal']     = self.sig.tolist()
-    jdict['background'] = self.bkg.tolist()
-
-    fields = [ 'nominal', 'variation', 'constraint' ]
-    alphas = []
-    for i, alpha in enumerate(self.alphas) :
-      spec = { 'name' : alpha }
-      for f in fields : spec[f] = self.pars[alpha][f]
-      spec['impact'] = self.a[:,i].tolist()
-      alphas.append(spec)
-    jdict['alphas'] = alphas
-
-    betas = []
-    for i, beta in enumerate(self.betas) :
-      spec = { 'name' : beta }
-      for f in fields : spec[f] = self.pars[beta][f]
-      spec['impact'] = self.b[:,i].tolist()
-      betas.append(spec)
-    jdict['betas'] = betas
-
-    gammas= []
-    for i, gamma in enumerate(self.gammas) :
-      spec = { 'name' : gamma }
-      for f in fields : spec[f] = self.pars[gamma][f]
-      spec['impact'] = self.c[:,i].tolist()
-      gammas.append(spec)
-    jdict['gammas'] = gammas
-    return jdict
+  def fill_jdict(self, jdict) :
+    jdict['model'] = {}
+    jdict['model']['name'] = self.name
+    jdict['model']['channels'] = []
+    for poi in self.pois    : jdict['model']['POIs']   .append(poi.dump_jdict())
+    for aux in self.aux_obs : jdict['model']['aux_obs'].append(aux.dump_jdict())
+    for par in self.nps     : jdict['model']['NPs']    .append(par.dump_jdict())
+    for channel in self.channels : jdict['model']['channels'].append(channel.dump_jdict())
     
   def __str__(self) :
-    s = ''
-    s += 'sig    = ' + str(self.sig)    + '\n'
-    s += 'bkg    = ' + str(self.bkg)    + '\n'
-    if len(self.alphas) > 0 :
-      s += 'alphas = ' + ', '.join(self.alphas) + '\n'
-      s += 'a      = ' +       str(self.a)      + '\n'
-    if len(self.betas) > 0 :
-      s += 'betas = '  + ', '.join(self.betas) + '\n'
-      s += 'b      = ' +       str(self.b)     + '\n'
-    if len(self.gammas) > 0 :
-      s += 'gammas = ' + ', '.join(self.gammas) + '\n'
-      s += 'c      = ' +       str(self.c)      + '\n'
+    s = 'POIs :'
+    for poi in self.pois.values() : s += '\n  - %s' % str(poi)
+    s += '\nNPs :'
+    for par in self.nps.values() : s += '\n  - %s' % str(par)
+    s += '\nChannels :'
+    for channel in self.channels.values() : s += '\n  - %s' % str(channel)
     return s
-
-  def closure_exact(self, pars, data) : # add alphas eventually
-    eq_b = np.einsum('i,ij,i->j',self.bkg, self.b, (1 - data.n/self.n_exp(pars))) - (data.aux_betas - pars.betas)
-    eq_c = np.einsum('i,ij,i->j',self.bkg, self.c, (1 - data.n/self.n_exp(pars)))
-    return eq_b, eq_c
-
-  def closure_approx(self, pars, data, order = 1) :  # add alphas eventually
-    pars0 = self.expected_pars(pars.poi).set_from_aux(data)
-    eq_b = np.einsum('i,ij,i->j',self.bkg, self.b, 1 - data.n/self.n_exp(pars0)*(1 - self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas )))
-    eq_b -= (data.aux_betas - pars.betas)
-    eq_c = np.einsum('i,ij,i->j',self.bkg, self.c, 1 - data.n/self.n_exp(pars0)*(1 - self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas)))
-    if order > 1 :
-      eq_b += np.einsum('i,ij,i,i,i->j', self.bkg, self.b, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ))
-      eq_c += np.einsum('i,ij,i,i,i->j', self.bkg, self.c, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas))
-    if order > 2 :
-      eq_b += np.einsum('i,ij,i,i,i,i->j', self.bkg, self.b, data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ))
-      eq_c += np.einsum('i,ij,i,i,i,i->j', self.bkg, self.c, data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas))
-    if order > 3 :
-      eq_b += np.einsum('i,ij,i,i,i,i,i->j', self.bkg, self.b, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.n.dot(pars.betas ), self.bkg/self.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/model.n_exp(pars0)*self.b.dot(pars.betas ), self.bkg/model.n_exp(pars0)*self.n.dot(pars.betas ))
-      eq_c += np.einsum('i,ij,i,i,i,i,i->j', self.bkg, self.c, -data.n/self.n_exp(pars0), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/self.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/model.n_exp(pars0)*self.c.dot(pars.gammas), self.bkg/model.n_exp(pars0)*self.c.dot(pars.gammas))
-    return eq_b, eq_c
 
 # -------------------------------------------------------------------------
 class Parameters :
-  def __init__(self, poi = 0, alphas = np.array([]), betas = np.array([]), gammas = np.array([]), model = None) :
-    if not isinstance(alphas, np.ndarray) : alphas = np.array(alphas)
-    if not isinstance(betas , np.ndarray) : betas  = np.array(betas)
-    if not isinstance(gammas, np.ndarray) : gammas = np.array(gammas)
-    self.model = model
-    self.poi = poi
+  def __init__(self, pois, nps = None, model = None) :
+    if isinstance(pois, dict) and model != None : pois = model.poi_array_from_dict(pois)
+    if nps is None : nps  = np.array([], dtype=float)
+    if not isinstance(pois, np.ndarray) : pois = np.array([ pois], dtype=float)
+    if not isinstance(nps , np.ndarray) : nps  = np.array([ nps ], dtype=float)
+    if pois.ndim != 1 :
+        raise ValueError('Input POI array should be a 1D vector, got ' + str(pois))
+    if nps.ndim != 1 :
+        raise ValueError('Input POI array should be a 1D vector, got ' + str(nps))
     if model :
-      if alphas.shape[0] == 0 : alphas = np.zeros(model.na)
-      if betas .shape[0] == 0 : betas  = np.zeros(model.nb)
-      if gammas.shape[0] == 0 : gammas = np.zeros(model.nc)
-    self.alphas = alphas
-    self.betas = betas
-    self.gammas = gammas
+      if nps.size == 0 : nps = np.zeros(model.nnps)
+      if pois.size != model.npois : raise ValueError('Cannot initialize Parameters with %d POIs, when %d are defined in the model' % (pois.size, model.npois))
+      if nps .size != model.nnps  : raise ValueError('Cannot initialize Parameters with %d NPs, when %d are defined in the model'  % (nps .size, model.nnps))
+    self.pois = pois
+    self.nps  = nps
+    self.model = model
 
-  def array(self) : 
-    return np.concatenate( ( np.array([ self.poi ]), self.alphas, self.betas, self.gammas ) )
-  
+  def clone(self) :
+    return Parameters(np.array(self.pois, dtype=float), np.array(self.nps, dtype=float), self.model)
+
   def __str__(self) :
     s = ''
     if self.model == None :
-      s += 'poi    = ' + str(self.poi)    + '\n'
-      s += 'alphas = ' + str(self.alphas) + '\n'
-      s += 'betas  = ' + str(self.betas)  + '\n'
-      s += 'gammas = ' + str(self.gammas)
+      s += 'POIs = ' + str(self.pois) + '\n'
+      s += 'NPs  = ' + str(self.nps)  + '\n'
     else :
-      s += 'poi    : %-12s = %8.4f' %  (self.model.poi_name, self.poi) + '\n'
-      s += 'alphas : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.alphas, self.alphas) ] ) + '\n'
-      s += 'betas  : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.betas , self.betas ) ] ) + '\n'
-      s += 'gammas : ' + '\n         '.join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p,v, self.unscaled(p,v)) for p,v in zip(self.model.gammas, self.gammas) ] )
+      s += 'POIs : ' + '\n        '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
+      s += 'NPs  : ' + '\n       ' .join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name)) for p, v in zip(self.model.nps .values(), self.nps ) ] )
     return s
 
   def __contains__(self, par) :
-    if par == self.model.poi_name : return True
-    if par in self.model.alphas or par in self.model.betas or par in self.model.gammas : return True
-    return False
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    return par in self.model.pois or par in self.model.nps
 
   def __getitem__(self, par):
-    if par == self.model.poi_name : return self.poi
-    try :
-      i = self.model.alphas.index(par)
-      return self.alphas[i]
-    except:
-      try :
-        i = self.model.betas.index(par)
-        return self.betas[i]
-      except:
-        try :
-          i = self.model.gammas.index(par)
-          return self.gammas[i]
-        except:
-          raise KeyError('Model parameter %s not found' % par)
-    return None
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    if par in self.model.pois : return self.pois[list(self.model.pois).index(par)]
+    if par in self.model.nps  : return self.nps [list(self.model.nps ).index(par)]
+    raise KeyError('Model parameter %s not found' % par)
 
-
-  def set_poi(self, poi) :
-    self.poi = poi
-    return self
-
-
-  def set_np(self, par, val, unscaled=False) :
-    if unscaled :
-      try :
-        p = self.model.pars[par]
-        val = (val - p['nominal'])/p['variation']
-      except:
-        raise KeyError('Model parameter %s not found' % par)
-    try :
-      i = self.model.alphas.index(par)
-      self.alphas[i] = val
-    except:
-      try :
-        i = self.model.betas.index(par)
-        self.betas[i] = val
-      except:
-        try :
-          i = self.model.gammas.index(par)
-          self.gammas[i] = val
-        except:
-          raise KeyError('Model parameter %s not found' % par)
-    return self
-
+  def set(self, par, val, unscaled=False) :
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    if par in self.model.pois :
+      self.pois[list(self.model.pois).index(par)] = val
+      return self
+    if par in self.model.nps :
+      self.nps[list(self.model.nps).index(par)] = val if not unscaled else self.model.nps[par].scaled_value(val)
+      return self
+    raise KeyError('Model parameter %s not found' % par)
 
   def __setitem__(self, par, val) :
-    if par == self.model.poi_name :
-      return self.set_poi(poi)
-    else :
-      return self.set_np(par, val)
+    return self.set(par, val)
 
+  def unscaled_nps(self) :
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    return self.model.np_nominal_values + self.nps*self.model.np_variations
 
-  def unscaled(self, par, val) :
-    try :
-      p = self.model.pars[par]
-      return p['nominal'] + p['variation']*val
-    except:
-      raise KeyError('Model parameter %s not found' % par)
+  def unscaled(self, par) :
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    if par in self.model.nps : return self.model.nps[par].unscaled_value(self.__getitem__(par))
+    raise KeyError('Model nuisance parameter %s not found' % par)
+
+  def dict(self, nominal_nps = False, unscaled_nps = True, pois_only = False) :
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    if nominal_nps : return Parameters(self.pois, model=self.model).dict(nominal_nps=False, unscaled_nps=unscaled_nps)
+    dic = {}
+    for poi, val in zip(self.model.pois.keys(), self.pois) : dic[poi] = val
+    if pois_only : return dic
+    for par, val in zip(self.model.nps .keys(), self.unscaled_nps() if unscaled_nps else self.nps) : dic[par] = val
+    return dic
+
+  def set_from_dict(self, dic, unscaled_nps=False) :
+    for par in dic : self.set(par, dic[par], unscaled_nps)
+    return self
 
   def set_from_aux(self, data) :
-    self.alphas = np.array(data.aux_alphas)
-    self.betas  = np.array(data.aux_betas )
+    if self.model == None : raise ValueError('Cannot perform operation without a model.')
+    self.nps[self.model.ncons:] = data.aux_obs[self.model.ncons:]
     return self
 
 
 # -------------------------------------------------------------------------
 class Data (JSONSerializable) :
-  def __init__(self, model, n = np.array([]), aux_alphas = np.array([]), aux_betas = np.array([])) :
+  def __init__(self, model, counts = None, aux_obs = None) :
     super().__init__()
     self.model = model
-    if n.size > 0 :
-      if n.ndim != 1 :
-        raise ValueError('Input data "n" should be a 1D vector, got ' + str(n))
-      if n.size != self.model.sig.size :
-        raise ValueError('Input data "n" should have the same size as "sig" and "bkg", got ' + str(n))
-      self.n = n
+    self.set_counts(counts if not counts is None else [])
+    self.set_aux_obs(aux_obs if not aux_obs is None else [])
+
+  def set_counts(self, counts) :
+    if isinstance(counts, list) : counts = np.array( counts, dtype=float )
+    if not isinstance(counts, np.ndarray) : counts = np.array([ counts ], dtype=float)
+    if counts.size > 0 :
+      if counts.ndim != 1 :
+        raise ValueError('Input data counts should be a 1D vector, got ' + str(counts))
+      if counts.size != self.model.nbins :
+        raise ValueError('Input data counts should have a size equal to the number of model bins (%d), got %d.' % (model.nbins, len(counts)))
+      self.counts = counts
     else :
-      self.n = self.model.sig + self.model.bkg
-    if aux_alphas.size > 0 :
-      if aux_alphas.size != self.model.na :
-        raise ValueError('Input data "aux_alphas" should have the same size as the "alphas" of the model (%d), got %s.' % (self.model.na, str(aux_alphas)))
-      self.aux_alphas = aux_alphas
-    else :
-      self.aux_alphas = np.zeros(self.model.a.shape[1])
-    if aux_betas.size > 0 :
-      if aux_betas.size != self.model.b.shape[1] :
-        raise ValueError('Input data "aux_beta" should have the same size as the "betas" of the model (%d), got %s.' % (self.model.nb, str(aux_betas)))
-      self.aux_betas = aux_betas
-    else :
-      self.aux_betas = np.zeros(self.model.b.shape[1])
-    
-  def set_n(self, n) : 
-    if n.shape != self.n.shape :
-      raise ValueError
-    self.n = n
+      self.counts = np.zeros(self.model.nbins)
     return self
-  
-  def set_aux(self, aux_alphas, aux_betas) : 
-    if aux_alphas.shape != self.aux_alphas.shape :
-      raise ValueError
-    self.aux_alphas = aux_alphas
-    if aux_betas.shape != self.aux_betas.shape :
-      raise ValueError
-    self.aux_betas = aux_betas
+
+  def set_aux_obs(self, aux_obs) : 
+    if isinstance(aux_obs, list) : aux_obs = np.array( aux_obs, dtype=float )
+    if not isinstance(aux_obs, np.ndarray) : aux_obs = np.array([ aux_obs ], dtype=float)
+    if aux_obs.size == 0 :
+      self.aux_obs = self.model.np_nominal_values
+    else :
+      if aux_obs.ndim != 1 :
+        raise ValueError('Input aux data should be a 1D vector, got ' + str(aux_obs))
+      if aux_obs.size == self.model.nnps :
+        self.aux_obs = aux_obs
+      elif aux_obs.size == self.model.ncons :
+        self.aux_obs = np.concatenate((aux_obs, self.model.np_nominal_values[self.model.ncons:]))
+      else :
+        raise ValueError('Input aux data should have a size equal to the number of model auxiliary observables (%d), got %d.' % (self.model.ncons, str(aux_obs)))
     return self
-  
-  def set_data(self, n, aux_alphas, aux_betas) :
-    self.set_n(n)
-    self.set_aux(aux_alphas, aux_betas)
+
+  def set_data(self, counts, aux_obs) :
+    self.set_counts(counts)
+    self.set_aux_obs(aux_obs)
     return self
 
   def set_expected(self, pars) :
-    self.set_data(self.model.n_exp(pars), pars.alphas, pars.betas)
+    self.set_data(self.model.tot_exp(pars), [ par.value for par in pars.constrained_nps() ])
     return self
   
   def load_jdict(self, jdict) :
-    self.n = np.array(jdict['data']['bin_counts'])
-    if self.n.size != self.model.sig.size :
-      raise ValueError('Input data "n" should have the same size as the model expectations, got ' + str(self.n))
-    self.aux_alphas = np.array(jdict['data']['aux_alphas'])
-    if self.aux_alphas.size != self.model.na :
-      raise ValueError('Input data "aux_alphas" should have the same size as the "alphas" of the model (%d), got %s.' % (self.model.na, str(self.aux_alphas)))
-    self.aux_betas  = np.array(jdict['data']['aux_betas'])
-    if self.aux_betas.size != self.model.b.shape[1] :
-      raise ValueError('Input data "aux_beta" should have the same size as the "betas" of the model (%d), got %s.' % (self.model.nb, str(self.aux_betas)))
+    if not 'data'    in jdict : raise KeyError("No 'data' section in specified JSON file")
+    if not 'channels'  in jdict['data'] : raise KeyError("No 'channels' section in specified JSON file")
+    for channel in jdict['data']['channels'] :
+      name = channel['name'] if 'name' in channel else ''
+      if not name in self.model.channels : raise ValueError("Data channel '%s' in specified JSON file is not defined in the model." % name)
+      model_channel = self.model.channels[name]
+      if not 'bins'  in channel : raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % name)
+      if len(channel['bins']) != model_channel.dim() :
+        raise ValueError("Data channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), model_channel.dim()))
+      offset = self.model.channel_offsets[name]
+      for b, bin_data in enumerate(channel['bins']) :
+        if bin_data['lo_edge'] != model_channel.bins[b]['lo_edge'] or bin_data['hi_edge'] != model_channel.bins[b]['hi_edge'] :
+          raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." % 
+                           (bin_data['lo_edge'], bin_data['hi_edge'], model_channel.bins[b]['lo_edge'], model_channel.bins[b]['hi_edge']))
+        self.counts[offset + b] = bin_data['counts'] 
+    if not 'aux_obs' in jdict['data'] : raise KeyError("No 'aux_obs' section defined in specified JSON file." % name)
+    data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in jdict['data']['aux_obs'] }
+    aux_obs_values = []
+    for par in self.model.nps.values() :
+      if par.aux_obs == None : 
+        aux_obs_values.append(0)
+        continue
+      if not par.aux_obs in data_aux_obs : raise('Auxiliary observable %s defined in model, but not provided in the data' % par.aux_obs)
+      aux_obs_values.append((data_aux_obs[par.aux_obs] - par.nominal_value)/par.variation)
+    self.set_aux_obs(np.array(aux_obs_values, dtype=float))
     return self
 
-  def dump_jdict(self) :
-    jdict = {}
+  def fill_jdict(self, jdict) :
     jdict['data'] = {}
-    jdict['data']['bin_counts'] = self.n.tolist()
-    jdict['data']['aux_alphas'] = self.aux_alphas.tolist()
-    jdict['data']['aux_betas' ] = self.aux_betas .tolist()
-    return jdict
-
-  def set_from_pyhf_data(self, pyhf_data, pyhf_model) : # TODO : actual implementation instead of this hack
-    self.set_data(pyhf_data[:-2], pyhf_data[3:4], pyhf_data[2:3])
-    return self
-  
-  def export_pyhf_data(self, pyhf_model) : # TODO : actual implementation instead of this hack
-    return np.concatenate( (self.n, self.aux_betas, self.aux_alphas) )
+    jdict['data']['counts'] = self.counts.tolist()
+    jdict['data']['aux_obs'] = self.aux_obs.tolist()
 
   def __str__(self) :
     s = ''
-    s += 'n     = ' + str(self.n)     + '\n'
-    s += 'aux_a = ' + str(self.aux_alphas) + '\n'
-    s += 'aux_b = ' + str(self.aux_betas)  + '\n'
+    s += 'counts  = ' + str(self.counts)  + '\n'
+    s += 'aux_obs = ' + str(self.aux_obs) + '\n'
     return s

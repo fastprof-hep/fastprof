@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from fastprof import Model, ScanSampler, OptiSampler
 
-model = Model.create('fastprof/models/highMass-1164.json')
+model = Model.create('models/highMass-1164.json')
 
 gen_mu = 3
 print('Will generate the following hypothesis: ', gen_mu)

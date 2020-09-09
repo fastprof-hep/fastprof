@@ -84,3 +84,5 @@ python -i ./fastprof/utils/collect_results.py -p 160:3000:500:logint -i samples/
 python -i ./fastprof/utils/compute_limits.py -m models/highMass_NW-no-a0-17/model_highMass_NW-no-a0-17-log250-2939.json -d run/fastprof/data_highMass-log250.json -f fits/highMass_NW-no-a0-17/fits_highMass_NW-no-a0-17-2939.json -o samples/highMass_NW-no-a0-17/highMass_NW-no-a0-17-obs_2939-r3/samples/highMass_NW-no-a0-17-obs_2939-r3 -n 10000 --truncate_dist 0.99 --bands 2
 
 ./convert_ws.py -x -f highMass_NW.root -d obsData -b 150:4000:250:log -o data_highMass-log250-new.json
+
+python -i utils/plot_valid.py -m run/fastprof/models/highMass_NW-asym/model_highMass_NW-asym-log250-1164.json -v run/fastprof/models/highMass_NW-asym/val_highMass_NW-asym-log250-1164.json -b 156 -s Background
