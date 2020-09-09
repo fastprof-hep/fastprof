@@ -24,7 +24,7 @@ parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu' , help=
 parser.add_argument(      "--marker"        , type=str  , default=''     , help="Marker type for plots")
 parser.add_argument("-b", "--batch-mode"    , action='store_true'        , help="Batch mode: no plots shown")
 parser.add_argument(      "--sethypo"       , type=str  , default=''     , help="Change hypo parameter values, in the form par1=val1,par2=val2,...")
-parser.add_argument("-v", "--verbosity"     , type=int  , default=0      , help="Verbosity level")
+parser.add_argument("-v", "--verbosity"     , type=int  , default=1      , help="Verbosity level")
 parser.add_argument("-o", "--output-file"   , type=str  , default='check', help="Output file name")
 
 options = parser.parse_args()
