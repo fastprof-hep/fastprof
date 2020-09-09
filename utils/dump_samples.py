@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.stats import chi2
-from fastprof import Model, FitResults, QMu, QMuTilda
+from scipy.integrate import quad
+from fastprof import Model, Raster, QMuCalculator, QMuTildaCalculator
 
 ####################################################################################################################################
 ###
@@ -41,14 +42,14 @@ else :
   else :
     x_min, x_max = -10, 10
 
-fit_result = None
+plr_data = None
 if options.hypo != '' :
   model = Model.create(options.model_file)
   if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   try:
     filename, index = options.hypo.split(':')
     index = int(index)
-    fit_result = FitResults(model, filename).fit_results[index]
+    plr_data = list(Raster('data', model=model, filename=filename).plr_data.values())[index]
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid hypothesis spec, should be in the format <filename>:<index>')
@@ -58,13 +59,13 @@ if options.log_scale : plt.yscale('log')
 plt.suptitle(options.filename[0])
 
 if options.t_value == 'q_mu' :
-  if fit_result == None : raise ValueError('A signal hypothesis must be provided (--hypo option) to convert to q_mu values')
-  q = QMu(test_poi = fit_result['hypo_pars'].poi, tmu=0, best_poi=fit_result['free_pars'].poi, tmu_A = fit_result['tmu_0'])
+  if plr_data is None : raise ValueError('A signal hypothesis must be provided (--hypo option) to convert to q_mu values')
+  q = QMuCalculator.make_q(plr_data)
   data = np.array([ q.asymptotic_ts(pv) for pv in samples ])
   plt.hist(data[:], bins=options.nbins, range=[x_min, x_max])
 elif options.t_value == 'q~mu' :
-  if fit_result == None : raise ValueError('A signal hypothesis must be provided (--hypo option) to convert to q~mu values')
-  q = QMuTilda(test_poi = fit_result['hypo_pars'].poi, tmu=0, best_poi=fit_result['free_pars'].poi, tmu_A = fit_result['tmu_0'], tmu_0 = fit_result['tmu_0'])
+  if plr_data is None : raise ValueError('A signal hypothesis must be provided (--hypo option) to convert to q~mu values')
+  q = QMuTildaCalculator.make_q(plr_data)
   data = np.array([ q.asymptotic_ts(pv) for pv in samples ])
   plt.hist(data[:], bins=options.nbins, range=[x_min, x_max])
 else :
@@ -72,15 +73,14 @@ else :
 plt.show()
 
 if options.reference :
-  xx = np.linspace(x_min, x_max, options.nbins)
-  bin_norm = len(samples)*(xx[1] - xx[0])
-  if options.t_value == 'q_mu':
-    yy = [ bin_norm*q.asymptotic_pdf(x) for x in xx ]
-  elif options.t_value == 'q~mu':
-    yy = [ bin_norm*q.asymptotic_pdf(x) for x in xx ]
+  xx = np.linspace(x_min, x_max, options.nbins+1)
+  dx = xx[1] - xx[0]
+  bin_norm = len(samples)
+  if options.t_value == 'q_mu' or options.t_value == 'q~mu':
+    yy = [ bin_norm*quad(lambda t : q.asymptotic_pdf(t), x, x+dx)[0] for x in xx[:-1] ]
   else :
-    yy = [ bin_norm for x in xx ]
-  plt.plot(xx,yy)
+    yy = [ bin_norm*dx for x in xx[:-1] ]
+  plt.plot(xx[:-1] + dx/2, yy)
   plt.ylim(1E-1)
 
 if options.output_file != '' : plt.savefig(options.output_file)
