@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 parser = ArgumentParser("iterate.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
 parser.add_argument("-p", "--positions"  , type=str  , default='', help="Parameter values to scan over")
-parser.add_argument("-c", "--cmd-pattern", type=str  , default='', help="command to enter, with the value indicated by a * or a %")
+parser.add_argument("-c", "--cmd-pattern", type=str  , default='', help="command to enter, with the value indicated by a * or a %% sign")
 parser.add_argument("-o", "--output-file", type=str  , default='', help="Output file name (leave blank for stdout)")
 
 options = parser.parse_args()
