@@ -312,3 +312,5 @@ class ParBound :
     if smin == '' : return smax
     if smax == '' : return smin
     return smin + ' and ' + smax
+  def __repr__(self):
+    return self.__str__()
