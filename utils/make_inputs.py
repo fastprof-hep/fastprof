@@ -42,17 +42,17 @@ scan_val = sys.argv[1]
 os.makedirs(os.path.join(name, 'models'), exist_ok=True)
 os.makedirs(os.path.join(name, 'wsfits'), exist_ok=True)
 
-dname = os.path.join(name, 'data-%s.json' % name)
+dname = os.path.join(name, 'data'  , 'data-%s.json' % name)
 mname = os.path.join(name, 'models', 'model-%s-%s.json' % (name, scan_val))
 vname = os.path.join(name, 'models', 'valid-%s-%s.json' % (name, scan_val))
 fname = os.path.join(name, 'wsfits', 'wsfits-%s-%s.json' % (name, scan_val))
 
-dlog = os.path.join(name, 'data-%s.json' % name)
+dlog = os.path.join(name, 'data'  , 'log-data-%s.txt' % name)
 mlog = os.path.join(name, 'models', 'log-model-%s-%s.txt' % (name, scan_val))
 flog = os.path.join(name, 'wsfits', 'log-wsfits-%s-%s.txt' % (name, scan_val))
 
 if not os.path.exists(dname) :
-  sys.stderr.write('=== Making %s' % dname)
+  sys.stderr.write('=== Making %s\n' % dname)
   args = []
   args += [ '-x' ]
   args += [ '-f'        , ws_file ]
