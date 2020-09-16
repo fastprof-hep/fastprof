@@ -86,3 +86,8 @@ python -i ./fastprof/utils/compute_limits.py -m models/highMass_NW-no-a0-17/mode
 ./convert_ws.py -x -f highMass_NW.root -d obsData -b 150:4000:250:log -o data_highMass-log250-new.json
 
 python -i utils/plot_valid.py -m run/fastprof/models/highMass_NW-asym/model_highMass_NW-asym-log250-1164.json -v run/fastprof/models/highMass_NW-asym/val_highMass_NW-asym-log250-1164.json -b 156 -s Background
+
+./iterate.py -p 160:3000:500:logint -c "./make_limits_batch.py %"
+./collect_results.py -p 160:3000:500:logint -i batch/highMass_NW-prod1000_reg-obs_%/samples/highMass_NW-prod1000_reg-obs_%_results.json -k limit_asymptotics_CLs -o highMass_NW-prod1000-asymptotics_CLs.json --root-output highMass_NW-prod1000-asymptotics_CLs.root
+ ./collect_results.py -p 160:3000:500:logint -i batch/highMass_NW-prod1000_reg-obs_%/samples/highMass_NW-prod1000_reg-obs_%_results.json -k limit_sampling_CLs -o highMass_NW-prod1000-sampling_CLs.json --root-output highMass_NW-prod1000-sampling_CLs.root
+./collect_results.py -p 160:3000:500:logint -i batch/highMass_NW-prod1000_reg-obs_%/samples/highMass_NW-prod1000_reg-obs_%_results.json -k limit_sampling_CLs -o highMass_NW-prod1000-sampling_CLs_bands.json --root-output highMass_NW-prod1000-sampling_CLs_bands.root --bands 2
