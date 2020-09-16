@@ -19,7 +19,7 @@ parser.description = __doc__
 parser.add_argument("-p", "--positions"    , type=str  , default=''  , help="Parameter values to scan over")
 parser.add_argument("-i", "--input-pattern", type=str  , default=''  , help="Pattern of result files to load, with the value indicated by a * or a %")
 parser.add_argument("-k", "--key"          , type=str  , default=''  , help="Key indexing the output result")
-parser.add_argument("-b", "--bands"        , type=int  , default=None, help="Name of JSON file containing full-model fit results")
+parser.add_argument("-b", "--bands"        , type=int  , default=None, help="Number of expected limit bands to include")
 parser.add_argument("-o", "--output-file"  , type=str  , default=''  , help="Output file name")
 parser.add_argument("-r", "--root-output"  , type=str  , default=''  , help="Output a ROOT file with the specified name")
 parser.add_argument("-l", "--log-scale"    , action='store_true'     , help="Use log scale for plotting")
@@ -70,10 +70,10 @@ for pos in positions :
   if options.bands :
     try :
       for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-        res = jdict[options.key + '_%+d' % band]
+        res = jdict[options.key + '_expected_band_%+d' % band]
         if res == None : raise ValueError('Result is None')
       for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-        res = jdict[options.key + '_%+d' % band]
+        res = jdict[options.key + '_expected_band_%+d' % band]
         results[band].append(float(res))
     except Exception as inst :
       print(inst)
@@ -105,7 +105,7 @@ if options.root_output :
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
       for band in range(1, options.bands + 1) :
         tae = ROOT.TGraphAsymmErrors(len(good_pos))
-        tae.SetName(options.key + '_%d' % band)
+        tae.SetName(options.key + '_expected_band_%d' % band)
         tae.SetTitle('')
         tae.SetLineWidth(2)
         tae.SetLineColor(1)
