@@ -7,6 +7,10 @@ import copy
 from abc import abstractmethod
 from scipy.interpolate import InterpolatedUnivariateSpline
 
+import datetime
+from timeit import default_timer as timer
+import sys
+
 from .core import Parameters
 from .test_statistics import QMu, QMuTilda
 from .sampling import SamplingDistribution
@@ -19,25 +23,33 @@ class Sampler :
     self.gen_hypo = model.expected_pars(gen_hypo) if isinstance(gen_hypo, (int, float)) else gen_hypo
     self.freq = print_freq
 
-  def progress(self, k, ntoys) :
-    if k % self.freq == 0 : print('-- Processing iteration %d of %d' % (k, ntoys))
+  def progress(self, k, ntoys, hypo = None) :
+    if k % self.freq == 0 :
+      hypo_str = 'in hypo %s' % str(hypo) if not hypo is None else ''
+      print('-- Processing iteration %d of %d %s' % (k, ntoys, hypo_str))
+      sys.stderr.write('\rProcessing iteration %d of %d %s' % (k, ntoys, hypo_str))
 
   def generate(self, ntoys) :
-    print('Generating POI hypothesis %s. Full gen hypo = ' % str(self.gen_hypo.pois))
+    print('Generating POI hypothesis %s, starting at %s. Full gen hypo = ' % (str(self.gen_hypo.pois), str(datetime.datetime.now())))
+    start_time = timer()
     print(str(self.gen_hypo))
     self.dist = SamplingDistribution(ntoys)
+    ntotal = 0
     for k in range(0, ntoys) :
-      self.progress(k, ntoys)
+      self.progress(k, ntoys, str(self.gen_hypo.pois))
       success = False
       while not success :
         if self.debug : print('DEBUG: iteration %d generating data for hypo %s.' % (k, str(self.gen_hypo.pois)))
         data = self.model.generate_data(self.gen_hypo)
+        ntotal += 1
         result = self.compute(data, k)
         if result != None :
           success = True
         else :
           print('Processing toy iteration %d failed, repeating it.' % k)
       self.dist.samples[k] = result
+    end_time = timer()
+    print('Done with POI hypothesis %s, end time %s. Generated %d good toys (%d total), elapsed time = %g s' % (str(self.gen_hypo.pois), datetime.datetime.now(), ntoys, ntotal, end_time - start_time))
     return self.dist
 
   @abstractmethod
