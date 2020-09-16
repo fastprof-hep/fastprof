@@ -32,14 +32,20 @@ import os, sys
 # Command-line inputs
 scan_val = sys.argv[1] # scan points to process
 
-
 dname  = os.path.join(basedir, name, 'datasets', 'data-%s.json' % name)
 mname  = os.path.join(basedir, name, 'models'  , 'model-%s-%s.json' % (name, scan_val))
 fname  = os.path.join(basedir, name, 'wsfits'  , 'wsfits-%s-%s.json' % (name, scan_val))
 outdir = os.path.join(basedir, name, 'limits'  , '%s-%s-%s' % (computation, name, scan_val))
+outlog = os.path.join(outdir, 'log_%d.txt')
 oname  = os.path.join(outdir, 'sampling')
 
 os.makedirs(outdir, exist_ok=True)
+
+if not sys.flags.interactive :
+  nlog = 1
+  while os.path.exists(outlog % nlog) : nlog += 1
+  logfile = open(outlog % nlog, 'w')
+  sys.stdout = logfile
 
 args = []
 args += [ '-m', mname ]
