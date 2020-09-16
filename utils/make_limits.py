@@ -33,11 +33,11 @@ import os, sys
 scan_val = sys.argv[1] # scan points to process
 
 
-dname = os.path.join(basedir, name, 'data-%s.json' % name)
-mname = os.path.join(basedir, name, 'models', 'model-%s-%s.json' % (name, scan_val))
-fname = os.path.join(basedir, name, 'wsfits', 'wsfits-%s-%s.json' % (name, scan_val))
-outdir = os.path.join(basedir, name, 'limits', '%s-%s-%s' % (computation, name, scan_val))
-oname = os.path.join(outdir, 'sampling')
+dname  = os.path.join(basedir, name, 'datasets', 'data-%s.json' % name)
+mname  = os.path.join(basedir, name, 'models'  , 'model-%s-%s.json' % (name, scan_val))
+fname  = os.path.join(basedir, name, 'wsfits'  , 'wsfits-%s-%s.json' % (name, scan_val))
+outdir = os.path.join(basedir, name, 'limits'  , '%s-%s-%s' % (computation, name, scan_val))
+oname  = os.path.join(outdir, 'sampling')
 
 os.makedirs(outdir, exist_ok=True)
 
