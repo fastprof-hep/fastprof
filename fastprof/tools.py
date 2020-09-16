@@ -113,28 +113,49 @@ class Raster(JSONSerializable) :
   def compute_tmu(self) :
     for plr_data in self.plr_data.values() : plr_data.compute_tmu()
 
-  def compute_limit(self, pv_key = 'cls', target_pv = 0.05, order = 3, log_scale = True) :
+  def compute_limit(self, pv_key = 'cls', target_pv = 0.05, order = 3, log_scale = True, with_error=False) :
     if len(self.pois()) > 1 : raise ValueError('Cannot interpolate limit in more than 1 dimension.')
     poi_name = list(self.pois())[0]
-    hypos  = []
+    hypos = []
     values = []
+    if with_error : 
+      values_up = []
+      values_dn = []
     for hypo, plr_data in self.plr_data.items() :
-      if not pv_key in plr_data.pvs : raise KeyError("P-value '%s' not found at hypo %s." % (pv_key, str(hypo.dict(pois_only=True))))
-      if log_scale :
-        if plr_data.pvs[pv_key] <= 0 : continue
-        value = math.log(plr_data.pvs[pv_key]/target_pv)
-      else :
-        value = plr_data.pvs[pv_key] - target_pv
-      values.append(value)
       hypos.append(hypo[poi_name])
-    finder = scipy.interpolate.InterpolatedUnivariateSpline(hypos, values, k=order)
-    roots = finder.roots() 
+      if not pv_key in plr_data.pvs : raise KeyError("P-value '%s' not found at hypo %s." % (pv_key, str(hypo.dict(pois_only=True))))
+      if not with_error :
+        values.append(plr_data.pvs[pv_key])
+      else :
+        if not isinstance(plr_data.pvs[pv_key], tuple) or len(plr_data.pvs[pv_key]) < 2 : raise ValueError("p-value data at key '%s' in hypo %s does not contain error bands." %  (pv_key, str(hypo.dict(pois_only=True))))
+        values.append(plr_data.pvs[pv_key][0])
+        values_up.append(plr_data.pvs[pv_key][0] + plr_data.pvs[pv_key][1])
+        values_dn.append(plr_data.pvs[pv_key][0] - plr_data.pvs[pv_key][1])
+    limit = self.interpolate_limit(hypos, values, target_pv, order, log_scale, name = 'nominal %s[%s]' % (pv_key, poi_name))
+    if not with_error : return limit
+    limit_up = self.interpolate_limit(hypos, values_up, target_pv, order, log_scale, name = 'nominal+err %s[%s]' % (pv_key, poi_name))
+    limit_dn = self.interpolate_limit(hypos, values_dn, target_pv, order, log_scale, name = 'nominal-err %s[%s]' % (pv_key, poi_name))
+    return (limit, limit_up, limit_dn)
+
+  def interpolate_limit(self, hypos, pvs, target_pv = 0.05, order = 3, log_scale = True, name = 'pv') :
+    interp_hypos  = []
+    interp_pvs = []
+    for hypo, pv in zip(hypos, pvs) :
+      if log_scale :
+        if pv <= 0 : continue
+        value = math.log(pv/target_pv)
+      else :
+        value = pv - target_pv
+      interp_pvs.append(value)
+      interp_hypos.append(hypo)
+    finder = scipy.interpolate.InterpolatedUnivariateSpline(interp_hypos, interp_pvs, k=order)
+    roots = finder.roots()
     if len(roots) == 0 :
-      print("No solution found for %s[%s] = %g. Interpolation set:" % (pv_key, poi_name, target_pv))
-      print([a for a in zip(hypos, values)])
+      print("No solution found for %s = %g. Interpolation set:" % (name, target_pv))
+      print([(h,v) for h,v in zip(interp_hypos, interp_pvs)])
       return None
     if len(roots) > 1 :
-      print('Multiple solutions found for %s[%s] = %g (%s), returning the first one' % (pv_key, poi_name, target_pv, str(roots)))
+      print('Multiple solutions found for %s = %g (%s), returning the first one' % (name, target_pv, str(roots)))
     return roots[0]
 
   def load_jdict(self, jdict) :
@@ -169,7 +190,9 @@ class Raster(JSONSerializable) :
     for poi in self.pois() :
       if key == poi : return hypo[poi]
       if key == 'best_' + poi : return self.plr_data[hypo].free_fit.fitpars[poi].value
-    if key in self.plr_data[hypo].pvs : return self.plr_data[hypo].pvs[key]
+    if key in self.plr_data[hypo].pvs :
+      value = self.plr_data[hypo].pvs[key]
+      return value if not isinstance(value, tuple) else value[0]
     if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
     raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
   
