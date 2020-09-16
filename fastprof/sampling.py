@@ -32,8 +32,9 @@ class SamplingDistribution :
     if sort_before_saving : self.sort()
     np.save(filename, self.samples)
 
-  def pv(self, apv) :
-    return np.searchsorted(self.samples, apv)/len(self.samples)
+  def pv(self, apv, with_error = False) :
+    nbelow = np.searchsorted(self.samples, apv)
+    return (nbelow/len(self.samples), math.sqrt(nbelow+1)/len(self.samples)) if with_error else nbelow/len(self.samples)
 
   def quantile(self, fraction=None, sigma=None) :
     if fraction == None :
@@ -130,13 +131,13 @@ class Samples (SamplesBase) :
       print('Done')
     return self
 
-  def pv(self, poi, apv) :
+  def pv(self, poi, apv, with_error = False) :
     try:
       samples = self.dists[poi]
     except Exception as inst :
-      print('No sample available for POI = %g, available samples are %s' (poi, self.dists.keys()))
+      print('No sample available for POI = %g, available samples are %s' % (poi, self.dists.keys()))
       raise(inst)
-    return samples.pv(apv)
+    return samples.pv(apv, with_error)
 
   def quantile(self, poi, fraction=None, sigma=None) :
     try:
@@ -177,11 +178,14 @@ class CLsSamples (SamplesBase) :
     self.cl_b.generate(ntoys)
     return self
 
-  def pv(self, poi, apv) :
-    clsb = self.clsb.pv(poi, apv)
-    cl_b = self.cl_b.pv(poi, apv)
+  def pv(self, poi, apv, with_error = False) :
+    clsb = self.clsb.pv(poi, apv, with_error)
+    cl_b = self.cl_b.pv(poi, apv, with_error)
     #print('Sampling CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
-    return clsb/cl_b if cl_b > 0 else 1
+    if not with_error : return clsb/cl_b if cl_b > 0 else 1
+    if cl_b[0] <= 0 : return (1,1)
+    if clsb[0] <= 0 : return (0,clsb[1]/cl_b[0])
+    return (clsb[0]/cl_b[0], clsb[0]/cl_b[0]*math.sqrt((clsb[1]/clsb[0])**2 + (cl_b[1]/cl_b[0])**2))
 
   def quantile(self, poi, fraction=None, sigma=None, cl_b=0.5) :
     return self.clsb.quantile(poi, fraction, sigma)/cl_b
@@ -201,4 +205,3 @@ class CLsSamples (SamplesBase) :
     self.clsb.cut(min_val, max_val)
     self.cl_b.cut(min_val, max_val)
     return self
-

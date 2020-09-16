@@ -132,28 +132,33 @@ def run(argv = None) :
   if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
 
   for plr_data in raster.plr_data.values() :
-    plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'])
-    plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'])
-    plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo[poi.name], plr_data.pvs['pv'])
+    plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'], with_error=True)
+    plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'], with_error=True)
+    plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo[poi.name], plr_data.pvs['pv'], with_error=True)
 
   if options.bands :
     sampling_bands = opti_samples.bands(options.bands)
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
       for plr_data, band_point in zip(raster.plr_data.values(), sampling_bands[band]) : plr_data.pvs['sampling_cls_%+d' % band] = band_point
 
-  def limit(rast, key, description) :
-    limit_value = rast.compute_limit(key, 1 - options.cl)
-    if limit_value : print(description + ' : UL(%g%%) = %g (N = %s)' % (100*options.cl, limit_value, str(model.n_exp(model.expected_pars(limit_value)).sum(axis=1))) )
-    return limit_value
+  def limit(rast, key, description, with_error=False) :
+    limit_result = rast.compute_limit(key, 1 - options.cl, with_error=with_error)
+    limit_value = limit_result if not with_error else limit_result[0]
+    error_str = ''
+    if with_error :
+      limit_error = (limit_result[1] - limit_result[2])/2 - limit_result[0]
+      error_str = '+/- %g' % limit_error
+    if limit_value : print(description + ' : UL(%g%%) = %g %s (N = %s)' % (100*options.cl, limit_value, error_str, str(model.n_exp(model.expected_pars(limit_value)).sum(axis=1))) )
+    return limit_result
 
-  raster.print(keys=[ 'sampling_pv' ], verbosity=1)
+  raster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
 
   limit_asy_full_clsb = limit(raster, 'pv'          , 'Asymptotics, full model, CLsb')
   limit_asy_fast_clsb = limit(faster, 'pv'          , 'Asymptotics, fast model, CLsb')
-  limit_sampling_clsb = limit(raster, 'sampling_pv' , 'Sampling   , fast model, CLsb')
+  limit_sampling_clsb = limit(raster, 'sampling_pv' , 'Sampling   , fast model, CLsb', with_error=True)
   limit_asy_full_cls  = limit(raster, 'cls'         , 'Asymptotics, full model, CLs ')
   limit_asy_fast_cls  = limit(faster, 'cls'         , 'Asymptotics, fast model, CLs ')
-  limit_sampling_cls  = limit(raster, 'sampling_cls', 'Sampling   , fast model, CLs ')
+  limit_sampling_cls  = limit(raster, 'sampling_cls', 'Sampling   , fast model, CLs ', with_error=True)
 
   if options.bands :
     limit_sampling_cls_bands = {}
@@ -167,8 +172,12 @@ def run(argv = None) :
     plt.suptitle('$CL_{s+b}$')
     plt.xlabel(list(model.pois)[0])
     plt.ylabel('$CL_{s+b}$')
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['pv']          for plr_data in raster.plr_data.values() ], options.marker + 'r:' , label = 'Asymptotics')
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['sampling_pv'] for plr_data in raster.plr_data.values() ], options.marker + 'b-' , label = 'Sampling')
+    plt.fill_between([ hypo[poi.name] for hypo in raster.plr_data ],
+                     [ plr_data.pvs['sampling_pv'][0] + plr_data.pvs['sampling_pv'][1] for plr_data in raster.plr_data.values() ],
+                     [ plr_data.pvs['sampling_pv'][0] - plr_data.pvs['sampling_pv'][1] for plr_data in raster.plr_data.values() ], facecolor='b', alpha=0.5)
+    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['pv']             for plr_data in raster.plr_data.values() ], options.marker + 'r:' , label = 'Asymptotics')
+    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['sampling_pv'][0] for plr_data in raster.plr_data.values() ], options.marker + 'b-' , label = 'Sampling')
+
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
 
@@ -178,8 +187,11 @@ def run(argv = None) :
     plt.ylabel('$CL_s$')
     if options.bands :
       opti_samples.plot_bands(options.bands)
+    plt.fill_between([ hypo[poi.name] for hypo in raster.plr_data ],
+                     [ plr_data.pvs['sampling_cls'][0] + plr_data.pvs['sampling_cls'][1] for plr_data in raster.plr_data.values() ],
+                     [ plr_data.pvs['sampling_cls'][0] - plr_data.pvs['sampling_cls'][1] for plr_data in raster.plr_data.values() ], facecolor='b', alpha=0.5)
     plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['cls']          for plr_data in raster.plr_data.values() ], options.marker + 'r:' , label = 'Asymptotics')
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['sampling_cls'] for plr_data in raster.plr_data.values() ], options.marker + 'b-' , label = 'Sampling')
+    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['sampling_cls'][0] for plr_data in raster.plr_data.values() ], options.marker + 'b-' , label = 'Sampling')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
     fig1.savefig(options.output_file + '_clsb.pdf')
