@@ -23,11 +23,10 @@ class Sampler :
     self.gen_hypo = model.expected_pars(gen_hypo) if isinstance(gen_hypo, (int, float)) else gen_hypo
     self.freq = print_freq
 
-  def progress(self, k, ntoys, hypo = None) :
+  def progress(self, k, ntoys, descr = '') :
     if k % self.freq == 0 :
-      hypo_str = 'in hypo %s' % str(hypo) if not hypo is None else ''
-      print('-- Processing iteration %d of %d %s' % (k, ntoys, hypo_str))
-      sys.stderr.write('\rProcessing iteration %d of %d %s' % (k, ntoys, hypo_str))
+      print('-- Processing iteration %d of %d %s' % (k, ntoys, descr))
+      sys.stderr.write('\rProcessing iteration %d of %d %s' % (k, ntoys, descr))
 
   def generate(self, ntoys) :
     print('Generating POI hypothesis %s, starting at %s. Full gen hypo = ' % (str(self.gen_hypo.pois), str(datetime.datetime.now())))
@@ -36,7 +35,9 @@ class Sampler :
     self.dist = SamplingDistribution(ntoys)
     ntotal = 0
     for k in range(0, ntoys) :
-      self.progress(k, ntoys, str(self.gen_hypo.pois))
+      if k % self.freq == 0 :
+        descr = 'in hypo %s [generation rate = %5.1f Hz]' % (str(self.gen_hypo.pois), k/(timer() - start_time) if k > 0 else 0)
+        self.progress(k, ntoys, descr)
       success = False
       while not success :
         if self.debug : print('DEBUG: iteration %d generating data for hypo %s.' % (k, str(self.gen_hypo.pois)))
