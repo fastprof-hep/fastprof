@@ -201,10 +201,14 @@ def run(argv = None) :
   jdict = {}
   jdict['cl'] = options.cl
   jdict['poi'] = list(model.pois)[0]
-  jdict['limit_sampling_CLs'] = limit_sampling_cls
+  jdict['limit_sampling_CLs']    = limit_sampling_cls[0]
+  jdict['limit_sampling_CLs_up'] = limit_sampling_cls[1]
+  jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[2]
   jdict['limit_asymptotics_CLs'] = limit_asy_full_cls
   jdict['limit_asymptotics_CLs_fast'] = limit_asy_fast_cls
-  jdict['limit_sampling_CLsb'] = limit_sampling_clsb
+  jdict['limit_sampling_CLsb']    = limit_sampling_clsb[0]
+  jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[1]
+  jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[2]
   jdict['limit_asymptotics_CLsb'] = limit_asy_full_clsb
   jdict['limit_asymptotics_CLsb_fast'] = limit_asy_fast_clsb
 
