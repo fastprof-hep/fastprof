@@ -50,7 +50,8 @@ if options.hypo != '' :
     index = int(index)
     raster = Raster('data', model=model, filename=filename)
     plr_data = list(raster.plr_data.values())[index]
-    print('Using hypothesis %s' % str(list(raster.plr_data.keys())[index].dict(pois_only=True)))
+    hypo = list(raster.plr_data.keys())[index]
+    print('Using hypothesis %s' % str(hypo.dict(pois_only=True)))
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid hypothesis spec, should be in the format <filename>:<index>')
