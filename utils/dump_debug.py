@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.stats import norm, chi2
-from fastprof import Model, FitResults, QMu
+from fastprof import Model, Raster, QMu
 
 ####################################################################################################################################
 ###
@@ -61,10 +61,10 @@ if options.hypo != '' :
   try:
     filename, index = options.hypo.split(':')
     index = int(index)
-    fit_result = FitResults(model, filename).fit_results[index]
-    hypo_pars = fit_result['hypo_pars']
-    print('Got hypo pars for hypothesis %g :' % fit_result[model.poi_name])
-    print(hypo_pars)
+    raster = Raster('data', model=model, filename=filename)
+    plr_data = list(raster.plr_data.values())
+    hypo = list(raster.plr_data.keys())[index]
+    print('Using hypothesis %s' % str(hypo.dict(pois_only=True)))
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid hypothesis spec, should be in the format <filename>:<index>')
@@ -81,9 +81,9 @@ for i, par in enumerate(pars) :
   free_delta = debug['free_' + par] -  - debug['aux_' + par] if 'aux_' + par in debug.columns else debug['free_' + par]
   hypo_delta = debug['hypo_' + par] -  - debug['aux_' + par] if 'aux_' + par in debug.columns else debug['hypo_' + par]
   if options.hypo != '' :
-    print('Shifting distributions of %s by %g' % (par, hypo_pars[par]))
-    free_delta -= hypo_pars[par]
-    hypo_delta -= hypo_pars[par]
+    print('Shifting distributions of %s by %g' % (par, hypo[par]))
+    free_delta -= hypo[par]
+    hypo_delta -= hypo[par]
   ax2[0,i].hist(free_delta, bins=np.linspace(-z, z, options.nbins))
   ax2[1,i].hist(hypo_delta, bins=np.linspace(-z, z, options.nbins))
   if options.reference :
