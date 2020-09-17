@@ -1,4 +1,3 @@
-# Usage : python3 -i fastprof/examples/dump_samples.py <sample_file.npy>
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -49,7 +48,9 @@ if options.hypo != '' :
   try:
     filename, index = options.hypo.split(':')
     index = int(index)
-    plr_data = list(Raster('data', model=model, filename=filename).plr_data.values())[index]
+    raster = Raster('data', model=model, filename=filename)
+    plr_data = list(raster.plr_data.values())[index]
+    print('Using hypothesis %s' % str(list(raster.plr_data.keys())[index].dict(pois_only=True)))
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid hypothesis spec, should be in the format <filename>:<index>')
