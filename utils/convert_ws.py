@@ -477,4 +477,4 @@ def run(argv = None) :
       json.dump(valid_lists, fd, ensure_ascii=True, indent=3)
 
 if __name__ == '__main__':
-  run(sys.argv)
+  run(sys.argv[1:])
