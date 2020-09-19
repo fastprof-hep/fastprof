@@ -29,6 +29,7 @@ def run(argv = None) :
   parser.add_argument("-a", "--asimov"        , type=str  , default=None  , help="Perform checks using an Asimov dataset for the specified POI value")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+  parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
   parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1:[min]:[max],name2:[min]:[max],...")
   parser.add_argument(      "--sethypo"       , type=str  , default=''    , help="Change hypo parameter values, in the form par1=val1,par2=val2,...")
   parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use")
@@ -39,15 +40,16 @@ def run(argv = None) :
   parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
-
+  print(argv)
   options = parser.parse_args(argv)
   if not options :
     parser.print_help()
     sys.exit(0)
 
   model = Model.create(options.model_file)
-  if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  if options.regularize != None : model.set_gamma_regularization(options.regularize)
+  if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
+  if not options.regularize is None : model.set_gamma_regularization(options.regularize)
+  if not options.cutoff is None : model.cutoff = options.cutoff
 
   raster = Raster('data', model=model, filename=options.fits_file)
 

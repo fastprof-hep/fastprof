@@ -237,6 +237,7 @@ class Model (JSONSerializable) :
     self.asym_impacts = asym_impacts
     self.linear_nps = linear_nps
     self.lognormal_terms = lognormal_terms
+    self.cutoff = 0
     self.init_vars()
 
   def init_vars(self) :
@@ -290,18 +291,23 @@ class Model (JSONSerializable) :
       if par.name == par or par == None : par.constraint = val
     self.init_vars()
 
-  def n_exp(self, pars) :
-    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ], dtype=float)).T
+  def k_exp(self, pars) :
     if self.asym_impacts :
       if self.linear_nps :
-        return nnom*(1 + self.pos_impacts.dot(np.maximum(pars.nps, 0)) + self.neg_impacts.dot(np.minimum(pars.nps, 0)))
+        return 1 + self.pos_impacts.dot(np.maximum(pars.nps, 0)) + self.neg_impacts.dot(np.minimum(pars.nps, 0))
       else :
-        return nnom*np.exp(self.log_pos_impacts.dot(np.maximum(pars.nps, 0)) + self.log_neg_impacts.dot(np.minimum(pars.nps, 0)))
+        return np.exp(self.log_pos_impacts.dot(np.maximum(pars.nps, 0)) + self.log_neg_impacts.dot(np.minimum(pars.nps, 0)))
     else :
       if self.linear_nps :
-        return nnom*(1 + self.sym_impacts.dot(pars.nps))
+        return 1 + self.sym_impacts.dot(pars.nps)
       else :
-        return nnom*np.exp(self.log_sym_impacts.dot(pars.nps))
+        return np.exp(self.log_sym_impacts.dot(pars.nps))
+
+  def n_exp(self, pars) :
+    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ], dtype=float)).T
+    k = self.k_exp(pars)
+    if self.cutoff == 0 : return nnom*k
+    return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
 
   def tot_exp(self, pars, floor = None) :
     ntot = self.n_exp(pars).sum(axis=0)
