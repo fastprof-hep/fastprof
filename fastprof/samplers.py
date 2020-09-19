@@ -7,9 +7,9 @@ import copy
 from abc import abstractmethod
 from scipy.interpolate import InterpolatedUnivariateSpline
 
+import os, sys
 import datetime
 from timeit import default_timer as timer
-import sys
 
 from .core import Parameters
 from .test_statistics import QMu, QMuTilda
@@ -103,7 +103,9 @@ class OptiSampler (Sampler) :
     tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
     if tmu < 1E-7 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
-      if self.debug and opti.tmu_debug < -10 : data.save('run/data/debug_data_neg_tmu_%d.json' % toy_iter)
+      if self.debug and opti.tmu_debug < -10 :
+        os.makedirs('data', exist_ok=True)
+        data.save('data/debug_data_neg_tmu_%d.json' % toy_iter)
       return None
     for bound in self.bounds :
       if not bound.test(opti.free_deltas) :
