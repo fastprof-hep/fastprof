@@ -40,7 +40,6 @@ def run(argv = None) :
   parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
-  print(argv)
   options = parser.parse_args(argv)
   if not options :
     parser.print_help()
@@ -222,4 +221,4 @@ def run(argv = None) :
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
 
 if __name__ == '__main__':
-  run(sys.argv)
+  run(sys.argv[1:])
