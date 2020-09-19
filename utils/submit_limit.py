@@ -42,22 +42,22 @@ if not options :
   sys.exit(0)
 
 print('Running in directory %s' % os.getcwd())
-os.makedirs('Batch', exist_ok=True)
+os.makedirs('batch', exist_ok=True)
 
 if options.resume == 0 :
   try :
-    os.makedirs('Batch/%s' % options.name)
+    os.makedirs('batch/%s' % options.name)
   except Exception as inst :
     print(inst)
     print('Directory %s exists already, will not submit again an existing job' % options.name)
     sys.exit(1)  
 
-os.chdir('Batch/%s' % options.name)
+os.chdir('batch/%s' % options.name)
 print('Now in directory %s' % os.getcwd())
 
 if options.resume == 0 :
-  os.symlink('../../run', 'run')
-  os.symlink('../../fastprof', 'fastprof')
+  os.symlink('../..', 'run')
+  os.symlink('../../..', 'fastprof')
   os.makedirs('samples')
 
 opts = ''
@@ -73,16 +73,22 @@ if options.test_statistic : opts += ' --test-statistic %s' % options.test_statis
 if options.print_freq     : opts += ' --print-freq %d' % options.print_freq
 if options.verbosity      : opts += ' --verbosity %d' % options.verbosity
 if options.debug          : opts += ' --debug'
-if options.break_locks    : opts += ' --break-locks'
+if options.break_locks or options.resume : opts += ' --break-locks'
 
-job = 'job_%d.sh' % options.resume
-out = 'stdout_%d' % options.resume
-err = 'stderr_%d' % options.resume
+resume = options.resume
+while os.path.exists('job_%d.sh' % resume) : resume += 1
+job = 'job_%d.sh' % resume
+out = 'stdout_%d' % resume
+err = 'stderr_%d' % resume
 
 command = './fastprof/utils/compute_limits.py -m %s -f %s -n %d -s %d %s -o samples/%s' % (options.model_file, options.fits_file, options.ntoys, options.seed, opts, options.name)
 with open(job, 'w') as f :
   f.write(command)
 os.chmod(job, 0o555)
+
+if options.dry_run : 
+  os.system(job)
+  sys.exit(0)
 
 submit_opts = ''
 if options.cores > 1 : submit_opts += ' -pe multicores %d' % option.cores
