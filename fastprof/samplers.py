@@ -18,10 +18,12 @@ from .minimizers import OptiMinimizer, ScanMinimizer
 
 # -------------------------------------------------------------------------
 class Sampler :
-  def __init__(self, model, gen_hypo = None, print_freq = 1000) :
+  def __init__(self, model, gen_hypo = None, print_freq = 1000, max_tries = 20) :
     self.model = model
     self.gen_hypo = model.expected_pars(gen_hypo) if isinstance(gen_hypo, (int, float)) else gen_hypo
     self.freq = print_freq
+    self.max_tries = max_tries
+    self.ntries = 0
 
   def progress(self, k, ntoys, descr = '') :
     if k % self.freq == 0 :
@@ -39,15 +41,19 @@ class Sampler :
         descr = 'in hypo %s [generation rate = %5.1f Hz]' % (str(self.gen_hypo.pois), k/(timer() - start_time) if k > 0 else 0)
         self.progress(k, ntoys, descr)
       success = False
+      self.ntries = 0
       while not success :
         if self.debug : print('DEBUG: iteration %d generating data for hypo %s.' % (k, str(self.gen_hypo.pois)))
         data = self.model.generate_data(self.gen_hypo)
         ntotal += 1
+        self.ntries += 1
         result = self.compute(data, k)
         if result != None :
           success = True
-        else :
+        elif self.ntries < self.max_tries :
           print('Processing toy iteration %d failed, repeating it.' % k)
+        else :
+          print('Processing toy iteration %d failed, and max number of tries (%d) reached -- returning null result.' % (k, self.max_tries))
       self.dist.samples[k] = result
     end_time = timer()
     print('Done with POI hypothesis %s, end time %s. Generated %d good toys (%d total), elapsed time = %g s' % (str(self.gen_hypo.pois), datetime.datetime.now(), ntoys, ntotal, end_time - start_time))
@@ -126,7 +132,7 @@ class OptiSampler (Sampler) :
       q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi)
     if self.debug :
       if self.debug_data.shape[0] == 0 :
-        columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev' ]
+        columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev', 'ntries' ]
         columns.extend( [ 'free_' + p for p in self.model.nps ] )
         columns.extend( [ 'hypo_' + p for p in self.model.nps ] )
         self.debug_data = pd.DataFrame(columns=columns)
@@ -136,6 +142,7 @@ class OptiSampler (Sampler) :
       self.debug_data.at[toy_iter, 'free_nll'] = opti.free_nll
       self.debug_data.at[toy_iter, 'hypo_nll'] = opti.hypo_nll
       self.debug_data.at[toy_iter, 'nfev'    ] = opti.nfev
+      self.debug_data.at[toy_iter, 'ntries'  ] = self.ntries
       for i, p in enumerate(self.model.nps) :
         self.debug_data.at[toy_iter, 'free_' + p] = opti.free_pars[p]
         self.debug_data.at[toy_iter, 'hypo_' + p] = opti.hypo_pars[p]
