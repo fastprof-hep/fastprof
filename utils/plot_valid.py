@@ -16,16 +16,17 @@ import math
 
 parser = ArgumentParser("plot.py", formatter_class=ArgumentDefaultsHelpFormatter)
 parser.description = __doc__
-parser.add_argument("-m", "--model-file"     , type=str, required=True, help="Name of JSON file defining model")
-parser.add_argument("-v", "--validation-data", type=str, required=True, help="Name of JSON file containing validation data")
-parser.add_argument("-c", "--channel"        , type=str, default=None , help="Name of selected channel (default: first one in the model)")
-parser.add_argument("-s", "--sample"         , type=str, default=None , help="Name of selected sample (default: first one in the channel)")
-parser.add_argument("-b", "--bins"           , type=str, required=True, help="List of bins for which to plot validation data")
-parser.add_argument("-y", "--yrange"         , type=str, default=''   , help="Vertical range for variations, in the form min,max")
-parser.add_argument("-i", "--inv-range"      , type=float             , help="Vertical range for inversion impact")
-parser.add_argument(      "--vars-only"      , action='store_true'    , help="Only plot variations, not inversion impact")
-parser.add_argument(      "--no-nli"         , action='store_true'    , help="Only plot linear reference")
-parser.add_argument("-o", "--output-file", type=str  , default=''     , help="Output file name")
+parser.add_argument("-m", "--model-file"     , type=str  , required=True, help="Name of JSON file defining model")
+parser.add_argument("-v", "--validation-data", type=str  , required=True, help="Name of JSON file containing validation data")
+parser.add_argument("-c", "--channel"        , type=str  , default=None , help="Name of selected channel (default: first one in the model)")
+parser.add_argument("-s", "--sample"         , type=str  , default=None , help="Name of selected sample (default: first one in the channel)")
+parser.add_argument("-b", "--bins"           , type=str  , required=True, help="List of bins for which to plot validation data")
+parser.add_argument("-y", "--yrange"         , type=str  , default=''   , help="Vertical range for variations, in the form min,max")
+parser.add_argument("-i", "--inv-range"      , type=float, default=None , help="Vertical range for inversion impact")
+parser.add_argument(      "--cutoff"         , type=float, default=None , help="Cutoff to regularize the impact of NPs")
+parser.add_argument(      "--vars-only"      , action='store_true'      , help="Only plot variations, not inversion impact")
+parser.add_argument(      "--no-nli"         , action='store_true'      , help="Only plot linear reference")
+parser.add_argument("-o", "--output-file"    , type=str  , default=''   , help="Output file name")
 
 options = parser.parse_args()
 if not options : 
@@ -66,8 +67,8 @@ class ValidationData (JSONSerializable) :
     return {}  
 
 model = Model.create(options.model_file)
-if model == None :
-  raise ValueError('No valid model definition found in file %s.' % options.model_file)
+if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
+if not options.cutoff is None : model.cutoff = options.cutoff
 
 if options.channel != None :
   channel = model.channel(options.channel)
