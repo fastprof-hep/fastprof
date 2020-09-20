@@ -81,6 +81,16 @@ job = 'job_%d.sh' % resume
 out = 'stdout_%d' % resume
 err = 'stderr_%d' % resume
 
+if resume > 0 :
+  try :
+    prev_out_size = os.path.getsize('stdout_%d' % (resume-1))
+  except FileNotFoundError :
+    print('Trying to submit iteration %d but no log file found for the previous one, stopping' % resume)
+    sys.exit(0)
+  if prev_out_size == 0 :
+    print('Trying to submit iteration %d but previous iteration still seems active (file %s has size 0), aborting job submission' % (resume, 'stdout_%d' % (resume-1)))
+    sys.exit(0)
+
 command = './fastprof/utils/compute_limits.py -m %s -f %s -n %d -s %d %s -o samples/%s' % (options.model_file, options.fits_file, options.ntoys, options.seed, opts, options.name)
 with open(job, 'w') as f :
   f.write(command)
