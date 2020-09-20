@@ -57,6 +57,7 @@ class Sampler :
       self.dist.samples[k] = result
     end_time = timer()
     print('Done with POI hypothesis %s, end time %s. Generated %d good toys (%d total), elapsed time = %g s' % (str(self.gen_hypo.pois), datetime.datetime.now(), ntoys, ntotal, end_time - start_time))
+    sys.stderr.write('\n')
     return self.dist
 
   @abstractmethod
