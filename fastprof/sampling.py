@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import scipy.stats
-import os
 from scipy.interpolate import InterpolatedUnivariateSpline
+import os
+from abc import abstractmethod
 
 
 # -------------------------------------------------------------------------
@@ -59,11 +60,9 @@ class SamplesBase :
   def __init__(self, pois) :
     self.pois = pois
 
+  @abstractmethod
   def bands(self, max_sigma) :
-    bds = {}
-    for i in range (-max_sigma, max_sigma+1) :
-      bds[i]  = np.array([ self.quantile(poi, sigma=i) for poi in self.pois ])
-    return bds
+    pass
 
   def plot_bands(self, max_sigma = 2, canvas=plt) :
     colors = [ 'k', 'g', 'y', 'c', 'b' ]
@@ -147,6 +146,12 @@ class Samples (SamplesBase) :
       raise(inst)
     return samples.quantile(fraction, sigma)
 
+  def bands(self, max_sigma) :
+    bds = {}
+    for i in range (-max_sigma, max_sigma+1) :
+      bds[i]  = np.array([ self.quantile(poi, sigma=i) for poi in self.pois ])
+    return bds
+
   def cut(self, min_val = None, max_val = None) :
     for poi in self.pois : self.dists[poi].cut(min_val, max_val)
     return self
@@ -193,10 +198,8 @@ class CLsSamples (SamplesBase) :
   def bands(self, max_sigmas) :
     cls_samples = Samples(pois=self.pois)
     for poi in self.pois :
-      ns = len(self.cl_b.dists[poi].samples)
-      sd = SamplingDistribution(ns)
-      for i, apv in enumerate(self.cl_b.dists[poi].samples) :
-        sd.samples[i] = self.pv(poi, apv)
+      sd = SamplingDistribution(len(self.cl_b.dists[poi].samples))
+      for i, apv in enumerate(self.cl_b.dists[poi].samples) : sd.samples[i] = self.pv(poi, apv)
       sd.sort()
       cls_samples.dists[poi] = sd
     return cls_samples.bands(max_sigmas)
