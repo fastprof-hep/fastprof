@@ -147,7 +147,7 @@ def run(argv = None) :
     limit_value = limit_result if not with_error else limit_result[0]
     error_str = ''
     if with_error :
-      limit_error = (limit_result[1] - limit_result[2])/2 - limit_result[0] if  not (limit_result[0] is None or limit_result[1] is None or limit_result[2] is None) else None
+      limit_error = (limit_result[1] - limit_result[2])/2 if limit_result[1] is not None and limit_result[2] is not None else None
       error_str = '+/- %g' % limit_error if not limit_error is None else ''
     if not limit_value is None : print(description + ' : UL(%g%%) = %g %s (N = %s)' % (100*options.cl, limit_value, error_str, str(model.n_exp(model.expected_pars(limit_value)).sum(axis=1))) )
     return limit_result
