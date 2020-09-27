@@ -598,7 +598,13 @@ class Channel(JSONSerializable) :
     self.type = chan_type
     self.bins = bins
     self.samples = {}
-  def dim(self) :
+
+  def nbins(self) -> int :
+    """Returns the number of bins in the channel
+
+      Returns:
+        the number of bins
+    """
     return len(self.bins)
 
   def sample(self, name : str) :
@@ -973,7 +979,7 @@ class Model (JSONSerializable) :
     self.nbins = 0
     for channel in self.channels.values() :
       self.channel_offsets[channel.name] = self.nbins
-      self.nbins += channel.dim()
+      self.nbins += channel.nbins()
       for sample in channel.samples.values() :
         if not sample.name in self.sample_indices :
           self.samples[sample.name] = sample
@@ -1157,7 +1163,7 @@ class Model (JSONSerializable) :
       grid = np.linspace(0, channel.nbins, channel.nbins)
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     offset = self.channel_offsets[channel.name]
-    nexp = self.n_exp(pars)[:,offset:offset + channel.dim()]
+    nexp = self.n_exp(pars)[:,offset:offset + channel.nbins()]
     if exclude is None :
       tot_exp = nexp.sum(axis=0)
       line_style = '-'
@@ -1175,7 +1181,7 @@ class Model (JSONSerializable) :
     if data : 
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.counts ]
       yvals = data.counts if not residuals else np.zeros(channel.nbins)
-      canvas.errorbar(xvals, yvals, xerr=[0]*channel.dim(), yerr=yerrs, fmt='ko', label='Data')
+      canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data')
     canvas.set_xlim(grid[0], grid[-1])
     if variations is not None :
       for v in variations :
@@ -1483,8 +1489,8 @@ class Data (JSONSerializable) :
       if not name in self.model.channels : raise ValueError("Data channel '%s' in specified JSON file is not defined in the model." % name)
       model_channel = self.model.channels[name]
       if not 'bins'  in channel : raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % name)
-      if len(channel['bins']) != model_channel.dim() :
-        raise ValueError("Data channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), model_channel.dim()))
+      if len(channel['bins']) != model_channel.nbins() :
+        raise ValueError("Data channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), model_channel.nbins()))
       offset = self.model.channel_offsets[name]
       for b, bin_data in enumerate(channel['bins']) :
         if bin_data['lo_edge'] != model_channel.bins[b]['lo_edge'] or bin_data['hi_edge'] != model_channel.bins[b]['hi_edge'] :
