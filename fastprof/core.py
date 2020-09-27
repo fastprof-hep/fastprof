@@ -1198,7 +1198,7 @@ class Model (JSONSerializable) :
     canvas.set_xlim(grid[0], grid[-1])
     if variations is not None :
       for v in variations :
-        vpars = copy.deepcopy(pars)
+        vpars = pars.clone()
         vpars.set(v[0], v[1])
         col = 'r' if len(v) < 3 else v[2]
         style = '--' if v[1] > 0 else '-.'
