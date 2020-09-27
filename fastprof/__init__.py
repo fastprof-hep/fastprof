@@ -1,4 +1,5 @@
 from .core            import Model, Parameters, Data, JSONSerializable
+from .core            import Model, Parameters, Data, JSONSerializable
 from .test_statistics import TMu, QMu, QMuTilda
 from .minimizers      import NPMinimizer, OptiMinimizer, ScanMinimizer
 from .sampling        import SamplingDistribution, Samples, CLsSamples
