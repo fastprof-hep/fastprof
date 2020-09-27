@@ -56,11 +56,23 @@ class Parameters :
 
   def __init__(self, pois : np.ndarray, nps : np.ndarray = None, model : 'Model' = None) :
     """Initialize a Parameters object from POI and NP values
-        
+      
+      The POIs can be provided in a number of formats:
+      
+      * A single number, for a model with a single POI
+      
+      * An np.ndarray of POI values, with parameter values provided in the
+        same order as they appear in the model.
+      
+      * A dict of POI name : value pairs with one entry for each model POI.
+      
+      NPs are optional; they can be provided as a single number or a np.ndarray
+      as for POIS, and will otherwise default to 0.
+      
       Args:
-        pois  : float-array of POI values
-        nps   : float-array of NP values
-        model : optional pointer to a :class:`Model` object
+        pois             : float-array of POI values
+        nps   (optional) : float-array of NP values
+        model (optional  : optional pointer to a :class:`Model` object
     """    
     if model is not None and isinstance(pois, dict) :
       poi_array = np.array([ np.nan ]*model.npois)
@@ -241,15 +253,15 @@ class Parameters :
 class Model (JSONSerializable) :
   """Class representing the statistical model
   
-  This class represents the top-level structure in the module, providing a
-  description of the full statistical model. It is constructed from:
+  The class provides a description of the full statistical model, consisting
+  in
   
-  * a list of :class:`fastprof.elements.Channel` objects, each describing
-    a measurement in a separate region
+  * Measurement regions, described by :class:`fastprof.elements.Channel` objects
   
-  * lists of POIs (:class:`fastprof.elements.ModelPOI` objects) and NPs (:class:`fastprof.elements.ModelNP` objects).
+  * Model parameters, split into POIs (:class:`fastprof.elements.ModelPOI` objects)
+    and NPs (:class:`fastprof.elements.ModelNP` objects).
   
-  The main purpose of the class is to store the inputs to the fast liklelihood
+  The main purpose of the class is to store the inputs to the fast likelihood
   maximization algorithm of :class:`NPMinimizer`. For this purpose, the
   structures provided by the :class:`fastprof.elements.Channel` and :class:`fastprof.elements.Sample` classes are
   flattened into a number of np.array objects. These use a simplified description
