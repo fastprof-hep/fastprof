@@ -81,13 +81,13 @@ class Parameters :
         if poi in poi_list : poi_array[poi_list.index(poi)] = val
       if np.isnan(poi_array).any() : raise ValueError('Input POI dictionary did not contain a valid numerival value for each POI : %s' % str(pois))
       pois = poi_array
-    if isinstance(pois, float) or isinstance(pois, int) : pois = np.array([ pois], dtype=float)
+    if isinstance(pois, (float, int)) : pois = np.array([ pois], dtype=float)
     if not isinstance(pois, np.ndarray) or pois.ndim != 1 : raise ValueError('Input POIs should be a 1D np.array, got ' + str(pois))
     if model is not None and pois.size != model.npois : raise ValueError('Cannot initialize Parameters with %d POIs, when %d are defined in the model' % (pois.size, model.npois))
     self.pois = pois
     if nps is None : nps  = np.array([], dtype=float)
     if model is not None and nps.size == 0 : nps = np.zeros(model.nnps)
-    if isinstance(nps , float) or isinstance(nps , int) : nps  = np.array([ nps ], dtype=float)
+    if isinstance(nps, (float, int)) : nps  = np.array([ nps ], dtype=float)
     if not isinstance(nps, np.ndarray) or nps.ndim != 1 : raise ValueError('Input NPs should be a 1D np.array, got ' + str(nps))
     if model is not None and nps.size != model.nnps : raise ValueError('Cannot initialize Parameters with %d NPs, when %d are defined in the model'  % (nps .size, model.nnps))
     self.nps  = nps
@@ -144,6 +144,31 @@ class Parameters :
     if par in self.model.pois : return self.pois[list(self.model.pois).index(par)]
     if par in self.model.nps  : return self.nps [list(self.model.nps ).index(par)]
     raise KeyError('Model parameter %s not found' % par)
+
+
+  def set_pois(self, pois : np.ndarray) -> 'Parameters' :
+    """Set the POI array
+        
+      Args:
+        pois : array of new POI values
+      Returns:
+        self
+    """    
+    if pois.shape != self.pois.shape : raise ValueError('Cannot set POI array %s to %s.' % (str(self.pois), str(pois)))
+    self.pois = pois
+    return self
+    
+  def set_nps(self, nps : np.ndarray) -> 'Parameters' :
+    """Set the NP array
+        
+      Args:
+        nps : array of new NP values
+      Returns:
+        self
+    """    
+    if nps.shape != self.nps.shape : raise ValueError('Cannot set NP array %s to %s.' % (str(self.nps), str(nps)))
+    self.nps = nps
+    return self
 
   def set(self, par : str, val : float, unscaled : bool = False) -> 'Parameters' :
     """Set the value of a parameter (POI or NP)
