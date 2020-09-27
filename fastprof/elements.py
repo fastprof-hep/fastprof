@@ -143,6 +143,7 @@ class JSONSerializable :
     pass
 
 
+# -------------------------------------------------------------------------
 class ModelPOI(JSONSerializable) :
   """Class representing a POI of the model
   
@@ -223,6 +224,7 @@ class ModelPOI(JSONSerializable) :
     jdict['initial_value'] = self.max_value
 
 
+# -------------------------------------------------------------------------
 class ModelAux(JSONSerializable) :
   """Class representing an auxiliary observable of the model
   
@@ -275,6 +277,7 @@ class ModelAux(JSONSerializable) :
     jdict['max_value'] = self.max_value
 
   
+# -------------------------------------------------------------------------
 class ModelNP(JSONSerializable) :
   """Class representing a NP of the model
   
@@ -399,6 +402,7 @@ class ModelNP(JSONSerializable) :
     jdict['aux_obs'] = self.aux_obs
 
 
+# -------------------------------------------------------------------------
 class Sample(JSONSerializable) :
   """Class representing a model sample
   
@@ -535,6 +539,7 @@ class Sample(JSONSerializable) :
     jdict['impacts'] = self.impacts
 
 
+# -------------------------------------------------------------------------
 class Channel(JSONSerializable) :
   """Class representing a model channel
   

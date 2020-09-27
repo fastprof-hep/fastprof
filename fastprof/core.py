@@ -3,28 +3,28 @@
 The code is organized around the following classes:
 
   * :class:`Model` : the class implementing the likelihood model. This has the HistFactory structure, with 
-    stuctural elements that are defined in the :mod:`elements` module :
+    stuctural elements that are defined in the :mod:`fastprof.elements` module :
     
-    * The model has a number of parameters:
+    * The model two types of parameters:
     
-       * *Parameters of interest* (POIs), implemented as :class:`ModelPOI` objects
+       * *Parameters of interest* (POIs), implemented as :class:`fastprof.elements.ModelPOI` objects
        
-       * *Nuisance parameters* (NPs), implemented as :class:`ModelNP` objects. 
+       * *Nuisance parameters* (NPs), implemented as :class:`fastprof.elements.ModelNP` objects. 
     
-    * The model is split into a number of channels, represented by :class:`Channel` objects, which each define
+    * The model is split into a number of channels, represented by :class:`fastprof.elements.Channel` objects, which each define
     
        * A number of measurement bins
        
-       * A number of samples, represented by :class:`Sample` objects, each defining a 
+       * A number of samples, represented by :class:`fastprof.elements.Sample` objects, each defining a 
          contribution to the expected bin yields.
 
-    * The :class:`Sample` objects store their nominal bin yields, an overall normalization and variations as a function of the NPs
+    * The :class:`fastprof.elements.Sample` objects store their nominal bin yields, an overall normalization and variations as a function of the NPs
 
   * :class:`Parameters` : a class storing a set of values for model POIs and NPs.
   
   * :class:`Data` : a class storing the observed data: the observed bin yields for each channel and the auxiliary observables for each NP. 
   
-  All the classes support loading from / saving to JSON files. The basic mechanism for this is implemented in the :class:`JSONSerializable` base class from which they all derive.
+  All the classes support loading from / saving to JSON files. The basic mechanism for this is implemented in the :class:`fastprof.elements.JSONSerializable` base class from which they all derive.
 """
 
 import numpy as np
@@ -43,7 +43,7 @@ class Parameters :
   these are not required for the basic functionality.
   Storage is in 2 np.arrays, one for POIs and one for NPs.
 
-  NPs are stored in their scaled form (see the description of :class:`ModelNP`),
+  NPs are stored in their scaled form (see the description of :class:`fastprof.elements.ModelNP`),
   but the unscaled form can be used as well if `model` is set (as this requires
   knowledge of parameter properties not stored locally).
 
@@ -140,7 +140,7 @@ class Parameters :
         par : name of a parameter (either POI or NP)
         val : parameter value to set
         unscaled : for NPs, interpret `val` as a `scaled` (False) or `unscaled` (True) value,
-                   see the description of :class:`ModelNP` for details
+                   see the description of :class:`fastprof.elements.ModelNP` for details
       Returns:
         self
     """    
@@ -244,14 +244,14 @@ class Model (JSONSerializable) :
   This class represents the top-level structure in the module, providing a
   description of the full statistical model. It is constructed from:
   
-  * a list of :class:`Channel` objects, each describing
+  * a list of :class:`fastprof.elements.Channel` objects, each describing
     a measurement in a separate region
   
-  * lists of POIs (:class:`ModelPOI` objects) and NPs (:class:`ModelNP` objects).
+  * lists of POIs (:class:`fastprof.elements.ModelPOI` objects) and NPs (:class:`fastprof.elements.ModelNP` objects).
   
   The main purpose of the class is to store the inputs to the fast liklelihood
   maximization algorithm of :class:`NPMinimizer`. For this purpose, the
-  structures provided by the :class:`Channel` and :class:`Sample` classes are
+  structures provided by the :class:`fastprof.elements.Channel` and :class:`fastprof.elements.Sample` classes are
   flattened into a number of np.array objects. These use a simplified description
   of measurement bins, in which the bins for all the channels are concatenated into
   a single large collection of size `nbins`. The `channel_offsets` attribute provides
@@ -264,17 +264,17 @@ class Model (JSONSerializable) :
   :meth:`Model.nll` method, which return the negative log-likelihood value.
 
   Attributes:
-     pois (dict): the model POIs (as a dict mapping POI name to :class:`ModelPOI` object)
-     nps  (dict): the model NPs (as a dict mapping NP name to :class:`ModelNP` object)
+     pois (dict): the model POIs (as a dict mapping POI name to :class:`fastprof.elements.ModelPOI` object)
+     nps  (dict): the model NPs (as a dict mapping NP name to :class:`fastprof.elements.ModelNP` object)
      aux_obs (dict): the model auxiliary observables that constrain the NPs
-        (as a dict mapping aux. obs. name to :class:`ModelAux` object)
+        (as a dict mapping aux. obs. name to :class:`fastprof.elements.ModelAux` object)
      npois (int): number of model pois
      nnps (int): number of model NPs
      ncons (int): number of constrained NPs (=number of aux. obs)
      nfree (int): number of free NPs (= nnps - ncons)
-     channels (dict): the model channels (as a dict mapping channel name to :class:`Channel` object)
+     channels (dict): the model channels (as a dict mapping channel name to :class:`fastprof.elements.Channel` object)
      samples (dict): the the model samples, compiled over all channels (as a dict mapping sample name
-        to :class:`Sample` object)
+        to :class:`fastprof.elements.Sample` object)
      sample_indices (dict): maps sample name to its index in `samples` (which is an ordered dict)
      nbins (int): total number of measurement bins, compiled over channels
      channel_offsets (dict): maps channel name to the index of the first bin for this sample, among the list
@@ -295,8 +295,8 @@ class Model (JSONSerializable) :
      log_sym_impacts (np.array): array of the logs of the symmetrized per-sample event yield variations, as 
         a 3D array of size `nsamples` x `nbins` x `nnps`.
      constraint_hessian (np.array): inverse of the covariance matrix of the NP constraint Gaussian
-     np_nominal_values (np.array): nominal values of the unscaled NPs (see the description of :class:`ModelNP` for details)
-     np_variations (np.array): variations of the unscaled NPs (see the description of :class:`ModelNP` for details)
+     np_nominal_values (np.array): nominal values of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
+     np_variations (np.array): variations of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
      asym_impacts (bool): use asymmetric impact terms when computing yield variation (True, default), or
         use symmetrized impacts instead (False).
      linear_nps (bool): compute yield variations using an exponential form (False, default) or a linear
@@ -310,10 +310,10 @@ class Model (JSONSerializable) :
     """Initialize Model object
         
       Args:
-        pois     : the model POIs, as a dict mapping POI names to :class:`ModelPOI` objects
-        nps      : the model NPs, as a dict mapping NP names to :class:`ModelNP` objects
-        aux_obs  : the model aux. obs., as a dict mapping names to :class:`ModelAux` objects
-        channels : the model channelsm as a dict mapping channel names to :class:`Channel` objects
+        pois     : the model POIs, as a dict mapping POI names to :class:`fastprof.elements.ModelPOI` objects
+        nps      : the model NPs, as a dict mapping NP names to :class:`fastprof.elements.ModelNP` objects
+        aux_obs  : the model aux. obs., as a dict mapping names to :class:`fastprof.elements.ModelAux` objects
+        channels : the model channelsm as a dict mapping channel names to :class:`fastprof.elements.Channel` objects
         asym_impacts : option to use symmetric or asymmetric NP impacts (see class description, default: True)
         linear_nps   : option to use the linear or exp form of NP impact on yields (see class description, default: False)
         lognormal_terms : option to include exp derivatives when minimizing nll (see class description, default: False)
@@ -407,7 +407,7 @@ class Model (JSONSerializable) :
     """Set the value of the constraint on a NP
         
       If `par` is set to `None`, set the constraint on all NPs.
-      See the documentation of :class:`ModelNP` for more details
+      See the documentation of :class:`fastprof.elements.ModelNP` for more details
       on constraints
         
       Args:
