@@ -1068,8 +1068,21 @@ class Model (JSONSerializable) :
       else :
         return np.exp(self.log_sym_impacts.dot(pars.nps))
 
-  def n_exp(self, pars) :
-    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars) for sample in self.samples.values() ], dtype=float)).T
+  def n_exp(self, pars : Parameters) -> np.array :
+    """Returns the expected event yields for a given parameter value
+    
+    The expected yields correspond to the nominal yields for each sample,
+    corrected for the overall normalization terms (function of the POIs)
+    and the NP impacts (function of the NPs, see :meth:`Model.k_exp`)
+    They provided for each sample in each measurement bin, as a 2D 
+    np.array with dimensions`nbins` x `nsamples`.
+        
+      Args:
+         pars: a set of parameter values
+      Returns:
+         Expected event yields per sample per bin
+    """    
+    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T
     k = self.k_exp(pars)
     if self.cutoff == 0 : return nnom*k
     return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
