@@ -1,5 +1,7 @@
 fastprof/__pycache__/
 utils/__pycache__/
+docs/build/
+docs/source/api
 bin/
 lib/
 lib64
