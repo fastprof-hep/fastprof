@@ -1499,11 +1499,16 @@ class Data (JSONSerializable) :
     self.set_aux_obs(aux_obs)
     return self
 
-  def set_expected(self, pars) :
-    self.set_data(self.model.tot_exp(pars), [ par.value for par in pars.constrained_nps() ])
-    return self
-  
-  def load_jdict(self, jdict) :
+
+  def load_jdict(self, jdict : dict) -> 'Data' :
+    """Load object information from a dictionary of JSON data
+        
+      Args:
+        jdict : A dictionary containing JSON data
+
+      Returns:
+        self
+    """    
     if not 'data'    in jdict : raise KeyError("No 'data' section in specified JSON file")
     if not 'channels'  in jdict['data'] : raise KeyError("No 'channels' section in specified JSON file")
     for channel in jdict['data']['channels'] :

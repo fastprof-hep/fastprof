@@ -39,7 +39,7 @@ if options.data_file :
   if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
   print('Using dataset stored in file %s.' % options.data_file)
 elif options.asimov != None :
-  data = Data(model).set_expected(model.expected_pars(options.asimov))
+  data = model.generate_expected(sets)
   print('Using Asimov dataset with POI = %g' % options.asimov)
 else :
   data = Data(model).load(options.model_file)

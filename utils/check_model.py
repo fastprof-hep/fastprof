@@ -57,7 +57,7 @@ if options.data_file :
 elif options.asimov != None :
   try:
     sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
-    data = Data(model).set_expected(model.expected_pars(sets))
+    data = model.generate_expected(sets)
   except Exception as inst :
     print(inst)
     raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
