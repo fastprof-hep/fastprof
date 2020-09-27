@@ -128,9 +128,9 @@ class OptiSampler (Sampler) :
       print(opti.free_pars)
       print(opti.hypo_pars)
     if self.use_qtilda :
-      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
+      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_pois[0], tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
     else :
-      q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi)
+      q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_pois[0])
     if self.debug :
       if self.debug_data.shape[0] == 0 :
         columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev', 'ntries' ]

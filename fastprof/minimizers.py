@@ -330,14 +330,14 @@ class ScanMinimizer (POIMinimizer) :
     minima = smooth_nll.derivative().roots()
     self.nll_min = np.amin(self.nlls)
     self.min_idx = np.argmin(self.nlls)
-    self.min_poi  = self.scan_pois[self.min_idx]
+    self.min_pois = np.array([self.scan_pois[self.min_idx]])
     if len(minima) == 1 :
       interp_min = smooth_nll(minima[0])
       if interp_min < self.nll_min :
-        self.min_poi  = minima[0]
+        self.min_pois  = minima
         self.nll_min = interp_min
-    self.min_pars = Parameters(self.min_poi, self.pars[self.min_idx].alphas, self.pars[self.min_idx].betas, self.pars[self.min_idx].gammas)
-    return self.nll_min, self.min_poi
+    self.min_pars = Parameters(self.min_pois, self.pars[self.min_idx], model=data.model)
+    return self.nll_min
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
@@ -376,7 +376,7 @@ class OptiMinimizer (POIMinimizer) :
     """        
     super().__init__(niter, floor)
     self.np_min = None
-    self.poi0 = poi0
+    self.init_pois = init_pois
     self.bounds = bounds
     self.method = method
     self.rebound = rebound
@@ -407,34 +407,33 @@ class OptiMinimizer (POIMinimizer) :
          best-fit parameters
     """        
     if init_hypo == None :
-      current_hypo = data.model.expected_pars(self.poi0, self)
+      current_hypo = init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, self)
     else :
       current_hypo = init_hypo.clone()
-    def objective(poi) :
-      if isinstance(poi, np.ndarray) : poi = poi[0]
-      if isinstance(poi, np.ndarray) : poi = poi[0]
-      self.profile_nps(current_hypo.set(list(data.model.pois)[0], poi), data)
-      if self.debug > 0 : print('== OptMinimizer: eval at %g -> %g' % (poi, self.nll_min))
+    def objective(pois) :
+      #print('njpb pois = ', pois, type(pois))
+      if isinstance(pois, (int, float)) : pois = np.array([ pois ])
+      #print('njpb pois = ', pois, type(pois))
+      self.profile_nps(current_hypo.set_pois(pois), data)
+      if self.debug > 0 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.nll_min))
       if self.debug > 1 : print(current_hypo)
       if self.debug > 1 : print(self.min_pars)
       return self.nll_min
-    def jacobian(poi) :
-      if isinstance(poi, np.ndarray) : poi = poi[0]
-      if isinstance(poi, np.ndarray) : poi = poi[0]
-      self.profile_nps(current_hypo.set_poi(poi))
-      if self.debug > 0 : print('== Jacobian:', self.np_min.data.model.grad_poi(self.np_min.min_pars, data))
-      return np.array([ self.np_min.data.model.grad_poi(self.np_min.min_pars, data) ])
+    def jacobian(pois) :
+      self.profile_nps(current_hypo.set_pois(pois), data)
+      if self.debug > 0 : print('== Jacobian:', data.model.grad_pois(self.np_min.min_pars, data))
+      return data.model.grad_poi(self.np_min.min_pars, data)
     def hess_p(poi, v) :
-      if isinstance(poi, np.ndarray) : poi = poi[0]
-      if isinstance(poi, np.ndarray) : poi = poi[0]
-      self.profile_nps(current_hypo.set_poi(poi))
-      if self.debug > 0 : print('== Hessian:', self.np_min.data.model.hess_poi(self.np_min.min_pars, data)*v[0])
-      return np.array([ self.np_min.data.model.hess_poi(self.np_min.min_pars, data)*v[0] ])
+      self.profile_nps(current_hypo.set_pois(pois), data)
+      if self.debug > 0 : print('== Hessian:', data.model.hess_poi(self.np_min.min_pars, data)*v[0])
+      return np.array(data.model.hess_poi(self.np_min.min_pars, data)*v[0])
     if self.method == 'scalar' :
       if self.debug > 0 : print('== Optimizer: using scalar  ----------------')
-      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xatol': 1e-5 })
+      #print('njpb', self.bounds, self.bounds[0])
+      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds[0], method='bounded', options={'xatol': 1e-5 })
     elif self.method == 'L-BFGS-B':
-      result = scipy.optimize.minimize(objective, x0=self.poi0, bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, options={'gtol': 1e-5, 'ftol':1e-5 })
+      # TODO needs fixing
+      result = scipy.optimize.minimize(objective, x0=self.init_pois.vals(), bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, options={'gtol': 1e-5, 'ftol':1e-5 })
       if not result.success :
         result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
     else :
@@ -451,11 +450,10 @@ class OptiMinimizer (POIMinimizer) :
       if hasattr(result, 'message') : print('message =', result.message)
       return None, None
     self.nll_min = result.fun
-    self.min_poi = result.x
-    if isinstance(self.min_poi, np.ndarray) : self.min_poi = self.min_poi[0] # needed for L-BGS-B
+    self.min_pois = result.x if isinstance(result.x, np.ndarray) else np.array([result.x])
     self.nfev = result.nfev
-    #print(self.min_poi)
-    return self.nll_min, self.min_poi
+    #print('njpb : ', self.min_pois)
+    return self.nll_min
 
   def tmu(self, hypo : Parameters, data : Data, init_hypo : Parameters = None) -> float :
     """Computes the :math:`t_{\mu}` profile-likelihood ratio (PLR) test statistic
@@ -482,7 +480,8 @@ class OptiMinimizer (POIMinimizer) :
     tmu = super().tmu(hypo, data, init_hypo)
     if tmu == 0 and self.tmu_debug < 0 :
       if self.method == 'scalar' and self.rebound > 0 :
-        new_bounds = ((self.poi0 + self.bounds[0])/2, (self.poi0 + self.bounds[1])/2)
+        init_pois = self.init_pois.pois if isinstance(self.init_pois, Parameters) else Parameters(self.init_pois).pois
+        new_bounds = [ ( (init + bounds[0])/2, (init + bounds[1])/2 ) for init, bounds in zip(init_pois, self.bounds) ]
         print('Warning: tmu computation failed (tmu < 0) with bounds', self.bounds, ', repeating with narrower bounds: ', new_bounds, ' (%d attempts left).' % self.rebound)
         self.bounds = new_bounds
         self.rebound -= 1
