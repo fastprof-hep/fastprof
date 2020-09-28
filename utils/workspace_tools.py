@@ -49,8 +49,8 @@ def process_setranges(setranges, ws) :
     raise ValueError("ERROR : invalid variable range specification '%s'." % setranges)
 
 
-def make_binned(dataset, obs = None, input_bins = 0) :
-  if input_bins > 0 : obs.setBins(input_bins)
+def make_binned(dataset, rebinnings) :
+  for obs, bins in rebinnings : obs.setBins(bins)
   return dataset.binnedClone()
 
 

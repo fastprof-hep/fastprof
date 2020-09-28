@@ -56,11 +56,14 @@ class ValidationData (JSONSerializable) :
     self.poi        = jdict[list(self.model.pois)[0]]
     self.points     = jdict['points']
     self.variations = {}
-    for par in self.model.nps.keys() :
-      if not par in jdict : 
-        print('No validation data found for NP %s' % par)
-      else :
-        self.variations[par] = np.array(jdict[par])
+    for chan in model.channels :
+      channel_variations = {}
+      for par in self.model.nps.keys() :
+        if not par in jdict[chan] :
+          print('No validation data found for NP %s' % par)
+        else :
+          channel_variations[par] = np.array(jdict[chan][par])
+      self.variations[chan] = channel_variations
     return self
 
   def dump_jdict(self) :
@@ -94,12 +97,12 @@ cont_x = np.linspace(data.points[0], data.points[-1], 100)
 pars = model.expected_pars(data.poi)
 channel_offset = model.channel_offsets[channel.name]
 sample_index = model.sample_indices[sample.name]
-nexp0 = model.n_exp(pars)[sample_index, channel_offset:channel_offset + channel.dim()]
+nexp0 = model.n_exp(pars)[sample_index, channel_offset:channel_offset + channel.nbins()]
 ax_vars = []
 ax_invs = []
 
 def nexp_var(pars, par, x) :
-  return model.n_exp(pars.set(par, x))[sample_index, channel_offset:channel_offset + channel.dim()]
+  return model.n_exp(pars.set(par, x))[sample_index, channel_offset:channel_offset + channel.nbins()]
 
 for b in bins :
   fig = plt.figure(figsize=(8, 8), dpi=96)
@@ -120,7 +123,7 @@ for b in bins :
 
     ax_var = fig.add_subplot(sgs[0])
     ax_var.set_title(par)
-    ax_var.plot(data.points, data.variations[par][sample_index, b, :] - 1, 'ko')
+    ax_var.plot(data.points, data.variations[channel.name][par][sample_index, b, :] - 1, 'ko')
     ax_var.plot(cont_x, vars_lin, 'r--')
     ax_vars.append(ax_var)
     if not options.no_nli : ax_var.plot(cont_x, vars_nli, 'b')
