@@ -39,6 +39,7 @@ def run(argv = None) :
   parser.add_argument(      "--refit"            , type=str  , default=None     , help="Fit the model to the specified dataset before conversion")
   parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
   parser.add_argument(      "--input_bins"       , type=int  , default=0        , help="Number of bins to use when binning the input dataset")
+  parser.add_argument(      "--variations"       , type=str  , default='1'      , help="Comma-separated list of NP variations to tabulate")
   parser.add_argument(      "--regularize"       , type=float, default=0        , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
   parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
@@ -167,7 +168,7 @@ def run(argv = None) :
       break
 
 
-  # 6. Identify the samples for this channel
+  # 6. Make the channel objects (identify samples)
   # ---------------------------------------------------------
 
   channels = []
@@ -238,11 +239,20 @@ def run(argv = None) :
         par.error = 1
       print('=== Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.name, par.error, par.nominal, options.epsilon))
 
+    variations = []
+    try :
+      for v in options.variations.split(',') : variations.extend([ +float(v), -float(v) ])
+    except Exception as inst :
+      print(inst)
+      raise ValueError('Invalid NP variations specification %s : should be of the form v1,v2,...' % options.variations)
+    if len(variations) == 0 :
+      raise ValueError('Should have at least 1 NP variation implemented for a valid model')
+
     validation_points = np.linspace(-3, 3, 13) if options.validation_data else []
 
     # Fill the channel information
-    for channel in channels :
-      fill_channel_yields(channel, bins, nuis_pars, nps, options, validation_points)
+    for i, channel in enumerate(channels) :
+      fill_channel_yields(channel, i, len(channels), bins, nuis_pars, nps, variations, options, validation_points)
 
   # 8 - Fill model JSON
   # --------------------------------
@@ -304,7 +314,8 @@ def run(argv = None) :
         sample_spec['norm'] = sample.normpar.GetName() if pois.find(sample.normpar.GetName()) or nps.find(sample.normpar.GetName()) else ''
         sample_spec['nominal_norm'] = sample.nominal_norm
         sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
-        sample_spec['impacts'] = { par : [{ 'pos' : impact['pos'], 'neg' : impact['neg'] } for impact in sample.impacts[par]] for par in sample.impacts }
+        #sample_spec['impacts'] = { par : [{ 'pos' : impact['pos'], 'neg' : impact['neg'] } for impact in sample.impacts[par]] for par in sample.impacts }
+        sample_spec['impacts'] = sample.impacts
         sample_specs.append(sample_spec)
       channel_spec['samples'] = sample_specs
       channel_specs.append(channel_spec)
@@ -450,7 +461,7 @@ def fill_yields(channel, key) :
     sample.yields[key] += sample.normvar.getVal()*sample.bin_integral.getVal() - sample.n_unassigned
     channel.default_sample.yields[key] += sample.n_unassigned
 
-def fill_channel_yields(channel, bins, nuis_pars, nps, options, validation_points) :
+def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, nps, variations, options, validation_points) :
   nbins = len(bins) - 1
   if options.validation_data :
     channel.valid_data = {}
@@ -467,7 +478,7 @@ def fill_channel_yields(channel, bins, nuis_pars, nps, options, validation_point
   nps.Print("V")
   print('\n')
   for i in range(0, nbins) :
-    sys.stderr.write('\rProcessing bin %d of %d in channel %s' % (i+1, nbins, channel.name))
+    sys.stderr.write('\rProcessing bin %d of %d in channel %s (%d of %d)' % (i+1, nbins, channel.name, channel_index + 1, nchannels))
     sys.stderr.flush()
     xmin = bins[i]
     xmax = bins[i + 1]
@@ -479,18 +490,16 @@ def fill_channel_yields(channel, bins, nuis_pars, nps, options, validation_point
       sample.nominal_yields[i] = sample.yields['nominal']
       print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
     for par in nuis_pars :
+      for sample in channel.samples : sample.impacts[par.name].append({})
       delta = par.error*options.epsilon
-      par.obj.setVal(par.nominal + delta)
-      fill_yields(channel, 'pos_var')
-      par.obj.setVal(par.nominal - delta)
-      fill_yields(channel, 'neg_var')
-      for sample in channel.samples :
-        sample.impact_pos = ((sample.yields['pos_var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
-        sample.impact_neg = ((sample.yields['neg_var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
-        sample.impacts[par.name].append({ 'pos' : sample.impact_pos, 'neg' : sample.impact_neg })
-        print('-- sample %10s, parameter %-10s : +1 sigma sig impact = %g' % (sample.name, par.name, sample.impact_pos))
-        print('--        %10s            %-10s : -1 sigma sig impact = %g' % (         '',       '', sample.impact_neg))
-      par.obj.setVal(par.nominal)
+      for variation in variations :
+        par.obj.setVal(par.nominal + variation*delta)
+        fill_yields(channel, 'var')
+        for sample in channel.samples :
+          sample.impact = ((sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
+          sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
+          print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
+        par.obj.setVal(par.nominal)
       if options.validation_data :
         par_data = channel.valid_data[par.name]
         fill_yields(channel, 'ref')

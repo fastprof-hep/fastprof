@@ -453,23 +453,28 @@ class Sample(JSONSerializable) :
     self.nominal_yields = nominal_yields
     self.impacts = impacts
 
-  def impact(self, par : str, which : str = 'pos') -> np.array :
+  def impact(self, par : str, variation : float = +1) -> np.array :
     """provides the relative variations of the per-bin event yields for a given NP
         
       Args:
-         par   : name of the NP
-         which : direction of the variation : 'pos' (default) for positive NP values, 'neg' for
-                negative NP values
+         par       : name of the NP
+         variation : NP variation, in numbers of sigmas
       Returns:
          np.array : per-bin relative variations
     """
     if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
     try:
-      imp = np.array([ imp[which] for imp in self.impacts[par] ], dtype=float)
-      return imp if which == 'pos' else 1/(1+imp) - 1
+      imp = np.array([ imp['%+g' % variation] for imp in self.impacts[par] ], dtype=float)
     except Exception as inst:
-      print('Impact computation failed for sample %s, parameter %s, impact %s' % (self.name, par, which))
-      raise(inst)
+      # Legacy naming scheme
+      if (variation == 1 or variation == -1) :
+        which = 'pos' if variation == 1 else 'neg'
+        try:
+          imp = np.array([ imp[which] for imp in self.impacts[par] ], dtype=float)
+        except Exception as inst:
+          print('Impact lookup failed for sample %s, parameter %s, variation %+g' % (self.name, par, variation))
+          raise(inst)
+    return imp if variation > 0 else 1/(1+imp) - 1
 
   def sym_impact(self, par : str) -> np.array :
     """Provides the symmetrized relative variations of the per-bin event yields for a given NP
@@ -480,11 +485,11 @@ class Sample(JSONSerializable) :
          symmetrized per-bin relative variations
     """
     try:
-      return np.sqrt((1 + self.impact(par, 'pos'))*(1 + self.impact(par, 'neg'))) - 1
+      return np.sqrt((1 + self.impact(par, +1))*(1 + self.impact(par, -1))) - 1
     except Exception as inst:
       print('Symmetric impact computation failed, returning the positive impacts instead')
       print(inst)
-      return self.impact(par, 'pos')
+      return self.impact(par, +1)
 
   def norm(self, pars_dict : dict) -> float :
     """Computes the overall normalization factor

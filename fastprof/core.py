@@ -405,8 +405,8 @@ class Model (JSONSerializable) :
       for sample in channel.samples.values() :
         self.nominal_yields[self.sample_indices[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
         for p, par in enumerate(self.nps.values()) :
-          self.pos_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, 'pos')
-          self.neg_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, 'neg')
+          self.pos_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, +1)
+          self.neg_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, -1)
           self.sym_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.sym_impact(par.name)
     self.log_pos_impacts = np.log(1 + self.pos_impacts)
     self.log_neg_impacts = np.log(1 + self.neg_impacts)
