@@ -5,4 +5,4 @@ docs/source/api
 env/
 build/
 dist/
-pyvenv.cfg
+fastprof.egg-info/
