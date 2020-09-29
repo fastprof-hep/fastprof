@@ -1,3 +1,3 @@
 python3 -m venv env
 source env/bin/activate
-python setup.py install
+if [ ! -e build ]; then python setup.py install; fi
