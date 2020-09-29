@@ -53,10 +53,10 @@ import json
 import array
 import math
 import ROOT
-from .tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
+from root_import.tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
 
-class Channel() : pass
-class Sample() : pass
+class WSChannel() : pass
+class WSSample() : pass
 
 ####################################################################################################################################
 ###
@@ -88,7 +88,7 @@ def make_parser() :
   parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
   parser.add_argument("-l", "--validation-data"  , type=str  , default=''       , help="Name of output file for validation data")
   parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
-
+  return parser
 
 def run(argv = None) :
   """
@@ -435,7 +435,7 @@ def run(argv = None) :
 
 # ---------------------------------------------------------------------
 def make_channel(channel_name, channel_pdf, pois, mconfig, options) :
-  channel = Channel()
+  channel = WSChannel()
   channel.type = 'binned_range'
   channel.name = channel_name
   channel.pdf = channel_pdf
@@ -479,7 +479,7 @@ def make_channel(channel_name, channel_pdf, pois, mconfig, options) :
   channel.default_sample = None # the sample to which unassigned variations will be associated (e.g. spurious signal, not scaled by any sample normpars)
 
   for i in range(0, channel_pdf.pdfList().getSize()) :
-    sample = Sample()
+    sample = WSSample()
     sample.pdf = channel_pdf.pdfList().at(i)
     sample.name = sample_names[i] if i < len(sample_names) else sample.pdf.GetName()
     sample.normvar = channel_pdf.coefList().at(i)

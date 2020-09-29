@@ -48,13 +48,10 @@ import json
 from scipy.stats import norm
 import ROOT
 
-from .tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
+from root_import.tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
 
-####################################################################################################################################
-###
-
-def run(argv = None) :
-  parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
+def make_parser() :
+  parser = ArgumentParser("fit_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-f", "--ws-file"          , type=str  , required=True    , help="Name of file containing the workspace")
   parser.add_argument("-w", "--ws-name"          , type=str  , default='modelWS', help="Name workspace object inside the specified file")
@@ -75,7 +72,10 @@ def run(argv = None) :
   parser.add_argument(      "--nps"              , type=str  , default=''       , help="Constant parameters to include as NPs")
   parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
   parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
+  return parser
 
+def run(argv = None) :
+  parser = make_parser()
   options = parser.parse_args(argv)
   if not options :
     parser.print_help()
