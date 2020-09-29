@@ -2,3 +2,8 @@
 
 Utilities
 =========
+
+.. toctree::
+   :glob:
+
+   scripts/*
