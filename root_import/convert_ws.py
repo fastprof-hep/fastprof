@@ -1,7 +1,50 @@
 #! /usr/bin/env python
 
-__doc__ = "Convert a ROOT workspace into fastprof JSON format"
-__author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
+__doc__ = """
+*Convert a ROOT workspace into fastprof JSON format*
+
+The script takes as input a ROOT workspace, and converts the contents
+into the definition file of a linear model, as follows:
+
+* The model POIs and NPs are taken from the ModelConfig file.
+
+* The model PDF is also taken from the ModelConfig. Two cases are currently
+  implemented:
+  
+  * *The PDF is a RooAddPdf*: the components of the sum are then 
+    used to define the samples of a single channel. The channel
+    observable is taken from the PDF, and the binning from the `-b` option.
+      
+  * *The PDF is a *RooSimultaneous* : the states of the PDF are taken
+    to correspond each to a separate channel. Each channel must have a 
+    PDF of *RooAddPdf* type, which is then treated as above.
+
+* Nominal yields in each bin are computed from integrating the PDF of each
+  sample in each channel.
+
+* Linear impacts are computed by changing the values of the NPs as 
+  specified by the `--variations` option. By default :math:`\pm 1 \sigma`
+  variations are used. The impact on each sample are separated by setting
+  the normalizations of all but one to zero for each in turn. Variations
+  which are present when all normalizations are set to 0 are assigned to
+  the default sample, specified by the `--default-sample` option.
+
+* NP central values and uncertainties taken from directly from the workspace,
+  or from a fit to data (`--data-file` option) or to an Asimov dataset
+  (`--asimov` option). The same applied to the POI value used to define
+  the nominal yields. If the POI value leads to a normalization of 0, the POI
+  is instead set to twice its uncertainty.
+  
+* Prior to computations, the model can be adjusted using the `--setval`,
+  `--setconst` and `--setrange` options, which set respectively the value,
+  constness and range of model parameters.
+
+The output is a single JSON file which defines the model as well as the 
+dataset if one was specified. A validation file is also produced if the 
+`--validation-data` option was set: this contains information that can be
+used to assess if the linearity assumption is valid for the model.
+"""
+__author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -10,7 +53,7 @@ import json
 import array
 import math
 import ROOT
-from workspace_tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
+from .tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
 
 class Channel() : pass
 class Sample() : pass
@@ -18,7 +61,7 @@ class Sample() : pass
 ####################################################################################################################################
 ###
 
-def run(argv = None) :
+def make_parser() :
   parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-f", "--ws-file"          , type=str  , required=True    , help="Name of file containing the workspace")
@@ -46,6 +89,12 @@ def run(argv = None) :
   parser.add_argument("-l", "--validation-data"  , type=str  , default=''       , help="Name of output file for validation data")
   parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
 
+
+def run(argv = None) :
+  """
+  Main method in the script
+  """
+  parser = make_parser()
   options = parser.parse_args(argv)
   if not options :
     parser.print_help()
@@ -514,6 +563,4 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, nps,
   sys.stderr.write('\n')
 
 
-
-if __name__ == '__main__':
-  run(sys.argv[1:])
+if __name__ == '__main__' : run()

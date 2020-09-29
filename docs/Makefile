@@ -19,6 +19,6 @@ help:
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 doc:
-	sphinx-apidoc -fMeT .. -o source/api
+	sphinx-apidoc -fMeT -o source/api .. ../setup.py
 	@echo "Auto-generation of API documentation finished. " \
           "The generated files are in 'source/api/'"

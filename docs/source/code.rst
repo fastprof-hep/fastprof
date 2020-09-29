@@ -6,4 +6,4 @@ Code reference
 .. toctree::
    :glob:
 
-   api/*
+   api/fastprof.*

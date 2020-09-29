@@ -1,7 +1,44 @@
 #! /usr/bin/env python
 
-__doc__ = "Convert a ROOT workspace into fastprof JSON format"
-__author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
+__doc__ = """
+*Compute fit results in a ROOT workspace*
+
+The script takes as input a ROOT workspace, and computes the information
+needed to evaluate the q_mu and q_mu~ test statistics (see
+[arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>]_) at a number of POI
+hypothesis points.
+
+These values and hypotheses can then be used to compute sampling distributions
+that allow the estimation of p-values corresponding to the test statistics,
+without the use of the asymptotic approximation of 
+[arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>]_. An example of this
+procedure can be found in the utils/compute_limits.py script.
+
+* The input dataset is specified using the `--ws-file` and `--ws-name`
+  options. The input dataset can be either observed data (`--data-file` and
+  `--data-name`) or an Asimov dataset (`--asimov`). For the latter, the POI
+  values are given as argument, and the NP values are taken from a fit to 
+  an observed dataset, if provided (and kept at their nominal values otherwise).
+
+* Prior to computations, the model can be adjusted using the `--setval`,
+  `--setconst` and `--setrange` options, which set respectively the value,
+  constness and range of model parameters.
+
+* The hypotheses can be set using the `--hypos` option, providing as argument
+  a colon-separated list of definitions. Each definition consists in a comma-
+  separated list of POI assignments. 
+  For the case of a single POI, a single integer can provided as argument. In
+  this case, a set of hypotheses appropriate for the setting of an upper limit
+  on the POI are defined automatically.
+
+* At each hypothesis, the data is fit twice : once with the POIs set to their
+  hypothesis values, and once free to vary in the fit. The same procedure is
+  performed for an Asimov dataset, with a POI value set to zero. This provides
+  all the information needed to compute q_mu and q_mu~.
+
+The output is a single JSON file containing the result of the fits at each hypothesis,
+including the best-fit values of all parameters and the NLL values at minimum.
+"""
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -11,7 +48,7 @@ import json
 from scipy.stats import norm
 import ROOT
 
-from workspace_tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
+from .tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
 
 ####################################################################################################################################
 ###
