@@ -1,7 +1,48 @@
 #! /usr/bin/env python
 
-__doc__ = "Compute limits from sampling distributions"
-__author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
+__doc__ = """
+*Upper limit computation using sampling distributions*
+
+Runs the full procedure to set upper limits on a single parameter of a
+linear statistical model.
+
+* The code computes the limit at the specified CL (`--cl` argument), by
+  default 95%. Both frequentist and modified-frequentist :math:`CL_s` limits
+  are computed. The test statistic can be set usign the `-t` option. By 
+  default, the q_mu~ of [arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>]_
+  is used.
+
+* The main inputs are the model file (`--model-file` argument) and the 
+  *fits* file providing results from the full model (`--fits-file`).
+  The fits file also defines the parameter hypotheses at which the 
+  sampling distributions are generated.
+
+* The limit is computed using the test statistic values stored in the
+  fits file. The corresponding p-values are computed using sampling
+  distributions which are randomly generated at each of the parameter
+  hypotheses listed in the fits file (`--ntoys` pseudo-datasets in
+  each sample). A lock file system allows several processes to generate
+  the distributions in parallel, or resume an interrupted job. The
+  `--break-locks` option allows to break locks left by dead jobs.
+
+* An interpolation between the hypotheses is then performed to obtain
+  the upper limit value. Output is given as p-values, :math:`CL_s` and
+  :math:`CL_b` values at each hypothesis, and interpolated frequentist
+  and :math:`CL_s` upper limits.
+  Results for the full model in the asymptotic approximation are also shown
+  for comparison, as well as those of the linear model if a dataset is 
+  supplied either as observed data (`--data-file` argument) or an Asimov
+  dataset (`--asimov`).
+  The results are stored in a JSON file (`-o` argument)
+  Plots of CL vs hypothesis are also shown, as well as the expected
+  limit and its uncertainty bands for the null hypothesis if the `--bands` 
+  option is specified. 
+
+* Several options can be specified to account for non linear effects (`--iterations`)
+  or regularize the model (`--regularize`, `--cutoff`, `--bounds`, `--sethypo`),
+  as described in the package documentation.
+"""
+__author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -15,7 +56,7 @@ from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimize
 ####################################################################################################################################
 ###
 
-def run(argv = None) :
+def make_parser() :
   parser = ArgumentParser("compute_limits.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of JSON file defining model")
@@ -25,8 +66,8 @@ def run(argv = None) :
   parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
   parser.add_argument("-%", "--print-freq"    , type=int  , default=1000  , help="Verbosity level")
-  parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Perform checks using the dataset stored in the specified JSON file")
-  parser.add_argument("-a", "--asimov"        , type=str  , default=None  , help="Perform checks using an Asimov dataset for the specified POI value")
+  parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Use the dataset stored in the specified JSON file")
+  parser.add_argument("-a", "--asimov"        , type=str  , default=None  , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
@@ -40,6 +81,10 @@ def run(argv = None) :
   parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
+  return parser
+
+def run(argv = None) :
+  parser = make_parser()
   options = parser.parse_args(argv)
   if not options :
     parser.print_help()
@@ -222,5 +267,4 @@ def run(argv = None) :
   with open(options.output_file + '_results.json', 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
 
-if __name__ == '__main__':
-  run(sys.argv[1:])
+if __name__ == '__main__' : run()
