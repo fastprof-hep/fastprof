@@ -140,12 +140,10 @@ def run(argv = None) :
 
   if options.test_statistic == 'q~mu' :
     if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-    poi = raster.pois()[list(raster.pois())[0]]
-    calc = QMuTildaCalculator(OptiMinimizer(np.array([poi.initial_value]), [(poi.min_value, poi.max_value)]))
+    calc = QMuTildaCalculator(OptiMinimizer().set_pois_from_model(model))
   elif options.test_statistic == 'q_mu' :
     if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-    poi = raster.pois()[list(raster.pois())[0]]
-    calc = QMuCalculator(OptiMinimizer(np.array([poi.initial_value]), [(poi.min_value, poi.max_value)]))
+    calc = QMuCalculator(OptiMinimizer().set_pois_from_model(model))
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
 
@@ -161,16 +159,14 @@ def run(argv = None) :
   samplers_clsb = []
   samplers_cl_b = []
 
-  print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(poi), str(gen_bounds), niter))
+  print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(calc.minimizer.init_pois.dict(pois_only=True)), str(calc.minimizer.bounds), niter))
 
   for plr_data, fast_plr_data in zip(raster.plr_data.values(), faster.plr_data.values()) :
     test_hypo = plr_data.ref_pars
     tmu_0 = fast_plr_data.test_statistics['tmu_0']
     gen0_hypo = copy.deepcopy(test_hypo).set(list(model.pois)[0], 0)
-    init_poi = np.array( [ poi.initial_value ])
-    poi_bounds = [ (poi.min_value, poi.max_value) ]
-    samplers_clsb.append(OptiSampler(model, test_hypo, init_poi, poi_bounds, gen_bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
-    samplers_cl_b.append(OptiSampler(model, test_hypo, init_poi, poi_bounds, gen_bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
+    samplers_clsb.append(OptiSampler(model, test_hypo, gen_bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
+    samplers_cl_b.append(OptiSampler(model, test_hypo, gen_bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
 
   opti_samples = CLsSamples( \
     Samples(samplers_clsb, options.output_file), \
@@ -178,6 +174,8 @@ def run(argv = None) :
     .generate_and_save(options.ntoys, break_locks=options.break_locks)
 
   if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
+  
+  poi = raster.pois()[list(raster.pois())[0]]
 
   for plr_data in raster.plr_data.values() :
     plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'], with_error=True)

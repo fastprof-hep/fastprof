@@ -88,12 +88,10 @@ class ScanSampler (Sampler) :
 
 # -------------------------------------------------------------------------
 class OptiSampler (Sampler) :
-  def __init__(self, model, test_hypo, mu0 = 0, poi_bounds = None, bounds = [], method = 'scalar', gen_hypo = None, print_freq = 1000, niter=1, tmu_A = None, tmu_0 = None, floor=1E-7, debug=False) :
+  def __init__(self, model, test_hypo, bounds = [], method = 'scalar', gen_hypo = None, print_freq = 1000, niter=1, tmu_A = None, tmu_0 = None, floor=1E-7, debug=False) :
     super().__init__(model, gen_hypo, print_freq)
     self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
     if self.gen_hypo == None : self.gen_hypo = copy.deepcopy(self.test_hypo)
-    self.mu0 = mu0
-    self.poi_bounds = poi_bounds
     self.bounds = bounds
     self.method = method
     self.debug = debug
@@ -105,7 +103,7 @@ class OptiSampler (Sampler) :
     self.debug_data = pd.DataFrame()
     
   def compute(self, data, toy_iter) :
-    opti = OptiMinimizer(self.mu0, self.poi_bounds, self.method, self.niter, self.floor)
+    opti = OptiMinimizer(self.method, self.niter, self.floor).set_pois_from_model(self.model)
     if self.debug : opti.debug = 2
     tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
     if tmu < 1E-7 :

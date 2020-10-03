@@ -152,7 +152,7 @@ class POIMinimizer :
      floor (float) : minimal event yield to use in the NLL computation (see
          :meth:`.Model.nll` for details).
      np_min (NPMinimizer) : the NP minimization algorithm
-     nll_min (float) : the best-fit NLL stored by :meth:`POIMinimizer.profile_nps`.
+     min_nll (float) : the best-fit NLL stored by :meth:`POIMinimizer.profile_nps`.
      min_pars (Parameters) : the best-fit NPs stored by :meth:`POIMinimizer.profile_nps`.
      hypo_nll (float) : the NLL of the fixed-POI fit stored by :meth:`POIMinimizer.tmu`.
      hypo_pars (Parameters) : the best-fit parameters of the fixed-POI fit stored 
@@ -178,7 +178,7 @@ class POIMinimizer :
     self.niter = niter
     self.floor = floor
     self.np_min = None
-    self.nll_min = None
+    self.min_nll = None
     self.min_pars = None
     self.hypo_nll = None
     self.hypo_pars = None
@@ -228,7 +228,7 @@ class POIMinimizer :
     for i in range(0, self.niter) :
       self.np_min.profile(self.min_pars)
       self.min_pars = self.np_min.min_pars
-    self.nll_min = data.model.nll(self.min_pars, data, floor=self.floor)
+    self.min_nll = data.model.nll(self.min_pars, data, floor=self.floor)
     return self.min_pars
 
   def tmu(self, hypo : Parameters, data : Data, init_hypo : Parameters = None) -> float :
@@ -257,11 +257,11 @@ class POIMinimizer :
       init_hypo = data.model.expected_pars(init_hypo, self, data)
     #print('tmu @ %g' % hypo.poi)
     self.profile_nps(hypo, data)
-    self.hypo_nll = self.nll_min
+    self.hypo_nll = self.min_nll
     self.hypo_pars = self.min_pars
     self.hypo_deltas = self.np_min.min_deltas
     if self.minimize(data, init_hypo) is None : return None
-    self.free_nll = self.nll_min
+    self.free_nll = self.min_nll
     self.free_pars = self.min_pars
     self.free_deltas = self.np_min.min_deltas
     tmu = 2*(self.hypo_nll - self.free_nll)
@@ -328,16 +328,16 @@ class ScanMinimizer (POIMinimizer) :
       #print('@poi(', i, ') =', poi, self.nlls[i], ahat, bhat)
     smooth_nll = InterpolatedUnivariateSpline(self.scan_pois, self.nlls, k=4)
     minima = smooth_nll.derivative().roots()
-    self.nll_min = np.amin(self.nlls)
+    self.min_nll = np.amin(self.nlls)
     self.min_idx = np.argmin(self.nlls)
     self.min_pois = np.array([self.scan_pois[self.min_idx]])
     if len(minima) == 1 :
       interp_min = smooth_nll(minima[0])
-      if interp_min < self.nll_min :
+      if interp_min < self.min_nll :
         self.min_pois  = minima
-        self.nll_min = interp_min
+        self.min_nll = interp_min
     self.min_pars = Parameters(self.min_pois, self.pars[self.min_idx], model=data.model)
-    return self.nll_min
+    return self.min_nll
 
 # -------------------------------------------------------------------------
 class OptiMinimizer (POIMinimizer) :
@@ -359,12 +359,10 @@ class OptiMinimizer (POIMinimizer) :
      debug      (int)         : level of debug output
                         
   """    
-  def __init__(self, init_pois : Parameters = None, bounds : dict = None, method : str = 'scalar', niter : int = 1, floor : float = 1E-7, rebound : int = 0, alt_method : str = None) :
+  def __init__(self, method : str = 'scalar', niter : int = 1, floor : float = 1E-7, rebound : int = 0, alt_method : str = None, init_pois : Parameters = None, bounds : dict = None) :
     """Initialize the POIMinimizer object
         
       Args:
-         init_pois  : initial values of the POI minimization
-         bounds     : Bounds on the POIs, as list of (min, max) pairs
          method     : optimization algorithm to apply
          niter      : number of iterations to perform when minimizing over NPs
          floor      : minimal event yield to use in the NLL computation (see
@@ -373,6 +371,8 @@ class OptiMinimizer (POIMinimizer) :
                       by a factor 2 each time
          alt_method : alternate optimization algorithm to apply if the
                       primary one (given by the `method` attribute) fails.
+         init_pois  : initial values of the POI minimization
+         bounds     : Bounds on the POIs, as list of (min, max) pairs
     """        
     super().__init__(niter, floor)
     self.np_min = None
@@ -382,7 +382,22 @@ class OptiMinimizer (POIMinimizer) :
     self.rebound = rebound
     self.alt_method = alt_method
     self.debug = 0
-   
+
+  def set_pois_from_model(self, model : Model) -> 'OptiMinimizer' :
+    """Copy POI information from model
+      
+      Initial value and range information is copied from the contents of
+      the ModelPOI objects in the model.
+      
+      Args:
+        model : the model to copy from
+      Returns:
+        self
+    """        
+    self.init_pois = Parameters({ poi.name : poi.initial_value for poi in model.pois.values() }, model=model)
+    self.bounds = { poi.name : (poi.min_value, poi.max_value) for poi in model.pois.values() }
+    return self
+
   def minimize(self, data : Data, init_hypo : Parameters = None) -> float :
     """Minimization over POIs
       
@@ -407,7 +422,7 @@ class OptiMinimizer (POIMinimizer) :
          best-fit parameters
     """        
     if init_hypo == None :
-      current_hypo = init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, self)
+      current_hypo = self.init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, self)
     else :
       current_hypo = init_hypo.clone()
     def objective(pois) :
@@ -415,10 +430,10 @@ class OptiMinimizer (POIMinimizer) :
       if isinstance(pois, (int, float)) : pois = np.array([ pois ])
       #print('njpb pois = ', pois, type(pois))
       self.profile_nps(current_hypo.set_pois(pois), data)
-      if self.debug > 0 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.nll_min))
+      if self.debug > 0 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.min_nll))
       if self.debug > 1 : print(current_hypo)
       if self.debug > 1 : print(self.min_pars)
-      return self.nll_min
+      return self.min_nll
     def jacobian(pois) :
       self.profile_nps(current_hypo.set_pois(pois), data)
       if self.debug > 0 : print('== Jacobian:', data.model.grad_pois(self.np_min.min_pars, data))
@@ -429,11 +444,11 @@ class OptiMinimizer (POIMinimizer) :
       return np.array(data.model.hess_poi(self.np_min.min_pars, data)*v[0])
     if self.method == 'scalar' :
       if self.debug > 0 : print('== Optimizer: using scalar  ----------------')
-      #print('njpb', self.bounds, self.bounds[0])
-      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds[0], method='bounded', options={'xatol': 1e-5 })
+      #print('njpb', self.bounds, list(self.bounds.values())[0])
+      result = scipy.optimize.minimize_scalar(objective, bounds=list(self.bounds.values())[0], method='bounded', options={'xatol': 1e-5 })
     elif self.method == 'L-BFGS-B':
       # TODO needs fixing
-      result = scipy.optimize.minimize(objective, x0=self.init_pois.vals(), bounds=(self.bounds,), method='L-BFGS-B', jac=jacobian, options={'gtol': 1e-5, 'ftol':1e-5 })
+      result = scipy.optimize.minimize(objective, x0=self.init_pois.vals(), bounds=(self.bounds.values(),), method='L-BFGS-B', jac=jacobian, options={'gtol': 1e-5, 'ftol':1e-5 })
       if not result.success :
         result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
     else :
@@ -449,11 +464,11 @@ class OptiMinimizer (POIMinimizer) :
       if hasattr(result, 'status')  : print('status  =', result.status)
       if hasattr(result, 'message') : print('message =', result.message)
       return None, None
-    self.nll_min = result.fun
+    self.min_nll = result.fun
     self.min_pois = result.x if isinstance(result.x, np.ndarray) else np.array([result.x])
     self.nfev = result.nfev
     #print('njpb : ', self.min_pois)
-    return self.nll_min
+    return self.min_nll
 
   def tmu(self, hypo : Parameters, data : Data, init_hypo : Parameters = None) -> float :
     """Computes the :math:`t_{\mu}` profile-likelihood ratio (PLR) test statistic
