@@ -69,7 +69,7 @@ class ValidationData (JSONSerializable) :
   def dump_jdict(self) :
     return {}  
 
-model = Model.create(options.model_file)
+model = Model().load(options.model_file)
 if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
 if not options.cutoff is None : model.cutoff = options.cutoff
 
