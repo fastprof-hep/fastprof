@@ -8,7 +8,7 @@
 # =====================================
 
 # Base arguments
-basedir     = 'run/root'                  # Base directory for file paths
+basedir     = 'root/'                     # Base directory for file paths
 name        = 'highMass_NW-prod1000'      # Base name of output files
 scan_var    = 'mX'                        # Scan variable
 ntoys       = 10000                       # Number of toys
