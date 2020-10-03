@@ -453,16 +453,32 @@ class Sample(JSONSerializable) :
     self.nominal_yields = nominal_yields
     self.impacts = impacts
 
-  def impact(self, par : str, variation : float = +1) -> np.array :
+  def available_variations(self, par : str = None) -> list :
+    """provides the available variations of the per-bin event yields for a given NP
+        
+      Args:
+         par       : name of the NP
+      Returns:
+        list of available variations 
+    """
+    if len(self.impacts) == 0 : return []
+    if par is None : par = list(self.impacts.keys())[0]
+    if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
+    if len(self.impacts[par]) == 0 : return []
+    return [ +1 if var == 'pos' else -1 if var == 'neg' else float(var) for var in self.impacts[par][0].keys() ]
+
+  def impact(self, par : str, variation : float = +1, normalize : bool = False) -> np.array :
     """provides the relative variations of the per-bin event yields for a given NP
         
       Args:
          par       : name of the NP
          variation : NP variation, in numbers of sigmas
+         normalize : if True, return the variation scaled to a +1sigma effect
       Returns:
-         np.array : per-bin relative variations
+         per-bin relative variations
     """
     if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
+    imp = None
     try:
       imp = np.array([ imp['%+g' % variation] for imp in self.impacts[par] ], dtype=float)
     except Exception as inst:
@@ -474,7 +490,52 @@ class Sample(JSONSerializable) :
         except Exception as inst:
           print('Impact lookup failed for sample %s, parameter %s, variation %+g' % (self.name, par, variation))
           raise(inst)
-    return imp if variation > 0 else 1/(1+imp) - 1
+    if imp is None : return imp
+    return (1 + imp)**(1/variation) - 1 if normalize else imp
+
+  def impact_coefficients(self, par : str, variations = None, is_log : bool = False) -> list :   
+    """Returns a parameterization of the impact values for an NP
+    
+      Impacts are computed for fixed variations (+1, -1, etc.). In the model,
+      an interpolation must be used based on these values. The simplest case
+      is for a single variation, where a linear interpolation is used. For 
+      cases with more interpolation points, a polynomial is used.
+
+      The interpolation can be in linear scale (suitable for interpolating
+      yields as N0*(1 + pol(NP))) or log scale (as N0*exp(pol(NP))).
+
+      Args:
+         par       : name of the NP
+         variation : list of variations to consider (default: None, uses what is available)
+         is_bool   : interpolate in log (True) or linear (False) scale
+      Returns:
+         Polynomial coefficients of the interpolation
+    """
+    if variations is not None :
+      pos_vars = [+v for v in variations ]
+      neg_vars = [-v for v in variations ]
+    else :
+      available = self.available_variations(par)
+      pos_vars = sorted([ v for v in available if v > 0 ])
+      neg_vars = sorted([ v for v in available if v < 0 ])
+    pos_imps = np.array([ self.impact(par, var) for var in pos_vars ])
+    neg_imps = np.array([ self.impact(par, var) for var in neg_vars ])
+    pos_params = np.array([ self.interpolate_impact(pos_vars, pos_imp if not is_log else np.log(1 + pos_imp)) for pos_imp in pos_imps.T ]).T
+    neg_params = np.array([ self.interpolate_impact(neg_vars, neg_imp if not is_log else np.log(1 + neg_imp)) for neg_imp in neg_imps.T ]).T
+    return pos_params, neg_params
+
+  def interpolate_impact(self, pos : list, impacts : list) -> np.array :
+    """Returns polynomial approximant to the impact valust
+      Args:
+         pos : list of parameter variation values
+         impacts : list of corresponding impacts
+      Returns:
+         Polynomial coefficients of the interpolation
+    """
+    if len(pos) != len(impacts) : raise ValueError("Cannot interpolate, number of x values (%d) doesn't match y values (%d)." % (len(pos), len(impacts)))
+    vdm = np.array( [ [ p**(n+1) for n in range(0, len(pos)) ] for p in pos ] )
+    #print(pos, impacts, vdm)
+    return np.linalg.inv(vdm).dot(np.array(impacts))
 
   def sym_impact(self, par : str) -> np.array :
     """Provides the symmetrized relative variations of the per-bin event yields for a given NP
@@ -485,7 +546,7 @@ class Sample(JSONSerializable) :
          symmetrized per-bin relative variations
     """
     try:
-      return np.sqrt((1 + self.impact(par, +1))*(1 + self.impact(par, -1))) - 1
+      return np.sqrt((1 + self.impact(par, +1))*(1 + self.impact(par, -1, normalize=True))) - 1
     except Exception as inst:
       print('Symmetric impact computation failed, returning the positive impacts instead')
       print(inst)

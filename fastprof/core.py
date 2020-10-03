@@ -343,7 +343,9 @@ class Model (JSONSerializable) :
      cutoff (float): regularization term that caps the relative variations in event yields
   """    
 
-  def __init__(self, pois : dict = {}, nps : dict = {}, aux_obs : dict = {}, channels : dict = {}, asym_impacts : bool = True, linear_nps : bool = False, lognormal_terms : bool = False) :
+  def __init__(self, pois : dict = {}, nps : dict = {}, aux_obs : dict = {}, channels : dict = {},
+               asym_impacts : bool = True, linear_nps : bool = False, lognormal_terms : bool = False,
+               variations : list = None) :
     """Initialize Model object
         
       Args:
@@ -354,6 +356,7 @@ class Model (JSONSerializable) :
         asym_impacts : option to use symmetric or asymmetric NP impacts (see class description, default: True)
         linear_nps   : option to use the linear or exp form of NP impact on yields (see class description, default: False)
         lognormal_terms : option to include exp derivatives when minimizing nll (see class description, default: False)
+        variations : list of NP variations to consider (default: None -- use 1 and the largest available other one)
     """        
     super().__init__()
     self.pois = { poi.name : poi for poi in pois }
@@ -371,9 +374,10 @@ class Model (JSONSerializable) :
     self.linear_nps = linear_nps
     self.lognormal_terms = lognormal_terms
     self.cutoff = 0
-    self.init_vars()
+    self.variations = variations
+    self.set_internal_vars()
 
-  def init_vars(self) :
+  def set_internal_vars(self) :
     """Private method to initialize internal attributes
       
       The Model class contains both primary atttributes and secondary
@@ -398,19 +402,27 @@ class Model (JSONSerializable) :
           self.samples[sample.name] = sample
           self.sample_indices[sample.name] = len(self.sample_indices)
     self.nominal_yields = np.zeros((len(self.sample_indices), self.nbins))
-    self.pos_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
-    self.neg_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
     self.sym_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
+    self.pos_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
+    self.neg_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
+    self.log_pos_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
+    self.log_neg_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
+    self.nvariations = 1
     for channel in self.channels.values() :
       for sample in channel.samples.values() :
         self.nominal_yields[self.sample_indices[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
-        for p, par in enumerate(self.nps.values()) :
-          self.pos_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, +1)
-          self.neg_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.impact(par.name, -1)
-          self.sym_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.sym_impact(par.name)
-    self.log_pos_impacts = np.log(1 + self.pos_impacts)
-    self.log_neg_impacts = np.log(1 + self.neg_impacts)
-    self.log_sym_impacts = np.log(1 + self.sym_impacts)
+        for p, par in enumerate(self.nps) :
+          pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=False)
+          if pos_cs.shape[0] > 2 or neg_cs.shape[0] > 2 : raise ValueError('Impact interpolation in %d > 2 dimensions not yet supported!' % max(pos_cs.shape[0], neg_cs.shape[0]))
+          self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0], self.nvariations)
+          self.pos_impact_coeffs[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p, :pos_cs.shape[0]] = pos_cs.T
+          self.neg_impact_coeffs[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p, :neg_cs.shape[0]] = neg_cs.T
+          self.sym_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.sym_impact(par)
+          # Repeat for log coeffs
+          pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=True)
+          self.log_pos_impact_coeffs[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p, :pos_cs.shape[0]] = pos_cs.T
+          self.log_neg_impact_coeffs[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p, :neg_cs.shape[0]] = neg_cs.T
+          self.log_sym_impacts = np.log(1 + self.sym_impacts)
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
@@ -453,7 +465,7 @@ class Model (JSONSerializable) :
     """    
     for par in self.nps :
       if par is None or par.name == par : par.constraint = val
-    self.init_vars()
+    self.set_internal_vars()
 
   def k_exp(self, pars : Parameters) -> np.array :
     """Returns the modifier to event yields due to NPs
@@ -471,10 +483,14 @@ class Model (JSONSerializable) :
          Event yield modifiers
     """    
     if self.asym_impacts :
+      pos_np = np.maximum(pars.nps, 0)
+      neg_np = np.minimum(pars.nps, 0)
+      pos2 = np.array([pos_np, np.square(pos_np)])
+      neg2 = np.array([neg_np, np.square(neg_np)])
       if self.linear_nps :
-        return 1 + self.pos_impacts.dot(np.maximum(pars.nps, 0)) + self.neg_impacts.dot(np.minimum(pars.nps, 0))
+        return 1 + np.tensordot(self.pos_impact_coeffs, pos2.T, axes=2) + np.tensordot(self.neg_impact_coeffs, neg2.T, axes=2)
       else :
-        return np.exp(self.log_pos_impacts.dot(np.maximum(pars.nps, 0)) + self.log_neg_impacts.dot(np.minimum(pars.nps, 0)))
+        return np.exp(np.tensordot(self.log_pos_impact_coeffs, pos2.T, axes=2) + np.tensordot(self.log_neg_impact_coeffs, neg2.T, axes=2))
     else :
       if self.linear_nps :
         return 1 + self.sym_impacts.dot(pars.nps)
@@ -586,7 +602,7 @@ class Model (JSONSerializable) :
       grid = [ b['lo_edge'] for b in channel.bins ]
       grid.append(channel.bins[-1]['hi_edge'])
     else :
-      grid = np.linspace(0, channel.nbins, channel.nbins)
+      grid = np.linspace(0, channel.nbins(), channel.nbins())
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     offset = self.channel_offsets[channel.name]
     nexp = self.n_exp(pars)[:,offset:offset + channel.nbins()]
@@ -606,7 +622,7 @@ class Model (JSONSerializable) :
     canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title)
     if data : 
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.counts ]
-      yvals = data.counts if not residuals else np.zeros(channel.nbins)
+      yvals = data.counts if not residuals else np.zeros(channel.nbins())
       canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data')
     canvas.set_xlim(grid[0], grid[-1])
     if variations is not None :
@@ -615,7 +631,7 @@ class Model (JSONSerializable) :
         vpars.set(v[0], v[1])
         col = 'r' if len(v) < 3 else v[2]
         style = '--' if v[1] > 0 else '-.'
-        tot_exp = self.n_exp(vpars)[:,offset:offset + channel.nbins].sum(axis=0)
+        tot_exp = self.n_exp(vpars)[:,offset:offset + channel.nbins()].sum(axis=0)
         canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
         canvas.legend()
     canvas.set_title(self.name)
@@ -659,7 +675,7 @@ class Model (JSONSerializable) :
     for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
     return s
 
-  def expected_pars(self, pois : dict, minimizer : 'NPMinimizer' = None, data : 'Data' = None) -> 'Parameters' :
+  def expected_pars(self, pois : dict, minimizer : 'NPMinimizer' = None, data : 'Data' = None) -> Parameters :
     """Assigns NP values to a set of POI values
     
       By default, returns a :class:`Parameters` object with the POI values
@@ -790,7 +806,7 @@ class Model (JSONSerializable) :
       if channel.name in self.channels :
         raise ValueError('ERROR: multiple channels defined with the same name (%s)' % channel.name)
       self.channels[channel.name] = channel
-    self.init_vars()
+    self.set_internal_vars()
     return self
   
   def fill_jdict(self, jdict : dict) :
