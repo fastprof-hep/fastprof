@@ -1,7 +1,28 @@
 #! /usr/bin/env python
 
-__doc__ = "Ccompute limits from sampling distributions"
-__author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
+__doc__ = """
+*Collect results from different model points and plot them together*
+
+Results computed at specified model points, stored in output JSON files,
+are collected together to make plots as a function of model parameters.
+
+For now only one model parameter is considered. Parameter values are specified
+using the `--positions` argument, in the format `min:max:bins[:[log]int]`. If the
+last argument is omitted, a linear grid with equal spacing between `min` and
+`max` is used. If the last argument contains `log`, the grid is prepared in log
+scale, and if it containts `int`, values are rounded to the nearest integer.
+The format of the results files to look for is given by `--input_pattern`. The
+symbols `*` or `%` in the pattern are replaced by position values.
+
+In each file, the result labeled by `--key` is extracted, along with its
+variation bands if `--bands` is specified. If `--errors` is specified, 
+statistical uncertainties in the results are included if they are available
+in the input results files.
+
+The results are plotted and written to the JSON file specfied by `--output-file`.
+If `--root-output` is also provided, results are formatted as `TGraph` or
+`TGraphAsymError` ROOT objects and written to the specified ROOT file.
+"""
 
 # In ROOT, draw the output as follows
 #
