@@ -317,7 +317,7 @@ def run(argv = None) :
       poi_spec = {}
       poi_spec['name'] = poi.GetName()
       poi_spec['min_value'] = poi.getMin()
-      poi_spec['max_vauel'] = poi.getMax()
+      poi_spec['max_value'] = poi.getMax()
       poi_specs.append(poi_spec)
     model_dict['POIs'] = poi_specs
     # NPs
