@@ -487,7 +487,7 @@ class Sample(JSONSerializable) :
          variation : NP variation, in numbers of sigmas
          normalize : if True, return the variation scaled to a +1sigma effect
       Returns:
-         per-bin relative variations
+         per-bin relative variations (shape : nbins)
     """
     if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
     imp = None
@@ -521,7 +521,7 @@ class Sample(JSONSerializable) :
          variation : list of variations to consider (default: None, uses what is available)
          is_bool   : interpolate in log (True) or linear (False) scale
       Returns:
-         Polynomial coefficients of the interpolation
+         Polynomial coefficients of the interpolation (pair of np.arrays of shape (nbins, len(variations))
     """
     if variations is not None :
       self.pos_vars[par] = [+v for v in variations ]
@@ -558,7 +558,8 @@ class Sample(JSONSerializable) :
          symmetrized per-bin relative variations
     """
     try:
-      return np.sqrt((1 + self.impact(par, +1))*(1 + self.impact(par, -1, normalize=True))) - 1
+      #return np.sqrt((1 + self.impact(par, +1))*(1 + self.impact(par, -1, normalize=True))) - 1
+      return 0.5*(self.impact(par, +1) - self.impact(par, -1))
     except Exception as inst:
       print('Symmetric impact computation failed, returning the positive impacts instead')
       print(inst)
