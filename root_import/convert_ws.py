@@ -297,7 +297,7 @@ def run(argv = None) :
     if len(variations) == 0 :
       raise ValueError('Should have at least 1 NP variation implemented for a valid model')
 
-    validation_points = np.linspace(-3, 3, 13) if options.validation_data else []
+    validation_points = np.linspace(-5, 5, 21) if options.validation_data else []
 
     # Fill the channel information
     for i, channel in enumerate(channels) :
