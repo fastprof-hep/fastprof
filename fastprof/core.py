@@ -334,18 +334,20 @@ class Model (JSONSerializable) :
      constraint_hessian (np.array): inverse of the covariance matrix of the NP constraint Gaussian
      np_nominal_values (np.array): nominal values of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
      np_variations (np.array): variations of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
-     asym_impacts (bool): use asymmetric impact terms when computing yield variation (True, default), or
+     use_asym_impacts (bool): use asymmetric impact terms when computing yield variation (True, default), or
         use symmetrized impacts instead (False).
-     linear_nps (bool): compute yield variations using an exponential form (False, default) or a linear
+     use_linear_nps (bool): compute yield variations using an exponential form (False, default) or a linear
         form (True).
-     lognormal_terms (bool): include the derivatives of the exponential terms in the NP minimization
+     use_simple_sym_impacts (bool): option to use `sym_impacts` for the linear impact factors (see :meth:`Model.linear_impacts`,
+                                    default: True).
+     use_lognormal_terms (bool): include the derivatives of the exponential terms in the NP minimization
         procedure (True) or not (False, default).
      cutoff (float): regularization term that caps the relative variations in event yields
   """    
 
   def __init__(self, pois : dict = {}, nps : dict = {}, aux_obs : dict = {}, channels : dict = {},
-               asym_impacts : bool = True, linear_nps : bool = False, lognormal_terms : bool = False,
-               variations : list = None) :
+               use_asym_impacts : bool = True, use_linear_nps : bool = False, use_simple_sym_impacts : bool = True,
+               use_lognormal_terms : bool = False, variations : list = None) :
     """Initialize Model object
         
       Args:
@@ -353,9 +355,10 @@ class Model (JSONSerializable) :
         nps      : the model NPs, as a dict mapping NP names to :class:`fastprof.elements.ModelNP` objects
         aux_obs  : the model aux. obs., as a dict mapping names to :class:`fastprof.elements.ModelAux` objects
         channels : the model channelsm as a dict mapping channel names to :class:`fastprof.elements.Channel` objects
-        asym_impacts : option to use symmetric or asymmetric NP impacts (see class description, default: True)
-        linear_nps   : option to use the linear or exp form of NP impact on yields (see class description, default: False)
-        lognormal_terms : option to include exp derivatives when minimizing nll (see class description, default: False)
+        use_asym_impacts : option to use symmetric or asymmetric NP impacts (see class description, default: True)
+        use_linear_nps   : option to use the linear or exp form of NP impact on yields (see class description, default: False)
+        use_simple_sym_impacts : option to use `sym_impacts` for the linear impacts (see :meth:`Model.linear_impacts`, default: True)
+        use_lognormal_terms : option to include exp derivatives when minimizing nll (see class description, default: False)
         variations : list of NP variations to consider (default: None -- use 1 and the largest available other one)
     """        
     super().__init__()
@@ -370,9 +373,10 @@ class Model (JSONSerializable) :
     if len(self.aux_obs) != ncons :
       raise ValueError('Number of auxiliary observables (%d) does not match the number of constrained NPs (%d)' % (len(self.aux_obs), self.ncons))
     self.channels = { channel.name : channel for channel in channels }
-    self.asym_impacts = asym_impacts
-    self.linear_nps = linear_nps
-    self.lognormal_terms = lognormal_terms
+    self.use_asym_impacts = use_asym_impacts
+    self.use_linear_nps = use_linear_nps
+    self.use_simple_sym_impacts = use_simple_sym_impacts
+    self.use_lognormal_terms = use_lognormal_terms
     self.cutoff = 0
     self.variations = variations
     self.set_internal_vars()
@@ -482,17 +486,17 @@ class Model (JSONSerializable) :
       Returns:
          Event yield modifiers
     """    
-    if self.asym_impacts :
+    if self.use_asym_impacts :
       pos_np = np.maximum(pars.nps, 0)
       neg_np = np.minimum(pars.nps, 0)
       pos2 = np.array([pos_np, np.square(pos_np)])
       neg2 = np.array([neg_np, np.square(neg_np)])
-      if self.linear_nps :
+      if self.use_linear_nps :
         return 1 + np.tensordot(self.pos_impact_coeffs, pos2.T, axes=2) + np.tensordot(self.neg_impact_coeffs, neg2.T, axes=2)
       else :
         return np.exp(np.tensordot(self.log_pos_impact_coeffs, pos2.T, axes=2) + np.tensordot(self.log_neg_impact_coeffs, neg2.T, axes=2))
     else :
-      if self.linear_nps :
+      if self.use_linear_nps :
         return 1 + self.sym_impacts.dot(pars.nps)
       else :
         return np.exp(self.log_sym_impacts.dot(pars.nps))
@@ -566,6 +570,40 @@ class Model (JSONSerializable) :
       print(inst)
       return np.Infinity
 
+  def linear_impacts(self, pars : Parameters) -> np.array :
+    """Returns the NP impacts used in linear computations
+      
+      The NP minimization for linear models assumes by definition that the impact
+      of NPs on all bin contents are linear (see package documentation). This
+      method provides an exact computation of this, i.e. the dericative of k_exp
+      wrt the NP. Since this computation is expensive, it can be replaced by
+      just `sym_impacts`, i.e. the linear impact terms at NP=0.
+      
+      Args:
+         pars : a set of parameter values
+      Returns:
+         The impact matrix for all samples, bins and NPs
+    """    
+    if self.use_simple_sym_impacts : return self.sym_impacts
+    if np.array_equal(pars.nps, np.zeros(self.nnps)) : return self.sym_impacts
+    pos_nps = np.maximum(pars.nps, 0)
+    neg_nps = np.minimum(pars.nps, 0)
+    pos_np1 = np.sign(pos_nps)
+    neg_np1 = -np.sign(neg_nps)
+    nul_nps = (pars.nps == 0)
+    if self.use_linear_nps :
+      return nul_nps*self.sym_impacts \
+        + self.pos_impact_coeffs[:,:,:,0]*pos_np1 + self.pos_impact_coeffs[:,:,:,1]*(2*pos_nps) \
+        + self.neg_impact_coeffs[:,:,:,0]*neg_np1 + self.neg_impact_coeffs[:,:,:,1]*(2*neg_nps)
+    else :
+      # For the exp case, mutiply by the exponential. Needs a bit of gymnastics since the
+      # exp has one less dimension (nnps) which happens to be the last one, while numpy
+      # automatically "broadcasts" only leading dimensions.
+      impact = nul_nps*self.sym_impacts \
+        + self.log_pos_impact_coeffs[:,:,:,0]*pos_np1 + self.log_pos_impact_coeffs[:,:,:,1]*(2*pos_nps) \
+        + self.log_neg_impact_coeffs[:,:,:,0]*neg_np1 + self.log_neg_impact_coeffs[:,:,:,1]*(2*neg_nps)
+      return (impact.T*self.k_exp(pars).T).T
+  
   def plot(self, pars : Parameters, data : 'Data' = None, channel : Channel = None, exclude : list = None, 
            variations : list = None, residuals : bool = False, canvas : plt.Figure = None) :
     """Plot the expected event yields and optionally data as well
