@@ -24,6 +24,7 @@ setrange  = 'xs:0:500'        # Workspace variable range changes
 refit   = 'xs=0'              # Use a model that is refit to the data under the specified POI values
 binning = '150:4000:1000:log' # Output binning specification
 default_sample = 'Background' # Name of sample collecting contributions that don't scale with the POIs (e.g. spurious signal)
+variations = '1,3'
 
 # PLR computation options
 hypos = '17'                  # Specification of the fit hypotheses (list of values, or just a number of points to use)
@@ -79,6 +80,7 @@ if not os.path.exists(mname) :
   args += [ '-b'        , binning ]
   args += [ '--refit'   , refit ]
   args += [ '--binned'  ]
+  args += [ '--variations', variations ]
   args += [ '-o'        , mname ]
   args += [ '-l'        , vname ]
   import convert_ws
