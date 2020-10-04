@@ -435,6 +435,14 @@ class Sample(JSONSerializable) :
           with a key for each NP, and each value itself a dict with
           keys 'pos' and 'neg', associated with the :math:`+1\sigma`
           and  :math:`-1\sigma` relative variations respectively.
+     pos_vars : internal storage of variations used to define the impact
+                coefficients for each NP (positive values only)
+     neg_vars : internal storage of variations used to define the impact
+                coefficients for each NP (negative values only)
+     pos_imps : internal storage of variations used to define the impact
+                coefficients for each NP (positive values only)
+     neg_imps : internal storage of variations used to define the impact
+                coefficients for each NP (negative values only)
   """    
 
   def __init__(self, name : str = '', norm : str = '', nominal_norm : float = None, nominal_yields : np.ndarray = None, impacts : np.ndarray = None) :
@@ -452,6 +460,10 @@ class Sample(JSONSerializable) :
     self.nominal_norm = nominal_norm
     self.nominal_yields = nominal_yields
     self.impacts = impacts
+    self.pos_vars = {}
+    self.neg_vars = {}
+    self.pos_imps = {}
+    self.neg_imps = {}
 
   def available_variations(self, par : str = None) -> list :
     """provides the available variations of the per-bin event yields for a given NP
@@ -512,19 +524,19 @@ class Sample(JSONSerializable) :
          Polynomial coefficients of the interpolation
     """
     if variations is not None :
-      pos_vars = [+v for v in variations ]
-      neg_vars = [-v for v in variations ]
+      self.pos_vars[par] = [+v for v in variations ]
+      self.neg_vars[par] = [-v for v in variations ]
     else :
       available = self.available_variations(par)
-      pos_vars = sorted([ v for v in available if v > 0 ])
-      neg_vars = sorted([ v for v in available if v < 0 ])
-    pos_imps = np.array([ self.impact(par, var) for var in pos_vars ])
-    neg_imps = np.array([ self.impact(par, var) for var in neg_vars ])
-    pos_params = np.array([ self.interpolate_impact(pos_vars, pos_imp if not is_log else np.log(1 + pos_imp)) for pos_imp in pos_imps.T ]).T
-    neg_params = np.array([ self.interpolate_impact(neg_vars, neg_imp if not is_log else np.log(1 + neg_imp)) for neg_imp in neg_imps.T ]).T
+      self.pos_vars[par] = sorted([ v for v in available if v > 0 ])
+      self.neg_vars[par] = sorted([ v for v in available if v < 0 ])
+    self.pos_imps[par] = np.array([ self.impact(par, var) for var in self.pos_vars[par] ])
+    self.neg_imps[par] = np.array([ self.impact(par, var) for var in self.neg_vars[par] ])
+    pos_params = np.array([ self.interpolate_impact(self.pos_vars[par], pos_imp if not is_log else np.log(1 + pos_imp)) for pos_imp in self.pos_imps[par].T ]).T
+    neg_params = np.array([ self.interpolate_impact(self.neg_vars[par], neg_imp if not is_log else np.log(1 + neg_imp)) for neg_imp in self.neg_imps[par].T ]).T
     return pos_params, neg_params
 
-  def interpolate_impact(self, pos : list, impacts : list) -> np.array :
+  def interpolate_impact(self, pos : list, impacts : np.array) -> np.array :
     """Returns polynomial approximant to the impact valust
       Args:
          pos : list of parameter variation values
@@ -535,7 +547,7 @@ class Sample(JSONSerializable) :
     if len(pos) != len(impacts) : raise ValueError("Cannot interpolate, number of x values (%d) doesn't match y values (%d)." % (len(pos), len(impacts)))
     vdm = np.array( [ [ p**(n+1) for n in range(0, len(pos)) ] for p in pos ] )
     #print(pos, impacts, vdm)
-    return np.linalg.inv(vdm).dot(np.array(impacts))
+    return np.linalg.inv(vdm).dot(impacts)
 
   def sym_impact(self, par : str) -> np.array :
     """Provides the symmetrized relative variations of the per-bin event yields for a given NP
