@@ -337,3 +337,44 @@ class ParBound :
     return smin + ' and ' + smax
   def __repr__(self):
     return self.__str__()
+
+
+def process_setvals(setvals : str, model : Model) -> dict :
+  par_dict = {}
+  try:
+    sets = [ a.replace(' ', '').split('=') for a in setvals.split(',') ]
+    for (var, val) in sets :
+      if not var in model.pois and not var in model.nps : raise ValueError("Parameter '%s' not defined in model." % var)
+      try :
+        float_val = float(val)
+      except ValueError as inst :
+        raise ValueError("Invalid numerical value '%s' in assignement to variable '%s'." % (val, var))
+      par_dict[var] = float_val
+  except Exception as inst :
+    print(inst)
+    raise ValueError("ERROR : invalid varaible assignment specification '%s'." % assignement)
+  return par_dict
+
+
+def process_setranges(setranges : str, model : Model) :
+  try:
+    sets = [ v.replace(' ', '').split(':') for v in setranges.split(',') ]
+    for (var, minval, maxval) in sets :
+      if not var in model.pois : raise ValueError("Parameter of interest '%s' not defined in model." % var)
+      if minval != '' :
+        try :
+          float_minval = float(minval)
+        except ValueError as inst :
+          raise ValueError("Invalid numerical value '%s' for the lower bound of variable '%s'." % (minval, var))
+        model.pois[var].min_value = float_minval
+        print("INFO : setting lower bound of %s to %g" % (var, float_minval))
+      if maxval != '' :
+        try :
+          float_maxval = float(maxval)
+        except ValueError as inst :
+          raise ValueError("Invalid numerical value '%s' for the upper bound of variable '%s'." % (maxval, var))
+        model.pois[var].max_value = float_maxval
+        print("INFO : setting upper bound of %s to %g" % (var, float_maxval))
+  except Exception as inst :
+    print(inst)
+    raise ValueError("ERROR : invalid parameter range specification '%s'." % setranges)
