@@ -1,76 +1,101 @@
 #! /usr/bin/env python
 
-__doc__ = "Plot a fast model"
-__author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
+__doc__ = """
+*Fit a model to a dataset*
+
+Performs the fit of a model (defined using the `--model-file` argument)
+to a dataset, supplied either as observed data (`--data-file` argument)
+or an Asimov dataset (`--asimov`).
+
+If a parameter hypothesis is specified (`--hypo` argument), the results
+of the test of the hypothesis in the data is also shown.
+
+Several options can be specified to account for non linear effects (`--iterations`)
+or regularize the model (`--regularize`, `--cutoff`),
+as described in the package documentation.
+"""
+__author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from fastprof import Model, Data, OptiMinimizer, NPMinimizer, QMuTilda
+from fastprof import Model, Data, OptiMinimizer, NPMinimizer, QMuTilda, process_setvals
 import matplotlib.pyplot as plt
 
 ####################################################################################################################################
 ###
 
-parser = ArgumentParser("fit_fast.py", formatter_class=ArgumentDefaultsHelpFormatter)
-parser.description = __doc__
-parser.add_argument("-m", "--model-file"       , type = str  , required=True , help="Name of JSON file defining model")
-parser.add_argument("-d", "--data-file"        , type = str  , default=''    , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
-parser.add_argument("-a", "--asimov"           , type = float, default=None  , help="Fit an Asimov dataset for the specified POI value")
-parser.add_argument("-y", "--poi-hypo"         , type = float, default=None  , help="POI hypothesis")
-parser.add_argument("-i", "--poi-initial-value", type = float, default=0     , help="POI initial value")
-parser.add_argument(      "--poi-range"        , type = str  , default='0,20', help="POI allowed range, in the form min,max")
-parser.add_argument("-r", "--regularize"       , type=float  , default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
-parser.add_argument("-l", "--log-scale"        , action='store_true'         , help="Use log scale for plotting")
-parser.add_argument("-v", "--verbosity"        , type = int  , default=0     , help="Verbosity level")
+def make_parser() :
+  parser = ArgumentParser("fit_fast.py", formatter_class=ArgumentDefaultsHelpFormatter)
+  parser.description = __doc__
+  parser.add_argument("-m", "--model-file"       , type=str  , required=True , help="Name of JSON file defining model")
+  parser.add_argument("-d", "--data-file"        , type=str  , default=''    , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
+  parser.add_argument("-y", "--hypo"             , type=str  , default=None  , help="Parameter hypothesis to test")
+  parser.add_argument("-a", "--asimov"           , type=str  , default=None  , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
+  parser.add_argument("-i", "--iterations"       , type=int  , default=1     , help="Number of iterations to perform for NP computation")
+  parser.add_argument(      "--regularize"       , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
+  parser.add_argument(      "--cutoff"           , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
+  parser.add_argument("-l", "--log-scale"        , action='store_true'       , help="Use log scale for plotting")
+  parser.add_argument("-v", "--verbosity"        , type = int, default=0     , help="Verbosity level")
+  return parser
 
-options = parser.parse_args()
-if not options :
-  parser.print_help()
-  sys.exit(0)
+def run(argv = None) :
+  parser = make_parser()
+  options = parser.parse_args()
+  if not options :
+    parser.print_help()
+    return
 
-model = Model.create(options.model_file)
-if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-if options.regularize != None : model.set_gamma_regularization(options.regularize)
-
-if options.data_file :
-  data = Data(model).load(options.data_file)
-  if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-  print('Using dataset stored in file %s.' % options.data_file)
-elif options.asimov != None :
-  data = model.generate_expected(sets)
-  print('Using Asimov dataset with %s = %g' % (full_results.poi_name, options.asimov))
-else :
-  data = Data(model).load(options.model_file)
+  model = Model.create(options.model_file)
+  if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
+  if options.regularize is not None : model.set_gamma_regularization(options.regularize)
+  if options.cutoff is not None : model.cutoff = options.cutoff
   
-if options.poi_range != '' :
-  try:
-    poi_min, poi_max = [ float(p) for p in options.poi_range.split(',') ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError('Invalid POI range specification %s, expected poi_min,poi_max' % options.poi_range)
+  if options.data_file :
+    data = Data(model).load(options.data_file)
+    if data is None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
+    print('Using dataset stored in file %s.' % options.data_file)
+  elif options.asimov is not None :
+    try :
+      sets = process_setvals(options.asimov, model)
+    except Exception as inst :
+      print(inst)
+      raise ValueError("ERROR : invalid POI specification string '%s'." % options.asimov)
+    data = model.generate_expected(sets)
+    print('Using Asimov dataset with parameters %s' % str(sets))
+  else :
+    data = Data(model).load(options.model_file)
+  
+  if options.hypo is not None :
+    try :
+      sets = process_setvals(options.hypo, model)
+    except Exception as inst :
+      print(inst)
+      raise ValueError("ERROR : invalid POI specification string '%s'." % options.hypo)
+    hypo_pars = model.expected_pars(sets)
 
-start = model.expected_pars(options.poi_initial_value if options.poi_hypo == None else options.poi_hypo)
+  opti = OptiMinimizer().set_pois_from_model(model)
+  min_nll = opti.minimize(data)
+  min_pars = opti.min_pars
+  print('Minimum: nll = %g @ pars =' % min_nll)
+  print(min_pars)
 
-opti = OptiMinimizer(data, options.poi_initial_value, (poi_min, poi_max))
-min_nll, min_poi = opti.minimize(start)
-print('Minimum: nll = %g @ POI = %g, NP values :' % (min_nll, min_poi))
-print('Global minimum :', opti.min_pars)
-min_pars = opti.min_pars
+  if options.hypo is not None :
+    tmu = opti.tmu(hypo_pars, data, hypo_pars)
+    print('tmu = %g for hypothesis' % tmu, hypo_pars)
+    print('Profiled NP values :', opti.hypo_pars)
+    if len(model.pois) == 1 :
+      asimov = model.generate_expected(0, opti, data)
+      tmu_A = opti.tmu(hypo_pars, asimov, hypo_pars)
+      q = QMuTilda(hypo_pars.pois[0], tmu, opti.free_pars.pois[0], tmu_A=tmu_A, tmu_0=tmu_A)
+      print('min_poi = % g' % opti.free_pars.pois[0])
+      print('tmu     = % g' % tmu)
+      print('q~mu    = % g' % q.value())
+      print('clsb    = % g' % q.asymptotic_pv())
+      print('cls     = % g' % q.asymptotic_cls())
+  plt.ion()
+  plt.figure(1)
+  model.plot(min_pars, data=data)
+  if options.log_scale : plt.yscale('log')
 
-if options.poi_hypo != None :
-  np_min = NPMinimizer(data)
-  print('profile NLL @ %g = %g' % (options.poi_hypo, np_min.profile_nll(options.poi_hypo)))
-  print('Profiled NP values :', np_min.min_pars)
-  min_pars = np_min.min_pars
-  tmu   = opti.tmu(options.poi_hypo, options.poi_hypo)
-  tmu_A = opti.asimov_clone(0).tmu(options.poi_hypo, options.poi_hypo)
-  q = QMuTilda(options.poi_hypo, tmu, opti.min_pars.poi, options.poi_hypo, tmu_A, tmu_A)
-  print('min_poi = % g' % opti.min_poi)
-  print('tmu     = % g' % tmu)
-  print('q~mu    = % g' % q.value())
-  print('clsb    = % g' % q.asymptotic_pv())
-  print('cls     = % g' % q.asymptotic_cls())
-plt.ion()
-plt.figure(1)
-model.plot(min_pars, data=data)
-if options.log_scale : plt.yscale('log')
+
+if __name__ == '__main__' : run()
