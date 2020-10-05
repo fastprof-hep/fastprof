@@ -64,7 +64,7 @@ class ValidationData (JSONSerializable) :
 
 
 def make_parser() :
-  parser = ArgumentParser("plot.py", formatter_class=ArgumentDefaultsHelpFormatter)
+  parser = ArgumentParser("plot_valid.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"     , type=str  , required=True, help="Name of JSON file defining model")
   parser.add_argument("-v", "--validation-data", type=str  , required=True, help="Name of JSON file containing validation data")
