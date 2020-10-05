@@ -16,8 +16,8 @@ to the POI value.
 If no POIs are provided but a dataset is, then the best-fit POIs for this dataset
 are used.
 """
+__author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
-import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from fastprof import Model, Data, Parameters, OptiMinimizer, process_setvals
 import matplotlib.pyplot as plt
@@ -40,119 +40,119 @@ def make_parser() :
   parser.add_argument("-s", "--variations" , type=str  , default=None  , help="Plot variations for parameters par1=val1[:color],par2=val2[:color]... or a single value for all parameters")
   parser.add_argument("-o", "--output-file", type=str  , default=None  , help="Output file name")
   parser.add_argument("-v", "--verbosity"  , type=int  , default=0     , help="Verbosity level")
-  
+  return parser
+
 def run(argv = None) :
   parser = make_parser()
-
-options = parser.parse_args()
-if not options :
-  parser.print_help()
-  sys.exit(0)
-
-model = Model.create(options.model_file)
-if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-if options.channel is not None and not options.channel in model.channels() : raise KeyError('Channel %s not found in model.' % options.channel)
-
-if options.data_file is not None :
-  data = Data(model).load(options.data_file)
-  if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-  print('Using dataset stored in file %s.' % options.data_file)
-elif options.asimov is not None :
-  try:
-    sets = process_setvals(options.asimov, model)
-    data = model.generate_expected(sets)
-  except Exception as inst :
-    print(inst)
-    raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
-  print('Using Asimov dataset with POIs %s.' % str(sets))
-else :
-  data = Data(model).load(options.model_file)
-
-if options.pois is not None :
-  try :
-    poi_dict = process_setvals(options.pois, model)
-  except Exception as inst :
-    print(inst)
-    raise ValueError("ERROR : invalid POI specification string '%s'." % options.pois)
-  pars = model.expected_pars(poi_dict)
-  if options.profile :
-    mini = OptiMinimizer()
-    mini.profile_nps(pars, data)
-    print('Minimum: nll = %g @ parameter values : %s' % (mini.min_nll, mini.min_pars))
-    pars = mini.min_pars
-elif data is not None :
-  mini = OptiMinimizer().set_pois_from_model(model)
-  mini.minimize(data)
-  pars = mini.min_pars
-
-xmin = None
-xmax = None
-ymin = None
-ymax = None
-if options.x_range is not None :
-  try:
-    xmin, xmax = [ float(p) for p in options.x_range.split(',') ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError('Invalid X-axis range specification %s, expected x_min,x_max' % options.x_range)
-
-if options.y_range is not None :
-  try:
-    ymin, ymax = [ float(p) for p in options.y_range.split(',') ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError('Invalid Y-axis range specification %s, expected y_min,y_max' % options.y_range)
-
+  options = parser.parse_args()
+  if not options :
+    parser.print_help()
+    return
   
-plt.ion()
-plt.figure(1)
-model.plot(pars, data=data)
-if options.log_scale : plt.yscale('log')
-if xmin is not None : plt.xlim(xmin, xmax)
-if ymin is not None : plt.ylim(ymin, ymax)
-
-variations = None
-colors = [ 'darkred', 'red', 'orange', 'lime', 'green', 'darkblue', 'purple', 'magenta' ]
-if options.variations is not None :
-  # First try the comma-separated format
-  try:
-    variations = []
-    for spec in options.variations.split(',') :
-      try :
-        varval,color = spec.split(':')
-      except:
-        varval = spec
-        color = None
-      var,val = varval.split('=')
-      try :
-        val = float(val)
-      except:
-        raise ValueError('Invalid numerical value %s.' % val)
-      if not var in model.nps : raise KeyError('Parameter %s is not defined in the model.' % var)
-      if color is None : color = colors[len(variations) % len(colors)]
-      variations.append( (var, val, color,) )
-  except:
-    variations = 'all'
+  model = Model.create(options.model_file)
+  if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
+  if options.channel is not None and not options.channel in model.channels() : raise KeyError('Channel %s not found in model.' % options.channel)
+  
+  if options.data_file is not None :
+    data = Data(model).load(options.data_file)
+    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
+    print('Using dataset stored in file %s.' % options.data_file)
+  elif options.asimov is not None :
     try:
-      var_val = float(options.variations)
-    except:
-      raise ValueError('Invalid variations specification %s : should be a comma-separated list of var=val[:color] items, or a single number')
-
-if variations == 'all' :
-  n1 = math.ceil(math.sqrt(model.nnps))
-  n2 = math.ceil(model.nnps/n1)
-  fig_nps, ax_nps = plt.subplots(nrows=n1, ncols=n2, figsize=(8, 8), dpi=96)
-  for par, ax in zip(model.nps, ax_nps.flatten()) :
-    model.plot(pars, data=data, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=ax)
-    if options.log_scale is not None : ax.set_yscale('log')
-    if xmin is not None : ax.set_xlim(xmin, xmax)
-    if ymin is not None : ax.set_ylim(ymin, ymax)
-elif variations is not None :
+      sets = process_setvals(options.asimov, model)
+      data = model.generate_expected(sets)
+    except Exception as inst :
+      print(inst)
+      raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
+    print('Using Asimov dataset with POIs %s.' % str(sets))
+  else :
+    data = Data(model).load(options.model_file)
+  
+  if options.pois is not None :
+    try :
+      poi_dict = process_setvals(options.pois, model)
+    except Exception as inst :
+      print(inst)
+      raise ValueError("ERROR : invalid POI specification string '%s'." % options.pois)
+    pars = model.expected_pars(poi_dict)
+    if options.profile :
+      mini = OptiMinimizer()
+      mini.profile_nps(pars, data)
+      print('Minimum: nll = %g @ parameter values : %s' % (mini.min_nll, mini.min_pars))
+      pars = mini.min_pars
+  elif data is not None :
+    mini = OptiMinimizer().set_pois_from_model(model)
+    mini.minimize(data)
+    pars = mini.min_pars
+  
+  xmin = None
+  xmax = None
+  ymin = None
+  ymax = None
+  if options.x_range is not None :
+    try:
+      xmin, xmax = [ float(p) for p in options.x_range.split(',') ]
+    except Exception as inst :
+      print(inst)
+      raise ValueError('Invalid X-axis range specification %s, expected x_min,x_max' % options.x_range)
+  
+  if options.y_range is not None :
+    try:
+      ymin, ymax = [ float(p) for p in options.y_range.split(',') ]
+    except Exception as inst :
+      print(inst)
+      raise ValueError('Invalid Y-axis range specification %s, expected y_min,y_max' % options.y_range)
+  
+    
+  plt.ion()
   plt.figure(1)
-  model.plot(pars, variations=variations)
+  model.plot(pars, data=data)
   if options.log_scale : plt.yscale('log')
-
-if options.output_file is not None : plt.savefig(options.output_file)
+  if xmin is not None : plt.xlim(xmin, xmax)
+  if ymin is not None : plt.ylim(ymin, ymax)
+  
+  variations = None
+  colors = [ 'darkred', 'red', 'orange', 'lime', 'green', 'darkblue', 'purple', 'magenta' ]
+  if options.variations is not None :
+    # First try the comma-separated format
+    try:
+      variations = []
+      for spec in options.variations.split(',') :
+        try :
+          varval,color = spec.split(':')
+        except:
+          varval = spec
+          color = None
+        var,val = varval.split('=')
+        try :
+          val = float(val)
+        except:
+          raise ValueError('Invalid numerical value %s.' % val)
+        if not var in model.nps : raise KeyError('Parameter %s is not defined in the model.' % var)
+        if color is None : color = colors[len(variations) % len(colors)]
+        variations.append( (var, val, color,) )
+    except:
+      variations = 'all'
+      try:
+        var_val = float(options.variations)
+      except:
+        raise ValueError('Invalid variations specification %s : should be a comma-separated list of var=val[:color] items, or a single number')
+  
+  if variations == 'all' :
+    n1 = math.ceil(math.sqrt(model.nnps))
+    n2 = math.ceil(model.nnps/n1)
+    fig_nps, ax_nps = plt.subplots(nrows=n1, ncols=n2, figsize=(8, 8), dpi=96)
+    for par, ax in zip(model.nps, ax_nps.flatten()) :
+      model.plot(pars, data=data, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=ax)
+      if options.log_scale is not None : ax.set_yscale('log')
+      if xmin is not None : ax.set_xlim(xmin, xmax)
+      if ymin is not None : ax.set_ylim(ymin, ymax)
+  elif variations is not None :
+    plt.figure(1)
+    model.plot(pars, variations=variations)
+    if options.log_scale : plt.yscale('log')
+  
+  if options.output_file is not None : plt.savefig(options.output_file)
 
 
 if __name__ == '__main__' : run()
