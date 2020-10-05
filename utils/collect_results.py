@@ -23,6 +23,7 @@ The results are plotted and written to the JSON file specfied by `--output-file`
 If `--root-output` is also provided, results are formatted as `TGraph` or
 `TGraphAsymError` ROOT objects and written to the specified ROOT file.
 """
+__author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
 # In ROOT, draw the output as follows
 #
@@ -50,10 +51,10 @@ import matplotlib.pyplot as plt
 ####################################################################################################################################
 ###
 def make_parser() :
-  parser = ArgumentParser("compute_limits.py", formatter_class=ArgumentDefaultsHelpFormatter)
+  parser = ArgumentParser("collect_results.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-p", "--positions"    , type=str  , default=''  , help="Parameter values to scan over")
-  parser.add_argument("-i", "--input-pattern", type=str  , default=''  , help="Pattern of result files to load, with the value indicated by a * or a %")
+  parser.add_argument("-i", "--input-pattern", type=str  , default=''  , help="Pattern of result files to load, with the value indicated by a * or a %%")
   parser.add_argument("-k", "--key"          , type=str  , default=''  , help="Key indexing the output result")
   parser.add_argument("-b", "--bands"        , type=int  , default=None, help="Number of expected limit bands to include")
   parser.add_argument("-e", "--errors"       , action='store_true'     , help="Include sampling uncertainties on the limit values")
@@ -67,7 +68,7 @@ def run(argv = None) :
   options = parser.parse_args()
   if not options :
     parser.print_help()
-    sys.exit(0)
+    return
   
   try:
     pos_spec = options.positions.split(':')
