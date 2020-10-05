@@ -1,7 +1,9 @@
 __doc__ = """
-*Draw a sampling distribution*
+*Plot a sampling distribution*
 
-Draws a sampling distribution in histogram form. 
+Draws in histogram form the sampling distribution
+contained in the specified input file.
+
 By default the asymptotic p-value is shown, or the 
 test statistic value can be shown instead (specified 
 using the `--t-value` option).
