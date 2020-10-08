@@ -1,9 +1,51 @@
+"""Definition of the test statistic forms used in statistical tests
+
+
+The statistical tests used in this package are based on
+test statistics derived from the profile likelihood ratio,
+defined in `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_.
+
+The classes below each define one of these test statistics,
+with the following implemented so far:
+
+* The :class:`TMu` class defines the :math:`t_{\mu}` test
+  statistic of the reference above
+
+* The :class:`QMu` class defines the :math:`q_{\mu}` test
+  statistic of the reference above
+      
+* The :class:`QMuTilda` class defines the :math:`\tilde{q}_{\mu}` test
+  statistic of the reference above
+  
+In all cases, the classes are initialized with a set of POI values
+corresponding to the tested hypothesis. They implement computations of
+the test statistic value, and of the corresponding p-value. Optionally,
+they should also be able to compute in the other direction, the
+test-statistic value for a given p-value, as well as the asymptotic
+distribution of the test statistic under the specified hypothesis.
+"""
+
 import math
 import scipy.stats
 from abc import abstractmethod
 
 # -------------------------------------------------------------------------
 class TestStatistic :
+  """Base class for test statistic classes
+  
+  Provides the basic interface for test statistic objets
+  The class is initialized with a set of POI values corresponding
+  to the tested hypothesis. It implements computations of
+  the test statistic value and of the corresponding p-value.
+  Optionally, it can also implement the reverse direction, computing
+  the test-statistic value for a given p-value.
+  It can also provide the PDF of the test statistic under the 
+  specified hypothesis.
+  
+  Attributes:
+    test_poi (float) : the POI value defining the tested
+                       hypothesis
+  """
   def __init__(self, test_poi) : 
     self.test_poi = test_poi
   def __float__(self) :
@@ -23,6 +65,11 @@ class TestStatistic :
     
 
 class TMu(TestStatistic) :
+  """The :math:`t_{\mu}` (profile-likelihood ratio) test statistic
+    
+  Attributes:
+    value (float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
+  """
   def __init__(self, test_poi, twice_dll) :
     super().__init__(test_poi)
     self.value = twice_dll
@@ -39,6 +86,17 @@ class TMu(TestStatistic) :
 
 
 class QMu(TestStatistic) :
+  """The :math:`q_{\mu}` test statistic
+    
+  Attributes:
+    tmu (float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
+    best_poi (float) : the best-fit value of the POI
+    comp_poi (float) : the value of the POI (`mu`) used in the computation of `tmu`.
+    tmu_A (float)    : the value of `tmu` computed on an Asimov dataset generated
+                       under the tested hypothesis.
+    sigma (float)    : the Asimov uncertainty on the POI, an alternate way to
+                       provide tmu_A
+  """
   def __init__(self, test_poi, tmu, best_poi, comp_poi = None, tmu_A = None, sigma = None) :
     super().__init__(test_poi)
     self.tmu = tmu
@@ -89,6 +147,15 @@ class QMu(TestStatistic) :
     return clsb/cl_b if cl_b > 0 else 1
 
 class QMuTilda(QMu) :
+  """The :math:`\tilde{q}_{\mu}` test statistic
+    
+  The class derives from :class:`QMu`, since this form of test statistic
+  is closely related to :math:`q_{\mu}`.
+    
+  Attributes:
+    tmu_0 (float)    : the value of `tmu` computed on an Asimov dataset generated
+                       under the POI=0 hypothesis.
+  """
   def __init__(self, test_poi, tmu, best_poi, comp_poi = None, tmu_A = None, tmu_0 = None) :
     super().__init__(test_poi, tmu, best_poi, comp_poi, tmu_A)
     self.tmu_0 = tmu_0 # corresponds to the mu=0 hypo
