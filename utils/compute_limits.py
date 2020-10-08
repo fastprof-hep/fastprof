@@ -165,8 +165,8 @@ def run(argv = None) :
     test_hypo = plr_data.ref_pars
     tmu_0 = fast_plr_data.test_statistics['tmu_0']
     gen0_hypo = copy.deepcopy(test_hypo).set(list(model.pois)[0], 0)
-    samplers_clsb.append(OptiSampler(model, test_hypo, gen_bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
-    samplers_cl_b.append(OptiSampler(model, test_hypo, gen_bounds, print_freq=options.print_freq, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
+    samplers_clsb.append(OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0))
+    samplers_cl_b.append(OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_A=tmu_0, tmu_0=tmu_0, gen_hypo=gen0_hypo))
 
   opti_samples = CLsSamples( \
     Samples(samplers_clsb, options.output_file), \
