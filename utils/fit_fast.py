@@ -86,7 +86,7 @@ def run(argv = None) :
     if len(model.pois) == 1 :
       asimov = model.generate_expected(0, opti, data)
       tmu_A = opti.tmu(hypo_pars, asimov, hypo_pars)
-      q = QMuTilda(hypo_pars.pois[0], tmu, opti.free_pars.pois[0], tmu_A=tmu_A, tmu_0=tmu_A)
+      q = QMuTilda(hypo_pars.pois[0], tmu, best_poi=opti.free_pars.pois[0], tmu_A=tmu_A, tmu_0=tmu_A)
       print('min_poi = % g' % opti.free_pars.pois[0])
       print('tmu     = % g' % tmu)
       print('q~mu    = % g' % q.value())

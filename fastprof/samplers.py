@@ -176,9 +176,9 @@ class OptiSampler (Sampler) :
               parameter.
     floor (float) : minimal value of the per-bin event yields to use in
                     minimization (see :class:`OptiMinimizer` for details)
-    tmu_A (float) : value of the generation-hypothesis Asimov value of
+    tmu_Amu (float) : value of the generation-hypothesis Asimov value of
                     `qmu` to use in `qmutilda` computations
-    tmu_0 (float) : value of the zero-hypothesis Asimov value of
+    tmu_A0 (float) : value of the zero-hypothesis Asimov value of
                     `qmu` to use in `qmutilda` computations
     use_qtilda (bool) : if True, use the :class:`QMuTilda` test statistic,
                         otherwise use :class:`QMu`.
@@ -186,7 +186,7 @@ class OptiSampler (Sampler) :
     debug_data (pd.DataFrame) : dataframe containing the debug information.
   """
   def __init__(self, model, test_hypo : Parameters, gen_hypo : Parameters = None, method : str = 'scalar', niter : int = 1, bounds : list = [],
-               print_freq : int = 1000, max_tries : int = 20, tmu_A : float = None, tmu_0 : float = None, floor : float = 1E-7, debug : bool = False) :
+               print_freq : int = 1000, max_tries : int = 20, tmu_Amu : float = None, tmu_A0 : float = None, floor : float = 1E-7, debug : bool = False) :
     """Initialize the OptiSampler object
         
     Args:
@@ -208,9 +208,9 @@ class OptiSampler (Sampler) :
                    generation fails
       floor : minimal value of the per-bin event yields to use in
               minimization (see :class:`OptiMinimizer` for details)
-      tmu_A : value of the generation-hypothesis Asimov value of
+      tmu_Amu : value of the generation-hypothesis Asimov value of
               `qmu` to use in `qmutilda` computations
-      tmu_0 : value of the zero-hypothesis Asimov value of
+      tmu_A0 : value of the zero-hypothesis Asimov value of
               `qmu` to use in `qmutilda` computations
       debug : if True, print out debug information
     """        
@@ -221,9 +221,9 @@ class OptiSampler (Sampler) :
     self.method = method
     self.niter = niter
     self.floor = floor
-    self.tmu_A = tmu_A
-    self.tmu_0 = tmu_0
-    self.use_qtilda = True if tmu_A != None and tmu_0 != None else False
+    self.tmu_Amu = tmu_Amu
+    self.tmu_A0 = tmu_A0
+    self.use_qtilda = True if tmu_Amu != None and tmu_A0 != None else False
     self.debug = debug
     self.debug_data = pd.DataFrame()
     
@@ -271,7 +271,7 @@ class OptiSampler (Sampler) :
       print(opti.free_pars)
       print(opti.hypo_pars)
     if self.use_qtilda :
-      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_pois[0], tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
+      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_pois[0], tmu_Amu = self.tmu_Amu, tmu_A0 = self.tmu_A0)
     else :
       q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_pois[0])
     if self.debug :
@@ -311,14 +311,14 @@ class ScanSampler (Sampler) :
                  to the generation hypothesis, but can differ
                  e.g. for :math:`CL_b` computations
     scan_mus (list) : list of POI values over which to perform the scan
-    tmu_A (float) : value of the generation-hypothesis Asimov value of
+    tmu_Amu (float) : value of the generation-hypothesis Asimov value of
                     `qmu` to use in `qmutilda` computations
-    tmu_0 (float) : value of the zero-hypothesis Asimov value of
+    tmu_A0 (float) : value of the zero-hypothesis Asimov value of
                     `qmu` to use in `qmutilda` computations
     use_qtilda (bool) : if True, use the :class:`QMuTilda` test statistic,
                         otherwise use :class:`QMu`.
   """
-  def __init__(self, model, test_hypo, scan_mus, gen_hypo = None, print_freq = 1000, tmu_A = None, tmu_0 = None) :
+  def __init__(self, model, test_hypo, scan_mus, gen_hypo = None, print_freq = 1000, tmu_Amu = None, tmu_A0 = None) :
     """Initialize the ScanSampler object
         
     Args:
@@ -331,18 +331,18 @@ class ScanSampler (Sampler) :
                   generation hypothesis (default: None, in which
                   case the test hypothesis is used.)
       print_freq : the interval at which to print out progress messages
-      tmu_A : value of the generation-hypothesis Asimov value of
+      tmu_Amu : value of the generation-hypothesis Asimov value of
               `qmu` to use in `qmutilda` computations
-      tmu_0 : value of the zero-hypothesis Asimov value of
+      tmu_A0 : value of the zero-hypothesis Asimov value of
               `qmu` to use in `qmutilda` computations
     """        
     super().__init__(model, gen_hypo, print_freq)
     self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
     if self.gen_hypo == None : self.gen_hypo = Parameters.clone(self.test_hypo)
     self.scan_mus = scan_mus
-    self.tmu_A = tmu_A
-    self.tmu_0 = tmu_0
-    self.use_qtilda = True if tmu_A != None and tmu_0 != None else False
+    self.tmu_Amu = tmu_Amu
+    self.tmu_A0 = tmu_A0
+    self.use_qtilda = True if tmu_Amu != None and tmu_A0 != None else False
     
   def compute(self, data, toy_iter) :
     """Compute the asymptotic p-value
@@ -363,7 +363,7 @@ class ScanSampler (Sampler) :
     opti = ScanMinimizer(self.scan_mus)
     tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
     if self.use_qtilda :
-      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi, tmu_A = self.tmu_A, tmu_0 = self.tmu_0)
+      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi, tmu_Amu = self.tmu_Amu, tmu_A0 = self.tmu_A0)
     else :
       q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi)
     return q.asymptotic_pv()

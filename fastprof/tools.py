@@ -58,7 +58,7 @@ class PLRData(JSONSerializable) :
     return Parameters(model=self.model).set_from_dict(self.hypo)
   def compute_tmu(self) :
     self.test_statistics['tmu'] = 2*(self.hypo_fit.nll - self.free_fit.nll)
-  def set_asimov(self, asimov_plr_data, local_key = 'tmu_0') :
+  def set_asimov(self, asimov_plr_data, local_key = 'tmu_A0') :
     self.test_statistics[local_key] = asimov_plr_data.test_statistics['tmu']
     self.asimov = asimov_plr_data
   def load_jdict(self, jdict) :
@@ -104,7 +104,7 @@ class Raster(JSONSerializable) :
     best_hypo = min(nlls, key=nlls.get)
     for plr_data in self.plr_data : plr_data.free_fit = self.plr_data[best_hypo].free_fit
 
-  def set_asimov(self, asimov_raster, local_key = 'tmu_0') :
+  def set_asimov(self, asimov_raster, local_key = 'tmu_A0') :
     if len(self.plr_data) != len(asimov_raster.plr_data) :
       raise KeyError('Cannot set Asimov scan data with a different number of hypotheses (%d instead of %d).' % (len(self.plr_data), len(asimov_raster.plr_data)))
     for plr_data, asimov_data in zip(self.plr_data.values(), asimov_raster.plr_data.values()) : 
@@ -278,11 +278,11 @@ class QMuCalculator(TestStatisticCalculator) :
   @classmethod
   def make_q(cls, plr_data) :
     return QMu(test_poi = plr_data.hypo[cls.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
-               best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_A = plr_data.test_statistics['tmu_0'])
+               best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_Amu = plr_data.test_statistics['tmu_A0'])
 
   def fill_pv(self, plr_data) :
     try :
-      # since we use tmu_A to compute CLb, we need tmu_A = tmu_0 (computed from an Asimov with mu'=0)
+      # since we use tmu_Amu to compute CLb, we need tmu_Amu = tmu_A0 (computed from an Asimov with mu'=0)
       q = self.make_q(plr_data)
       plr_data.test_statistics['q_mu'] = q.value()
       plr_data.pvs['pv' ] = q.asymptotic_pv()
@@ -302,12 +302,12 @@ class QMuTildaCalculator(TestStatisticCalculator) :
   @classmethod
   def make_q(cls, plr_data) :
     return QMuTilda(test_poi = plr_data.hypo[cls.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
-                    best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_A = plr_data.test_statistics['tmu_0'],
-                    tmu_0 = plr_data.test_statistics['tmu_0'])
+                    best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_Amu = plr_data.test_statistics['tmu_A0'],
+                    tmu_A0 = plr_data.test_statistics['tmu_A0'])
 
   def fill_pv(self, plr_data) :
     try :
-      # since we use tmu_A to compute CLb, we need tmu_A = tmu_0 (computed from an Asimov with mu'=0)
+      # since we use tmu_Amu to compute CLb, we need tmu_Amu = tmu_A0 (computed from an Asimov with mu'=0)
       q = self.make_q(plr_data)
       plr_data.test_statistics['qm~u'] = q.value()
       plr_data.pvs['pv' ] = q.asymptotic_pv()
