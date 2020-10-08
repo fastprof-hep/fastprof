@@ -11,11 +11,11 @@ into the definition file of a linear model, as follows:
 * The model PDF is also taken from the ModelConfig. Two cases are currently
   implemented:
   
-  * *The PDF is a RooAddPdf*: the components of the sum are then 
+  * *The PDF is a `RooAddPdf`*: the components of the sum are then 
     used to define the samples of a single channel. The channel
     observable is taken from the PDF, and the binning from the `-b` option.
       
-  * *The PDF is a *RooSimultaneous* : the states of the PDF are taken
+  * *The PDF is a `RooSimultaneous`* : the states of the PDF are taken
     to correspond each to a separate channel. Each channel must have a 
     PDF of *RooAddPdf* type, which is then treated as above.
 
