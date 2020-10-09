@@ -5,22 +5,23 @@
   The classes are
   
   * :class:`FitResult` : stores the result of a
-  Maximumum-likelihood (ML) fit
-  
+    Maximumum-likelihood (ML) fit
+
   * :class:`PLRData` : stores the information 
     relative to a hypothesis test based on the 
     profile-likelihood ratio (PLR), including
     the results of the 2 fits involved
-    
+
   * :class:`Raster` : stores PLR data for a 
     set of tested hypotheses
-    
+
   * :class:`TestStatisticCalculator` : perform 
     test statistic and p-value computations using
     :class:`PLRData` storage. Derived classes are
     defined for the main test statistics (for now,
     :class:`test_statistics.QMu` and 
     :class:`test_statistics.QMuTilda`.
+
 """
 
 import json
@@ -30,7 +31,7 @@ import numpy as np
 from abc import abstractmethod
 
 from .core import Model, Data, Parameters, JSONSerializable, ModelPOI
-from .minimizers import OptiMinimizer
+from .minimizers import POIMinimizer, OptiMinimizer
 from .test_statistics import QMu, QMuTilda
 
 
@@ -496,7 +497,7 @@ class Raster(JSONSerializable) :
     Method called by :meth:`print` to access various numerical values
     in the PLR data object indexed by `hypo`. `key` can be either a 
     key in the `pvs` and `test_statistics` collections, a best-fit
-    parameter value in the form 'best_' + par_name, or a hypothesis
+    parameter value in the form 'best\_' + par_name, or a hypothesis
     parameter value in the form par_name.
     
     Args:
@@ -515,7 +516,7 @@ class Raster(JSONSerializable) :
     if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
     raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
   
-  def print(self, keys : list = None, verbosity : int = 0, print_limits : bool = True, other : Raster = None) -> str :
+  def print(self, keys : list = None, verbosity : int = 0, print_limits : bool = True, other : 'Raster' = None) -> str :
     """Print a full description of the stored information
     
     Prints out the PLR information for all hypotheses. The fields
