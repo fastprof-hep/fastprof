@@ -28,7 +28,7 @@ class JSONSerializable :
   * load_json() and save_json() with JSON object arguments.
   
   Both sets are implemented in terms of the abstract methods load_jdict() and
-  save_jdict(), which operate on dictionaries and should be implemented
+  fill_jdict(), which operate on dictionaries and should be implemented
   in the derived classes.
   """
 
