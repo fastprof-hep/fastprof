@@ -96,6 +96,8 @@ def run(argv = None) :
   if not options.cutoff is None : model.cutoff = options.cutoff
 
   raster = Raster('data', model=model, filename=options.fits_file)
+  gen_hypos = {}
+  for plr_data in raster.plr_data.values() : gen_hypos[plr_data] = plr_data.hypo_fit.pars()
 
   if options.sethypo != '' :
     try:
@@ -103,9 +105,9 @@ def run(argv = None) :
       for plr_data in raster.plr_data.values() :
         for (var, val) in sets :
           if not var in plr_data.hypo : raise ValueError("Cannot find '%s' among hypothesis parameters." % var)
-          plr_data.ref_pars[var] = float(val)
-          print("INFO : setting %s=%g in reference parameters for hypothesis %s, new generation parameters are" % (var, float(val), plr_data.hypo.dict(pois_only=True)))
-          print(plr_data.ref_pars)
+          gen_hypos[plr_data][var] = float(val)
+          print("INFO : setting %s=%g in generation parameters for hypothesis %s, new generation parameters are" % (var, float(val), plr_data.hypo.dict(pois_only=True)))
+          print(gen_hypos[plr_data])
     except Exception as inst :
       print(inst)
       raise ValueError("ERROR : invalid hypo assignment string '%s'." % options.sethypo)
@@ -162,10 +164,11 @@ def run(argv = None) :
   print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(calc.minimizer.init_pois.dict(pois_only=True)), str(calc.minimizer.bounds), niter))
 
   for plr_data, fast_plr_data in zip(raster.plr_data.values(), faster.plr_data.values()) :
-    test_hypo = plr_data.ref_pars
+    test_hypo = plr_data.hypo
+    gen_hypo = gen_hypos[plr_data]
     tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
-    gen0_hypo = copy.deepcopy(test_hypo).set(list(model.pois)[0], 0)
-    samplers_clsb.append(OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0))
+    gen0_hypo = Parameters(gen_hypo).set(list(model.pois)[0], 0)
+    samplers_clsb.append(OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo))
     samplers_cl_b.append(OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo))
 
   opti_samples = CLsSamples( \
@@ -188,7 +191,7 @@ def run(argv = None) :
       for plr_data, band_point in zip(raster.plr_data.values(), sampling_bands[band]) : plr_data.pvs['sampling_cls_%+d' % band] = band_point
 
   def limit(rast, key, description, with_error=False) :
-    limit_result = rast.compute_limit(key, 1 - options.cl, with_error=with_error)
+    limit_result = rast.contour(key, 1 - options.cl, with_error=with_error)
     limit_value = limit_result if not with_error else limit_result[0]
     error_str = ''
     if with_error :

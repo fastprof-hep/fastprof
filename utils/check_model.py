@@ -18,7 +18,7 @@ observed data (`--data-file` argument) or an Asimov dataset
 
 Several options can be specified to account for non linear
 effects (`--iterations`) or regularize the model (`--regularize`,
-`--cutoff`, '--sethypo'), as described in the package documentation.
+`--cutoff`), as described in the package documentation.
 """
 __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
@@ -41,7 +41,6 @@ def make_parser() :
   parser.add_argument("-i", "--iterations"    , type=int  , default=1      , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None   , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None   , help="Cutoff to regularize the impact of NPs")
-  parser.add_argument(      "--sethypo"       , type=str  , default=None   , help="Change hypo parameter values, in the form par1=val1,par2=val2,...")
   parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu' , help="Test statistic to use in the check")
   parser.add_argument(      "--marker"        , type=str  , default=''     , help="Marker type for plots")
   parser.add_argument("-b", "--batch-mode"    , action='store_true'        , help="Batch mode: no plots shown")
@@ -63,18 +62,6 @@ def run(argv = None) :
   if options.setrange is not None : process_setranges(options.setrange, model)
 
   raster = Raster('data', model=model, filename=options.fits_file)
-  
-  if options.sethypo is not None :
-    try:
-      sets = [ v.replace(' ', '').split('=') for v in options.sethypo.split(',') ]
-      for plr_data in raster.plr_data.values() :
-        for (var, val) in sets :
-          if not var in plr_data.hypo : raise ValueError("Cannot find '%s' among hypothesis parameters." % var)
-          plr_data.ref_pars[var] = float(val)
-          print("INFO : setting %s=%g in reference parameters for %s" % (var, float(val), model.poi_name, plr_data.hypoi))
-    except Exception as inst :
-      print(inst)
-      raise ValueError("ERROR : invalid hypo assignment string '%s'." % options.sethypo)
   
   if options.data_file :
     data = Data(model).load(options.data_file)
@@ -113,7 +100,7 @@ def run(argv = None) :
     plt.xlabel(list(model.pois)[0])
     plt.ylabel('$CL_{s+b}$')
     plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ full.pvs['pv'] for full in raster.plr_data.values() ], options.marker + 'r:' , label = 'Full model')
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ fast.pvs['pv'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')
+    plt.plot([ hypo[poi.name] for hypo in faster.plr_data ], [ fast.pvs['pv'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')
     plt.legend()
   
     fig2 = plt.figure(2)
@@ -121,7 +108,7 @@ def run(argv = None) :
     plt.xlabel(list(model.pois)[0])
     plt.ylabel('$CL_s$')
     plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ full.pvs['cls'] for full in raster.plr_data.values() ], options.marker + 'r:' , label = 'Full model')
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ fast.pvs['cls'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')
+    plt.plot([ hypo[poi.name] for hypo in faster.plr_data ], [ fast.pvs['cls'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')
     plt.legend()
     fig1.savefig(options.output_file + '_clsb.pdf')
     fig2.savefig(options.output_file + '_cls.pdf')
