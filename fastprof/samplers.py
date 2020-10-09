@@ -162,7 +162,13 @@ class OptiSampler (Sampler) :
   can be passed to the class. These are applied on the best-fit
   values of the parameters in both of the fits that define `tmu`,
   and the generation is repeated if the bounds are not verified.
-  
+
+  The generated samples are asymptotic p-values for the hypothesis test in
+  each pseudo-dataset. This is equivalent to other sampling quantities such as
+  profile-likelihood values, and has the advantage of being bounded to the
+  interval :math:`[0,1]`, with a flat distribution if the asymptotic
+  approximation is valid.
+
   Attributes:
     test_hypo (Parameters) : the model parameter values defining the 
                  tested hypothesis. This is usually identical
