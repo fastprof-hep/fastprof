@@ -288,7 +288,7 @@ class Samples (SamplesBase) :
       if os.path.exists(self.file_name(hypo, '.lock')) and not break_locks :
         print('Samples for hypo = %g already being produced, skipping' % hypo)
         continue
-      print('Processing sampling distribution for hypo = %g' % hypo)
+      print('Processing sampling distribution for hypo %s' % str(hypo.dict(pois_only=True)))
       with open(self.file_name(hypo, '.lock'), 'w') as f :
         f.write(str(os.getpid()))
       self.dists[hypo] = sampler.generate(ntoys)
@@ -453,9 +453,11 @@ class CLsSamples (SamplesBase) :
     Returns :
       self
     """
-    print('Processing CL_{s+b} sampling distributions for hypo values %s' % str(self.hypos))
+    print('Processing CL_{s+b} sampling distributions for hypos: ')
+    for hypo in self.hypos : print(str(hypo.dict(pois_only=True)))
     self.clsb.generate_and_save(ntoys, break_locks, sort_before_saving)
-    print('Processing CL_b sampling distributions for hypo values %s' % str(self.hypos))
+    print('Processing CL_b sampling distributions for hypos: ')
+    for hypo in self.hypos : print(str(hypo.dict(pois_only=True)))
     self.cl_b.generate_and_save(ntoys, break_locks, sort_before_saving)
     return self
   
