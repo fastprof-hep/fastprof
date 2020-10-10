@@ -38,6 +38,7 @@ def make_parser() :
   parser.add_argument(      "--profile"    , action='store_true'       , help="Perform a conditional fit for the provided POI value before plotting")
   parser.add_argument("-l", "--log-scale"  , action='store_true'       , help="Use log scale for plotting")
   parser.add_argument("-s", "--variations" , type=str  , default=None  , help="Plot variations for parameters par1=val1[:color],par2=val2[:color]... or a single value for all parameters")
+  parser.add_argument("-r", "--residuals"  , action='store_true'       , help="Show model - data residuals in an inset plot")
   parser.add_argument("-o", "--output-file", type=str  , default=None  , help="Output file name")
   parser.add_argument("-v", "--verbosity"  , type=int  , default=0     , help="Verbosity level")
   return parser
@@ -80,10 +81,12 @@ def run(argv = None) :
       mini.profile_nps(pars, data)
       print('Minimum: nll = %g @ parameter values : %s' % (mini.min_nll, mini.min_pars))
       pars = mini.min_pars
-  elif data is not None :
+  elif data is not None and options.profile :
     mini = OptiMinimizer().set_pois_from_model(model)
     mini.minimize(data)
     pars = mini.min_pars
+  else :
+    pars = model.expected_pars(0)
   
   xmin = None
   xmax = None
@@ -105,11 +108,19 @@ def run(argv = None) :
   
     
   plt.ion()
-  plt.figure(1)
-  model.plot(pars, data=data)
-  if options.log_scale : plt.yscale('log')
-  if xmin is not None : plt.xlim(xmin, xmax)
-  if ymin is not None : plt.ylim(ymin, ymax)
+  if not options.residuals :
+    plt.figure(1, figsize=(8, 8), dpi=96)
+    model.plot(pars, data=data)
+    if options.log_scale : plt.yscale('log')
+    if xmin is not None : plt.xlim(xmin, xmax)
+    if ymin is not None : plt.ylim(ymin, ymax)
+  else :
+    fig1, ax1 = plt.subplots(nrows=2, ncols=1, figsize=(8, 8), dpi=96)
+    model.plot(pars, data=data, canvas=ax1[0])
+    if options.log_scale : ax1[0].set_yscale('log')
+    if xmin is not None : ax1[0].set_xlim(xmin, xmax)
+    if ymin is not None : ax1[0].set_ylim(ymin, ymax)
+    model.plot(pars, data=data, canvas=ax1[1], residuals=options.residuals)
   
   variations = None
   colors = [ 'darkred', 'red', 'orange', 'lime', 'green', 'darkblue', 'purple', 'magenta' ]
