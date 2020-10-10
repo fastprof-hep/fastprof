@@ -193,10 +193,11 @@ class SamplesBase :
       canvas : the matplotlib figure on which to draw (default: plt)
     """        
     colors = [ 'k', 'g', 'y', 'c', 'b' ]
+    hypos = [ hypo[hypo.model.poi(0).name] for hypo in self.hypos ]
     bands = self.bands(max_sigma)
     for i in reversed(range(1, max_sigma + 1)) :
-      canvas.fill_between(self.hypos, bands[+i], bands[-i], color=colors[i])
-    canvas.plot(self.hypos, bands[0], 'k--')
+      canvas.fill_between(hypos, bands[+i], bands[-i], color=colors[i])
+    canvas.plot(hypos, bands[0], 'k--')
 
 
 # -------------------------------------------------------------------------
@@ -239,7 +240,7 @@ class Samples (SamplesBase) :
       raise ValueError('Should specify either samplers or hypotheses, but not both.')
     if len(samplers) == 0 and len(hypos) == 0 :
       raise ValueError('Should specify either samplers or hypotheses.')
-    if len(samplers) > 0  and len(hypos) == 0 : hypos = [ sampler.test_hypo.hypos[0] for sampler in samplers ]
+    if len(samplers) > 0  and len(hypos) == 0 : hypos = [ sampler.test_hypo for sampler in samplers ]
     super().__init__(hypos)
     self.samplers = samplers
     self.file_root = file_root
@@ -254,7 +255,9 @@ class Samples (SamplesBase) :
     Returns :
       a normalized file name, without extension
     """
-    return self.file_root + '_%g' % hypo + suffix
+    poi_vals = hypo.dict(pois_only=True)
+    fields = [ self.file_root ] + [ '%g' % val for val in poi_vals.values() ]
+    return '_'.join(fields) + suffix
   
   def generate_and_save(self, ntoys : int, break_locks : bool = False, sort_before_saving : bool = True) -> 'Samples' :
     """Generate and save the sampling distribution for all hypothesis values
@@ -278,7 +281,7 @@ class Samples (SamplesBase) :
       raise ValueError('Cannot generate as no samplers were specified.')
     for hypo, sampler in zip(self.hypos, self.samplers) :
       if os.path.exists(self.file_name(hypo, '.npy')) :
-        print('Samples for hypo = %g already produced, just loading (%d samples from %s)' % (hypo, ntoys, self.file_name(hypo, '.npy')))
+        print('Samples for hypo = %s already produced, just loading (%d samples from %s)' % (str(hypo.dict(pois_only=True)), ntoys, self.file_name(hypo, '.npy')))
         self.dists[hypo] = SamplingDistribution(ntoys)
         self.dists[hypo].load(self.file_name(hypo, '.npy'))
         continue
