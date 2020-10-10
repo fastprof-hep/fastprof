@@ -412,7 +412,7 @@ class QMuTilda(QMu) :
 
     Returns:
        the non-centrality parameter
-    """        
+    """
     if self.tmu_A0 < 0 :
       print('WARNING: q~mu threshold = % g < 0, returning 0' % self.tmu_A0)
       return 0
@@ -478,4 +478,4 @@ class QMuTilda(QMu) :
     Returns:
        the :math:'CL_b` value
     """        
-    return QMuTilda(0, self.tmu, self.best_poi, self.comp_poi, self.tmu_A0, self.tmu_A0).asymptotic_pv()
+    return QMuTilda(0, tmu=self.tmu, best_poi=self.best_poi, comp_poi=self.comp_poi, tmu_Amu=self.tmu_A0, tmu_A0=self.tmu_A0).asymptotic_pv()
