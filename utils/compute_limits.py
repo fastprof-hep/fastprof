@@ -51,7 +51,7 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound
+from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound
 
 ####################################################################################################################################
 ###
@@ -106,8 +106,7 @@ def run(argv = None) :
         for (var, val) in sets :
           if not var in plr_data.hypo : raise ValueError("Cannot find '%s' among hypothesis parameters." % var)
           gen_hypos[plr_data][var] = float(val)
-          print("INFO : setting %s=%g in generation parameters for hypothesis %s, new generation parameters are" % (var, float(val), plr_data.hypo.dict(pois_only=True)))
-          print(gen_hypos[plr_data])
+          print("INFO : setting %s=%g in generation parameters for hypothesis %s." % (var, float(val), plr_data.hypo.dict(pois_only=True)))
     except Exception as inst :
       print(inst)
       raise ValueError("ERROR : invalid hypo assignment string '%s'." % options.sethypo)
@@ -167,9 +166,13 @@ def run(argv = None) :
     test_hypo = plr_data.hypo
     gen_hypo = gen_hypos[plr_data]
     tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
-    gen0_hypo = Parameters(gen_hypo).set(list(model.pois)[0], 0)
-    samplers_clsb.append(OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo))
-    samplers_cl_b.append(OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo))
+    gen0_hypo = gen_hypo.clone().set(model.poi(0).name, 0)
+    clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
+    cl_b = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo)
+    plr_data.free_fit.set_poi_values_and_ranges(clsb.minimizer)
+    plr_data.free_fit.set_poi_values_and_ranges(cl_b.minimizer)
+    samplers_clsb.append(clsb)
+    samplers_cl_b.append(cl_b)
 
   opti_samples = CLsSamples( \
     Samples(samplers_clsb, options.output_file), \
@@ -181,9 +184,9 @@ def run(argv = None) :
   poi = raster.pois()[list(raster.pois())[0]]
 
   for plr_data in raster.plr_data.values() :
-    plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'], with_error=True)
-    plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo[poi.name], plr_data.pvs['pv'], with_error=True)
-    plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo[poi.name], plr_data.pvs['pv'], with_error=True)
+    plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
+    plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
+    plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo, plr_data.pvs['pv'], with_error=True)
 
   if options.bands :
     sampling_bands = opti_samples.bands(options.bands)
@@ -219,7 +222,7 @@ def run(argv = None) :
     plt.ion()
     fig1 = plt.figure(1)
     plt.suptitle('$CL_{s+b}$')
-    plt.xlabel(list(model.pois)[0])
+    plt.xlabel(model.poi(0).name)
     plt.ylabel('$CL_{s+b}$')
     plt.fill_between([ hypo[poi.name] for hypo in raster.plr_data ],
                      [ plr_data.pvs['sampling_pv'][0] + plr_data.pvs['sampling_pv'][1] for plr_data in raster.plr_data.values() ],
@@ -232,7 +235,7 @@ def run(argv = None) :
 
     fig2 = plt.figure(2)
     plt.suptitle('$CL_s$')
-    plt.xlabel(list(model.pois)[0])
+    plt.xlabel(model.poi(0).name)
     plt.ylabel('$CL_s$')
     if options.bands :
       opti_samples.plot_bands(options.bands)
@@ -249,7 +252,7 @@ def run(argv = None) :
 
   jdict = {}
   jdict['cl'] = options.cl
-  jdict['poi'] = list(model.pois)[0]
+  jdict['poi'] = model.poi(0).name
   jdict['limit_sampling_CLs']    = limit_sampling_cls[0]
   jdict['limit_sampling_CLs_up'] = limit_sampling_cls[1]
   jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[2]
