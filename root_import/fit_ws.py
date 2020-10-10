@@ -146,7 +146,13 @@ def run(argv = None) :
 
   if options.binned :
     unbinned_data = data
-    data = make_binned(data, ROOT.RooArgList(mconfig.GetObservables())[0], options.input_bins)
+    rebinnings = {}
+    if options.input_bins > 0 :
+      obs_list = ROOT.RooArgList(mconfig.GetObservables())
+      for i in range(0, obs_list.getSize()) : rebinnings[obs_list.at(i)] = options.input_bins
+    data = make_binned(data, rebinnings)
+  else :
+    unbinned_data = data
 
   poi.setVal(0)
   poi.setConstant(True)
