@@ -532,8 +532,15 @@ class Sample(JSONSerializable) :
       self.neg_vars[par] = sorted([ v for v in available if v < 0 ])
     self.pos_imps[par] = np.array([ self.impact(par, var) for var in self.pos_vars[par] ])
     self.neg_imps[par] = np.array([ self.impact(par, var) for var in self.neg_vars[par] ])
-    pos_params = np.array([ self.interpolate_impact(self.pos_vars[par], pos_imp if not is_log else np.log(1 + pos_imp)) for pos_imp in self.pos_imps[par].T ]).T
-    neg_params = np.array([ self.interpolate_impact(self.neg_vars[par], neg_imp if not is_log else np.log(1 + neg_imp)) for neg_imp in self.neg_imps[par].T ]).T
+    try:
+      max_impact = 1E3
+      pos_imp_vals = [ pos_imp if not is_log else np.log(np.maximum(np.minimum(1 + pos_imp, max_impact), 1/max_impact)) for pos_imp in self.pos_imps[par].T ]
+      neg_imp_vals = [ neg_imp if not is_log else np.log(np.maximum(np.minimum(1 + neg_imp, max_impact), 1/max_impact)) for neg_imp in self.neg_imps[par].T ]
+      pos_params = np.array([ self.interpolate_impact(self.pos_vars[par], pos_imp) for pos_imp in pos_imp_vals ]).T
+      neg_params = np.array([ self.interpolate_impact(self.neg_vars[par], neg_imp) for neg_imp in neg_imp_vals ]).T
+    except Exception as inst:
+      print("ERROR: impact computation failed for parameter '%s'" % par)
+      raise(inst)
     return pos_params, neg_params
 
   def interpolate_impact(self, pos : list, impacts : np.array) -> np.array :
