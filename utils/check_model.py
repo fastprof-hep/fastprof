@@ -90,7 +90,7 @@ def run(argv = None) :
   calc.fill_all_pv(raster)
   faster = calc.compute_fast_results(raster, data)
   raster.print(verbosity = options.verbosity, other=faster)
-  
+  if options.verbosity > 2 : print(str(faster))
   # Plot results
   if not options.batch_mode :
     poi = raster.pois()[list(raster.pois())[0]]
