@@ -434,6 +434,17 @@ class Model (JSONSerializable) :
       if par.constraint is None : break # we've reached the end of the constrained NPs in the NP list
       self.constraint_hessian[p,p] = 1/par.constraint**2
 
+  def poi(self, index : str) -> ModelPOI :
+    """Returns a POI object by index
+        
+      Args:
+         index : the index of the POI
+      Returns:
+         a POI object
+    """    
+    pois = list(self.pois.values())
+    return pois[index] if index < len(pois) else None
+
   def channel(self, name : str) -> Channel :
     """Returns a channel object by name
         
@@ -622,7 +633,7 @@ class Model (JSONSerializable) :
          exclude    : list of sample names to exclude from the plot
          variations : list of NP variations to plot, as a list of (str, float) pairs
                       providing the NP name and the value to set.
-         residuals  : if True, also show an inset plot with the data-model difference
+         residuals  : if True,  plot the data-model differences
          canvas     : a matplotlib Figure on which to plot (if None, plt.gca() is used)
     """    
     if canvas is None : canvas = plt.gca()
