@@ -8,7 +8,9 @@ def process_setvals(setvals, ws, parse_only = False) :
       if not ws.var(var) :
         raise ValueError("ERROR: Cannot find variable '%s' in workspace" % var)
       save_val = ws.var(var).getVal()
-      if not parse_only : ws.var(var).setVal(float(val))
+      if not parse_only :
+        ws.var(var).setVal(float(val))
+        print('Setting %s = %g' % (var, float(val)))
       output.append((ws.var(var), float(val), save_val))
   except Exception as inst :
     print(inst)
