@@ -97,7 +97,7 @@ def run(argv = None) :
     plt.ion()
     fig1 = plt.figure(1)
     plt.suptitle('$CL_{s+b}$')
-    plt.xlabel(list(model.pois)[0])
+    plt.xlabel(model.poi(0).name)
     plt.ylabel('$CL_{s+b}$')
     plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ full.pvs['pv'] for full in raster.plr_data.values() ], options.marker + 'r:' , label = 'Full model')
     plt.plot([ hypo[poi.name] for hypo in faster.plr_data ], [ fast.pvs['pv'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')
@@ -105,7 +105,7 @@ def run(argv = None) :
   
     fig2 = plt.figure(2)
     plt.suptitle('$CL_s$')
-    plt.xlabel(list(model.pois)[0])
+    plt.xlabel(model.poi(0).name)
     plt.ylabel('$CL_s$')
     plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ full.pvs['cls'] for full in raster.plr_data.values() ], options.marker + 'r:' , label = 'Full model')
     plt.plot([ hypo[poi.name] for hypo in faster.plr_data ], [ fast.pvs['cls'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')

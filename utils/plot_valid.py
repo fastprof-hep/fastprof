@@ -46,7 +46,7 @@ class ValidationData (JSONSerializable) :
     if filename != '' : self.load(filename)
 
   def load_jdict(self, jdict) :
-    self.poi        = jdict[list(self.model.pois)[0]]
+    self.poi        = jdict[model.poi(0).name]
     self.points     = jdict['points']
     self.variations = {}
     for chan in self.model.channels :
@@ -117,7 +117,7 @@ def run(argv = None) :
     sample = list(channel.samples.values())[0]
   
   data = ValidationData(model, options.validation_data)
-  print('Validating for POI value %s = %g' % (list(model.pois)[0], data.poi))
+  print('Validating for POI value %s = %g' % (model.poi(0).name, data.poi))
   plt.ion()
   nplots = model.nnps
   nc = math.ceil(math.sqrt(nplots))
