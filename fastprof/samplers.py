@@ -190,9 +190,11 @@ class OptiSampler (Sampler) :
                         otherwise use :class:`QMu`.
     debug (bool) : if True, print out debug information
     debug_data (pd.DataFrame) : dataframe containing the debug information.
+    minimizer (OptiMinimizer) : the minimizer object
   """
   def __init__(self, model, test_hypo : Parameters, gen_hypo : Parameters = None, method : str = 'scalar', niter : int = 1, bounds : list = [],
-               print_freq : int = 1000, max_tries : int = 20, tmu_Amu : float = None, tmu_A0 : float = None, floor : float = 1E-7, debug : bool = False) :
+               print_freq : int = 1000, max_tries : int = 20, tmu_Amu : float = None, tmu_A0 : float = None, floor : float = 1E-7,
+               debug : bool = False) :
     """Initialize the OptiSampler object
         
     Args:
@@ -232,6 +234,8 @@ class OptiSampler (Sampler) :
     self.use_qtilda = True if tmu_Amu != None and tmu_A0 != None else False
     self.debug = debug
     self.debug_data = pd.DataFrame()
+    self.minimizer = OptiMinimizer(self.method, self.niter, self.floor).set_pois_from_model(self.model)
+    if self.debug : self.minimizer.debug = 2
     
   def compute(self, data, toy_iter) :
     """Compute the asymptotic p-value
@@ -254,32 +258,30 @@ class OptiSampler (Sampler) :
     Returns:
       the computed p-value, or `None` if the computation fails
     """        
-    opti = OptiMinimizer(self.method, self.niter, self.floor).set_pois_from_model(self.model)
-    if self.debug : opti.debug = 2
-    tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
+    tmu = self.minimizer.tmu(self.test_hypo, data, self.test_hypo)
     if tmu < 1E-7 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
-      if self.debug and opti.tmu_debug < -10 :
+      if self.debug and self.minimizer.tmu_debug < -10 :
         os.makedirs('data', exist_ok=True)
         data.save('data/debug_data_neg_tmu_%d.json' % toy_iter)
       return None
     for bound in self.bounds :
-      if not bound.test(opti.free_deltas) :
+      if not bound.test(self.minimizer.free_deltas) :
         print('Warning: free fit parameters below fail bound %s' % str(bound))
-        print(opti.free_pars)
+        print(self.minimizer.free_pars)
         return None
-      if not bound.test(opti.hypo_deltas) :
+      if not bound.test(self.minimizer.hypo_deltas) :
         print('Warning: hypothesis fit parameters below fail bound %s' % str(bound))
-        print(opti.hypo_pars)
+        print(self.minimizer.hypo_pars)
         return None
     if self.debug :
-      print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' % (self.mu0, *self.poi_bounds, tmu, opti.min_poi))
-      print(opti.free_pars)
-      print(opti.hypo_pars)
+      print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' % (self.mu0, *self.poi_bounds, tmu, self.minimizer.min_poi))
+      print(self.minimizer.free_pars)
+      print(self.minimizer.hypo_pars)
     if self.use_qtilda :
-      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_pois[0], tmu_Amu = self.tmu_Amu, tmu_A0 = self.tmu_A0)
+      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = self.minimizer.min_pois[0], tmu_Amu = self.tmu_Amu, tmu_A0 = self.tmu_A0)
     else :
-      q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_pois[0])
+      q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = self.minimizer.min_pois[0])
     if self.debug :
       if self.debug_data.shape[0] == 0 :
         columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev', 'ntries' ]
@@ -288,14 +290,14 @@ class OptiSampler (Sampler) :
         self.debug_data = pd.DataFrame(columns=columns)
       self.debug_data.at[toy_iter, 'pv'      ] = q.asymptotic_pv()
       self.debug_data.at[toy_iter, 'tmu'     ] = tmu
-      self.debug_data.at[toy_iter, 'mu_hat'  ] = opti.min_poi
-      self.debug_data.at[toy_iter, 'free_nll'] = opti.free_nll
-      self.debug_data.at[toy_iter, 'hypo_nll'] = opti.hypo_nll
-      self.debug_data.at[toy_iter, 'nfev'    ] = opti.nfev
+      self.debug_data.at[toy_iter, 'mu_hat'  ] = self.minimizer.min_poi
+      self.debug_data.at[toy_iter, 'free_nll'] = self.minimizer.free_nll
+      self.debug_data.at[toy_iter, 'hypo_nll'] = self.minimizer.hypo_nll
+      self.debug_data.at[toy_iter, 'nfev'    ] = self.minimizer.nfev
       self.debug_data.at[toy_iter, 'ntries'  ] = self.ntries
       for i, p in enumerate(self.model.nps) :
-        self.debug_data.at[toy_iter, 'free_' + p] = opti.free_pars[p]
-        self.debug_data.at[toy_iter, 'hypo_' + p] = opti.hypo_pars[p]
+        self.debug_data.at[toy_iter, 'free_' + p] = self.minimizer.free_pars[p]
+        self.debug_data.at[toy_iter, 'hypo_' + p] = self.minimizer.hypo_pars[p]
         self.debug_data.at[toy_iter, 'aux_'  + p] = data.aux_obs[i]
       data.save('data/debug_data_%d.json' % toy_iter)
     return q.asymptotic_pv()
@@ -308,7 +310,7 @@ class ScanSampler (Sampler) :
   
   Provides an implementation of :class:`Sampler` in which the
   p-value computation in the meth:`compute` method is performed
-  using :class:`OptiMinimizer`, which implements a simple scan
+  using :class:`ScanMinimizer`, which implements a simple scan
   over the POIs.
   
   Attributes:
