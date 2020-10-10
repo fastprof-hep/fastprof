@@ -249,7 +249,7 @@ class PLRData(JSONSerializable) :
     Returns:
       A string describing the object contents
     """        
-    s = 'Profile-likelihood ratio data for hypothesis:' + str(self.hypo.dict(pois_only=True))
+    s = "Profile-likelihood ratio data '%s' for hypothesis:" % self.name + str(self.hypo.dict(pois_only=True))
     s += '\n  test statistics : %s' % str(self.test_statistics)
     s += '\n  p-values : %s' % str(self.pvs)
     s += '\n  Unconditional fit:' + str(self.free_fit)
@@ -448,8 +448,9 @@ class Raster(JSONSerializable) :
     finder = scipy.interpolate.InterpolatedUnivariateSpline(interp_hypos, interp_pvs, k=order)
     roots = finder.roots()
     if len(roots) == 0 :
-      print("No solution found for %s = %g. Interpolation set:" % (name, target_pv))
-      print([(h,v) for h,v in zip(interp_hypos, interp_pvs)])
+      print("No solution found for %s = %g." % (name, target_pv))
+      #print("No solution found for %s = %g. Interpolation set:" % (name, target_pv))
+      #print([(h,v) for h,v in zip(interp_hypos, interp_pvs)])
       return None
     if len(roots) > 1 :
       print('Multiple solutions found for %s = %g (%s), returning the first one' % (name, target_pv, str(roots)))
@@ -587,6 +588,10 @@ class Raster(JSONSerializable) :
         limit = other.contour('cls', 0.05)
         limit_str = '%g' % limit if limit != None else 'not computable'
         s += '\n' + "Asymptotic 95%% CLs limit for raster '%s' = %s" % (other.name, limit_str)
+    if verbosity > 2 :
+      for hypo, plr_data in self.plr_data.items() :
+        s += '\nHypo :' + str(hypo.dict(pois_only=True))
+        s += '\n' + str(plr_data)
     print(s)
     return s
 
