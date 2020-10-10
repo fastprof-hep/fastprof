@@ -50,7 +50,7 @@ def process_setranges(setranges, ws) :
 
 
 def make_binned(dataset, rebinnings) :
-  for obs, bins in rebinnings : obs.setBins(bins)
+  for obs, bins in rebinnings.items() : obs.setBins(bins)
   return dataset.binnedClone()
 
 
