@@ -290,7 +290,6 @@ def run(argv = None) :
 
   jdict['data'] = data_specs
   jdict['asimov'] = asimov_specs
-  print(jdict)
   with open(options.output_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
 
