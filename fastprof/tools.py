@@ -77,6 +77,22 @@ class FitResult(JSONSerializable) :
     par_dict = { par.name : par.value for par in self.fitpars.values() }
     return Parameters(par_dict, model=self.model).set_from_dict(par_dict, unscaled_nps=True)
 
+  def set_poi_values_and_ranges(self, minimizer : OptiMinimizer) :
+    """Set POI initial values and ranges from the fit
+    
+    Updates the initial values and ranges of the POIs
+    in the minimizer objects to those stored in the fit
+      
+    Args:
+      minimizer : minimizer object to update
+    """
+    if minimizer.init_pois is None :
+      minimizer.init_pois = self.pars()
+    else :
+      minimizer.init_pois.set_from_dict(self.pars().dict(pois_only=True))
+    minimizer.bounds = { poi_name : (self.fitpars[poi_name].min_value, self.fitpars[poi_name].max_value) for poi_name in self.model.pois }
+    return self
+
   def load_jdict(self, jdict : dict) -> 'FitResult' :
     """Loads the object data
     
@@ -716,6 +732,7 @@ class TestStatisticCalculator :
     """        
     fast_plr_data = {}
     for i, plr_data in enumerate(raster.plr_data.values()) :
+      plr_data.free_fit.set_poi_values_and_ranges(self.minimizer)
       fast_plr_data[plr_data.hypo] = self.compute_fast_q(plr_data.hypo, data, '%s_%g' % (name, i))
     fast = Raster(name, fast_plr_data)
     self.fill_all_pv(fast)
@@ -802,7 +819,7 @@ class QMuTildaCalculator(TestStatisticCalculator) :
       plr_data : an object containing PLR information
     Returns:
       the test statistic
-    """        
+    """
     return QMuTilda(test_poi = plr_data.hypo[cls.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
                     best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_Amu = plr_data.test_statistics['tmu_A0'],
                     tmu_A0 = plr_data.test_statistics['tmu_A0'])
