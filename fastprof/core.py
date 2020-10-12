@@ -664,7 +664,7 @@ class Model (JSONSerializable) :
       for ex in exclude :
         if not ex in channel.samples : raise ValueError('Sample %s is not defined.' % ex)
         samples.append(list(channel.samples).index(ex))
-      tot_exp = nexp[samples,:].sum(axis=0)
+      tot_exp = nexp.sum(axis=0) - nexp[samples,:].sum(axis=0)
       line_style = '--'
       title = 'Model excluding ' + ','.join(exclude)     
     yvals = tot_exp if not residuals or not data else tot_exp - data.counts
@@ -682,7 +682,7 @@ class Model (JSONSerializable) :
         style = '--' if v[1] > 0 else '-.'
         tot_exp = self.n_exp(vpars)[:,offset:offset + channel.nbins()].sum(axis=0)
         canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
-        canvas.legend()
+    canvas.legend()
     canvas.set_title(self.name)
     canvas.set_xlabel('$' + channel.obs_name + '$' + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
     canvas.set_ylabel('Events / bin')
