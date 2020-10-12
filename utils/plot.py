@@ -22,25 +22,27 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from fastprof import Model, Data, Parameters, OptiMinimizer, process_setvals
 import matplotlib.pyplot as plt
 import math
+import os
 
 ####################################################################################################################################
 ###
 def make_parser() :
   parser = ArgumentParser("plot.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
-  parser.add_argument("-m", "--model-file" , type=str  , required=True , help="Name of JSON file defining model")
-  parser.add_argument("-c", "--channel"    , type=str  , default=None  , help="Name of selected channel (default: first one in the model)")
-  parser.add_argument("-p",  "--pois"      , type=str  , default=None  , help="POI values, in the form par1=val1,par2=val2,...")
-  parser.add_argument("-d", "--data-file"  , type=str  , default=None  , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
-  parser.add_argument("-a", "--asimov"     , type=str  , default=None  , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
-  parser.add_argument("-x", "--x-range"    , type=str  , default=None  , help="X-axis range, in the form min,max")
-  parser.add_argument("-y", "--y-range"    , type=str  , default=None  , help="Y-axis range, in the form min,max")
-  parser.add_argument(      "--profile"    , action='store_true'       , help="Perform a conditional fit for the provided POI value before plotting")
-  parser.add_argument("-l", "--log-scale"  , action='store_true'       , help="Use log scale for plotting")
-  parser.add_argument("-s", "--variations" , type=str  , default=None  , help="Plot variations for parameters par1=val1[:color],par2=val2[:color]... or a single value for all parameters")
-  parser.add_argument("-r", "--residuals"  , action='store_true'       , help="Show model - data residuals in an inset plot")
-  parser.add_argument("-o", "--output-file", type=str  , default=None  , help="Output file name")
-  parser.add_argument("-v", "--verbosity"  , type=int  , default=0     , help="Verbosity level")
+  parser.add_argument("-m", "--model-file"  , type=str  , required=True , help="Name of JSON file defining model")
+  parser.add_argument("-c", "--channel"     , type=str  , default=None  , help="Name of selected channel (default: first one in the model)")
+  parser.add_argument("-e", "--plot-without", type=str  , default=None  , help="Name of samples to exclude in a second (dashed) model line")
+  parser.add_argument("-p", "--setval"      , type=str  , default=None  , help="Parameter values, in the form par1=val1,par2=val2,...")
+  parser.add_argument("-d", "--data-file"   , type=str  , default=None  , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
+  parser.add_argument("-a", "--asimov"      , type=str  , default=None  , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
+  parser.add_argument("-x", "--x-range"     , type=str  , default=None  , help="X-axis range, in the form min,max")
+  parser.add_argument("-y", "--y-range"     , type=str  , default=None  , help="Y-axis range, in the form min,max")
+  parser.add_argument(      "--profile"     , action='store_true'       , help="Perform a conditional fit for the provided POI value before plotting")
+  parser.add_argument("-l", "--log-scale"   , action='store_true'       , help="Use log scale for plotting")
+  parser.add_argument("-s", "--variations"  , type=str  , default=None  , help="Plot variations for parameters par1=val1[:color],par2=val2[:color]... or a single value for all parameters")
+  parser.add_argument("-r", "--residuals"   , action='store_true'       , help="Show model - data residuals in an inset plot")
+  parser.add_argument("-o", "--output-file" , type=str  , default=None  , help="Output file name")
+  parser.add_argument("-v", "--verbosity"   , type=int  , default=0     , help="Verbosity level")
   return parser
 
 def run(argv = None) :
@@ -69,12 +71,12 @@ def run(argv = None) :
   else :
     data = Data(model).load(options.model_file)
   
-  if options.pois is not None :
+  if options.setval is not None :
     try :
-      poi_dict = process_setvals(options.pois, model)
+      poi_dict = process_setvals(options.setval, model)
     except Exception as inst :
       print(inst)
-      raise ValueError("ERROR : invalid POI specification string '%s'." % options.pois)
+      raise ValueError("ERROR : invalid POI specification string '%s'." % options.setval)
     pars = model.expected_pars(poi_dict)
     if options.profile :
       mini = OptiMinimizer()
@@ -105,12 +107,12 @@ def run(argv = None) :
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid Y-axis range specification %s, expected y_min,y_max' % options.y_range)
-  
-    
+
   plt.ion()
   if not options.residuals :
     plt.figure(1, figsize=(8, 8), dpi=96)
     model.plot(pars, data=data)
+    if options.plot_without is not None : model.plot(pars, exclude=options.plot_without)
     if options.log_scale : plt.yscale('log')
     if xmin is not None : plt.xlim(xmin, xmax)
     if ymin is not None : plt.ylim(ymin, ymax)
@@ -121,6 +123,7 @@ def run(argv = None) :
     if xmin is not None : ax1[0].set_xlim(xmin, xmax)
     if ymin is not None : ax1[0].set_ylim(ymin, ymax)
     model.plot(pars, data=data, canvas=ax1[1], residuals=options.residuals)
+  if options.output_file is not None : plt.savefig(options.output_file)
   
   variations = None
   colors = [ 'darkred', 'red', 'orange', 'lime', 'green', 'darkblue', 'purple', 'magenta' ]
@@ -152,18 +155,21 @@ def run(argv = None) :
   if variations == 'all' :
     n1 = math.ceil(math.sqrt(model.nnps))
     n2 = math.ceil(model.nnps/n1)
-    fig_nps, ax_nps = plt.subplots(nrows=n1, ncols=n2, figsize=(8, 8), dpi=96)
+    fig_nps, ax_nps = plt.subplots(nrows=n1, ncols=n2, figsize=(18, 12), dpi=96)
+    for i in range(len(model.nps), n1*n2) : fig_nps.delaxes(ax_nps.flatten()[i])
     for par, ax in zip(model.nps, ax_nps.flatten()) :
       model.plot(pars, data=data, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=ax)
-      if options.log_scale is not None : ax.set_yscale('log')
+      if options.log_scale : ax.set_yscale('log')
       if xmin is not None : ax.set_xlim(xmin, xmax)
       if ymin is not None : ax.set_ylim(ymin, ymax)
   elif variations is not None :
     plt.figure(1)
     model.plot(pars, variations=variations)
     if options.log_scale : plt.yscale('log')
+  if options.output_file is not None :
+    split_name = os.path.splitext(options.output_file)
+    plt.savefig(split_name[0] + '_variations' + split_name[1])
   
-  if options.output_file is not None : plt.savefig(options.output_file)
 
 
 if __name__ == '__main__' : run()
