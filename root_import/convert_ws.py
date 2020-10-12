@@ -86,7 +86,7 @@ def make_parser() :
   parser.add_argument(      "--regularize"       , type=float, default=0        , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
   parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
-  parser.add_argument("-l", "--validation-data"  , type=str  , default=''       , help="Name of output file for validation data")
+  parser.add_argument("-l", "--validation-output", type=str  , default=None     , help="Name of output file for validation data")
   parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
   return parser
 
@@ -102,6 +102,7 @@ def run(argv = None) :
 
   # 1 - Parse bin specifications, retrieve workspace contents
   # ---------------------------------------------------------
+
   try:
     binspec = options.binning.split(':')
     if len(binspec) == 4 and binspec[3] == 'log' :
@@ -297,7 +298,7 @@ def run(argv = None) :
     if len(variations) == 0 :
       raise ValueError('Should have at least 1 NP variation implemented for a valid model')
 
-    validation_points = np.linspace(-5, 5, 21) if options.validation_data else []
+    validation_points = np.linspace(-5, 5, 21) if options.validation_output != '' else []
 
     # Fill the channel information
     for i, channel in enumerate(channels) :
@@ -417,10 +418,10 @@ def run(argv = None) :
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
 
 
-  # 11 - If requested, also dump validation information
-  # --------------------------------------------------
+  # 11 - Also dump validation information unless deactivated
+  # --------------------------------------------------------
 
-  if options.validation_data :
+  if options.validation_output != '' :
     valid_lists = {}
     for poi in pois : valid_lists[poi.GetName()] = poi.getVal()
     valid_lists['points'] = validation_points.tolist()
@@ -429,7 +430,12 @@ def run(argv = None) :
       for par in nuis_pars : 
         channel_valid[par.name] = channel.valid_data[par.name].tolist()
       valid_lists[channel.name] = channel_valid
-    with open(options.validation_data, 'w') as fd:
+    if options.validation_output is not None :
+      validation_filename = options.validation_output
+    else :
+      split_name = os.path.splitext(options.output_file)
+      validation_filename = split_name[0] + '_validation' + split_name[1]
+    with open(validation_filename, 'w') as fd:
       json.dump(valid_lists, fd, ensure_ascii=True, indent=3)
 
 
@@ -512,7 +518,7 @@ def fill_yields(channel, key) :
 
 def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, nps, variations, options, validation_points) :
   nbins = len(bins) - 1
-  if options.validation_data :
+  if options.validation_output != '' :
     channel.valid_data = {}
     for par in nuis_pars :
       channel.valid_data[par.name] = np.ndarray((len(channel.samples), nbins, len(validation_points)))
@@ -549,7 +555,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, nps,
           sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
           print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
         par.obj.setVal(par.nominal)
-      if options.validation_data :
+      if options.validation_output != '' :
         par_data = channel.valid_data[par.name]
         fill_yields(channel, 'ref')
         nref = np.array([sample.yields['ref'] for sample in channel.samples])
