@@ -533,7 +533,7 @@ class Sample(JSONSerializable) :
     self.pos_imps[par] = np.array([ self.impact(par, var) for var in self.pos_vars[par] ])
     self.neg_imps[par] = np.array([ self.impact(par, var) for var in self.neg_vars[par] ])
     try:
-      max_impact = 1E3
+      max_impact = 100
       pos_imp_vals = [ pos_imp if not is_log else np.log(np.maximum(np.minimum(1 + pos_imp, max_impact), 1/max_impact)) for pos_imp in self.pos_imps[par].T ]
       neg_imp_vals = [ neg_imp if not is_log else np.log(np.maximum(np.minimum(1 + neg_imp, max_impact), 1/max_impact)) for neg_imp in self.neg_imps[par].T ]
       pos_params = np.array([ self.interpolate_impact(self.pos_vars[par], pos_imp) for pos_imp in pos_imp_vals ]).T
