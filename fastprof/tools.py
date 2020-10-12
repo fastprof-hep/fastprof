@@ -845,7 +845,7 @@ class QMuTildaCalculator(TestStatisticCalculator) :
     try :
       # since we use tmu_Amu to compute CLb, we need tmu_Amu = tmu_A0 (computed from an Asimov with mu'=0)
       q = self.make_q(plr_data)
-      plr_data.test_statistics['qm~u'] = q.value()
+      plr_data.test_statistics['q~mu'] = q.value()
       plr_data.pvs['pv' ] = q.asymptotic_pv()
       plr_data.pvs['cls'] = q.asymptotic_cls()
       plr_data.pvs['clb'] = q.asymptotic_clb()
