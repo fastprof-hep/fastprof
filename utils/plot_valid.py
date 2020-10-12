@@ -46,7 +46,7 @@ class ValidationData (JSONSerializable) :
     if filename != '' : self.load(filename)
 
   def load_jdict(self, jdict) :
-    self.poi        = jdict[model.poi(0).name]
+    self.poi        = jdict[self.model.poi(0).name]
     self.points     = jdict['points']
     self.variations = {}
     for chan in self.model.channels :
@@ -67,7 +67,7 @@ def make_parser() :
   parser = ArgumentParser("plot_valid.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"     , type=str  , required=True, help="Name of JSON file defining model")
-  parser.add_argument("-v", "--validation-data", type=str  , required=True, help="Name of JSON file containing validation data")
+  parser.add_argument("-v", "--validation-file", type=str  , default=None , help="Name of JSON file containing validation data (default: <model_file>_validation.json)")
   parser.add_argument("-c", "--channel"        , type=str  , default=None , help="Name of selected channel (default: first one in the model)")
   parser.add_argument("-s", "--sample"         , type=str  , default=None , help="Name of selected sample (default: first one in the channel)")
   parser.add_argument("-b", "--bins"           , type=str  , required=True, help="List of bins for which to plot validation data")
@@ -76,7 +76,7 @@ def make_parser() :
   parser.add_argument(      "--inversion-plots", action='store_true'      , help="Only plot variations, not inversion impact")
   parser.add_argument("-i", "--inv-range"      , type=float, default=None , help="Vertical range for inversion impact")
   parser.add_argument(      "--no-nli"         , action='store_true'      , help="Only plot linear reference")
-  parser.add_argument("-o", "--output-file"    , type=str  , default=''   , help="Output file name")
+  parser.add_argument("-o", "--output-file"    , type=str  , default=None , help="Output file name")
   return parser
 
 def run(argv = None) :
@@ -116,7 +116,13 @@ def run(argv = None) :
   else :
     sample = list(channel.samples.values())[0]
   
-  data = ValidationData(model, options.validation_data)
+  if options.validation_file is not None :
+    validation_file = options.validation_file
+  else :
+    split_name = os.path.splitext(options.model_file)
+    validation_file = split_name[0] + '_validation' + split_name[1]
+
+  data = ValidationData(model, validation_file)
   print('Validating for POI value %s = %g' % (model.poi(0).name, data.poi))
   plt.ion()
   nplots = model.nnps
@@ -162,15 +168,21 @@ def run(argv = None) :
       ax_vars.append(ax_var)
       if not options.no_nli : ax_var.plot(cont_x, vars_nli, 'b')
       if options.yrange : ax_var.set_ylim(y_min, y_max)
-      if not options.vars_only :
+      if options.inversion_plots :
         ax_inv = fig.add_subplot(sgs[1], sharex=ax_var)
         ax_inv.plot(cont_x, rvar_lin, 'r--')
         ax_inv.plot(cont_x, rvar_nli, 'b')
         if options.inv_range : ax_inv.set_ylim(-options.inv_range, 0)
-      ax_invs.append(ax_inv)
+        ax_invs.append(ax_inv)
     fig.canvas.set_window_title('Linearity checks for sample %s, bin  %g' % (sample.name, b))
   
-  if options.output_file != '' : plt.savefig(options.output_file)
-
+    if options.output_file != '' : 
+      if options.output_file is not None :
+        output_file = options.output_file
+      else :
+        split_name = os.path.splitext(options.model_file)
+        output_file = split_name[0] + '-%s-bin_%d.png' % (options.sample, b)
+      plt.savefig(output_file)
+  
 
 if __name__ == '__main__' : run()
