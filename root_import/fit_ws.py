@@ -29,7 +29,20 @@ procedure can be found in the utils/compute_limits.py script.
   separated list of POI assignments. 
   For the case of a single POI, a single integer can provided as argument. In
   this case, a set of hypotheses appropriate for the setting of an upper limit
-  on the POI are defined automatically.
+  on the POI are defined automatically. This set is defined as follows:
+  
+  * 2/3 of the specified points as used to define a fine grid in the range
+    from :math:`-3\sigma` to :math:`+3\sigma` around the expected limit,
+    where both the expected limit and the value of :math:`\sigma` are
+    estimated from the uncertainty on the POI
+    
+  * 1/3 of the specified points define a looser grid in the range from
+    :math:`+3\sigma` and :math:`+8\sigma`, and the corresponding
+    negative range.
+  
+  A good balance is the default `hypos=17`, which defines 6 hypothesis
+  between 0 and :math:`+3\sigma` (0,0.5,1,1.5,2,2.5), another 3 above
+  :math:`+3\sigma` (3, 5.5, 8), and the corresponding negative values.
 
 * At each hypothesis, the data is fit twice : once with the POIs set to their
   hypothesis values, and once free to vary in the fit. The same procedure is
@@ -58,7 +71,7 @@ def make_parser() :
   parser.add_argument("-m", "--model-config-name", type=str  , default='mconfig', help="Name of model config within the specified workspace")
   parser.add_argument("-d", "--data-name"        , type=str  , default=''       , help="Name of dataset object within the input workspace")
   parser.add_argument("-a", "--asimov"           , action="store_true"          , help="Fit an Asimov dataset")
-  parser.add_argument("-y", "--hypos"            , type=str  , default=''       , help="List of POI hypothesis values (poi1=val1,poi2=val2:...)")
+  parser.add_argument("-y", "--hypos"            , type=str  , default='17'     , help="List of POI hypothesis values (poi1=val1,poi2=val2:...)")
   parser.add_argument(      "--hypos-file"       , type=str  , default=None     , help="File containing POI hypothesis values")
   parser.add_argument(      "--fit-options"      , type=str  , default=''       , help="RooFit fit options to use")
   parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
