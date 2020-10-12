@@ -18,7 +18,7 @@ __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from fastprof import Model, Data, OptiMinimizer, NPMinimizer, QMuTilda, process_setvals, process_setranges
+from fastprof import Model, Data, OptiMinimizer, NPMinimizer, QMuTildaCalculator, process_setvals, process_setranges
 import matplotlib.pyplot as plt
 
 ####################################################################################################################################
@@ -78,26 +78,26 @@ def run(argv = None) :
   opti = OptiMinimizer().set_pois_from_model(model)
   min_nll = opti.minimize(data)
   min_pars = opti.min_pars
-  print('Minimum: nll = %g @ pars =' % min_nll)
+  print('\n== Best-fit: nll = %g @ at parameter values =' % min_nll)
   print(min_pars)
 
   if options.hypo is not None :
     tmu = opti.tmu(hypo_pars, data, hypo_pars)
-    print('tmu = %g for hypothesis' % tmu, hypo_pars)
-    print('Profiled NP values :', opti.hypo_pars)
+    print('\n== Profile-likelihood ratio tmu = %g for hypothesis' % tmu, hypo_pars.dict(pois_only=True))
+    print('-- Profiled NP values :\n' + str(opti.hypo_pars))
     if len(model.pois) == 1 :
+      print('\n== Computing the q~mu test statistic')
       asimov = model.generate_expected(0, opti, data)
-      tmu_A = opti.tmu(hypo_pars, asimov, hypo_pars)
-      q = QMuTilda(hypo_pars.pois[0], tmu, best_poi=opti.free_pars.pois[0], tmu_A=tmu_A, tmu_0=tmu_A)
-      print('min_poi = % g' % opti.free_pars.pois[0])
-      print('tmu     = % g' % tmu)
-      print('q~mu    = % g' % q.value())
-      print('clsb    = % g' % q.asymptotic_pv())
-      print('cls     = % g' % q.asymptotic_cls())
+      calc = QMuTildaCalculator(opti)
+      plr_data = calc.compute_fast_q(hypo_pars, data)
+      print('best-fit %s = % g' % (model.poi(0).name, opti.free_pars.pois[0]))
+      print('tmu         = % g' % plr_data.test_statistics['tmu'])
+      print('q~mu        = % g' % plr_data.test_statistics['q~mu'])
+      print('pv          = % g' % plr_data.pvs['pv'])
+      print('cls         = % g' % plr_data.pvs['cls'])
   plt.ion()
   plt.figure(1)
   model.plot(min_pars, data=data)
   if options.log_scale : plt.yscale('log')
-
 
 if __name__ == '__main__' : run()
