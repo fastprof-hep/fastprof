@@ -112,3 +112,8 @@ The behavior of the linear model can be improved by using additional constraints
 * *NP bounds in sampling* : in case the procedures above are insufficient to obtain tolerable agreement between the full and the linear model over all NP values, the NPs can be restricted to a specific range. These bounds cannot be enforced during the minimization itself, since it is performed through a linear algebra computation and not an iterative procedure. The bounds are applied within the sampling procedure itself, by rejecting pseudo-datasets for which the \hat values fall outside the specified ranges.
 
 * *Hypothesis reset* :  the random generation of pseudo-datasets is performed for values of the NPs which may in some cases deviate from 0 (see Section). If these values fall outside the region of linear behavior, this can lead to generally unphysical behavior for the pseudo-experiments generated for these values. The generation values can therefore be modified as described in Section, in order to avoid this issue.
+
+.. _json_format:
+
+JSON Format
+-----------
