@@ -22,7 +22,7 @@ The package can be installed and set up by running
 
 .. code-block:: console
 
-  git clone
+  git clone ssh://git@gitlab.cern.ch:7999/nberger/fastprof.git
   cd fastprof/
   source ./setup.sh
 
