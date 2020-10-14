@@ -6,5 +6,4 @@ build/
 dist/
 pyvenv.cfg
 fastprof.egg-info/
-docs/build/
-docs/source/api
+doc/api
