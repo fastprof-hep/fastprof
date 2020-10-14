@@ -158,22 +158,26 @@ class ModelPOI(JSONSerializable) :
      min_value     (float) : the lower bound of the allowed range of the parameter
      max_value     (float) : the upper bound of the allowed range of the parameter
      initial_value (float) : the initial value of the parameter when performing fits to data
+     unit          (str)   : the unit in which the parameter is expressed
   """
 
-  def __init__(self, name = '', value = None, error = None, min_value = None, max_value = None, initial_value = None) :
+  def __init__(self, name : str = '', value : float = None, error : float = None, min_value : float = None, max_value : float = None,
+               initial_value : float = None, unit : str = None) :
     """Initialize object attributes
 
       Missing arguments are set to None.
 
       Args:
-        name          (str)   : the name of the parameter
-        value         (float) : the value of the parameter (either a best-fit value or a fixed hypothesis value)
-        error         (float) : the uncertainty on the parameter value
-        min_value     (float) : the lower bound of the allowed range of the parameter
-        max_value     (float) : the upper bound of the allowed range of the parameter
-        initial_value (float) : the initial value of the parameter when performing fits to data
+        name          : the name of the parameter
+        value         : the value of the parameter (either a best-fit value or a fixed hypothesis value)
+        error         : the uncertainty on the parameter value
+        min_value     : the lower bound of the allowed range of the parameter
+        max_value     : the upper bound of the allowed range of the parameter
+        initial_value : the initial value of the parameter when performing fits to data
+        unit          : the unit in which the parameter is expressed
     """
     self.name = name
+    self.unit = unit
     self.value = value
     self.error = error
     self.min_value = min_value
@@ -203,6 +207,7 @@ class ModelPOI(JSONSerializable) :
         ModelPOI: self
     """
     self.name      = self.load_field('name'     , jdict,  self.name, str)
+    self.unit      = self.load_field('unit'     , jdict,  '', str)
     self.value     = self.load_field('value'    , jdict,  0, [int, float])
     self.error     = self.load_field('error'    , jdict,  0, [int, float])
     self.min_value = self.load_field('min_value', jdict,  0, [int, float])
@@ -217,6 +222,7 @@ class ModelPOI(JSONSerializable) :
          jdict: A dictionary containing JSON data
     """
     jdict['name']      = self.name
+    jdict['unit']      = self.unit
     jdict['value']     = self.value
     jdict['error']     = self.error
     jdict['min_value'] = self.min_value
@@ -234,13 +240,15 @@ class ModelAux(JSONSerializable) :
   base class.
 
   Attributes:
-     name          (str)   : the name of the aux. obs.
-     min_value     (float) : the lower bound of the allowed range of the parameter
-     max_value     (float) : the upper bound of the allowed range of the parameter
-  """
+    name          (str)   : the name of the aux. obs.
+    min_value     (float) : the lower bound of the allowed range of the parameter
+    max_value     (float) : the upper bound of the allowed range of the parameter
+    unit          (str)   : the unit in which the parameter is expressed
+ """
 
-  def __init__(self, name = '', min_value = None, max_value = None) :
+  def __init__(self, name = '', min_value = None, max_value = None, unit : str = None) :
     self.name = name
+    self.unit = unit
     self.min_value = min_value
     self.max_value = max_value
 
@@ -262,6 +270,7 @@ class ModelAux(JSONSerializable) :
         ModelAux: self
     """
     self.name = self.load_field('name', jdict, '', str)
+    self.unit = self.load_field('unit', jdict, '', str)
     self.min_value = self.load_field('min_value', jdict, '', [int, float])
     self.max_value = self.load_field('max_value', jdict, '', [int, float])
     return self
@@ -273,6 +282,7 @@ class ModelAux(JSONSerializable) :
          jdict: A dictionary containing JSON data
     """
     jdict['name'] = self.name
+    jdict['unit'] = self.unit
     jdict['min_value'] = self.min_value
     jdict['max_value'] = self.max_value
 
@@ -299,17 +309,19 @@ class ModelNP(JSONSerializable) :
   `scaled` = (`original` - `nominal_value`)/`variation`.
 
   Attributes:
-     name           (str)   : the name of the parameter
-     nominal_value  (float) : the reference value of the parameter used to compute nominal sample yields
-     variation      (float) : the uncertainty on the parameter value
-     constraint     (float) : the value of the width of the constraint Gaussian,
-                              for constrained NPs (otherwise None).
-     aux_obs        (:class:`ModelAux`) : pointer to the corresponding aux. obs. object,
-                                          for constrained NPs.
-  """
+    name           (str)   : the name of the parameter
+    nominal_value  (float) : the reference value of the parameter used to compute nominal sample yields
+    variation      (float) : the uncertainty on the parameter value
+    constraint     (float) : the value of the width of the constraint Gaussian,
+                             for constrained NPs (otherwise None).
+    aux_obs        (:class:`ModelAux`) : pointer to the corresponding aux. obs. object,
+                                         for constrained NPs.
+    unit           (str)   : the unit in which the parameter is expressed
+"""
 
-  def __init__(self, name = '', nominal_value = 0, variation = 1, constraint = None, aux_obs = None) :
+  def __init__(self, name = '', nominal_value = 0, variation = 1, constraint = None, aux_obs = None, unit : str = None) :
     self.name = name
+    self.unit = unit
     self.nominal_value = nominal_value
     self.variation = variation
     self.constraint = constraint
@@ -380,6 +392,7 @@ class ModelNP(JSONSerializable) :
         ModelNP: self
     """
     self.name = self.load_field('name', jdict, '', str)
+    self.unit = self.load_field('unit', jdict, '', str)
     self.nominal_value = self.load_field('nominal_value', jdict, None, [int, float])
     self.variation = self.load_field('variation', jdict, None, [int, float])
     self.constraint = self.load_field('constraint', jdict)
@@ -396,6 +409,7 @@ class ModelNP(JSONSerializable) :
          jdict: A dictionary containing JSON data
     """
     jdict['name'] = self.name
+    jdict['unit'] = self.unit
     jdict['nominal_val'] = self.nominal_value
     jdict['variation'] = self.variation
     jdict['constraint'] = self.constraint
