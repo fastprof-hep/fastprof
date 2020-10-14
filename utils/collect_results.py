@@ -58,8 +58,8 @@ def make_parser() :
   parser.add_argument("-k", "--key"          , type=str  , default=''  , help="Key indexing the output result")
   parser.add_argument("-b", "--bands"        , type=int  , default=None, help="Number of expected limit bands to include")
   parser.add_argument("-e", "--errors"       , action='store_true'     , help="Include sampling uncertainties on the limit values")
-  parser.add_argument("-o", "--output-file"  , type=str  , default=''  , help="Output file name")
-  parser.add_argument("-r", "--root-output"  , type=str  , default=''  , help="Output a ROOT file with the specified name")
+  parser.add_argument("-o", "--output-file"  , type=str  , default=None, help="Output file name")
+  parser.add_argument("-r", "--root-output"  , type=str  , default=None, help="Output a ROOT file with the specified name")
   parser.add_argument("-l", "--log-scale"    , action='store_true'     , help="Use log scale for plotting")
   return parser
 
@@ -74,7 +74,7 @@ def run(argv = None) :
     pos_spec = options.positions.split(':')
     if len(pos_spec) == 3 : 
       positions = np.linspace(float(pos_spec[0]), float(pos_spec[1]), int(pos_spec[2]))
-    elif len(pos_spec) == 3 and pos_spec[3] == 'int' : 
+    elif len(pos_spec) == 4 and pos_spec[3] == 'int' : 
       positions = np.linspace(float(pos_spec[0]), float(pos_spec[1]), int(pos_spec[2]))
       positions = [ math.floor(pos) for pos in positions ]
     elif len(pos_spec) == 4 and pos_spec[3] == 'log' :
@@ -153,10 +153,13 @@ def run(argv = None) :
   jdict['positions'] = good_pos
   jdict['results'] = results
   
-  with open(options.output_file, 'w') as fd:
-    json.dump(jdict, fd, ensure_ascii=True, indent=3)
+  if options.output_file is not None :
+    with open(options.output_file, 'w') as fd:
+      json.dump(jdict, fd, ensure_ascii=True, indent=3)
+  else :
+    print(jdict)
   
-  if options.root_output :
+  if options.root_output is not None :
     import ROOT
     colors = [ 1, 8, 5 ]
     if options.bands :
@@ -203,7 +206,7 @@ def run(argv = None) :
   plt.ion()
   if options.log_scale : plt.yscale('log')
   
-  if options.bands :
+  if options.bands is not None :
     colors = [ 'k', 'g', 'y', 'c', 'b' ]
     for i in reversed(range(1, options.bands + 1)) :
       plt.fill_between(good_pos, results[+i], results[-i], color=colors[i])
