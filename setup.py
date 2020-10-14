@@ -42,7 +42,7 @@ setup(
   author           = 'N. Berger',
   author_email     = 'nicolas.berger@cern.ch',
   packages         = [ 'fastprof', 'root_import' ],
-  install_requires = [ 'wheel', 'numpy', 'scipy', 'pandas', 'matplotlib', 'sphinx-rtd-theme', 'sphinx-argparse' ],
+  install_requires = [ 'numpy', 'scipy', 'pandas', 'matplotlib', 'sphinx-rtd-theme', 'sphinx-argparse' ],
   #cmdclass         = { 'sphinx' :  SphinxCommand },
   scripts          = [
     'root_import/convert_ws.py',
