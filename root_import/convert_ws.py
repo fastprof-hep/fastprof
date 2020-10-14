@@ -183,6 +183,7 @@ def run(argv = None) :
   for par in nps :
     nuis_par = NuisancePar()
     nuis_par.name = par.GetName()
+    nuis_par.unit = par.getUnit()
     nuis_par.obj = par
     nuis_par.is_free = not par in cons_nps
     if nuis_par.is_free : free_nps.append(par)
@@ -317,6 +318,7 @@ def run(argv = None) :
     for poi in pois :
       poi_spec = {}
       poi_spec['name'] = poi.GetName()
+      poi_spec['unit'] = poi.getUnit()
       poi_spec['min_value'] = poi.getMin()
       poi_spec['max_value'] = poi.getMax()
       poi_specs.append(poi_spec)
@@ -326,6 +328,7 @@ def run(argv = None) :
     for par in nuis_pars :
       np_spec = {}
       np_spec['name'] = par.name
+      np_spec['unit'] = par.unit
       np_spec['nominal_value'] = par.nominal
       np_spec['variation'] = par.error
       np_spec['constraint'] = None if par.is_free else 1
@@ -338,6 +341,7 @@ def run(argv = None) :
       aux_spec = {}
       aux = cons_aux[par.GetName()]
       aux_spec['name']  = aux.GetName()
+      aux_spec['unit']  = aux.getUnit()
       aux_spec['min_value'] = aux.getMin()
       aux_spec['max_value'] = aux.getMax()
       aux_specs.append(aux_spec)
