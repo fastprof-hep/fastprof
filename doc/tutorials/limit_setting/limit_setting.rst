@@ -18,13 +18,33 @@ The tutorial will have 4 main steps :
 Setting up
 ##########
 
+The package can be installed and set up by running
+
+.. code-block:: console
+
+  git clone
+  cd fastprof/
+  source ./setup.sh
+
+and we will run this tutorial in the `run/` working directory:
+
+.. code-block:: console
+
+   cd run/
+
+and for convenience we'll link the tutorial inputs from here: 
+
+.. code-block:: console
+
+   ln -s ../doc/tutorials/limit_setting/inputs
+   
 Defining the model
 ##################
 
 Model definitions are stored in JSON files, in the format described in detail in Section :ref:`json_format`. They can be written from scratch, but this example 
 will illustrate the use of a utility to convert the content a ROOT workspace.
 
-The input workspace that will be used can be found at `limit_setting/inputs/model.root` (as mentioned above this is `docs/source/tutorials/limit_setting/inputs` relative to the installation
+The input workspace that will be used can be found at `inputs/model.root` (as mentioned above this is `docs/source/tutorials/limit_setting/inputs` relative to the installation
 directory, but you should have linked `limit_setting` into your working directory as described in the previous section). It describes a simple shape analysis:
 
 * The analysis observable is :math:`m_{obs}`, studied over the range :math:`500 < m_{obs} < 5500` GeV.
@@ -39,9 +59,9 @@ To convert the workspace to a `fastprof` JSON file, run
 
 .. code-block:: console
 
-  convert_ws.py -f limit_setting/inputs/model.root -w modelWS -m mconfig -d obsData \
-                -b 500:5500:100:log --refit xs=0 --binned --setval mX=2000 \
-                --default-sample Background -o model_mX2000.json >! model_mX2000.log   
+  ./convert_ws.py -f inputs/model.root -w modelWS -m mconfig -d obsData \
+                  -b 500:5500:100:log --refit xs=0 --binned --setval mX=2000 \
+                  --default-sample Background -o model_mX2000.json >! model_mX2000.log   
 
 The options are as follows:
 
@@ -72,7 +92,7 @@ The `model_mX2000.json` file created at the previous step contains descriptions 
 
 .. code-block:: console
 
-  python -im plot -m model_mX2000.json -e Signal --setval xs=3 -l -o model_mX2000.png
+  python -i plot.py -m model_mX2000.json -e Signal --setval xs=3 -l -o model_mX2000.png
   
 The options are as follows:
 
@@ -96,14 +116,14 @@ To check the impact of NP variations, one can add the `--variations` option to h
 
 .. code-block:: console
 
-  python -im plot -m model_mX2000.json -e Signal --setval xs=3 -l --variations 5 \
+  python -i plot.py -m model_mX2000.json -e Signal --setval xs=3 -l --variations 5 \
          -o model_mX2000_var5.png
 
 Adds a second plot with :math:`\pm 5\sigma` variations corresponding to each NP variations. To get a better look at the effect on the signal, one can zoom into the peak region:
 
 .. code-block:: console
 
-  python -im plot -m model_mX2000.json -e Signal --setval xs=3 --variations 5 \
+  python -i plot.py -m model_mX2000.json -e Signal --setval xs=3 --variations 5 \
          --x-range 1000,3000 --y-range 0,40 -o model_mX2000_var5_zoom.png
 
 The last command should produce the plot shown below,
@@ -122,7 +142,7 @@ Given that the model seems to behave as expected, one can try a few simple fits.
 
 .. code-block:: console
 
-  fit_fast.py -m model_mX2000.json --setrange xs:0:10
+  ./fit_fast.py -m model_mX2000.json --setrange xs:0:10
 
 where the second argument overrides the range of the POI to :math:`0 \le \text{xs} \le 10` fb. The output is::
 
@@ -146,7 +166,7 @@ Another test is to run the fit on an Asimov dataset generated for `xs=1` using
 
 .. code-block:: console
 
-  fit_fast.py -m model_mX2000.json --asimov xs=1 --setrange xs:0:10
+  ./fit_fast.py -m model_mX2000.json --asimov xs=1 --setrange xs:0:10
   
 This yields::
 
@@ -170,7 +190,7 @@ One can also run a hypothesis test by passing `--hypo` option. An example in dat
 
 .. code-block:: console
 
-  fit_fast.py -m model_mX2000.json --hypo xs=0.2 --setrange xs:0:10 
+  ./fit_fast.py -m model_mX2000.json --hypo xs=0.2 --setrange xs:0:10 
 
 Which gives the output::
 
@@ -216,7 +236,7 @@ The linearity can be checked using data in the file `model_mX2000_validation.jso
 
 .. code-block:: console
 
-  python -im plot_valid -m model_mX2000.json -s Signal -b 58
+  python -i plot_valid.py -m model_mX2000.json -s Signal -b 58
 
 This performs the comparison for the specified model (the variations are taken by default from the file with the same name, except for `_validation` appended before the extension), and considers impacts on sample `Signal` in bin 58, corresponding to the peak of the signal. The result is as follows:
   
@@ -240,14 +260,14 @@ A more general check is to compare the fit results in the original model and the
 
 .. code-block:: console
 
-  fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=2000 \
-            -o wsfits_mX2000.json  >! wsfits_mX2000.log
+  ./fit_ws.py -f inputs/model.root -d obsData --binned --setval mX=2000 \
+              -o wsfits_mX2000.json  >! wsfits_mX2000.log
   
 By default this considers 17 hypotheses (the expected 95% CL limit, plus 8 hypotheses above and 8 more below), and the fit results are stored in the output file `wsfits_mX2000.json`, which is again a JSON file with fairly explicit content. The comparison with fast results is performed by running the command:
 
 .. code-block:: console
 
-  check_model.py -m model_mX2000.json -f wsfits_mX2000.json
+  ./check_model.py -m model_mX2000.json -f wsfits_mX2000.json
 
 which produced the following output::
 
@@ -304,7 +324,7 @@ We can make use of this feature by running again
 
 .. code-block:: console
 
-  python -im compute_limits -m model_mX2000.json -f wsfits_mX2000.json -n 1000 -o limit_mX2000
+  python -i compute_limits.py -m model_mX2000.json -f wsfits_mX2000.json -n 1000 --bands 2 -o limit_mX2000
   
 This will simply load the distributions produced at the previous step, and show the results. The first part of the output is identical to what was produced by `check_model.py` above, and allows to check that the linear model reproduces the asymptotic results sufficiently well. This is a prerequisite for the next step of computing toys-based limits. After informing the user that existing sampling distributions have been found and loaded, the output should be as follows::
 
@@ -334,32 +354,83 @@ This will simply load the distributions produced at the previous step, and show 
   Asymptotics, fast model, CLs  : UL(95%) = 0.21881  (N = [  12.25336645 9886.95781811])
   Sampling   , fast model, CLs  : UL(95%) = 0.202712 +/- 0.0218487 (N = [  11.35188337 9886.95781811])
 
-This is similar to the previous output, except that the columns labeled `sampling_` now provide the toys results, which can be compared with those of the asymptotics. As before, the computed limits are shownat the bottom (the numbers in parenthese are the corresponding event yields for the signal and background sample). In this example, where the asymptotics are close to valid, the samplind and asymptotic results are quite close, differing by about 10% in the :math:`CL_s` limits (0.203 fb for the toys, and 0.222 fb for the asymptotics). However one can note that the uncertainty from the limited size of the sampling dsitibution is 0.022 fb, which almost covers the difference. The "Asymptotics, fast" line refers to the result obtained when the observed values of the test statistics are computed from the fast model instead of the original one. It is of course more precise to use the latter (which can be computed from the fit results in the `wsfits` file), but the two results should be reasonably close if the linear model is a good approximation to the original, as seems the case here.
+This is similar to the previous output, except that the columns labeled `sampling_` now provide the toys results, which can be compared with those of the asymptotics. As before, the computed limits are shown at the bottom (the numbers in parenthese are the corresponding event yields for the signal and background sample). In this example, where the asymptotics are close to valid, the samplind and asymptotic results are quite close, differing by about 10% in the :math:`CL_s` limits (0.203 fb for the toys, and 0.222 fb for the asymptotics). However one can note that the uncertainty from the limited size of the sampling dsitibution is 0.022 fb, which almost covers the difference. The "Asymptotics, fast" line refers to the result obtained when the observed values of the test statistics are computed from the fast model instead of the original one. It is of course more precise to use the latter (which can be computed from the fit results in the `wsfits` file), but the two results should be reasonably close if the linear model is a good approximation to the original, as seems the case here.
+
+The command will also produce a plot, as below:
+
+.. image:: outputs/limit_mX2000_cls.png
+    :width:  70%
+    :align:  center
+
+since we have specified the `--bands 2` option, this includes :math:`1\sigma` and  :math:`2\sigma` bands around the expected limit, although the number of toys is not quite sufficient to get an accurate computation here. The 95% CL limit occurs when the curves cross the dotted line corresponding to a p-value of 5%. The width of the sampling curve reflects the uncertainty due to the limited size of the sampling distributions.
 
 For an example with larger differences, one can re-run the exercise for a higher mass value, for instance `mX=4500` GeV:
 
 .. code-block:: console
 
-  convert_ws.py -f limit_setting/inputs/model.root -w modelWS -m mconfig -d obsData \
-                -b 500:5500:100:log --refit xs=0 --binned --setval mX=4500 \
-                --default-sample Background -o model_mX4500.json >! model_mX4500.log   
-  fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=4500 \
-                -o wsfits_mX4500.json >! wsfits_mX4500.log
-  compute_limits.py -m model_mX4500.json -f wsfits_mX4500.json -n 1000  --print-freq 100 \
-                -o limit_mX4500 >! limit_mX4500.log
+  ./convert_ws.py -f inputs/model.root -w modelWS -m mconfig -d obsData \
+                -b 500:5500:100:log --refit xs=0 --binned --setval mX=4800 \
+                --default-sample Background -o model_mX4800.json >! model_mX4800.log   
+  ./fit_ws.py -f inputs/model.root -d obsData --binned --setval mX=4800 \
+                -o wsfits_mX4800.json >! wsfits_mX4800.log
+  ./compute_limits.py -m model_mX4800.json -f wsfits_mX4800.json -n 1000  --print-freq 100 \
+                -o limit_mX4800 >! limit_mX4800.log
 
-After a few more minutes of processing, this should now yield::
+After a few more minutes of processing, running
 
-  Asymptotics, full model, CLs  : UL(95%) = 0.2222  (N = [  12.44320922 9886.95781811])
-  Asymptotics, fast model, CLs  : UL(95%) = 0.21881  (N = [  12.25336645 9886.95781811])
-  Sampling   , fast model, CLs  : UL(95%) = 0.202712 +/- 0.0218487 (N = [  11.35188337 9886.95781811])
+.. code-block:: console
 
-Which shows the expected behavior.
+  python -i compute_limits.py -m model_mX4800.json -f wsfits_mX4800.json -n 1000 -o limit_mX4800
+
+should now yield::
+
+  Asymptotics, full model, CLs  : UL(95%) = 0.0435273  (N = [2.43752697e+00 9.88695653e+03])
+  Asymptotics, fast model, CLs  : UL(95%) = 0.0422649  (N = [2.36683552e+00 9.88695653e+03])
+  Sampling   , fast model, CLs  : UL(95%) = 0.0592869 +/- 0.00425652 (N = [3.32006645e+00 9.88695653e+03])
+
+Which shows the expected behavior : while the asymptptic limits drop below 3 signal events, the toys-based results remain above as they should.
 
 To check the result in a bit more detail, one can have a look in the log file `limit_mX2000.log`. A point to check in particular is the number of generation retries: this occurs by default if the PLR `tmu` was found to be negative, which should never happen and is a sign that one or both of the fits did not converge. In this case, the toy is discarded and a new one is generated instead. This can potentially lead to biases, and should be monitored to ensure the fraction of retries remains small. This can be checked by parsing the log file, and looking in particular at the total number of toys generated for each sample (including retries), for instance:::
 
   Generated 1000 good toys (1001 total), elapsed time = 5.73927 s
 
+Finally, one can have a look at one of the sampling distributions that were produced. These are natively stored in terms of asymptotic p-value, which is convenient for comparison with asymptotics: if the asymptotics are valid, the distribution of the p-values should be flat. We can check this by looking at the p-value sampling distribution for one of the signal hypotheses produced for the `mX=2000` GeV mass point, using the command
+
+.. code-block:: console
+
+  python -i dump_samples.py limit_mX2000_0.231027.npy -r -o sampling_pv.png
+
+This produces the following output, which does seem approximately flat within the uncertainties due to the small number of toys produced:
+  
+.. image:: outputs/sampling_pv.png
+    :width:  70%
+    :align:  center
+
+The `-r` flag indicates that the reference curve for the asymptotics case should also be drawn -- here just a flat distribution. The distributions can also be expressed in terms of the test statistic, for example :math:`\tilde{q}_{\mu}`, using
+
+.. code-block:: console
+
+  python -i dump_samples.py limit_mX2000_0.231027.npy -m model_mX2000.json \
+                 -y wsfits_mX2000.json:6 -t q~mu -l -r -o sampling_tmu.png
+
+This requires a bit more information, needed to compute the test statistic values: namely the `wsfits` file, with also the index of the hypothesis we are looking at (here, `6`). The result is as follows:
+  
+.. image:: outputs/sampling_tmu.png
+    :width:  70%
+    :align:  center
+
+Again, the asymptotics seem well reproduced, as expected. Less Gaussian examples can be seen for the `mX=4800` mass point, for instance
+
+.. code-block:: console
+
+  python -i dump_samples.py limit_mX4800_0.0396747.npy -m model_mX4800.json \
+             -y wsfits_mX4800.json:4 -t q~mu -l -r -o sampling_tmu_4800.png
+
+shows the following distribution:
+
+.. image:: outputs/sampling_tmu_4800.png
+    :width:  70%
+    :align:  center
 
 Setting toy limits as a function of mass
 ########################################
@@ -368,13 +439,13 @@ As a final exercise, we can repeat the steps above for a range of masses. Given 
 
 .. code-block:: console
 
-  iterate.py -p 1000:5000:41:int -c "\
-    convert_ws.py -f limit_setting/inputs/model.root -w modelWS -m mconfig -d obsData \
+  ./iterate.py -p 1000:5000:41:int -c "\
+    ./convert_ws.py -f inputs/model.root -w modelWS -m mconfig -d obsData \
         -b 500:5500:100:log --refit xs=0 --binned --setval mX=% \
         --default-sample Background -o model_mX%.json >! model_mX%.log \n \
-    fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=% \
+    ./fit_ws.py -f inputs/model.root -d obsData --binned --setval mX=% \
         -o wsfits_mX%.json >! wsfits_mX%.log \n \
-    compute_limits.py -m model_mX%.json -f wsfits_mX%.json -n 1000 --print-freq 100 \
+    ./compute_limits.py -m model_mX%.json -f wsfits_mX%.json -n 1000 --print-freq 100 \
         --bands 2 -o limit_mX% >! limit_mX%.log \
   " >! commands
   
@@ -388,7 +459,7 @@ After a few hours of running, all the limits should have been processed and one 
 
 .. code-block:: console
 
-  python -im collect_results -p 1000:5000:41:int -i limit_mX%_results.json -v m_X -u GeV \
+  python -i collect_results.py -p 1000:5000:41:int -i limit_mX%_results.json -v m_X -u GeV \
       -k limit_sampling_CLs,limit_asymptotics_CLs -b 2 -l  -o limit_all.json
 
 The syntax is similar to the one for `iterate.py` above, with `-p` specifying the mass points and `-i` the input files with the `%` wildcard. The `-k` option give the key values for the results we want. These can be inspected by looking at the contents of one of the JSON results file, and here we specify the :math:`CL_s` limit obtained from the sampling method, which is stored under `limit_sampling_CLs`, and the one computed with asymptotics, `limit_asymptotics_CLs`. The `-v` and `-u` options specify the name and unit of the scanned variable, for plotting purposes .The `--bands 2` option is passed to plot the :math:`1\sigma` and  :math:`2\sigma` bands around the expected limit. As already mentioned, one would need many more toys to get a reliable result, but this is included for illustration.
@@ -398,9 +469,7 @@ The collected results are written to `limit_all.json`, and a plot is drawn. Outp
 The produced plot is shown below:
 
 .. image:: outputs/limit_all.png
-    :width:  70%
+    :width:  90%
     :align:  center
-
-
 
 Ignoring the noise from the limited sample sizes, one can identify the expected difference between toys and asymptotics at high mass, with the toys-based limit saturating at the 3-event value while the asymptotic results falls below. The negative variations bands can also be seen to collapse at high mass as expected.
