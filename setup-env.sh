@@ -1,3 +1,6 @@
 python3 -m venv env
 source env/bin/activate
-if [ ! -e build ]; then python setup.py install; fi
+if [ ! -e build ]; then 
+  pip install .; 
+  cd doc; make doc; make html; cd ..
+fi
