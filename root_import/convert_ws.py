@@ -537,7 +537,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, nps,
   nps.Print("V")
   print('\n')
   for i in range(0, nbins) :
-    sys.stderr.write('\rProcessing bin %d of %d in channel %s (%d of %d)' % (i+1, nbins, channel.name, channel_index + 1, nchannels))
+    sys.stderr.write("\rProcessing bin %d of %d in channel '%s' (%d of %d)" % (i+1, nbins, channel.name, channel_index + 1, nchannels))
     sys.stderr.flush()
     xmin = bins[i]
     xmax = bins[i + 1]
