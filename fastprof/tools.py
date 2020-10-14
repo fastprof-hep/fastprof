@@ -445,8 +445,18 @@ class Raster(JSONSerializable) :
         value = pv - target_pv
       interp_pvs.append(value)
       interp_hypos.append(hypo)
+    if len(interp_hypos) < 2 :
+      print('Cannot interpolate using %d point(s), giving up' % len(interp_hypos))
+      return None
+    if len(interp_hypos) < order + 1 :
+      order = len(interp_hypos) - 1
+      print('Reducing interpolation order to %d to match the number of available points' % order)
     finder = scipy.interpolate.InterpolatedUnivariateSpline(interp_hypos, interp_pvs, k=order)
-    roots = finder.roots()
+    if order == 3 :
+      roots = finder.roots()
+    else :
+      print('Root-finding not supported yet for non-cubic splines, failing')
+      return None
     if len(roots) == 0 :
       print("No solution found for %s = %g." % (name, target_pv))
       #print("No solution found for %s = %g. Interpolation set:" % (name, target_pv))
