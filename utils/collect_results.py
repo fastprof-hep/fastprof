@@ -110,6 +110,7 @@ def run(argv = None) :
   results = {}
   bands = {}
   good_pos = {}
+  good_pos_bands = {}
   
   poi_name = None
   poi_unit = None
@@ -117,6 +118,7 @@ def run(argv = None) :
   for k, key in enumerate(keys) :
     if options.bands and k == 0 :
       bands[key] = {}
+      good_pos_bands[key] = []
       for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
         bands[key][band] = []
     results[key] = []
@@ -149,6 +151,7 @@ def run(argv = None) :
           print(inst)
           print('Floating-point result not found for band %+d at key %s in file %s. Available keys:\n%s' % (band, key, filename, '\n'.join(jdict.keys())))
           continue
+        good_pos_bands[key].append(pos)
       try :
         res = jdict[key]
         if res == None :
@@ -254,9 +257,9 @@ def run(argv = None) :
     if options.bands is not None and k == 0 :
       band_colors = [ 'k', 'g', 'y', 'c', 'b' ]
       for i in reversed(range(1, options.bands + 1)) :
-        plt.fill_between(good_pos[key], bands[key][+i], bands[key][-i], color=band_colors[i], label=key + ' +- %dσ band' % i)
+        plt.fill_between(good_pos_bands[key], bands[key][+i], bands[key][-i], color=band_colors[i], label=key + ' +- %dσ band' % i)
         items.append(key + ' +- %dσ band' % i)
-      plt.plot(good_pos[key], bands[key][0], 'k--', label=key + ' expected')
+      plt.plot(good_pos_bands[key], bands[key][0], 'k--', label=key + ' expected')
       items.append(key + ' expected')
     line_colors = [ 'b', 'r', 'g', 'k', 'y', 'c' ]
     plt.plot(good_pos[key], results[key], color=line_colors[k], label=key)
