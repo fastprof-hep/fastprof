@@ -1,0 +1,20 @@
+{
+   "cl": 0.95,
+   "poi_name": "xs",
+   "poi_unit": "fb",
+   "limit_sampling_CLs": 0.08416369042653744,
+   "limit_sampling_CLs_up": 0.09027515053268999,
+   "limit_sampling_CLs_dn": 0.08076804259606307,
+   "limit_asymptotics_CLs": 0.08024245601934821,
+   "limit_asymptotics_CLs_fast": 0.07837218067495329,
+   "limit_sampling_CLsb": 0.08204749947065165,
+   "limit_sampling_CLsb_up": 0.08612733697033564,
+   "limit_sampling_CLsb_dn": 0.07902822562374641,
+   "limit_asymptotics_CLsb": 0.07436887708290059,
+   "limit_asymptotics_CLsb_fast": 0.07216881306611178,
+   "limit_sampling_CLs_expected_band_-2": 0.0361196399338768,
+   "limit_sampling_CLs_expected_band_-1": 0.05601476514660161,
+   "limit_sampling_CLs_expected_band_+0": 0.057243530658679626,
+   "limit_sampling_CLs_expected_band_+1": 0.07352920513964337,
+   "limit_sampling_CLs_expected_band_+2": 0.10960915203566166
+}

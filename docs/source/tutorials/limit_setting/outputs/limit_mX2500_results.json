@@ -1,0 +1,14 @@
+{
+   "cl": 0.95,
+   "poi": "xs",
+   "limit_sampling_CLs": 0.22517621729506973,
+   "limit_sampling_CLs_up": 0.23523702634898222,
+   "limit_sampling_CLs_dn": 0.21273819333163096,
+   "limit_asymptotics_CLs": 0.21971263624167905,
+   "limit_asymptotics_CLs_fast": 0.22214021684940638,
+   "limit_sampling_CLsb": 0.21383369549980313,
+   "limit_sampling_CLsb_up": 0.22558130727676243,
+   "limit_sampling_CLsb_dn": 0.20097469120092978,
+   "limit_asymptotics_CLsb": 0.2052820472158556,
+   "limit_asymptotics_CLsb_fast": 0.20883715665414307
+}

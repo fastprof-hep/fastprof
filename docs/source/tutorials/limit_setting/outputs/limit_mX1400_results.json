@@ -1,0 +1,15 @@
+{
+   "cl": 0.95,
+   "poi_name": "xs",
+   "poi_unit": "fb",
+   "limit_sampling_CLs": null,
+   "limit_sampling_CLs_up": 0.33389573291405195,
+   "limit_sampling_CLs_dn": null,
+   "limit_asymptotics_CLs": 0.38226010989209763,
+   "limit_asymptotics_CLs_fast": 0.4013671490849444,
+   "limit_sampling_CLsb": null,
+   "limit_sampling_CLsb_up": null,
+   "limit_sampling_CLsb_dn": null,
+   "limit_asymptotics_CLsb": null,
+   "limit_asymptotics_CLsb_fast": null
+}
