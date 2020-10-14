@@ -18,6 +18,7 @@ setup(
     'utils/make_inputs.py',
     'utils/compute_limits.py',
     'utils/dump_samples.py',
+    'utils/iterate.py',
     'utils/collect_results.py'
     ]
 #  entry_points     = {
