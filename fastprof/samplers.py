@@ -90,7 +90,7 @@ class Sampler :
       print('-- Processing iteration %d of %d %s' % (k, ntoys, descr))
       sys.stderr.write('\rProcessing iteration %d of %d %s' % (k, ntoys, descr))
 
-  def generate(self, ntoys) -> SamplingDistribution :
+  def generate(self, ntoys, hypo_descr : str = None) -> SamplingDistribution :
     """Generate a specified number of samples
         
     The function generates toy datasets and performs the computation
@@ -103,17 +103,19 @@ class Sampler :
     
     Args:
       ntoys : the total number of samples to generate
+      hypo_descr : a description string for the hypothesis
     Returns:
       `self.dist`, the generated sampling distribution
-    """        
-    print('Generating POI hypothesis %s, starting at %s. Full gen hypo = ' % (str(self.gen_hypo.pois), str(datetime.datetime.now())))
+    """
+    hypo_descr = ' ' + hypo_descr if hypo_descr is not None else ''
+    print('Generating POI hypothesis %s%s, starting at %s. Full gen hypo = ' % (str(self.gen_hypo.pois), hypo_descr, str(datetime.datetime.now())))
     start_time = timer()
     print(str(self.gen_hypo))
     self.dist = SamplingDistribution(ntoys)
     ntotal = 0
     for k in range(0, ntoys) :
       if k % self.print_freq == 0 :
-        descr = 'in hypo %s [generation rate = %5.1f Hz]' % (str(self.gen_hypo.pois), k/(timer() - start_time) if k > 0 else 0)
+        descr = 'in hypo %s%s [generation rate = %5.1f Hz]' % (str(self.gen_hypo.pois), hypo_descr, k/(timer() - start_time) if k > 0 else 0)
         self.progress(k, ntoys, descr)
       success = False
       self.ntries = 0
