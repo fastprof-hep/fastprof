@@ -1,12 +1,8 @@
-from setuptools import setup, Command
-import os
-
-name    = 'fastprof'
-version = '0.2.1'
+from setuptools import setup
 
 setup(
-  name             = name,
-  version          = version,
+  name             = 'fastprof',
+  version          = '0.2.1',
   description      = 'A fast profiling tool for likelihood-based statistical analyses',
   author           = 'N. Berger',
   author_email     = 'nicolas.berger@cern.ch',
