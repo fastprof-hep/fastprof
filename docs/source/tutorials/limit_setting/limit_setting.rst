@@ -96,13 +96,15 @@ To check the impact of NP variations, one can add the `--variations` option to h
 
 .. code-block:: console
 
-  python -im plot -m model_mX2000.json -e Signal --setval xs=3 -l --variations 5 -o model_mX2000_var5.png
+  python -im plot -m model_mX2000.json -e Signal --setval xs=3 -l --variations 5 \
+         -o model_mX2000_var5.png
 
 Adds a second plot with :math:`\pm 5\sigma` variations corresponding to each NP variations. To get a better look at the effect on the signal, one can zoom into the peak region:
 
 .. code-block:: console
 
-  python -im plot -m model_mX2000.json -e Signal --setval xs=3 --variations 5 --x-range 1000,3000 --y-range 0,40 -o model_mX2000_var5_zoom.png
+  python -im plot -m model_mX2000.json -e Signal --setval xs=3 --variations 5 \
+         --x-range 1000,3000 --y-range 0,40 -o model_mX2000_var5_zoom.png
 
 The last command should produce the plot shown below,
   
@@ -238,7 +240,8 @@ A more general check is to compare the fit results in the original model and the
 
 .. code-block:: console
 
-  fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=2000 -o wsfits_mX2000.json  >! wsfit_mX2000.log
+  fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=2000 \
+            -o wsfits_mX2000.json  >! wsfits_mX2000.log
   
 By default this considers 17 hypotheses (the expected 95% CL limit, plus 8 hypotheses above and 8 more below), and the fit results are stored in the output file `wsfits_mX2000.json`, which is again a JSON file with fairly explicit content. The comparison with fast results is performed by running the command:
 
@@ -289,7 +292,8 @@ With the setup above, the procedure reduces to running the following command:
 
 .. code-block:: console
 
-  ./compute_limits.py -m model_mX2000.json -f wsfits_mX2000.json -n 1000 --print-freq 100 -o limit_mX2000 >! limit_mX2000.log
+  ./compute_limits.py -m model_mX2000.json -f wsfits_mX2000.json -n 1000 --print-freq 100 \
+                      -o limit_mX2000 >! limit_mX2000.log
 
 
 The file specified with `-f` is the one that was produced in the previous section, containing fit results from the original model at each hypothesis point. It plays two roles: first, it defines the tested hypotheses -- as described above, this is based on an estimate of the upper limit value in the original model. Second, it provides the values of the test statistics for these hypotheses, computed from the original model. This means that while the sampling distributions will be built from the fast model, the p-value computed using these distributions will be based on the "exact" test statistic values from the original model.
@@ -339,8 +343,10 @@ For an example with larger differences, one can re-run the exercise for a higher
   convert_ws.py -f limit_setting/inputs/model.root -w modelWS -m mconfig -d obsData \
                 -b 500:5500:100:log --refit xs=0 --binned --setval mX=4500 \
                 --default-sample Background -o model_mX4500.json >! model_mX4500.log   
-  fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=4500 -o wsfits_mX4500.json >! wsfit_mX4500.log
-  compute_limits.py -m model_mX4500.json -f wsfits_mX4500.json -n 1000  --print-freq 100 -o limit_mX4500 >! limit_mX4500.log
+  fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=4500 \
+                -o wsfits_mX4500.json >! wsfits_mX4500.log
+  compute_limits.py -m model_mX4500.json -f wsfits_mX4500.json -n 1000  --print-freq 100 \
+                -o limit_mX4500 >! limit_mX4500.log
 
 After a few more minutes of processing, this should now yield::
 
@@ -366,12 +372,35 @@ As a final exercise, we can repeat the steps above for a range of masses. Given 
     convert_ws.py -f limit_setting/inputs/model.root -w modelWS -m mconfig -d obsData \
         -b 500:5500:100:log --refit xs=0 --binned --setval mX=% \
         --default-sample Background -o model_mX%.json >! model_mX%.log \n \
-    fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=% -o wsfits_mX%.json >! wsfit_mX%.log \n \
-    compute_limits.py -m model_mX%.json -f wsfits_mX%.json -n 1000 --print-freq 100 -o limit_mX% >! limit_mX%.log \
+    fit_ws.py -f limit_setting/inputs/model.root -d obsData --binned --setval mX=% \
+        -o wsfits_mX%.json >! wsfits_mX%.log \n \
+    compute_limits.py -m model_mX%.json -f wsfits_mX%.json -n 1000 --print-freq 100 \
+        --bands 2 -o limit_mX% >! limit_mX%.log \
   " >! commands
   
   source commands
 
-will produce a list of model-building commands similar to the ones used above. In each one, the '%' sign in the argument to the `-c` option gets replaced in turn by the appropriate mass values. The `-p 1000:5000:41:int` option specifies 41 points between 1000 and 5000, rounded to the nearest integer, which corresponds to the 100 GeV step we wanted.
+will produce a list of model-building commands similar to the ones used above. In each one, the '%' sign in the argument to the `-c` option gets replaced in turn by the appropriate mass values. The `-p 1000:5000:41:int` option specifies 41 points between 1000 and 5000, rounded to the nearest integer, which corresponds to the 100 GeV step we wanted. The `source` command will run all the limits sequentially, but one can also run them in parallel on different CPUs (or even use multiple CPUs for a single limit, exploiting the lock file mechanism decribed above).
 
-Finally, 
+Note also the `--bands 2` argument, which computes the :math:`1\sigma` and  :math:`2\sigma` bands around the expected limit. This isn't really reliable with only 1000 toys per sampling distribution, as we'll see below, but is included for illustration purposes.
+
+After a few hours of running, all the limits should have been processed and one should have a `limit_mXxxxx_results.json` file in the working directory for each of the mass points. At this point one can combine all the results into a single plot by running
+
+.. code-block:: console
+
+  python -im collect_results -p 1000:5000:41:int -i limit_mX%_results.json -v m_X -u GeV \
+      -k limit_sampling_CLs,limit_asymptotics_CLs -b 2 -l  -o limit_all.json
+
+The syntax is similar to the one for `iterate.py` above, with `-p` specifying the mass points and `-i` the input files with the `%` wildcard. The `-k` option give the key values for the results we want. These can be inspected by looking at the contents of one of the JSON results file, and here we specify the :math:`CL_s` limit obtained from the sampling method, which is stored under `limit_sampling_CLs`, and the one computed with asymptotics, `limit_asymptotics_CLs`. The `-v` and `-u` options specify the name and unit of the scanned variable, for plotting purposes .The `--bands 2` option is passed to plot the :math:`1\sigma` and  :math:`2\sigma` bands around the expected limit. As already mentioned, one would need many more toys to get a reliable result, but this is included for illustration.
+
+The collected results are written to `limit_all.json`, and a plot is drawn. Output in `ROOT` format can also be provided by passing the `--root-output` option. 
+
+The produced plot is shown below:
+
+.. image:: outputs/limit_all.png
+    :width:  70%
+    :align:  center
+
+
+
+Ignoring the noise from the limited sample sizes, one can identify the expected difference between toys and asymptotics at high mass, with the toys-based limit saturating at the 3-event value while the asymptotic results falls below. The negative variations bands can also be seen to collapse at high mass as expected.
