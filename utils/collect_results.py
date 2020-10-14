@@ -22,6 +22,20 @@ in the input results files.
 The results are plotted and written to the JSON file specfied by `--output-file`.
 If `--root-output` is also provided, results are formatted as `TGraph` or
 `TGraphAsymError` ROOT objects and written to the specified ROOT file.
+
+In ROOT, the output can then be drawn as follows:
+
+- *Simple*
+  limit_sampling_CLs->Draw("CA")
+
+- *With errors*
+  limit_sampling_CLs->Draw("A4")
+  limit_sampling_CLs->Draw("LX")
+
+- *With bands*
+  limit_sampling_CLs_expected_band_2->Draw("A4")
+  limit_sampling_CLs_expected_band_1->Draw("L4SAME")
+  limit_sampling_CLs_expected_band_1->Draw("LX")
 """
 __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
@@ -56,6 +70,8 @@ def make_parser() :
   parser.add_argument("-p", "--positions"    , type=str  , default=''  , help="Parameter values to scan over")
   parser.add_argument("-i", "--input-pattern", type=str  , default=''  , help="Pattern of result files to load, with the value indicated by a * or a %%")
   parser.add_argument("-k", "--key"          , type=str  , default=''  , help="Key indexing the output result")
+  parser.add_argument("-v", "--scan-var"     , type=str  , default=None, help="Name of the scanned variable")
+  parser.add_argument("-u", "--scan-unit"    , type=str  , default=None, help="Unit of the scanned variable")
   parser.add_argument("-b", "--bands"        , type=int  , default=None, help="Number of expected limit bands to include")
   parser.add_argument("-e", "--errors"       , action='store_true'     , help="Include sampling uncertainties on the limit values")
   parser.add_argument("-o", "--output-file"  , type=str  , default=None, help="Output file name")
@@ -87,53 +103,65 @@ def run(argv = None) :
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid value specification %s : the format should be either vmin:vmax:nvals or v1,v2,...' % options.positions)
+  #print('positions:', positions)
 
-  print('positions:', positions)
+  keys = options.key.split(',')
 
-  if options.bands :
-    results = {}
-    for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-      results[band] = []
-  else :
-    results = []
-  good_pos = []
-  i = 0
-
-  for pos in positions :
-    filename = options.input_pattern.replace('*', str(pos)).replace('%', str(pos))
-    try :
-      with open(filename, 'r') as fd :
-        jdict = json.load(fd)
-    except Exception as inst :
-      print(inst)
-      print('Skipping file %s with missing data' % filename)
-      continue
-    if options.bands :
+  results = {}
+  bands = {}
+  good_pos = {}
+  
+  poi_name = None
+  poi_unit = None
+  
+  for k, key in enumerate(keys) :
+    if options.bands and k == 0 :
+      bands[key] = {}
+      for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+        bands[key][band] = []
+    results[key] = []
+    good_pos[key] = []
+    for pos in positions :
+      filename = options.input_pattern.replace('*', str(pos)).replace('%', str(pos))
       try :
-        for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-          res = jdict[options.key + '_expected_band_%+d' % band]
-          if res == None : raise ValueError('Result is None')
-        for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-          res = jdict[options.key + '_expected_band_%+d' % band]
-          results[band].append(float(res))
+        with open(filename, 'r') as fd :
+          jdict = json.load(fd)
       except Exception as inst :
         print(inst)
-        print('Floating-point result not found for band %+d at key %s in file %s. Available keys:\n%s' % (band, options.key, filename, '\n'.join(jdict.keys())))
+        print('Skipping file %s with missing data' % filename)
         continue
-    else :
+      if poi_name == None :
+        try :
+          poi_name = jdict['poi_name']
+          poi_unit = jdict['poi_unit']
+        except Exception as inst :
+          poi_name = ''
+          poi_unit = ''
+      if options.bands and k == 0 :
+        try :
+          for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+            res = jdict[key + '_expected_band_%+d' % band]
+            if res == None : raise ValueError('Result is None')
+          for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+            res = jdict[key + '_expected_band_%+d' % band]
+            bands[key][band].append(float(res))
+        except Exception as inst :
+          print(inst)
+          print('Floating-point result not found for band %+d at key %s in file %s. Available keys:\n%s' % (band, key, filename, '\n'.join(jdict.keys())))
+          continue
       try :
-        res = jdict[options.key]
+        res = jdict[key]
         if res == None :
           print('Result at position %g is None, skipping' % pos)
           continue
       except Exception as inst :
         print(inst)
-        print('Floating-point result not found at key %s in file %s. Available keys:\n%s' % (options.key, filename, '\n'.join(jdict.keys())))
+        print('Floating-point result not found at key %s in file %s. Available keys:\n%s' % (key, filename, '\n'.join(jdict.keys())))
         continue
       if options.errors :
         try :
-          resup = jdict[options.key + '_up']
-          resdn = jdict[options.key + '_dn']
+          resup = jdict[key + '_up']
+          resdn = jdict[key + '_dn']
           if resup == None :
             print('Positive error at position %g is None, skipping' % pos)
             continue
@@ -142,16 +170,20 @@ def run(argv = None) :
             continue
         except Exception as inst :
           print(inst)
-          print('Positive and negative errors on result not found at key %s in file %s. Available keys:\n%s' % (options.key, filename, '\n'.join(jdict.keys())))
+          print('Positive and negative errors on result not found at key %s in file %s. Available keys:\n%s' % (key, filename, '\n'.join(jdict.keys())))
           continue
-        results.append([ float(res), float(resup), float(resdn) ])
+        results[key].append([ float(res), float(resup), float(resdn) ])
       else :
-        results.append(float(res))
-    good_pos.append(pos)
+        results[key].append(float(res))
+      good_pos[key].append(pos)
 
   jdict = {}
-  jdict['positions'] = good_pos
-  jdict['results'] = results
+  for k, key in enumerate(keys) :
+    key_jdict = {}
+    key_jdict['positions'] = good_pos[key]
+    key_jdict['results'] = results[key]
+    if options.bands and k == 0 : key_jdict['bands'] = bands[key]
+    jdict[key] = key_jdict
 
   if options.output_file is not None :
     with open(options.output_file, 'w') as fd:
@@ -162,58 +194,81 @@ def run(argv = None) :
   if options.root_output is not None :
     import ROOT
     colors = [ 1, 8, 5 ]
-    if options.bands :
-      gs = {}
-      for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-        for band in range(1, options.bands + 1) :
-          g = ROOT.TGraphAsymmErrors(len(good_pos))
-          g.SetName(options.key + '_expected_band_%d' % band)
-          g.SetTitle('')
-          g.SetLineWidth(2)
-          g.SetLineColor(1)
-          g.SetLineStyle(2)
-          g.SetFillColor(colors[band])
-          gs[band] = g
-    elif options.errors :
-      g = ROOT.TGraphAsymmErrors(len(good_pos))
-      g.SetName(options.key)
-      g.SetLineWidth(2)
-      g.SetLineColor(1)
-      g.SetFillColor(colors[1])
-    else :
-      g = ROOT.TGraph(len(good_pos))
-      g.SetName(options.key)
-    for i in range(0, len(good_pos)) :
-      if options.bands :
-        for band in range(1, options.bands + 1) :
-          gs[band].SetPoint(i, good_pos[i], results[0][i])
-          gs[band].SetPointEYhigh(i, results[band][i] - results[0][i])
-          gs[band].SetPointEYlow (i, results[0][i] - results[-band][i])
-      elif options.errors :
-        g.SetPoint(i, good_pos[i], results[i][0])
-        g.SetPointEYhigh(i, results[i][1] - results[i][0])
-        g.SetPointEYlow (i, results[i][0] - results[i][2])
+    gs = {}
+    g = {}
+    xlabel = options.scan_var + (' ['  + options.scan_unit + ']') if options.scan_unit != '' else ''
+    ylabel = poi_name + (' ['  + poi_unit + ']') if poi_unit != '' else ''
+    for k, key in enumerate(keys) :
+      if options.bands and k == 0 :
+        gs[key] = {}
+        for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+          for band in range(1, options.bands + 1) :
+            g[key] = ROOT.TGraphAsymmErrors(len(good_pos[key]))
+            g[key].SetName(key + '_expected_band_%d' % band)
+            g[key].SetTitle('')
+            g[key].SetLineWidth(2)
+            g[key].SetLineColor(1)
+            g[key].SetLineStyle(2)
+            g[key].SetFillColor(colors[band])
+            g[key].GetXaxis().SetTitle(xlabel)
+            g[key].GetYaxis().SetTitle(ylabel)
+            gs[key][band] = g[key]
+      if options.errors :
+        g[key] = ROOT.TGraphAsymmErrors(len(good_pos[key]))
+        g[key].SetName(key)
+        g[key].SetLineWidth(2)
+        g[key].SetLineColor(1)
+        g[key].SetFillColor(colors[1])
+        g[key].GetXaxis().SetTitle(xlabel)
+        g[key].GetYaxis().SetTitle(ylabel)
       else :
-        g.SetPoint(i, good_pos[i], results[i])
+        g[key] = ROOT.TGraph(len(good_pos[key]))
+        g[key].SetName(key)
+        g[key].GetXaxis().SetTitle(xlabel)
+        g[key].GetYaxis().SetTitle(ylabel)
+      for i in range(0, len(good_pos[key])) :
+        if options.bands and k == 0 :
+          for band in range(1, options.bands + 1) :
+            gs[key][band].SetPoint(i, good_pos[key][i], bands[key][0][i])
+            gs[key][band].SetPointEYhigh(i, bands[key][band][i] - bands[key][0][i])
+            gs[key][band].SetPointEYlow (i, bands[key][0][i] - bands[key][-band][i])
+        if options.errors :
+          g[key].SetPoint(i, good_pos[key][i], results[key][i][0])
+          g[key].SetPointEYhigh(i, results[key][i][1] - results[key][i][0])
+          g[key].SetPointEYlow (i, results[key][i][0] - results[key][i][2])
+        else :
+          g[key].SetPoint(i, good_pos[key][i], results[key][i])
     f = ROOT.TFile.Open(options.root_output, 'RECREATE')
-    if options.bands :
-      for band in range(1, options.bands + 1) :
-        gs[band].Write()
-    else :
-      g.Write()
+    for k, key in enumerate(keys) :
+      if options.bands and k == 0 :
+        for band in range(1, options.bands + 1) :
+          gs[key][band].Write()
+      g[key].Write()
     f.Close()
 
   plt.ion()
   if options.log_scale : plt.yscale('log')
 
-  if options.bands is not None :
-    colors = [ 'k', 'g', 'y', 'c', 'b' ]
-    for i in reversed(range(1, options.bands + 1)) :
-      plt.fill_between(good_pos, results[+i], results[-i], color=colors[i])
-      plt.plot(good_pos, results[0], 'k--')
-  else :
-    plt.plot(good_pos, results, 'b')
+  items = []
+  for k, key in enumerate(keys) :
+    if options.bands is not None and k == 0 :
+      band_colors = [ 'k', 'g', 'y', 'c', 'b' ]
+      for i in reversed(range(1, options.bands + 1)) :
+        plt.fill_between(good_pos[key], bands[key][+i], bands[key][-i], color=band_colors[i], label=key + ' +- %dσ band' % i)
+        items.append(key + ' +- %dσ band' % i)
+      plt.plot(good_pos[key], bands[key][0], 'k--', label=key + ' expected')
+      items.append(key + ' expected')
+    line_colors = [ 'b', 'r', 'g', 'k', 'y', 'c' ]
+    plt.plot(good_pos[key], results[key], color=line_colors[k], label=key)
+    items.append(key)
+  handles, labels = plt.gca().get_legend_handles_labels()
+  label_handles = { l : h for l,h in zip(labels, handles) }
+  plt.legend([ label_handles[l] for l in items ], items)
+  plt.gca().set_xlabel('$' + options.scan_var + '$' + ((' ['  + options.scan_unit + ']') if options.scan_unit != '' else ''))
+  plt.gca().set_ylabel('$' + poi_name + '$' + ((' ['  + poi_unit + ']') if poi_unit != '' else ''))
   plt.show()
-
+  if options.output_file is not None :
+    split_name = os.path.splitext(options.output_file)
+    plt.savefig(split_name[0] + '.png')
 
 if __name__ == '__main__' : run()
