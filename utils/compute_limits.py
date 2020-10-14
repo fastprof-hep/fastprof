@@ -76,7 +76,7 @@ def make_parser() :
   parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use")
   parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
   parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
-  parser.add_argument(      "--bands"         , type=int  , default=None  , help="Number of bands to show")
+  parser.add_argument("-b", "--bands"         , type=int  , default=None  , help="Number of bands to show")
   parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
   parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
@@ -248,6 +248,7 @@ def run(argv = None) :
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
     fig1.savefig(options.output_file + '_clsb.pdf')
     fig2.savefig(options.output_file + '_cls.pdf')
+    fig2.savefig(options.output_file + '_cls.png')
     plt.show()
 
   jdict = {}
