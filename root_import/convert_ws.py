@@ -563,7 +563,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, nps,
           par.obj.setVal(par.nominal + val*par.error)
           fill_yields(channel, 'var')
           nvar = np.array([sample.yields['var'] for sample in channel.samples])
-          par_data[:,i,k] = nvar/nref
+          par_data[:,i,k] = nvar/np.maximum(nref, 1E-5) 
           print('== validation %-10s: %+6g variation = %s' % (par.name, val, str(par_data[:,i,k])))
         par.obj.setVal(par.nominal)
   sys.stderr.write('\n')
