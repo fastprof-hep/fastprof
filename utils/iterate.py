@@ -29,7 +29,7 @@ try:
   pos_spec = options.positions.split(':')
   if len(pos_spec) == 3 : 
     positions = np.linspace(float(pos_spec[0]), float(pos_spec[1]), int(pos_spec[2]))
-  elif len(pos_spec) == 3 and pos_spec[3] == 'int' : 
+  elif len(pos_spec) == 4 and pos_spec[3] == 'int' : 
     positions = np.linspace(float(pos_spec[0]), float(pos_spec[1]), int(pos_spec[2]))
     positions = [ math.floor(pos) for pos in positions ]
   elif len(pos_spec) == 4 and pos_spec[3] == 'log' :
@@ -43,10 +43,11 @@ except Exception as inst :
   print(inst)
   raise ValueError('Invalid value specification %s : the format should be either vmin:vmax:nvals or v1,v2,...' % options.positions)
 
-print('positions:', positions)
+#print('positions:', positions)
 result = ''
 for pos in positions :
-  command = options.cmd_pattern.replace('*', str(pos)).replace('%', str(pos))
+  str_pos = str(pos)
+  command = options.cmd_pattern.replace('*', str_pos).replace('%', str_pos).replace('\\n', '\n')
   result += command + '\n'
 
 if options.output_file != '' :
