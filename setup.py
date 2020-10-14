@@ -57,7 +57,7 @@ setup(
     'utils/iterate.py',
     'utils/collect_results.py'
     ],
-  setup_requires = ['sphinx'],
+  setup_requires = [ 'wheel', 'sphinx'],
   entry_points = {
     'distutils.commands': [
       'sphinx = example_module:Sphinx'
