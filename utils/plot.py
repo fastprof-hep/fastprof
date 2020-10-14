@@ -51,11 +51,11 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     return
-  
+
   model = Model.create(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if options.channel is not None and not options.channel in model.channels() : raise KeyError('Channel %s not found in model.' % options.channel)
-  
+
   if options.data_file is not None :
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
@@ -70,7 +70,7 @@ def run(argv = None) :
     print('Using Asimov dataset with POIs %s.' % str(sets))
   else :
     data = Data(model).load(options.model_file)
-  
+
   if options.setval is not None :
     try :
       poi_dict = process_setvals(options.setval, model)
@@ -89,7 +89,7 @@ def run(argv = None) :
     pars = mini.min_pars
   else :
     pars = model.expected_pars(0)
-  
+
   xmin = None
   xmax = None
   ymin = None
@@ -100,7 +100,7 @@ def run(argv = None) :
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid X-axis range specification %s, expected x_min,x_max' % options.x_range)
-  
+
   if options.y_range is not None :
     try:
       ymin, ymax = [ float(p) for p in options.y_range.split(',') ]
@@ -124,7 +124,7 @@ def run(argv = None) :
     if ymin is not None : ax1[0].set_ylim(ymin, ymax)
     model.plot(pars, data=data, canvas=ax1[1], residuals=options.residuals)
   if options.output_file is not None : plt.savefig(options.output_file)
-  
+
   variations = None
   colors = [ 'darkred', 'red', 'orange', 'lime', 'green', 'darkblue', 'purple', 'magenta' ]
   if options.variations is not None :
@@ -151,7 +151,7 @@ def run(argv = None) :
         var_val = float(options.variations)
       except:
         raise ValueError('Invalid variations specification %s : should be a comma-separated list of var=val[:color] items, or a single number')
-  
+
   if variations == 'all' :
     n1 = math.ceil(math.sqrt(model.nnps))
     n2 = math.ceil(model.nnps/n1)
@@ -169,7 +169,7 @@ def run(argv = None) :
   if options.output_file is not None :
     split_name = os.path.splitext(options.output_file)
     plt.savefig(split_name[0] + '_variations' + split_name[1])
-  
+
 
 
 if __name__ == '__main__' : run()

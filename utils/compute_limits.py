@@ -8,13 +8,13 @@ linear statistical model.
 
 * The code computes the limit at the specified CL (`--cl` argument), by
   default 95%. Both frequentist and modified-frequentist :math:`CL_s` limits
-  are computed. The test statistic can be set usign the `-t` option. By 
+  are computed. The test statistic can be set usign the `-t` option. By
   default, the q_mu~ of [arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>]_
   is used.
 
-* The main inputs are the model file (`--model-file` argument) and the 
+* The main inputs are the model file (`--model-file` argument) and the
   *fits* file providing results from the full model (`--fits-file`).
-  The fits file also defines the parameter hypotheses at which the 
+  The fits file also defines the parameter hypotheses at which the
   sampling distributions are generated.
 
 * The limit is computed using the test statistic values stored in the
@@ -30,13 +30,13 @@ linear statistical model.
   :math:`CL_b` values at each hypothesis, and interpolated frequentist
   and :math:`CL_s` upper limits.
   Results for the full model in the asymptotic approximation are also shown
-  for comparison, as well as those of the linear model if a dataset is 
+  for comparison, as well as those of the linear model if a dataset is
   supplied either as observed data (`--data-file` argument) or an Asimov
   dataset (`--asimov`).
   The results are stored in a JSON file (`-o` argument)
   Plots of CL vs hypothesis are also shown, as well as the expected
-  limit and its uncertainty bands for the null hypothesis if the `--bands` 
-  option is specified. 
+  limit and its uncertainty bands for the null hypothesis if the `--bands`
+  option is specified.
 
 * Several options can be specified to account for non linear effects (`--iterations`)
   or regularize the model (`--regularize`, `--cutoff`, `--bounds`, `--sethypo`),
@@ -180,7 +180,7 @@ def run(argv = None) :
     .generate_and_save(options.ntoys, break_locks=options.break_locks)
 
   if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
-  
+
   poi = raster.pois()[list(raster.pois())[0]]
 
   for plr_data in raster.plr_data.values() :

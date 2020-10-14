@@ -57,23 +57,23 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     sys.exit(0)
-  
+
   debug = pd.read_csv(options.filename[0])
-  
+
   plt.ion()
   fig1,ax1 = plt.subplots(2,2)
-  
+
   debug.hist('mu_hat', ax=ax1[0,0], bins=options.nbins)
   debug.hist('tmu'   , ax=ax1[0,1], bins=np.linspace(0, options.tmu_range, options.nbins))
   debug.hist('pv'    , ax=ax1[1,0], bins=options.nbins)
   debug.hist('nfev'  , ax=ax1[1,1])
-  
+
   if options.log_scale :
     ax1[0,0].set_yscale('log')
     ax1[0,1].set_yscale('log')
     ax1[0,1].set_ylim(bottom=1)
     ax1[1,0].set_yscale('log')
-  
+
   if options.reference :
     mu_hat = debug['mu_hat']
     xx = np.linspace(np.min(mu_hat), np.max(mu_hat), options.nbins)
@@ -86,7 +86,7 @@ def run(argv = None) :
     xx = np.linspace(0,1, options.nbins)
     yy = [ mu_hat.shape[0]*(xx[1] - xx[0]) for x in xx ]
     ax1[1,0].plot(xx,yy)
-  
+
   if options.hypo != '' :
     model = Model.create(options.model_file)
     if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
@@ -100,7 +100,7 @@ def run(argv = None) :
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid hypothesis spec, should be in the format <filename>:<index>')
-  
+
   z = options.np_range
   pars = [ col[len('free_'):] for col in debug.columns if col.startswith('free_') and not col.endswith('nll') ]
   fig2,ax2 = plt.subplots(2, len(pars),figsize=(15,5), sharey=True)
@@ -125,15 +125,15 @@ def run(argv = None) :
     if options.log_scale : ax2[1,i].set_yscale('log')
   ax2[0,0].set_ylabel('free fit')
   ax2[1,0].set_ylabel('hypothesis fit')
-  
-  
-    #free_g = sns.jointplot(free_delta, debug['mu_hat'], kind="kde", xlim=(-z,z), ax=ax2[1,i]) 
-    #hypo_g = sns.jointplot(hypo_delta, debug['mu_hat'], kind="kde", xlim=(-z,z), ax=ax2[2,i]) 
+
+
+    #free_g = sns.jointplot(free_delta, debug['mu_hat'], kind="kde", xlim=(-z,z), ax=ax2[1,i])
+    #hypo_g = sns.jointplot(hypo_delta, debug['mu_hat'], kind="kde", xlim=(-z,z), ax=ax2[2,i])
     #free_g.ax_joint.axhline(0,c='r',ls='--')
     #free_g.ax_joint.axvline(0,c='r',ls='--')
     #hypo_g.ax_joint.axhline(0,c='r',ls='--')
     #hypo_g.ax_joint.axvline(0,c='r',ls='--')
-  
+
   plt.show()
 
 

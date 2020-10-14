@@ -15,7 +15,7 @@ The format of the results files to look for is given by `--input_pattern`. The
 symbols `*` or `%` in the pattern are replaced by position values.
 
 In each file, the result labeled by `--key` is extracted, along with its
-variation bands if `--bands` is specified. If `--errors` is specified, 
+variation bands if `--bands` is specified. If `--errors` is specified,
 statistical uncertainties in the results are included if they are available
 in the input results files.
 
@@ -69,12 +69,12 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     return
-  
+
   try:
     pos_spec = options.positions.split(':')
-    if len(pos_spec) == 3 : 
+    if len(pos_spec) == 3 :
       positions = np.linspace(float(pos_spec[0]), float(pos_spec[1]), int(pos_spec[2]))
-    elif len(pos_spec) == 4 and pos_spec[3] == 'int' : 
+    elif len(pos_spec) == 4 and pos_spec[3] == 'int' :
       positions = np.linspace(float(pos_spec[0]), float(pos_spec[1]), int(pos_spec[2]))
       positions = [ math.floor(pos) for pos in positions ]
     elif len(pos_spec) == 4 and pos_spec[3] == 'log' :
@@ -87,9 +87,9 @@ def run(argv = None) :
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid value specification %s : the format should be either vmin:vmax:nvals or v1,v2,...' % options.positions)
-  
+
   print('positions:', positions)
-  
+
   if options.bands :
     results = {}
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
@@ -98,7 +98,7 @@ def run(argv = None) :
     results = []
   good_pos = []
   i = 0
-  
+
   for pos in positions :
     filename = options.input_pattern.replace('*', str(pos)).replace('%', str(pos))
     try :
@@ -148,17 +148,17 @@ def run(argv = None) :
       else :
         results.append(float(res))
     good_pos.append(pos)
-    
+
   jdict = {}
   jdict['positions'] = good_pos
   jdict['results'] = results
-  
+
   if options.output_file is not None :
     with open(options.output_file, 'w') as fd:
       json.dump(jdict, fd, ensure_ascii=True, indent=3)
   else :
     print(jdict)
-  
+
   if options.root_output is not None :
     import ROOT
     colors = [ 1, 8, 5 ]
@@ -183,7 +183,7 @@ def run(argv = None) :
     else :
       g = ROOT.TGraph(len(good_pos))
       g.SetName(options.key)
-    for i in range(0, len(good_pos)) : 
+    for i in range(0, len(good_pos)) :
       if options.bands :
         for band in range(1, options.bands + 1) :
           gs[band].SetPoint(i, good_pos[i], results[0][i])
@@ -202,10 +202,10 @@ def run(argv = None) :
     else :
       g.Write()
     f.Close()
-  
+
   plt.ion()
   if options.log_scale : plt.yscale('log')
-  
+
   if options.bands is not None :
     colors = [ 'k', 'g', 'y', 'c', 'b' ]
     for i in reversed(range(1, options.bands + 1)) :

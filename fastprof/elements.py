@@ -1,15 +1,15 @@
 """Module containing the building blocks for fastprof models:
 
   * :class:`ModelPOI`, representing model *parameters of interest* (POIs).
-       
+
   * :class:`ModelNP`, representing model *nuisance parameters* (NPs)
-    
+
   * :class:`ModelAux`, representing an *auxiliary observable* (aux. obs.) of the model
 
   * :class:`Channel`, defining a measurement region*
 
   * :class:`Sample` objects, each defining a contribution to a channel.
-  
+
   All the classes support loading from / saving to JSON files. The basic mechanism for this is implemented in the :class:`JSONSerializable` base class from which they all derive.
 """
 
@@ -20,13 +20,13 @@ from abc import abstractmethod
 # -------------------------------------------------------------------------
 class JSONSerializable :
   """An abstract base class for objects that load from / save to a JSON filename
-  
+
   The class implements
-  
+
   * load() and save() methods with filename arguments,
-  
+
   * load_json() and save_json() with JSON object arguments.
-  
+
   Both sets are implemented in terms of the abstract methods load_jdict() and
   fill_jdict(), which operate on dictionaries and should be implemented
   in the derived classes.
@@ -37,10 +37,10 @@ class JSONSerializable :
 
   def load(self, filename : str) :
     """Load the object from a JSON file
-      
+
       Args:
         filename: name of the file to load from
-      
+
       Returns:
         JSONSerializable: self
     """
@@ -50,9 +50,9 @@ class JSONSerializable :
 
   def save(self, filename) :
     """Save the object to a JSON file
-      
+
       Args:
-        filename: name of the file to load from      
+        filename: name of the file to load from
 
       Returns:
         JSONSerializable: self
@@ -63,10 +63,10 @@ class JSONSerializable :
 
   def load_json(self, js : str) :
     """Load the object from a JSON string
-      
+
       Args:
         js: JSON data to load, in string format
-        
+
       Returns:
         JSONSerializable: self
     """
@@ -75,7 +75,7 @@ class JSONSerializable :
 
   def dump_json(self) -> str :
     """Dumps the object as a JSON string
-        
+
       Returns:
         str: the JSON string encoding the object contents
     """
@@ -84,7 +84,7 @@ class JSONSerializable :
 
   def dump_jdict(self) :
     """Dumps the object as a dictionary of JSON data
-        
+
       Returns:
         dict: dictionary with the object contents
     """
@@ -94,16 +94,16 @@ class JSONSerializable :
 
   def load_field(self, key : str, dic : dict, default = None, types : list = []) :
     """Load an field from a dictionary of JSON data
-      
-      If the key is not present, or if the value type is not among the 
+
+      If the key is not present, or if the value type is not among the
       ones listed in `types`, then `default` is returned instead.
-      
+
       Args:
          key    : key to look up in the dictionary
          dict   : dictionary object in which to look up the key
          default: default value to return if `key` is absent in `dic`, or the return type is not listed (default: None)
          types  : list of strings giving allowed return types (default: [], allows all types)
-        
+
       Returns:
         (depends): the value indexed by `key` in `dic`, or `default` if not present or not of the expected type.
     """
@@ -113,7 +113,7 @@ class JSONSerializable :
     val = dic[key]
     if not isinstance(types, list) : types = [ types ]
     if types != [] and not any([isinstance(val, t) for t in types]) :
-      raise TypeError('Object at key %s in JSON dictionary has type %s, not the expected %s' % 
+      raise TypeError('Object at key %s in JSON dictionary has type %s, not the expected %s' %
                       (key, val.__class__.__name__, '|'.join([t.__name__ for t in types])))
     if types == [ list ] : val = np.array(val, dtype=float)
     return val
@@ -121,36 +121,36 @@ class JSONSerializable :
   @abstractmethod
   def load_jdict(self, jdict: dict) -> 'JSONSerializable' :
     """Abstract method to load information from a dictionary of JSON data
-        
+
       Args:
         jdict: A dictionary containing JSON data
 
       Returns:
         self
-    """    
+    """
     return self
 
   @abstractmethod
   def fill_jdict(self, jdict) :
     """Abstract method to save information to a dictionary of JSON data
-        
+
       Args:
          jdict: A dictionary containing JSON data
 
       Returns:
          None
-    """    
+    """
     pass
 
 
 # -------------------------------------------------------------------------
 class ModelPOI(JSONSerializable) :
   """Class representing a POI of the model
-  
+
   Stores the information relevant for POIs (see attributes),
   implements JSON loading/saving through JSONSerializable
   base class.
-        
+
   Attributes:
      name          (str)   : the name of the parameter
      value         (float) : the value of the parameter (either a best-fit value or a fixed hypothesis value)
@@ -162,9 +162,9 @@ class ModelPOI(JSONSerializable) :
 
   def __init__(self, name = '', value = None, error = None, min_value = None, max_value = None, initial_value = None) :
     """Initialize object attributes
-      
+
       Missing arguments are set to None.
-      
+
       Args:
         name          (str)   : the name of the parameter
         value         (float) : the value of the parameter (either a best-fit value or a fixed hypothesis value)
@@ -172,7 +172,7 @@ class ModelPOI(JSONSerializable) :
         min_value     (float) : the lower bound of the allowed range of the parameter
         max_value     (float) : the upper bound of the allowed range of the parameter
         initial_value (float) : the initial value of the parameter when performing fits to data
-    """    
+    """
     self.name = name
     self.value = value
     self.error = error
@@ -182,7 +182,7 @@ class ModelPOI(JSONSerializable) :
 
   def __str__(self) :
     """Provides a description string
-      
+
       Returns:
         The object description
     """
@@ -193,15 +193,15 @@ class ModelPOI(JSONSerializable) :
     if self.initial_value is not None : s += ' init = %g' % self.initial_value
     return s
 
-  def load_jdict(self, jdict) : 
+  def load_jdict(self, jdict) :
     """load object information from a dictionary of JSON data
-        
+
       Args:
         jdict: A dictionary containing JSON data
 
       Returns:
         ModelPOI: self
-    """    
+    """
     self.name      = self.load_field('name'     , jdict,  self.name, str)
     self.value     = self.load_field('value'    , jdict,  0, [int, float])
     self.error     = self.load_field('error'    , jdict,  0, [int, float])
@@ -212,10 +212,10 @@ class ModelPOI(JSONSerializable) :
 
   def fill_jdict(self, jdict) :
     """Save information to a dictionary of JSON data
-        
+
       Args:
          jdict: A dictionary containing JSON data
-    """    
+    """
     jdict['name']      = self.name
     jdict['value']     = self.value
     jdict['error']     = self.error
@@ -227,12 +227,12 @@ class ModelPOI(JSONSerializable) :
 # -------------------------------------------------------------------------
 class ModelAux(JSONSerializable) :
   """Class representing an auxiliary observable of the model
-  
+
   Stores the information relevant for the auxiliary observables
   that provide a constraint on some model NPs (see attributes).
   Implements JSON loading/saving through JSONSerializable
   base class.
-        
+
   Attributes:
      name          (str)   : the name of the aux. obs.
      min_value     (float) : the lower bound of the allowed range of the parameter
@@ -254,13 +254,13 @@ class ModelAux(JSONSerializable) :
 
   def load_jdict(self, jdict) :
     """load object information from a dictionary of JSON data
-        
+
       Args:
         jdict: A dictionary containing JSON data
 
       Returns:
         ModelAux: self
-    """    
+    """
     self.name = self.load_field('name', jdict, '', str)
     self.min_value = self.load_field('min_value', jdict, '', [int, float])
     self.max_value = self.load_field('max_value', jdict, '', [int, float])
@@ -268,25 +268,25 @@ class ModelAux(JSONSerializable) :
 
   def fill_jdict(self, jdict) :
     """Save information to a dictionary of JSON data
-        
+
       Args:
          jdict: A dictionary containing JSON data
-    """        
+    """
     jdict['name'] = self.name
     jdict['min_value'] = self.min_value
     jdict['max_value'] = self.max_value
 
-  
+
 # -------------------------------------------------------------------------
 class ModelNP(JSONSerializable) :
   """Class representing a NP of the model
-  
+
   Stores the information relevant for NPs (see attributes),
   implements JSON loading/saving through JSONSerializable
   base class.
-  
+
   The NPs have two representations:
-  
+
   * Their original representation in the full model, with a nominal value
     given by the `nominal_value` attribute and a variations given by the
     `variations` attribute
@@ -294,10 +294,10 @@ class ModelNP(JSONSerializable) :
   * A `scaled` representation In the linearized model (see :class:`Model`),
     where their values represent pulls : the nominal is 0, and 1 represents
     a :math:`1\sigma` deviation from the nominal
-  
+
   The scaled representation is obtained from the original as
   `scaled` = (`original` - `nominal_value`)/`variation`.
-  
+
   Attributes:
      name           (str)   : the name of the parameter
      nominal_value  (float) : the reference value of the parameter used to compute nominal sample yields
@@ -317,52 +317,52 @@ class ModelNP(JSONSerializable) :
 
   def is_free(self) :
     """specifies if an NP is free (unconstrained) or constrained by an aux.obs
-        
+
       Returns:
          bool: True for a free parameter, False for a constrained one
-    """    
+    """
     return self.constraint is None
 
   def unscaled_value(self, scaled_value) :
     """computes the unscaled value of a NP, for a given scaled value
-        
+
       See the class description (:class:`ModelNP`) for an explanation of scaled/unscaled.
-      
+
       Args:
         scaled_value (float): the scaled value of the NP
       Returns:
          float: the corresponding unscaled value
-    """    
+    """
     return self.nominal_value + scaled_value*self.variation
 
   def scaled_value(self, unscaled_value) :
     """computes the scaled value of a NP, for a given unscaled value
-        
+
       See the class description (:class:`ModelNP`) for an explanation of scaled/unscaled.
-      
+
       Args:
         unscaled_value (float): the unscaled value of the NP
       Returns:
          float: the corresponding scaled value
-    """    
+    """
     return (unscaled_value - self.nominal_value)/self.variation
 
   def generate_aux(self, value) :
     """randomly generate an aux. obs value for this NP
-        
+
       Constrained NPs represent the mean of a Gaussian of width `constraint`
-      
+
       Args:
         unscaled_value (float): the unscaled value of the NP
       Returns:
          float: the corresponding scaled value
-    """    
+    """
     if self.constraint is None : return 0
     return np.random.normal(value, self.constraint)
 
   def __str__(self) -> str :
     """Provides a description string
-      
+
       Returns:
         The object description
     """
@@ -370,15 +370,15 @@ class ModelNP(JSONSerializable) :
     s += 'constraint = %g' % self.constraint if self.constraint is not None else 'free parameter'
     return s
 
-  def load_jdict(self, jdict) : 
+  def load_jdict(self, jdict) :
     """load object information from a dictionary of JSON data
-        
+
       Args:
         jdict: A dictionary containing JSON data
 
       Returns:
         ModelNP: self
-    """    
+    """
     self.name = self.load_field('name', jdict, '', str)
     self.nominal_value = self.load_field('nominal_value', jdict, None, [int, float])
     self.variation = self.load_field('variation', jdict, None, [int, float])
@@ -391,10 +391,10 @@ class ModelNP(JSONSerializable) :
 
   def fill_jdict(self, jdict) :
     """Save information to a dictionary of JSON data
-        
+
       Args:
          jdict: A dictionary containing JSON data
-    """    
+    """
     jdict['name'] = self.name
     jdict['nominal_val'] = self.nominal_value
     jdict['variation'] = self.variation
@@ -405,18 +405,18 @@ class ModelNP(JSONSerializable) :
 # -------------------------------------------------------------------------
 class Sample(JSONSerializable) :
   """Class representing a model sample
-  
+
   Provides the functionality for HistFactory sample structures,
   which represent a contribution from a given process to a
   :class:`Channel` with a given binning.
-  
+
   It provides the following:
-  
+
   * An overall normalization term, which is a function of the
     model POIs (see :class:`ModelPOI`)
-  
+
   * An expected event yield contribution to each channel bin
-  
+
   * The relative variation of the per-bin yields with each model NP
     (see :class:`ModelNP`)
 
@@ -427,7 +427,7 @@ class Sample(JSONSerializable) :
      nominal_norm  (float) : the nominal value of the normalization term
                              for which the expected yields correspond
      nominal_yields (:class:`np.ndarray`) :
-          the nominal per-bin yields, provided as an 1D np.array with 
+          the nominal per-bin yields, provided as an 1D np.array with
           a size equal to the number of channel bins
      impacts (dict) : the relative variations in the per-bin yields
           corresponding to :math:`\pm1\sigma` variations
@@ -443,18 +443,18 @@ class Sample(JSONSerializable) :
                 coefficients for each NP (positive values only)
      neg_imps : internal storage of variations used to define the impact
                 coefficients for each NP (negative values only)
-  """    
+  """
 
   def __init__(self, name : str = '', norm : str = '', nominal_norm : float = None, nominal_yields : np.ndarray = None, impacts : np.ndarray = None) :
     """Create a new Sample object
-        
+
       Args:
          name: sample name
          norm: expression of the sample normalization factor, as a function of the POIs
          nominal_norm: value of the normalization factor for which the nominal yields are provided
          nominal_yields: nominal event yields for all channel bins (np. array of size `nbins`)
-         impacts: relative change of the nominal event yields for each NP (see class description for format)         
-    """    
+         impacts: relative change of the nominal event yields for each NP (see class description for format)
+    """
     self.name = name
     self.norm_expr = norm
     self.nominal_norm = nominal_norm
@@ -467,11 +467,11 @@ class Sample(JSONSerializable) :
 
   def available_variations(self, par : str = None) -> list :
     """provides the available variations of the per-bin event yields for a given NP
-        
+
       Args:
          par       : name of the NP
       Returns:
-        list of available variations 
+        list of available variations
     """
     if len(self.impacts) == 0 : return []
     if par is None : par = list(self.impacts.keys())[0]
@@ -481,7 +481,7 @@ class Sample(JSONSerializable) :
 
   def impact(self, par : str, variation : float = +1, normalize : bool = False) -> np.array :
     """provides the relative variations of the per-bin event yields for a given NP
-        
+
       Args:
          par       : name of the NP
          variation : NP variation, in numbers of sigmas
@@ -505,12 +505,12 @@ class Sample(JSONSerializable) :
     if imp is None : return imp
     return (1 + imp)**(1/variation) - 1 if normalize else imp
 
-  def impact_coefficients(self, par : str, variations = None, is_log : bool = False) -> list :   
+  def impact_coefficients(self, par : str, variations = None, is_log : bool = False) -> list :
     """Returns a parameterization of the impact values for an NP
-    
+
       Impacts are computed for fixed variations (+1, -1, etc.). In the model,
       an interpolation must be used based on these values. The simplest case
-      is for a single variation, where a linear interpolation is used. For 
+      is for a single variation, where a linear interpolation is used. For
       cases with more interpolation points, a polynomial is used.
 
       The interpolation can be in linear scale (suitable for interpolating
@@ -558,7 +558,7 @@ class Sample(JSONSerializable) :
 
   def sym_impact(self, par : str) -> np.array :
     """Provides the symmetrized relative variations of the per-bin event yields for a given NP
-        
+
       Args:
          par : name of the NP
       Returns:
@@ -574,7 +574,7 @@ class Sample(JSONSerializable) :
 
   def norm(self, pars_dict : dict) -> float :
     """Computes the overall normalization factor
-        
+
       Args:
          pars_dict : a dictionary of parameter name: value pairs
       Returns:
@@ -589,22 +589,22 @@ class Sample(JSONSerializable) :
 
   def __str__(self) -> str :
     """Provides a description string
-      
+
       Returns:
         The object description
     """
     s = "Sample '%s', norm = %s (nominal = %g)" % (self.name, self.norm_expr, self.nominal_norm)
     return s
 
-  def load_jdict(self, jdict) -> 'Sample' : 
+  def load_jdict(self, jdict) -> 'Sample' :
     """Load object information from a dictionary of JSON data
-        
+
       Args:
         jdict: A dictionary containing JSON data
 
       Returns:
         self
-    """    
+    """
     self.name = self.load_field('name', jdict, '', str)
     self.norm_expr = self.load_field('norm', jdict, '', str)
     self.nominal_norm = self.load_field('nominal_norm', jdict, None, [float, int])
@@ -614,10 +614,10 @@ class Sample(JSONSerializable) :
 
   def fill_jdict(self, jdict) :
     """Save information to a dictionary of JSON data
-        
+
       Args:
          jdict: A dictionary containing JSON data
-    """    
+    """
     jdict['name'] = self.name
     jdict['norm'] = self.norm_expr
     jdict['nominal_norm'] = self.nominal_norm
@@ -628,27 +628,27 @@ class Sample(JSONSerializable) :
 # -------------------------------------------------------------------------
 class Channel(JSONSerializable) :
   """Class representing a model channel
-  
+
   Provides the functionality for HistFactory channel structures,
   representing a set of measurement bins. Two types of channels
   are currently implemented, differing in how the
   bin list is handled:
-  
+
   * `count` : a channel with a single measurement bin
-  
+
   * `binned_range` : a channel with multiple bins spanning
     a range of a continuous observable.
-  
+
   They provide in both cases:
-  
+
   * A list of bins, each one defined by a python dict with the
     bin information
-  
+
     * `count` type: dict of the form { 'name' : <bin name> }
-    
-    * `binned_range` type: dict of the form 
+
+    * `binned_range` type: dict of the form
       { 'lo_edge' : <float value>, 'hi_edge': <float value> }
-  
+
   * A list of :class:`Sample` objects representing the processes
     contributing to the event yield in each bin.
 
@@ -659,11 +659,11 @@ class Channel(JSONSerializable) :
         format given above
      samples (dict) : the channel samples, as a dict mapping the sample names
         to the sample objects (see :class:`Sample`).
-  """    
+  """
 
   def __init__(self, name : str = '', chan_type : str = 'count', bins : list = []) :
     """Initializes the Channel class
-        
+
       Args:
          name : channel name
          type : channel type: 'count' (default) or 'binned_range' (see class description)
@@ -687,7 +687,7 @@ class Channel(JSONSerializable) :
 
   def __str__(self) -> str :
     """Provides a description string
-      
+
       Returns:
         The object description
     """
@@ -695,15 +695,15 @@ class Channel(JSONSerializable) :
     for sample in self.samples.values() : s += '\n    o ' + str(sample)
     return s
 
-  def load_jdict(self, jdict : dict) : 
+  def load_jdict(self, jdict : dict) :
     """Load object information from a dictionary of JSON data
-        
+
       Args:
         jdict: A dictionary containing JSON data
 
       Returns:
         Channel: self
-    """    
+    """
     self.name = jdict['name']
     self.type = jdict['type']
     if self.type == 'binned_range' :
@@ -718,10 +718,10 @@ class Channel(JSONSerializable) :
 
   def fill_jdict(self, jdict) :
     """Save information to a dictionary of JSON data
-        
+
       Args:
          jdict: A dictionary containing JSON data
-    """    
+    """
     jdict['name'] = self.name
     jdict['type'] = self.type
     if self.type == 'binned_range' :

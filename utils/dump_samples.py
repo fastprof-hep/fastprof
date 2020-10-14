@@ -4,13 +4,13 @@ __doc__ = """
 Draws in histogram form the sampling distribution
 contained in the specified input file.
 
-By default the asymptotic p-value is shown, or the 
-test statistic value can be shown instead (specified 
+By default the asymptotic p-value is shown, or the
+test statistic value can be shown instead (specified
 using the `--t-value` option).
 
 For test statistics, the model and hypothesis considered
 must be specified usign the `--model` and `--hypo` options.
-This is not needed for p-values, since the sampling 
+This is not needed for p-values, since the sampling
 distribution is stored in p-value form in the file.
 
 The expected asymptotic distribution is shown on the plot
@@ -53,9 +53,9 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     sys.exit(0)
-  
+
   samples = np.load(options.filename[0])
-  
+
   if options.x_range :
     try:
       x_min, x_max = [ float(p) for p in options.x_range.split(',') ]
@@ -67,7 +67,7 @@ def run(argv = None) :
       x_min, x_max = 0, 1
     else :
       x_min, x_max = -10, 10
-  
+
   plr_data = None
   if options.hypo != '' :
     model = Model.create(options.model_file)
@@ -82,11 +82,11 @@ def run(argv = None) :
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid hypothesis spec, should be in the format <filename>:<index>')
-  
+
   plt.ion()
   if options.log_scale : plt.yscale('log')
   plt.suptitle(options.filename[0])
-  
+
   if options.t_value == 'q_mu' :
     if plr_data is None : raise ValueError('A signal hypothesis must be provided (--hypo option) to convert to q_mu values')
     q = QMuCalculator.make_q(plr_data)
@@ -100,7 +100,7 @@ def run(argv = None) :
   else :
     plt.hist(samples[:], bins=options.nbins, range=[x_min, x_max])
   plt.show()
-  
+
   if options.reference :
     xx = np.linspace(x_min, x_max, options.nbins+1)
     dx = xx[1] - xx[0]
@@ -111,7 +111,7 @@ def run(argv = None) :
       yy = [ bin_norm*dx for x in xx[:-1] ]
     plt.plot(xx[:-1] + dx/2, yy)
     plt.ylim(1E-1)
-  
+
   if options.output_file != '' : plt.savefig(options.output_file)
 
 

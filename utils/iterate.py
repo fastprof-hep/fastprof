@@ -27,9 +27,9 @@ if not options :
 
 try:
   pos_spec = options.positions.split(':')
-  if len(pos_spec) == 3 : 
+  if len(pos_spec) == 3 :
     positions = np.linspace(float(pos_spec[0]), float(pos_spec[1]), int(pos_spec[2]))
-  elif len(pos_spec) == 4 and pos_spec[3] == 'int' : 
+  elif len(pos_spec) == 4 and pos_spec[3] == 'int' :
     positions = np.linspace(float(pos_spec[0]), float(pos_spec[1]), int(pos_spec[2]))
     positions = [ math.floor(pos) for pos in positions ]
   elif len(pos_spec) == 4 and pos_spec[3] == 'log' :

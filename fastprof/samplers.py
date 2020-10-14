@@ -9,18 +9,18 @@ module.
 
 The classes derive from the :class:`Sampler` base, which
 implements the :meth:`Sampler.generate` method that performs the
-generation. This includes the production of a toy dataset, which 
+generation. This includes the production of a toy dataset, which
 is a generic operation.
 
-The p-value computation can however be performed using any of the 
-different minimizer classes in :mod:`minimizers.py`, so this is 
+The p-value computation can however be performed using any of the
+different minimizer classes in :mod:`minimizers.py`, so this is
 part is delegated to the abstract method :meth:`Sampler.compute` which is
 reimplemented in derived classes corresponding to the minimization
 algorithms. So far the following are defined:
-    
+
 * :class:`OptiSampler` class, using the :class:`OptiMinimizer`
   minimization algorithm.
-      
+
 * :class:`ScanSampler` class, using the :class:`SCanMinimizer`
   minimization algorithm.
 """
@@ -43,15 +43,15 @@ from .minimizers import OptiMinimizer, ScanMinimizer
 # -------------------------------------------------------------------------
 class Sampler :
   """Base class for sampler algorithms
-  
+
   Provides the interface for sample generation, including the
   generation of pseudo-datasets. The p-value computation is
   performed in the meth:`compute` abstract method which is
   reimplemented in derived classes.
-  
+
   Attributes:
     model (Model) : the linear model used for generation
-    gen_hypo (Parameters) : the model parameter values defining the 
+    gen_hypo (Parameters) : the model parameter values defining the
                             generation hypothesis
     print_freq (int) : the interval at which to print out progress messages
     max_tries (int) : the maximum allowed number of retries when the
@@ -63,15 +63,15 @@ class Sampler :
   """
   def __init__(self, model : Model, gen_hypo : Parameters = None, print_freq : int = 1000, max_tries : int = 20) :
     """Initialize the Sampler object
-        
+
     Args:
       model : the linear model used for generation
-      gen_hypo : the model parameter values defining the 
+      gen_hypo : the model parameter values defining the
                  generation hypothesis
       print_freq : the interval at which to print out progress messages
       max_tries : the maximum allowed number of retries when the
                   generation fails
-    """        
+    """
     self.model = model
     self.gen_hypo = model.expected_pars(gen_hypo) if isinstance(gen_hypo, (int, float)) else gen_hypo
     self.print_freq = print_freq
@@ -80,19 +80,19 @@ class Sampler :
 
   def progress(self, k : int, ntoys : int, descr : str = '') :
     """Small utility method to print out a progress indicator
-        
+
     Args:
       k     : the index of the current toy generation iteration
       ntoys : the total number of toys to generate
       descr : a comment string to append to the message
-    """        
+    """
     if k % self.print_freq == 0 :
       print('-- Processing iteration %d of %d %s' % (k, ntoys, descr))
       sys.stderr.write('\rProcessing iteration %d of %d %s' % (k, ntoys, descr))
 
   def generate(self, ntoys, hypo_descr : str = None) -> SamplingDistribution :
     """Generate a specified number of samples
-        
+
     The function generates toy datasets and performs the computation
     in the :meth:`compute` abstract method. If the computation fails,
     another toy dataset is generated and another attempt is performed.
@@ -100,7 +100,7 @@ class Sampler :
     number of attemps specified by `max_tries` is reached, in which case
     a null result is returned. The process is repeated until `ntoys`
     samples are generated in this way.
-    
+
     Args:
       ntoys : the total number of samples to generate
       hypo_descr : a description string for the hypothesis
@@ -140,21 +140,21 @@ class Sampler :
   @abstractmethod
   def compute(self, data : Data, toy_iter : int) -> float :
     """Perform the result computation
-        
+
     Abstract method to perform the computation of the result
     Args:
       data : the toy dataset on which to perform the computation
       toy_iter : the index of the toy generation iteration
     Returns:
       the result, or `None` if the computation fails
-    """        
+    """
     pass
 
 
 # -------------------------------------------------------------------------
 class OptiSampler (Sampler) :
   """Sampler algorithms using :class:`OptiMinimizer` minimization
-  
+
   Provides an implementation of :class:`Sampler` in which the
   p-value computation in the meth:`compute` method is performed
   using :class:`OptiMinimizer`. In turn, this uses algorithms from
@@ -172,7 +172,7 @@ class OptiSampler (Sampler) :
   approximation is valid.
 
   Attributes:
-    test_hypo (Parameters) : the model parameter values defining the 
+    test_hypo (Parameters) : the model parameter values defining the
                  tested hypothesis. This is usually identical
                  to the generation hypothesis, but can differ
                  e.g. for :math:`CL_b` computations
@@ -198,13 +198,13 @@ class OptiSampler (Sampler) :
                print_freq : int = 1000, max_tries : int = 20, tmu_Amu : float = None, tmu_A0 : float = None, floor : float = 1E-7,
                debug : bool = False) :
     """Initialize the OptiSampler object
-        
+
     Args:
-      test_hypo : the model parameter values defining the 
+      test_hypo : the model parameter values defining the
                    tested hypothesis. This is usually identical
                    to the generation hypothesis, but can differ
                    e.g. for :math:`CL_b` computations
-      gen_hypo  : the model parameter values defining the 
+      gen_hypo  : the model parameter values defining the
                   generation hypothesis (default: None, in which
                   case the test hypothesis is used.)
       method : the minimization method from :mod:`scipy.minimize` to use
@@ -223,7 +223,7 @@ class OptiSampler (Sampler) :
       tmu_A0 : value of the zero-hypothesis Asimov value of
               `qmu` to use in `qmutilda` computations
       debug : if True, print out debug information
-    """        
+    """
     super().__init__(model, gen_hypo, print_freq)
     self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
     if self.gen_hypo == None : self.gen_hypo = Parameters.clone(self.test_hypo)
@@ -238,12 +238,12 @@ class OptiSampler (Sampler) :
     self.debug_data = pd.DataFrame()
     self.minimizer = OptiMinimizer(self.method, self.niter, self.floor).set_pois_from_model(self.model)
     if self.debug : self.minimizer.debug = 2
-    
+
   def compute(self, data, toy_iter) :
     """Compute the asymptotic p-value
-        
+
     Compute the asymptotic p-value for a given toy dataset.
-    The computation uses either the :class:`QMuTilda` or the 
+    The computation uses either the :class:`QMuTilda` or the
     :class:`QMu` test statistic, depending on the initialization
     parameters.
     The fits are performed using the :class:`OptiMinimizer`
@@ -253,13 +253,13 @@ class OptiSampler (Sampler) :
     another generation attempt, see :class:`Sampler`).
     Debug data is produced if the debug flag was passed at
     initialization.
-    
+
     Args:
       data : the toy dataset on which to perform the computation
       toy_iter : the index of the toy generation iteration
     Returns:
       the computed p-value, or `None` if the computation fails
-    """        
+    """
     tmu = self.minimizer.tmu(self.test_hypo, data, self.test_hypo)
     if tmu < 1E-7 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
@@ -309,14 +309,14 @@ class OptiSampler (Sampler) :
 # -------------------------------------------------------------------------
 class ScanSampler (Sampler) :
   """Sampler algorithms using :class:`ScanMinimizer` minimization
-  
+
   Provides an implementation of :class:`Sampler` in which the
   p-value computation in the meth:`compute` method is performed
   using :class:`ScanMinimizer`, which implements a simple scan
   over the POIs.
-  
+
   Attributes:
-    test_hypo (Parameters) : the model parameter values defining the 
+    test_hypo (Parameters) : the model parameter values defining the
                  tested hypothesis. This is usually identical
                  to the generation hypothesis, but can differ
                  e.g. for :math:`CL_b` computations
@@ -330,14 +330,14 @@ class ScanSampler (Sampler) :
   """
   def __init__(self, model, test_hypo, scan_mus, gen_hypo = None, print_freq = 1000, tmu_Amu = None, tmu_A0 = None) :
     """Initialize the ScanSampler object
-        
+
     Args:
-      test_hypo : the model parameter values defining the 
+      test_hypo : the model parameter values defining the
                    tested hypothesis. This is usually identical
                    to the generation hypothesis, but can differ
                    e.g. for :math:`CL_b` computations
       scan_mus : list of POI values over which to perform the scan
-      gen_hypo  : the model parameter values defining the 
+      gen_hypo  : the model parameter values defining the
                   generation hypothesis (default: None, in which
                   case the test hypothesis is used.)
       print_freq : the interval at which to print out progress messages
@@ -345,7 +345,7 @@ class ScanSampler (Sampler) :
               `qmu` to use in `qmutilda` computations
       tmu_A0 : value of the zero-hypothesis Asimov value of
               `qmu` to use in `qmutilda` computations
-    """        
+    """
     super().__init__(model, gen_hypo, print_freq)
     self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
     if self.gen_hypo == None : self.gen_hypo = Parameters.clone(self.test_hypo)
@@ -353,23 +353,23 @@ class ScanSampler (Sampler) :
     self.tmu_Amu = tmu_Amu
     self.tmu_A0 = tmu_A0
     self.use_qtilda = True if tmu_Amu != None and tmu_A0 != None else False
-    
+
   def compute(self, data, toy_iter) :
     """Compute the asymptotic p-value
-        
+
     Compute the asymptotic p-value for a given toy dataset.
-    The computation uses either the :class:`QMuTilda` or the 
+    The computation uses either the :class:`QMuTilda` or the
     :class:`QMu` test statistic, depending on the initialization
     parameters.
     The fits are performed using the :class:`ScanMinimizer`
     minimization algorith,.
-    
+
     Args:
       data : the toy dataset on which to perform the computation
       toy_iter : the index of the toy generation iteration
     Returns:
       the computed p-value
-    """        
+    """
     opti = ScanMinimizer(self.scan_mus)
     tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
     if self.use_qtilda :
@@ -383,13 +383,13 @@ class ScanSampler (Sampler) :
 # -------------------------------------------------------------------------
 class LimitSampler (Sampler) :
   """A sampler algorithms that directy produces parameter limits
-  
+
   Produces an ensemble of limits in a given generation hypothesis.
   This is not necessary in the default workflow for setting
   :math:`CL_s` upper limits, since the :math:`CL_b` toys can be used
   to define a background-only limit ensemble. However this functionality
   can be useful in other contexts.
-  
+
   Attributes:
     limit_calc (Calculator) : A test statistic calculator class
        (see :mod:`tools.py`)
@@ -398,31 +398,31 @@ class LimitSampler (Sampler) :
 
   def __init__(self, model : Model, gen_hypo : Parameters, limit_calc : 'Calculator', cl : float = 0.95, print_freq : int = 1000) :
     """Initialize the LimitSampler object
-        
+
     Args:
-      gen_hypo  : the model parameter values defining the 
+      gen_hypo  : the model parameter values defining the
                   generation hypothesis
       limit_calc : a test statistic calculator object
        (see :mod:`tools.py`)
       cl : the CL at which to compute the limit
       print_freq : the interval at which to print out progress messages
-    """        
+    """
     super().__init__(model, gen_hypo, print_freq)
     self.limit_calc = limit_calc
     self.cl = cl
 
   def compute(self, data, toy_iter) :
     """Compute the limit
-        
+
     Compute the limit for a given toy dataset.
     The computation uses the limit calculator class
     and the CL specified at initialization.
-    
+
     Args:
       data : the toy dataset on which to perform the computation
       toy_iter : the index of the toy generation iteration
     Returns:
       the computed limit
-    """        
+    """
     self.limit_calc.fill_fast_results(data = data, pv_key = 'fast_pv')
     return self.limit_calc.limit(pv_key = 'fast_pv', cl=self.cl)

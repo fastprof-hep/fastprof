@@ -50,7 +50,7 @@ if options.resume == 0 :
   except Exception as inst :
     print(inst)
     print('Directory %s exists already, will not submit again an existing job' % options.name)
-    sys.exit(1)  
+    sys.exit(1)
 
 os.chdir('batch/%s' % options.name)
 print('Now in directory %s' % os.getcwd())
@@ -96,7 +96,7 @@ with open(job, 'w') as f :
   f.write(command)
 os.chmod(job, 0o555)
 
-if options.dry_run : 
+if options.dry_run :
   os.system(job)
   sys.exit(0)
 

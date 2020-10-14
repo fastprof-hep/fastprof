@@ -8,7 +8,7 @@ validation data extracted from the full model, is compared
 with predictions from the fast model.
 
 The validation data is produced by the `convert_ws.py` script, using
-the `--validation-data` option. It consists in a event yield 
+the `--validation-data` option. It consists in a event yield
 variations for a range of values of each NP.
 
 If the linear model is a good approximation to the full model, it
@@ -22,7 +22,7 @@ NP impact, which is the default and usually provides the best
 prediction; and one fo linear NP impact.
 
 Additional plots can also be shown to gauge the precision
-of approximating 1/(N0(1+e)) ~ (1-e)/N0, although this is 
+of approximating 1/(N0(1+e)) ~ (1-e)/N0, although this is
 usually verified when the linear approximation in the denominator
 is valid.
 """
@@ -60,7 +60,7 @@ class ValidationData (JSONSerializable) :
     return self
 
   def dump_jdict(self) :
-    return {}  
+    return {}
 
 
 def make_parser() :
@@ -83,39 +83,39 @@ def run(argv = None) :
   parser = make_parser()
 
   options = parser.parse_args()
-  if not options : 
+  if not options :
     parser.print_help()
     sys.exit(0)
-  
+
   try :
     bins = [ int(b) for b in options.bins.split(',') ]
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid bin specification %s : the format should be bin1,bin2,...' % options.bins)
-  
+
   if options.yrange != '' :
     try:
       y_min, y_max = [ float(p) for p in options.yrange.split(',') ]
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid range specification %s, expected y_min,y_max' % options.yrange)
-    
+
   model = Model().load(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if not options.cutoff is None : model.cutoff = options.cutoff
-  
+
   if options.channel != None :
     channel = model.channel(options.channel)
     if not channel : raise KeyError('Channel %s not found in model.' % options.channel)
   else :
     channel = list(model.channels.values())[0]
-  
+
   if options.sample != None :
     sample = channel.sample(options.sample)
     if not sample : raise KeyError('Sample %s not found in channel %s.' % (channel.name, options.sample))
   else :
     sample = list(channel.samples.values())[0]
-  
+
   if options.validation_file is not None :
     validation_file = options.validation_file
   else :
@@ -128,19 +128,19 @@ def run(argv = None) :
   nplots = model.nnps
   nc = math.ceil(math.sqrt(nplots))
   nr = math.ceil(nplots/nc)
-  
+
   cont_x = np.linspace(data.points[0], data.points[-1], 100)
-  
+
   pars = model.expected_pars(data.poi)
   channel_offset = model.channel_offsets[channel.name]
   sample_index = model.sample_indices[sample.name]
   nexp0 = model.n_exp(pars)[sample_index, channel_offset:channel_offset + channel.nbins()]
   ax_vars = []
   ax_invs = []
-  
+
   def nexp_var(pars, par, x) :
     return model.n_exp(pars.set(par, x))[sample_index, channel_offset:channel_offset + channel.nbins()]
-  
+
   for b in bins :
     fig = plt.figure(figsize=(8, 8), dpi=96)
     fig.suptitle('Linearity checks for sample %s, bin [%g, %g]'  % (sample.name, channel.bins[b]['lo_edge'], channel.bins[b]['hi_edge']))
@@ -157,7 +157,7 @@ def run(argv = None) :
       model.use_linear_nps = False
       vars_nli = [ nexp_var(pars, par, x)[b]/nexp0[b] - 1 for x in cont_x ]
       rvar_nli = [ -((nexp_var(pars, par, x)[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
-  
+
       ax_var = fig.add_subplot(sgs[0])
       ax_var.set_title(par)
       ax_var.plot(data.points, data.variations[channel.name][par][sample_index, b, :] - 1, 'ko')
@@ -175,14 +175,14 @@ def run(argv = None) :
         if options.inv_range : ax_inv.set_ylim(-options.inv_range, 0)
         ax_invs.append(ax_inv)
     fig.canvas.set_window_title('Linearity checks for sample %s, bin  %g' % (sample.name, b))
-  
-    if options.output_file != '' : 
+
+    if options.output_file != '' :
       if options.output_file is not None :
         output_file = options.output_file
       else :
         split_name = os.path.splitext(options.model_file)
         output_file = split_name[0] + '-%s-bin_%d.png' % (options.sample, b)
       plt.savefig(output_file)
-  
+
 
 if __name__ == '__main__' : run()

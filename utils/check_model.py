@@ -12,7 +12,7 @@ The two sets of results should match, if the model is a good
 approximation of the full model used to produce the fits file
 results.
 
-The dataset used for the computation is supplied either as 
+The dataset used for the computation is supplied either as
 observed data (`--data-file` argument) or an Asimov dataset
 (`--asimov`).
 
@@ -54,7 +54,7 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     return
-  
+
   model = Model.create(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if options.regularize is not None : model.set_gamma_regularization(options.regularize)
@@ -62,7 +62,7 @@ def run(argv = None) :
   if options.setrange is not None : process_setranges(options.setrange, model)
 
   raster = Raster('data', model=model, filename=options.fits_file)
-  
+
   if options.data_file :
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
@@ -78,7 +78,7 @@ def run(argv = None) :
   else :
     print('Using dataset stored in file %s.' % options.model_file)
     data = Data(model).load(options.model_file)
-  
+
   if options.test_statistic == 'q~mu' :
     if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
     calc = QMuTildaCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model))
@@ -102,7 +102,7 @@ def run(argv = None) :
     plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ full.pvs['pv'] for full in raster.plr_data.values() ], options.marker + 'r:' , label = 'Full model')
     plt.plot([ hypo[poi.name] for hypo in faster.plr_data ], [ fast.pvs['pv'] for fast in faster.plr_data.values() ], options.marker + 'g-' , label = 'Fast model')
     plt.legend()
-  
+
     fig2 = plt.figure(2)
     plt.suptitle('$CL_s$')
     plt.xlabel(model.poi(0).name)

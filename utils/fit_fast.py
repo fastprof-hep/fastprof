@@ -66,7 +66,7 @@ def run(argv = None) :
     print('Using Asimov dataset with parameters %s' % str(sets))
   else :
     data = Data(model).load(options.model_file)
-  
+
   if options.hypo is not None :
     try :
       sets = process_setvals(options.hypo, model)

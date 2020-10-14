@@ -2,28 +2,28 @@
 
 The code is organized around the following classes:
 
-  * :class:`Model` : the class implementing the likelihood model. This has the HistFactory structure, with 
+  * :class:`Model` : the class implementing the likelihood model. This has the HistFactory structure, with
     stuctural elements that are defined in the :mod:`fastprof.elements` module :
-    
+
     * The model two types of parameters:
-    
+
        * *Parameters of interest* (POIs), implemented as :class:`fastprof.elements.ModelPOI` objects
-       
-       * *Nuisance parameters* (NPs), implemented as :class:`fastprof.elements.ModelNP` objects. 
-    
+
+       * *Nuisance parameters* (NPs), implemented as :class:`fastprof.elements.ModelNP` objects.
+
     * The model is split into a number of channels, represented by :class:`fastprof.elements.Channel` objects, which each define
-    
+
        * A number of measurement bins
-       
-       * A number of samples, represented by :class:`fastprof.elements.Sample` objects, each defining a 
+
+       * A number of samples, represented by :class:`fastprof.elements.Sample` objects, each defining a
          contribution to the expected bin yields.
 
     * The :class:`fastprof.elements.Sample` objects store their nominal bin yields, an overall normalization and variations as a function of the NPs
 
   * :class:`Parameters` : a class storing a set of values for model POIs and NPs.
-  
-  * :class:`Data` : a class storing the observed data: the observed bin yields for each channel and the auxiliary observables for each NP. 
-  
+
+  * :class:`Data` : a class storing the observed data: the observed bin yields for each channel and the auxiliary observables for each NP.
+
   All the classes support loading from / saving to JSON files. The basic mechanism for this is implemented in the :class:`fastprof.elements.JSONSerializable` base class from which they all derive.
 """
 
@@ -36,7 +36,7 @@ from .elements import ModelPOI, ModelNP, ModelAux, Channel, Sample, JSONSerializ
 # -------------------------------------------------------------------------
 class Parameters :
   """Class representing a set of parameter values
-  
+
   Stores one full set of model parameter values, both POI and NP.
   Only the numerical values are stored. The parameter names and properties
   can be accessed through the optional `model` attribute, if it set. However
@@ -52,32 +52,32 @@ class Parameters :
      nps (np.array): the NP values
      model (Model): pointer to a :class:`Model` object containing the full
        model information, including parameter names and properties.
-  """    
+  """
 
   def __init__(self, pois : np.ndarray, nps : np.ndarray = None, model : 'Model' = None) :
     """Initialize a Parameters object from POI and NP values
-      
+
       The POIs can be provided in a number of formats:
-      
+
       * A single number, for a model with a single POI
-      
+
       * An np.ndarray of POI values, with parameter values provided in the
         same order as they appear in the model.
-      
+
       * A dict of POI name : value pairs with one entry for each model POI.
-      
+
       NPs are optional; they can be provided as a single number or a np.ndarray
       as for POIS, and will otherwise default to 0.
-      
+
       Args:
         pois             : float-array of POI values
         nps   (optional) : float-array of NP values
         model (optional  : optional pointer to a :class:`Model` object
-    """    
+    """
     if model is not None and isinstance(pois, dict) :
       poi_array = np.array([ np.nan ]*model.npois)
       poi_list = list(model.pois)
-      for poi, val in pois.items() : 
+      for poi, val in pois.items() :
         if poi in poi_list : poi_array[poi_list.index(poi)] = val
       if np.isnan(poi_array).any() : raise ValueError('Input POI dictionary did not contain a valid numerival value for each POI : %s' % str(pois))
       pois = poi_array
@@ -95,18 +95,18 @@ class Parameters :
 
   def clone(self) -> 'Parameters' :
     """Clone a Parameters object
-        
+
       Performs a deep-copy operation at the required level: deep-copy
       the np.arrays, but shallow-copy the model pointer
-      
+
       Returns:
         the new clone
-    """    
+    """
     return Parameters(np.array(self.pois, dtype=float), np.array(self.nps, dtype=float), self.model)
 
   def __str__(self) -> str :
     """Provides a description string
-      
+
       Returns:
         The object description
     """
@@ -121,25 +121,25 @@ class Parameters :
 
   def __contains__(self, par : str) -> bool :
     """Tests if a parameter is present
-        
+
       Args:
         par : name of a parameter (either POI or NP)
 
       Returns:
         True if a parameter of this name is present, False otherwise
-    """    
+    """
     if self.model is None : raise ValueError('Cannot perform operation without a model.')
     return par in self.model.pois or par in self.model.nps
 
   def __getitem__(self, par : str) -> float :
     """Implement [] lookup of POI and NP names
-        
+
       Args:
         par : name of a parameter (either POI or NP)
 
       Returns:
         The value of the parameter
-    """    
+    """
     if self.model is None : raise ValueError('Cannot perform operation without a model.')
     if par in self.model.pois : return self.pois[list(self.model.pois).index(par)]
     if par in self.model.nps  : return self.nps [list(self.model.nps ).index(par)]
@@ -148,31 +148,31 @@ class Parameters :
 
   def set_pois(self, pois : np.ndarray) -> 'Parameters' :
     """Set the POI array
-        
+
       Args:
         pois : array of new POI values
       Returns:
         self
-    """    
+    """
     if pois.shape != self.pois.shape : raise ValueError('Cannot set POI array %s to %s.' % (str(self.pois), str(pois)))
     self.pois = pois
     return self
-    
+
   def set_nps(self, nps : np.ndarray) -> 'Parameters' :
     """Set the NP array
-        
+
       Args:
         nps : array of new NP values
       Returns:
         self
-    """    
+    """
     if nps.shape != self.nps.shape : raise ValueError('Cannot set NP array %s to %s.' % (str(self.nps), str(nps)))
     self.nps = nps
     return self
 
   def set(self, par : str, val : float, unscaled : bool = False) -> 'Parameters' :
     """Set the value of a parameter (POI or NP)
-        
+
       Args:
         par : name of a parameter (either POI or NP)
         val : parameter value to set
@@ -180,7 +180,7 @@ class Parameters :
                    see the description of :class:`fastprof.elements.ModelNP` for details
       Returns:
         self
-    """    
+    """
     if self.model is None : raise ValueError('Cannot perform operation without a model.')
     if par in self.model.pois :
       self.pois[list(self.model.pois).index(par)] = val
@@ -195,40 +195,40 @@ class Parameters :
 
       For NPs, `val` is considered to be a `scaled` value (use :meth:`Parameters.set` to
       set `unscaled` values.
-        
+
       Args:
         par : name of a parameter (either POI or NP)
         val : parameter value to set
       Returns:
         self
-    """    
+    """
     return self.set(par, val)
 
   def unscaled_nps(self) -> np.array :
     """Returns an np.array of the unscaled values of all NPs
-        
+
       Returns:
         array of unscaled values of all NPs.
-    """    
+    """
     if self.model is None : raise ValueError('Cannot perform operation without a model.')
     return self.model.np_nominal_values + self.nps*self.model.np_variations
 
   def unscaled(self, par : str) -> float :
     """Returns the unscaled value of an NP
-        
+
       Args:
         par : an NP name
 
       Returns:
         the unscaled value of the NP
-    """    
+    """
     if self.model is None : raise ValueError('Cannot perform operation without a model.')
     if par in self.model.nps : return self.model.nps[par].unscaled_value(self.__getitem__(par))
     raise KeyError('Model nuisance parameter %s not found' % par)
 
   def dict(self, nominal_nps : bool = False, unscaled_nps : bool = True, pois_only : bool = False) -> dict :
     """Returns a dictionary of parameter name : value pairs
-        
+
       Args:
         nominal_nps : set NPs to their nominal values
         unscaled_nps : specifies whether to use the `unscaled` (True) or `scaled` (False)
@@ -237,7 +237,7 @@ class Parameters :
 
       Returns:
         Dictionary of parameter name : value pairs
-    """    
+    """
     if self.model is None : raise ValueError('Cannot perform operation without a model.')
     if nominal_nps : return Parameters(self.pois, model=self.model).dict(nominal_nps=False, unscaled_nps=unscaled_nps)
     dic = {}
@@ -248,7 +248,7 @@ class Parameters :
 
   def set_from_dict(self, dic : dict, unscaled_nps : bool = False) -> 'Parameters' :
     """Set parameter values form a dictionary of parameter name : value pairs
-        
+
       Args:
         dic : a dictionary containing parameter name : value pairs
         unscaled_nps : specifies whether NP values in `dic` should be
@@ -256,19 +256,19 @@ class Parameters :
 
       Returns:
         self
-    """    
+    """
     for par, val in dic.items() : self.set(par, val, unscaled_nps)
     return self
 
   def set_from_aux(self, data : 'Data') -> 'Parameters' :
     """Set NP values to those of auxiliary observables
-        
+
       Args:
         data : an observed dataset, from which aux. obs. values are taken
 
       Returns:
         self
-    """    
+    """
     if self.model is None : raise ValueError('Cannot perform operation without a model.')
     self.nps[self.model.ncons:] = data.aux_obs[self.model.ncons:]
     return self
@@ -277,15 +277,15 @@ class Parameters :
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
   """Class representing the statistical model
-  
+
   The class provides a description of the full statistical model, consisting
   in
-  
+
   * Measurement regions, described by :class:`fastprof.elements.Channel` objects
-  
+
   * Model parameters, split into POIs (:class:`fastprof.elements.ModelPOI` objects)
     and NPs (:class:`fastprof.elements.ModelNP` objects).
-  
+
   The main purpose of the class is to store the inputs to the fast likelihood
   maximization algorithm of :class:`NPMinimizer`. For this purpose, the
   structures provided by the :class:`fastprof.elements.Channel` and :class:`fastprof.elements.Sample` classes are
@@ -295,7 +295,7 @@ class Model (JSONSerializable) :
   the indices of the first bin of each channel within this larger bin array.
   Other arrays store the expected event yields for each sample, and their variations
   as a function of the NPs.
-  
+
   The model functionality is mainly accessed through the :meth:`Model.n_exp` method, which
   returns the expected event yield for a given set of parameter values `pars`, and the
   :meth:`Model.nll` method, which return the negative log-likelihood value.
@@ -316,20 +316,20 @@ class Model (JSONSerializable) :
      nbins (int): total number of measurement bins, compiled over channels
      channel_offsets (dict): maps channel name to the index of the first bin for this sample, among the list
        (of size `nbins`) concatenating the measurement bins of each channel.
-     nominal_yields (np.array): expected event yields for each sample, as a 2D array of size 
+     nominal_yields (np.array): expected event yields for each sample, as a 2D array of size
        `nsamples` x `nbins`.
-     pos_impacts (np.array): array of the per-sample event yield variations for positive NP values, as 
+     pos_impacts (np.array): array of the per-sample event yield variations for positive NP values, as
         a 3D array of size `nsamples` x `nbins` x `nnps`.
-     neg_impacts (np.array): array of the per-sample event yield variations for negative NP values, as 
+     neg_impacts (np.array): array of the per-sample event yield variations for negative NP values, as
         a 3D array of size `nsamples` x `nbins` x `nnps`.
-     sym_impacts (np.array): array of symmetrized per-sample event yield variations, as 
+     sym_impacts (np.array): array of symmetrized per-sample event yield variations, as
         a 3D array of size `nsamples` x `nbins` x `nnps`. The variations are computed as the average of
         the positive and negative impacts.
-     log_pos_impacts (np.array): array of the logs of the per-sample event yield variations for positive NP values, as 
+     log_pos_impacts (np.array): array of the logs of the per-sample event yield variations for positive NP values, as
         a 3D array of size `nsamples` x `nbins` x `nnps`.
-     log_neg_impacts (np.array): array of the logs of the per-sample event yield variations for negative NP values, as 
+     log_neg_impacts (np.array): array of the logs of the per-sample event yield variations for negative NP values, as
         a 3D array of size `nsamples` x `nbins` x `nnps`.
-     log_sym_impacts (np.array): array of the logs of the symmetrized per-sample event yield variations, as 
+     log_sym_impacts (np.array): array of the logs of the symmetrized per-sample event yield variations, as
         a 3D array of size `nsamples` x `nbins` x `nnps`.
      constraint_hessian (np.array): inverse of the covariance matrix of the NP constraint Gaussian
      np_nominal_values (np.array): nominal values of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
@@ -343,13 +343,13 @@ class Model (JSONSerializable) :
      use_lognormal_terms (bool): include the derivatives of the exponential terms in the NP minimization
         procedure (True) or not (False, default).
      cutoff (float): regularization term that caps the relative variations in event yields
-  """    
+  """
 
   def __init__(self, pois : dict = {}, nps : dict = {}, aux_obs : dict = {}, channels : dict = {},
                use_asym_impacts : bool = True, use_linear_nps : bool = False, use_simple_sym_impacts : bool = True,
                use_lognormal_terms : bool = False, variations : list = None) :
     """Initialize Model object
-        
+
       Args:
         pois     : the model POIs, as a dict mapping POI names to :class:`fastprof.elements.ModelPOI` objects
         nps      : the model NPs, as a dict mapping NP names to :class:`fastprof.elements.ModelNP` objects
@@ -360,7 +360,7 @@ class Model (JSONSerializable) :
         use_simple_sym_impacts : option to use `sym_impacts` for the linear impacts (see :meth:`Model.linear_impacts`, default: True)
         use_lognormal_terms : option to include exp derivatives when minimizing nll (see class description, default: False)
         variations : list of NP variations to consider (default: None -- use 1 and the largest available other one)
-    """        
+    """
     super().__init__()
     self.pois = { poi.name : poi for poi in pois }
     self.nps = {}
@@ -383,13 +383,13 @@ class Model (JSONSerializable) :
 
   def set_internal_vars(self) :
     """Private method to initialize internal attributes
-      
+
       The Model class contains both primary atttributes and secondary
       attributes that are pre-computed from the primary ones to speed
       up computations later. The primary->secondary computation is
-      performed by this method, which is called from both 
+      performed by this method, which is called from both
       :meth:`Model.__init__` and :meth:`Model.load_jdict`.
-    """    
+    """
     self.npois = len(self.pois)
     self.nnps  = len(self.nps)
     self.ncons = len(self.aux_obs)
@@ -436,32 +436,32 @@ class Model (JSONSerializable) :
 
   def poi(self, index : str) -> ModelPOI :
     """Returns a POI object by index
-        
+
       Args:
          index : the index of the POI
       Returns:
          a POI object
-    """    
+    """
     pois = list(self.pois.values())
     return pois[index] if index < len(pois) else None
 
   def channel(self, name : str) -> Channel :
     """Returns a channel object by name
-        
+
       Args:
          name : a channel name
       Returns:
          The channel object of that name
-    """    
+    """
     return self.channels[name] if name in self.channels else None
 
   def all_pars(self) -> dict :
     """Returns all model parameters
-        
+
       Returns:
          A dictionary of parameter name : object pairs containing
          all POIs and NPs.
-    """    
+    """
     pars = {}
     for par in self.pois.values() : pars[par.name] = par
     for par in self.nps.values()  : pars[par.name] = par
@@ -469,34 +469,34 @@ class Model (JSONSerializable) :
 
   def set_constraint(self, par : str, val : float) :
     """Set the value of the constraint on a NP
-        
+
       If `par` is set to `None`, set the constraint on all NPs.
       See the documentation of :class:`fastprof.elements.ModelNP` for more details
       on constraints
-        
+
       Args:
          par : a NP name
          val : a constraint value
-    """    
+    """
     for par in self.nps :
       if par is None or par.name == par : par.constraint = val
     self.set_internal_vars()
 
   def k_exp(self, pars : Parameters) -> np.array :
     """Returns the modifier to event yields due to NPs
-      
+
       The expected event yield is modified by the NPs in a way
       that depends on the modeling options (see the documentation of
-      :class:`Model` for details). This function returns a 2D 
+      :class:`Model` for details). This function returns a 2D
       np.array with dimensions `nbins` x `nsamples`,
       where each value is the event yield modifier for each sample
       in each bin.
-      
+
       Args:
          pars : a set of parameter values (only the NP values are used)
       Returns:
          Event yield modifiers
-    """    
+    """
     if self.use_asym_impacts :
       pos_np = np.maximum(pars.nps, 0)
       neg_np = np.minimum(pars.nps, 0)
@@ -514,18 +514,18 @@ class Model (JSONSerializable) :
 
   def n_exp(self, pars : Parameters) -> np.array :
     """Returns the expected event yields for a given parameter value
-    
+
     The expected yields correspond to the nominal yields for each sample,
     corrected for the overall normalization terms (function of the POIs)
     and the NP impacts (function of the NPs, see :meth:`Model.k_exp`)
-    They provided for each sample in each measurement bin, as a 2D 
+    They provided for each sample in each measurement bin, as a 2D
     np.array with dimensions`nbins` x `nsamples`.
-        
+
       Args:
          pars: a set of parameter values
       Returns:
          Expected event yields per sample per bin
-    """    
+    """
     nnom = (self.nominal_yields.T*np.array([ sample.norm(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T
     k = self.k_exp(pars)
     if self.cutoff == 0 : return nnom*k
@@ -533,27 +533,27 @@ class Model (JSONSerializable) :
 
   def tot_exp(self, pars, floor = None) -> np.array :
     """Returns the total expected event yields for a given parameter value
-    
+
       Same as :meth:`Model.n_exp`, except that the yields are summed over
       all samples. They are provided as a 1D np.array of size `nbins`.
-        
+
       Args:
          pars: a set of parameter values
       Returns:
          Expected event yields per bin
-    """    
+    """
     ntot = self.n_exp(pars).sum(axis=0)
     return ntot if floor is None else np.maximum(ntot, floor)
 
   def nll(self, pars : Parameters, data : 'Data', offset : bool = True, floor : bool = None, no_constraints : bool = False) -> float :
     """Returns the negative log-likelihood value for a given parameter set and dataset
-      
+
       If the `offset` argument is `True` (default), the nll is computed relatively
       to the case where all yields are nominal. This leads to smaller nll values,
       which reduces potential floating-point issues. When computing the difference
       of two nll values as in a profile-likelihood ratio computation, the offset
       cancels out in the difference.
-      
+
       Args:
          pars   : a set of parameter values
          data   : an observed dataset
@@ -563,7 +563,7 @@ class Model (JSONSerializable) :
          no_constraints : omit the penalty  terms from the constraint in the computation.
       Returns:
          The negative log-likelihood value
-    """    
+    """
     delta = data.aux_obs - pars.nps
     ntot = self.tot_exp(pars, floor)
     try :
@@ -583,18 +583,18 @@ class Model (JSONSerializable) :
 
   def linear_impacts(self, pars : Parameters) -> np.array :
     """Returns the NP impacts used in linear computations
-      
+
       The NP minimization for linear models assumes by definition that the impact
       of NPs on all bin contents are linear (see package documentation). This
       method provides an exact computation of this, i.e. the dericative of k_exp
       wrt the NP. Since this computation is expensive, it can be replaced by
       just `sym_impacts`, i.e. the linear impact terms at NP=0.
-      
+
       Args:
          pars : a set of parameter values
       Returns:
          The impact matrix for all samples, bins and NPs
-    """    
+    """
     if self.use_simple_sym_impacts : return self.sym_impacts
     if np.array_equal(pars.nps, np.zeros(self.nnps)) : return self.sym_impacts
     pos_nps = np.maximum(pars.nps, 0)
@@ -614,18 +614,18 @@ class Model (JSONSerializable) :
         + self.log_pos_impact_coeffs[:,:,:,0]*pos_np1 + self.log_pos_impact_coeffs[:,:,:,1]*(2*pos_nps) \
         + self.log_neg_impact_coeffs[:,:,:,0]*neg_np1 + self.log_neg_impact_coeffs[:,:,:,1]*(2*neg_nps)
       return (impact.T*self.k_exp(pars).T).T
-  
-  def plot(self, pars : Parameters, data : 'Data' = None, channel : Channel = None, exclude : list = None, 
+
+  def plot(self, pars : Parameters, data : 'Data' = None, channel : Channel = None, exclude : list = None,
            variations : list = None, residuals : bool = False, canvas : plt.Figure = None) :
     """Plot the expected event yields and optionally data as well
-      
+
       The plot is performed for a single model, which must be of `binned_range` type.
       The event yields are plotted as a histogram, as a function of the channel
       observable.
       The `variations` arg allows to plot yield variations for selected NP values. The
       format is { ('par1', val1), ... } , which will plot the yields for the case where
       NP par1 is set to val1 (while other NPs remain at nominal), etc.
-      
+
       Args:
          pars       : parameter values for which to compute the expected yields
          data       : observed dataset to plot alongside the expected yields
@@ -635,7 +635,7 @@ class Model (JSONSerializable) :
                       providing the NP name and the value to set.
          residuals  : if True,  plot the data-model differences
          canvas     : a matplotlib Figure on which to plot (if None, plt.gca() is used)
-    """    
+    """
     if canvas is None : canvas = plt.gca()
     if not isinstance(exclude, list) and exclude is not None : exclude = [ exclude ]
     if channel is None :
@@ -666,10 +666,10 @@ class Model (JSONSerializable) :
         samples.append(list(channel.samples).index(ex))
       tot_exp = nexp.sum(axis=0) - nexp[samples,:].sum(axis=0)
       line_style = '--'
-      title = 'Model excluding ' + ','.join(exclude)     
+      title = 'Model excluding ' + ','.join(exclude)
     yvals = tot_exp if not residuals or not data else tot_exp - data.counts
     canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title)
-    if data : 
+    if data :
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.counts ]
       yvals = data.counts if not residuals else np.zeros(channel.nbins())
       canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data')
@@ -690,25 +690,25 @@ class Model (JSONSerializable) :
 
   def grad_poi(self, pars : Parameters, data : 'Data') -> np.ndarray :
     """Returns the derivatives of the negative log-likelihood wrt the POIs
-        
+
       Output format: 1D np.ndarray of size `npois`.
       TODO : update to the new POI scheme, code below is obsolete
-      
+
       Args:
          pars : parameter values at which to compute the likelihood
          data : observed dataset for which to compute the likelihood
       Returns:
          Values of the derivatives of the negative log-likelihood wrt the POIs.
-    """    
+    """
     sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     s = 0
     for i in range(0, sexp.size) : s += sexp[i]*(1 - data.n[i]/nexp[i])
     return s
-  
+
   def hess_poi(self, pars : Parameters, data : 'Data') -> np.ndarray :
     """Returns the Hessian matrix of the negative log-likelihood wrt the POIs
-        
+
       Output format: 2D np.ndarray of size `npois` x `npois`.
       TODO : update to the new POI scheme, code below is obsolete
 
@@ -717,7 +717,7 @@ class Model (JSONSerializable) :
          data : observed dataset for which to compute the likelihood
       Returns:
          Hessian matrix of the negative log-likelihood wrt the POIs.
-    """    
+    """
     sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
     s = 0
@@ -726,13 +726,13 @@ class Model (JSONSerializable) :
 
   def expected_pars(self, pois : dict, minimizer : 'NPMinimizer' = None, data : 'Data' = None) -> Parameters :
     """Assigns NP values to a set of POI values
-    
+
       By default, returns a :class:`Parameters` object with the POI values
-      defined by the `pois` arg, and the NPs set to 0. If a minimizer and 
+      defined by the `pois` arg, and the NPs set to 0. If a minimizer and
       a dataset are provided, will set the NPs to their profiled values.
       The `pois` arg can also be a class:`Parameters` object, from which
       the POI values will be taken (and the NP values ignored).
-        
+
       Args:
          pois : A dict of POI name : value pairs, or a class:`Parameters` object.
          minimizer (optional) : NP minimizer algorithm used to compute NP profile values
@@ -751,74 +751,74 @@ class Model (JSONSerializable) :
 
   def generate_data(self, pars : Parameters) -> 'Data' :
     """Generate a pseudo-dataset for given parameter values
-    
+
       Returns a randomly-generated dataset for the provided
       parameter values. This includes observed bin contents
       for all channels, generated from Poisson distributions,
       and aux. obs. values generated from the NP constraints.
-    
+
       Args:
          pars : a set of model parameter values
       Returns:
          A randomly-generated dataset
-    """    
+    """
     return Data(self, np.random.poisson(self.tot_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
 
   def generate_asimov(self, pars : Parameters) -> 'Data' :
     """Generate an Asimov dataset for given parameter values
-    
+
       Returns an Asimov dataset for the provided parameter
       values, i.e. a dataset in which the obseved bin counts exactly
-      match the expected yields, and the aux. obs. match the 
+      match the expected yields, and the aux. obs. match the
       NP values
       See `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_
-    
+
       Args:
          pars : a set of model parameter values
       Returns:
          An Asimov dataset
-    """    
+    """
     return Data(self).set_data(self.tot_exp(pars), pars.nps)
 
   def generate_expected(self, pois, minimizer = None, data = None) :
     """Generate an Asimov dataset for expected parameter values
-    
+
       Same functionality as :meth:`Model.generate_asimov`, but with
       NP values that are obtained from the provided POI values in the
       same way as described for :meth:`Model.expected_pars`.
-    
+
       Args:
          pois : A dict of POI name : value pairs, or a class:`Parameters` object.
          minimizer (optional) : NP minimizer algorithm used to compute NP profile values
          data (optional) : dataset to use for the profiling
       Returns:
          An Asimov dataset
-    """    
+    """
     return self.generate_asimov(self.expected_pars(pois, minimizer, data))
 
   @staticmethod
   def create(filename : str) -> 'Model' :
     """Shortcut method to instantiate a model from a JSON file
-    
+
       Same behavior as creating a default model and loading from the file,
       rolled into a single command
-        
+
       Args:
          filename : name of a JSON file containing the model definition
       Returns:
          The created model
-    """    
+    """
     return Model().load(filename)
-  
+
   def load_jdict(self, jdict : dict) -> 'Model' :
     """Load object information from a dictionary of JSON data
-        
+
       Args:
         jdict: A dictionary containing JSON data
 
       Returns:
         self
-    """    
+    """
     self.name = self.load_field('name', jdict, '', str)
     self.pois = {}
     if not 'model'    in jdict : raise KeyError("No 'model' section in specified JSON file")
@@ -857,13 +857,13 @@ class Model (JSONSerializable) :
       self.channels[channel.name] = channel
     self.set_internal_vars()
     return self
-  
+
   def fill_jdict(self, jdict : dict) :
     """Save information to a dictionary of JSON data
-        
+
       Args:
          jdict: A dictionary containing JSON data
-    """    
+    """
     jdict['model'] = {}
     jdict['model']['name'] = self.name
     jdict['model']['channels'] = []
@@ -871,10 +871,10 @@ class Model (JSONSerializable) :
     for aux in self.aux_obs : jdict['model']['aux_obs'].append(aux.dump_jdict())
     for par in self.nps     : jdict['model']['NPs']    .append(par.dump_jdict())
     for channel in self.channels : jdict['model']['channels'].append(channel.dump_jdict())
-    
+
   def __str__(self) -> str :
     """Provides a description string
-      
+
       Returns:
         The object description
     """
@@ -890,32 +890,32 @@ class Model (JSONSerializable) :
 # -------------------------------------------------------------------------
 class Data (JSONSerializable) :
   """Class representing a set of observed data
-  
+
   Stores a complete dataset:
-  
+
   * A list of observed bin yields
-  
+
   * Observed values for the auxiliary observables.
-  
+
   Both are stored as a single np.array apiece. The bins yields use the concatenated bin
   list defined in :class:`Model`, while the aux. obs values are given in the same order
   as their appearance in the `aux_obs` attribute of the model.
-  
-  Only numerical values are stored locally, but the names and properties 
+
+  Only numerical values are stored locally, but the names and properties
   of the bins and aux. obs. are accessible through the `model` attribute, if it set.
 
   Attributes:
      counts (np.ndarray): the observed bin yields
      aux_obs (np.ndarray): the observed aux. obs. values
      model (Model): pointer to a :class:`Model` object containing the full model.
-  """    
+  """
   def __init__(self, model : Model, counts : np.ndarray = None, aux_obs : np.ndarray = None) :
     """Initialize the object
-        
+
       Args:
          counts  : observed bin counts
-         aux_obs : aux. obs. values 
-    """    
+         aux_obs : aux. obs. values
+    """
     super().__init__()
     self.model = model
     self.set_counts(counts if counts is not None else [])
@@ -923,12 +923,12 @@ class Data (JSONSerializable) :
 
   def set_counts(self, counts) -> 'Data' :
     """Sets the observed bin counts to the specified values
-        
+
       Args:
          counts  : observed bin counts to set to
       Returns:
          self
-    """    
+    """
     if isinstance(counts, list) : counts = np.array( counts, dtype=float )
     if not isinstance(counts, np.ndarray) : counts = np.array([ counts ], dtype=float)
     if counts.size > 0 :
@@ -941,14 +941,14 @@ class Data (JSONSerializable) :
       self.counts = np.zeros(self.model.nbins)
     return self
 
-  def set_aux_obs(self, aux_obs) : 
+  def set_aux_obs(self, aux_obs) :
     """Sets the aux. obs. to the specified values
-        
+
       Args:
          aux_obs : aux. obs. values to set to
       Returns:
          self
-    """    
+    """
     if isinstance(aux_obs, list) : aux_obs = np.array( aux_obs, dtype=float )
     if not isinstance(aux_obs, np.ndarray) : aux_obs = np.array([ aux_obs ], dtype=float)
     if aux_obs.size == 0 :
@@ -966,13 +966,13 @@ class Data (JSONSerializable) :
 
   def set_data(self, counts, aux_obs) :
     """Sets both the observed bin counts and aux. obs. to the specified values
-        
+
       Args:
          counts  : observed bin counts to set to
          aux_obs : aux. obs. values to set to
       Returns:
          self
-    """    
+    """
     self.set_counts(counts)
     self.set_aux_obs(aux_obs)
     return self
@@ -980,13 +980,13 @@ class Data (JSONSerializable) :
 
   def load_jdict(self, jdict : dict) -> 'Data' :
     """Load object information from a dictionary of JSON data
-        
+
       Args:
         jdict : A dictionary containing JSON data
 
       Returns:
         self
-    """    
+    """
     if not 'data'    in jdict : raise KeyError("No 'data' section in specified JSON file")
     if not 'channels'  in jdict['data'] : raise KeyError("No 'channels' section in specified JSON file")
     for channel in jdict['data']['channels'] :
@@ -999,14 +999,14 @@ class Data (JSONSerializable) :
       offset = self.model.channel_offsets[name]
       for b, bin_data in enumerate(channel['bins']) :
         if bin_data['lo_edge'] != model_channel.bins[b]['lo_edge'] or bin_data['hi_edge'] != model_channel.bins[b]['hi_edge'] :
-          raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." % 
+          raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." %
                            (bin_data['lo_edge'], bin_data['hi_edge'], model_channel.bins[b]['lo_edge'], model_channel.bins[b]['hi_edge']))
-        self.counts[offset + b] = bin_data['counts'] 
+        self.counts[offset + b] = bin_data['counts']
     if not 'aux_obs' in jdict['data'] : raise KeyError("No 'aux_obs' section defined in specified JSON file." % name)
     data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in jdict['data']['aux_obs'] }
     aux_obs_values = []
     for par in self.model.nps.values() :
-      if par.aux_obs is None : 
+      if par.aux_obs is None :
         aux_obs_values.append(0)
         continue
       if not par.aux_obs in data_aux_obs : raise('Auxiliary observable %s defined in model, but not provided in the data' % par.aux_obs)
@@ -1016,17 +1016,17 @@ class Data (JSONSerializable) :
 
   def fill_jdict(self, jdict : dict) :
     """Save information to a dictionary of JSON data
-        
+
       Args:
          jdict: A dictionary containing JSON data
-    """    
+    """
     jdict['data'] = {}
     jdict['data']['counts'] = self.counts.tolist()
     jdict['data']['aux_obs'] = self.aux_obs.tolist()
 
   def __str__(self) -> str :
     """Provides a description string
-      
+
       Returns:
         The object description
     """

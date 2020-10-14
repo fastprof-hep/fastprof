@@ -13,10 +13,10 @@ with the following implemented so far:
 
 * The :class:`QMu` class defines the :math:`q_{\mu}` test
   statistic of the reference above
-      
+
 * The :class:`QMuTilda` class defines the :math:`\tilde{q}_{\mu}` test
   statistic of the reference above
-  
+
 In all cases, the classes are initialized with a set of POI values
 corresponding to the tested hypothesis. They implement computations of
 the test statistic value, and of the corresponding p-value. Optionally,
@@ -32,157 +32,157 @@ from abc import abstractmethod
 # -------------------------------------------------------------------------
 class TestStatistic :
   """Base class for test statistic classes
-  
+
   Provides the basic interface for test statistic objets
   The class is initialized with a set of POI values corresponding
   to the tested hypothesis. It implements computations of
   the test statistic value and of the corresponding p-value.
   Optionally, it can also implement the reverse direction, computing
   the test-statistic value for a given p-value.
-  It can also provide the PDF of the test statistic under the 
+  It can also provide the PDF of the test statistic under the
   specified hypothesis.
-  
+
   Attributes:
     test_poi (float) : the POI value defining the tested
                        hypothesis
   """
-  def __init__(self, test_poi : float) : 
+  def __init__(self, test_poi : float) :
     """Initialize the `TestStatistic` object
-        
+
     Args:
       test_poi : the POI value that defines the tested hypothesis
-    """        
+    """
     self.test_poi = test_poi
   def __float__(self) -> float :
     """Conversion method to `float` value
-    
+
     Returns:
       the test statistic value
-    """        
+    """
     return value()
   @abstractmethod
   def value(self) :
     """Value of the test statistic
-    
+
     Returns:
       the test statistic value
-    """        
-    pass  
+    """
+    pass
   @abstractmethod
   def asymptotic_pv(self, ts : float = None) -> float :
     """Asymptotic p-value corresponding
        to the test-statistic value
-    
+
     Args:
       ts : an alternate test statistic value. If not `None`,
            the p-value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-    
+
     Returns:
       the asymptotic p-value
-    """        
+    """
     pass
   @abstractmethod
   def asymptotic_pdf(self, ts : float = None) -> float :
     """Value of the PDF of the test statistic, under
        asymptotic assumptions
-    
+
     Args:
       ts : an alternate test statistic value. If not `None`,
            the PDF value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-    
+
     Returns:
       the local value of the asymptotic PDF
-    """        
+    """
     pass
   @abstractmethod
   def asymptotic_ts(self, pv : float) -> float :
     """Test statistic value corresponding to a given
        p-value, under asymptotic assumptions
-    
+
     Args:
-      pv : an asymptptic p-value. 
-    
+      pv : an asymptptic p-value.
+
     Returns:
       the corresponding test statistic value
-    """        
+    """
     pass
-    
+
 
 class TMu(TestStatistic) :
   """The :math:`t_{\mu}` (profile-likelihood ratio) test statistic
-    
+
   Attributes:
     tmu (float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
   """
 
   def __init__(self, test_poi : float, tmu : float) :
     """Initialize the `TMu` object
-        
+
     Args:
       test_poi : the POI value that defines the tested hypothesis
       tmu : the value of the profile likelihood ratio :math:`-2\Delta\log L`
-    """        
+    """
     super().__init__(test_poi)
     self.tmu = tmu
 
-  def value(self) -> float : 
+  def value(self) -> float :
     """Value of the test statistic
-    
+
     Returns the stored value of `tmu`.
-    
+
     Returns:
       the test statistic value
-    """        
+    """
     return self.tmu
 
   def asymptotic_pv(self, ts : float = None) -> float :
     """Asymptotic p-value corresponding
        to the test-statistic value
-    
+
     Args:
       ts : an alternate test statistic value. If not `None`,
            the p-value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-    
+
     Returns:
       the asymptotic p-value
-    """        
+    """
     if ts == None : ts = self.value()
     return scipy.stats.norm.sf(math.sqrt(ts))
 
   def asymptotic_pdf(self, ts) :
     """Value of the PDF of the test statistic, under
        asymptotic assumptions
-    
+
     Args:
       ts : an alternate test statistic value. If not `None`,
            the PDF value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-    
+
     Returns:
       the local value of the asymptotic PDF
-    """        
+    """
     if ts == None : ts = self.value()
     return scipy.stats.chi2(math.sqrt(ts), 1)
 
   def asymptotic_ts(self, pv) :
     """Test statistic value corresponding to a given
        p-value, under asymptotic assumptions
-    
+
     Args:
-      pv : an asymptptic p-value. 
-    
+      pv : an asymptptic p-value.
+
     Returns:
       the corresponding test statistic value
-    """        
+    """
     return scipy.stats.norm.isf(pv)
 
 
 class QMu(TestStatistic) :
   """The :math:`q_{\mu}` test statistic
-    
+
   The form implemented here corresponds to the "uncapped" version,
   which has values of -tmu for POI values above the hypothesis, instead
   of 0 as defined in `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_.
@@ -200,7 +200,7 @@ class QMu(TestStatistic) :
   def __init__(self, test_poi : float, tmu : float, best_poi : float, comp_poi  : float = None,
                tmu_Amu  : float = None, sigma  : float = None) :
     """Initialize the `QMu` object
-        
+
     Args:
       test_poi : the POI value that defines the tested hypothesis
       tmu : the value of the profile likelihood ratio :math:`-2\Delta\log L`
@@ -211,7 +211,7 @@ class QMu(TestStatistic) :
                  under the tested hypothesis.
       sigma    : the Asimov uncertainty on the POI, an alternate way to
                  provide tmu_Amu
-    """        
+    """
     super().__init__(test_poi)
     self.tmu = tmu
     self.best_poi = best_poi
@@ -224,22 +224,22 @@ class QMu(TestStatistic) :
 
     Implements the computation of :math:`q_{\mu}` : return `tmu` if
     the best-fit POI is below the hypothesis value, 0 otherwise.
-    
+
     Returns:
       the test statistic value
-    """        
+    """
     return self.tmu if self.best_poi < self.comp_poi else -self.tmu
 
   @staticmethod
   def signed_sqrt(x : float) -> float :
     """Signed square-root function
-    
+
     Args:
       x : a numerical value
-    
+
     Returns:
       sign(x)*sqrt(abs(x))
-    """        
+    """
     return math.sqrt(x) if x >= 0 else -math.sqrt(-x)
 
   def non_centrality_parameter(self) :
@@ -250,15 +250,15 @@ class QMu(TestStatistic) :
     In general the non-centrality parameter is defined as
     :math:`\Lambda = t_{\mu, A(\mu')} = (\mu - \mu')^2/\sigma^2`,
     see `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_.
-    
+
     The result can either be obtained from the value of
     :math:`t_{\mu, A(\mu')}` provided by the `tmu_Amu`
-    parameter at initialization, or from a value of 
+    parameter at initialization, or from a value of
     :math:`\sigma` provided by `sigma`.
-           
+
     Returns:
       the value of :math:`t_{\mu, A(0)}`
-    """        
+    """
     if self.comp_poi == self.test_poi : return 0
     if self.tmu_Amu != None :
       if self.tmu_Amu < 0 :
@@ -273,30 +273,30 @@ class QMu(TestStatistic) :
   def asymptotic_pv(self, ts : float = None) -> float :
     """Asymptotic p-value corresponding
        to the test-statistic value
-    
+
     Args:
       ts : an alternate test statistic value. If not `None`,
            the p-value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-    
+
     Returns:
       the asymptotic p-value
-    """        
+    """
     if ts == None : ts = self.value()
     return scipy.stats.norm.sf(self.signed_sqrt(ts) - math.sqrt(self.non_centrality_parameter()))
 
   def asymptotic_pdf(self, ts : float = None) -> float :
     """Value of the PDF of the test statistic, under
        asymptotic assumptions
-    
+
     Args:
       ts : an alternate test statistic value. If not `None`,
            the PDF value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-    
+
     Returns:
       the local value of the asymptotic PDF
-    """        
+    """
     if ts == None : ts = self.value()
     pdf_q = scipy.stats.norm.pdf(self.signed_sqrt(ts) - math.sqrt(self.non_centrality_parameter()))
     return pdf_q/2/math.sqrt(abs(ts)) if ts != 0 else 0
@@ -304,32 +304,32 @@ class QMu(TestStatistic) :
   def asymptotic_ts(self, pv : float) -> float :
     """Test statistic value corresponding to a given
        p-value, under asymptotic assumptions
-    
+
     Args:
-      pv : an asymptptic p-value. 
-    
+      pv : an asymptptic p-value.
+
     Returns:
       the corresponding test statistic value
-    """        
+    """
     q1 = scipy.stats.norm.isf(pv) + math.sqrt(self.non_centrality_parameter())
     return q1*abs(q1)
 
   def asymptotic_clb(self) -> float :
-    """return the :math:'CL_b` value for the 
+    """return the :math:'CL_b` value for the
        current test statistic value
-    
+
     Returns:
        the :math:'CL_b` value
-    """        
+    """
     return QMu(0, self.tmu, self.best_poi, self.comp_poi, self.tmu_Amu, self.sigma).asymptotic_pv()
 
   def asymptotic_cls(self) :
-    """return the :math:'CL_s` value for the 
+    """return the :math:'CL_s` value for the
        current test statistic value
-    
+
     Returns:
        the :math:'CL_s` value
-    """        
+    """
     clsb = self.asymptotic_pv()
     cl_b = self.asymptotic_clb()
     #print('Asymptotic CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
@@ -338,7 +338,7 @@ class QMu(TestStatistic) :
 
 class QMuTilda(QMu) :
   """The :math:`\tilde{q}_{\mu}` test statistic
-    
+
   The class derives from :class:`QMu`, since this form of test statistic
   is closely related to :math:`q_{\mu}`.
 
@@ -356,14 +356,14 @@ class QMuTilda(QMu) :
   def __init__(self, test_poi : float, tmu : float, best_poi : float, tmu_0 : float = None, comp_poi : float = None,
                tmu_Amu : float = None, tmu_A0 : float = None) :
     """Initialize the `QMuTilda` object
-    
+
     Requires both the likelihood ratio :math:`-2\log(L(test_poi)/L(best_poi))`
     evaluated at the best-fit POI, and :math:`-2\log(L(test_poi)/L(poi=0))`
     evaluated at POI=0, since both are used in the definition of
     :math:`\tilde{q}_{\mu}`. However if the POI is constrained to be positive
     then `tmu_0` is not required, since it is then equal to `tmu` in the cases
     where it would be used.
-    
+
     Args:
       test_poi : the POI value that defines the tested hypothesis
       tmu : the value of the profile likelihood ratio :math:`-2\log(L(test_poi)/L(best_poi))`
@@ -376,7 +376,7 @@ class QMuTilda(QMu) :
                  under the tested hypothesis.
       tmu_A0    : the value of `tmu` computed on an Asimov dataset generated
                  under the POI=0 hypothesis.
-    """        
+    """
     super().__init__(test_poi, tmu, best_poi, comp_poi, tmu_Amu)
     self.tmu_0 = tmu_0 if tmu_0 is not None else tmu
     self.tmu_A0 = tmu_A0 # corresponds to the mu=0 hypo
@@ -388,25 +388,25 @@ class QMuTilda(QMu) :
     the best-fit POI is below the hypothesis value but above 0, -tmu if
     the best-fit POI is above the hypothesis value, and tmu_0 if it is
     negative.
-    
+
     Returns:
       the test statistic value
-    """        
+    """
     return self.tmu_0 if self.best_poi < 0 else self.tmu if self.best_poi < self.comp_poi else -self.tmu
 
   def threshold(self) : # mu^2/sigma^2
     """return the non-centrality parameter for a test
        hypothesis POI=0
-        
-    This parameter corresponds to 
+
+    This parameter corresponds to
     :math:`\Lambda = t_{\mu, A(\mu'=0)} = \mu^2/\sigma^2,
     and is used in the computation of the asymptotic
-    p-value. It may differ from the result of 
+    p-value. It may differ from the result of
     :meth:`non_centrality_parameter`, which can in principle
     refer to other hypotheses (depending on the parameters
     provided at initialization), although it practice they
     often both refer to the POI=0 case.
-    
+
     The function returns the value that was provided during
     initialization.
 
@@ -421,15 +421,15 @@ class QMuTilda(QMu) :
   def asymptotic_pv(self, ts : float = None) -> float :
     """Asymptotic p-value corresponding
        to the test-statistic value
-    
+
     Args:
       ts : an alternate test statistic value. If not `None`,
            the p-value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-    
+
     Returns:
       the asymptotic p-value
-    """        
+    """
     if ts == None : ts = self.value()
     if ts < self.threshold() :
       return QMu.asymptotic_pv(self, ts)
@@ -439,15 +439,15 @@ class QMuTilda(QMu) :
   def asymptotic_pdf(self, ts : float = None) -> float :
     """Value of the PDF of the test statistic, under
        asymptotic assumptions
-    
+
     Args:
       ts : an alternate test statistic value. If not `None`,
            the PDF value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-    
+
     Returns:
       the local value of the asymptotic PDF
-    """        
+    """
     if ts == None : ts = self.value()
     if ts < self.threshold() :
       return QMu.asymptotic_pdf(self, ts)
@@ -458,13 +458,13 @@ class QMuTilda(QMu) :
   def asymptotic_ts(self, pv : float) -> float :
     """Test statistic value corresponding to a given
        p-value, under asymptotic assumptions
-    
+
     Args:
-      pv : an asymptptic p-value. 
-    
+      pv : an asymptptic p-value.
+
     Returns:
       the corresponding test statistic value
-    """        
+    """
     q1 = scipy.stats.norm.isf(pv) + math.sqrt(self.non_centrality_parameter())
     if q1 < self.threshold() :
       return q1*abs(q1)
@@ -472,10 +472,10 @@ class QMuTilda(QMu) :
       return q1*2*math.sqrt(self.threshold()) - self.threshold()
 
   def asymptotic_clb(self) -> float :
-    """return the :math:'CL_b` value for the 
+    """return the :math:'CL_b` value for the
        current test statistic value
-    
+
     Returns:
        the :math:'CL_b` value
-    """        
+    """
     return QMuTilda(0, tmu=self.tmu, best_poi=self.best_poi, comp_poi=self.comp_poi, tmu_Amu=self.tmu_A0, tmu_A0=self.tmu_A0).asymptotic_pv()
