@@ -252,7 +252,8 @@ def run(argv = None) :
 
   jdict = {}
   jdict['cl'] = options.cl
-  jdict['poi'] = model.poi(0).name
+  jdict['poi_name'] = model.poi(0).name
+  jdict['poi_unit'] = model.poi(0).unit
   jdict['limit_sampling_CLs']    = limit_sampling_cls[0]
   jdict['limit_sampling_CLs_up'] = limit_sampling_cls[1]
   jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[2]
