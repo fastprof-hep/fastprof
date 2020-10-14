@@ -1,0 +1,59 @@
+// --------------------------------------------------
+// Observable and PDFs
+observable mobs = 1000 min=500 max=5500 bins=1000 unit=GeV title="m_{obs}"
+
+component Signal = RooGaussian("mobs", "mX", "sigmaX")
+component Background = HftGenericPdfBuilder("mobs", "pow(1 - pow(mobs/13E3, 1./3), a) * pow(mobs/13E3, a0 + b*log(mobs/13E3))", "a", "a0", "b")
+
+// --------------------------------------------------
+// Systematics
+constraint auxAcc = RooGaussian("auxAcc", "npAcc", 1)
+constraint auxLum = RooGaussian("auxLum", "npLum", 1)
+constraint auxSig = RooGaussian("auxSig", "npSig", 1)
+constraint auxBkg = RooGaussian("auxBkg", "npBkg", 1)
+
+// --------------------------------------------------
+// Signal yield
+xs = 0 min=0 max=10000 unit=fb
+lumi = 140 unit="fb^{-1}"
+acc = 0.4
+
+sysAcc = 0.10
+sysLum = 0.02
+formula sysBkg = (0.3*pow(1.-pow(mX/13000.,1./2.),7)*pow(mX/13000.,-2.5 - 0.8*log(mX/13000.) - 0.1*pow(log(mX/13000),2)))
+
+formula kAcc = (exp(sysAcc*npAcc))
+formula kLum = (exp(sysLum*npLum))
+
+formula nSignal = (xs * (acc*kAcc) * (lumi*kLum) + sysBkg*npBkg)
+
+// --------------------------------------------------
+// Background yield
+nBackground = 10000  min=1 max=5000000
+
+// --------------------------------------------------
+// Signal shape
+mX = 1000 const=true min=150 max=5000 unit=GeV title="m_{X}"
+
+resol = 0.10
+sysSig = 0.05
+
+formula kSig = (exp(sysSig*npSig))
+formula sigmaX = (resol*mX*kSig)
+
+// --------------------------------------------------
+// Background shape
+a  = 10   min=5  max=15
+a0 = -1.7
+b  = 0.15 min=-1  max=1
+
+// --------------------------------------------------
+// Systematics NPs and aux. obs
+npAcc = 0 min=-5 max=5
+npLum = 0 min=-5 max=5
+npSig = 0 min=-5 max=5
+npBkg = 0 min=-5 max=5
+auxAcc = 0 const=true min=-5 max=5
+auxLum = 0 const=true min=-5 max=5
+auxSig = 0 const=true min=-5 max=5
+auxBkg = 0 const=true min=-5 max=5
