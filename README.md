@@ -6,6 +6,7 @@ Presentation
 The tool defines binned likelihood models with an arbitrary number of bins and parameters. Parameters are either parameters of interest (POIs) or nuisance parameters (NPs).
 
 The likelihood is defined under the assumption that the impact of the NPs on the expected event yield in each bin is a *linear* function of the parameters. This allows to obtain maximum-likelihood estimates of the NPs, for fixed values of the POIs, using simple linear algebra.
+The model is intended to be used to perform statistical inference in the context of high-energy physics (HEP), and in particular set limits on new phenomena. Along with the likelihood itself, it includes a set of frequentist statistical tools, based on the techniques described in <https://arxiv.org/abs/1007.1727>
 
 The tool is written in python, with most of the work done by numpy.
 
