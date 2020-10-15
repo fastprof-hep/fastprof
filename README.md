@@ -18,25 +18,18 @@ Setup
 
 The package can be set up as follows
 ```
-mkdir fastprof-work
-cd fastprof-work
-git clone <url>
-source fastprof/setup-env.sh
+git clone ssh://git@gitlab.cern.ch:7999/nberger/fastprof.git
+cd fastprof
+source ./setup-env.sh
 ````
 The last command sets up a python3 `pyenv` working environment. The numpy, pandas and matplotlib packages should also be installed within the environment using pip install if they are not already available.
 
-Setting upper limits
-====================
+Goals
+=====
 
 The main purpose of the tool is to set upper limits on the signal strength of new phenomena, using either the asymptotic formulas of <https://arxiv.org/abs/1007.1727> or tehcniques based on pseudo-experiments ("toys"). The latter are more widely applicable, and work in cases where the likelihood is not approximately Gaussian, but require more computing effort. The linear approximation to the expected yields implemented in fastprof allows this technique to be performed more quickly that in non-linear cases.
 
-The procedure for setting an limit at a given confidence level (CL) in a particular model is as follows:
+Documentation
+=============
 
-   - Create a fastprof model for your likelihood. This model is defined in a JSON file. An example can be found here.
-   - Create a dataset, again defined in a JSON file.
-   - Define a test statistic to use for the limit-setting. This can be one of the definitions introduced in <https://arxiv.org/abs/1007.1727>, based on the profile-likelihood ratio
-   - Define a set of signal strength hypotheses at which to compute the exclusion p-value (pv). These should span the range of values where the limit can lie, so that it can be determined by interpolation.
-   - For each hypothesis, compute the observed value of the test statistic and the best-fit parameters of the model to the dataset under this signal hypothesis.
-   - For each hypothesis, generate pseudo-experiments drawn from the model corresponding to the best-fit value of the parameters obained above. Compute the test statistic value for each 
-   - Compute the p-value of the test statistic from the quantile of the observed test statistics (computed 2 steps above) in the distributions obtained from the pseudo-experiments (computed 1 step above)
-   - Interpolate between the hypotheses to obtain the hypothesis value corresponding to the desired upper limit.
+Detailed documentation can be found in the package itself in `build/sphinx/html`, or on the `documentation website <fastprof.web.cern.ch>`_.
