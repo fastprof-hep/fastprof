@@ -9,9 +9,6 @@ The likelihood is defined under the assumption that the impact of the NPs on the
 
 The tool is written in python, with most of the work done by numpy.
 
-In the current implementation, only a single signal-strength parameter of interest is supported
-
-The model is intended to be used to perform statistical inference in the context of high-energy physics (HEP), and in particular set limits on new phenomena. Along with the likelihood itself, it includes a set of frequentist statistical tools, based on the techniques described in <https://arxiv.org/abs/1007.1727>
 
 Setup
 =====
