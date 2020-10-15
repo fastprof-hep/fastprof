@@ -32,4 +32,4 @@ The main purpose of the tool is to set upper limits on the signal strength of ne
 Documentation
 =============
 
-Detailed documentation can be found in the package itself in `build/sphinx/html`, or on the `documentation website <fastprof.web.cern.ch>`_.
+Detailed documentation can be found in the package itself in `build/sphinx/html`, or on the [documentation website](fastprof.web.cern.ch).
