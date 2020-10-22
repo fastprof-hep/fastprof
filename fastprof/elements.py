@@ -648,55 +648,55 @@ class Channel(JSONSerializable) :
   are currently implemented, differing in how the
   bin list is handled:
 
-  * `count` : a channel with a single measurement bin
+  * `bin` : a channel with a single measurement bin
 
   * `binned_range` : a channel with multiple bins spanning
     a range of a continuous observable.
 
-  They provide in both cases:
+  Each type corresponds to a different class derived from
+  this one: :class:`SingleBinChannel` and :class:`BinnedRangeChannel`
+  respectively.
 
-  * A list of bins, each one defined by a python dict with the
-    bin information
-
-    * `count` type: dict of the form { 'name' : <bin name> }
-
-    * `binned_range` type: dict of the form
-      { 'lo_edge' : <float value>, 'hi_edge': <float value> }
+  This class is the common base, defining :
+  * The channel name
 
   * A list of :class:`Sample` objects representing the processes
     contributing to the event yield in each bin.
 
   Attributes:
      name (str) : the name of the channel
-     type (str) : the channel type (`count` or 'binned_range`, default: `count`)
-     bins (list) : a list of python dict objects defining each bin, in the
-        format given above
+     bins (list) : a list of python dict objects defining each bin
      samples (dict) : the channel samples, as a dict mapping the sample names
         to the sample objects (see :class:`Sample`).
   """
 
-  def __init__(self, name : str = '', chan_type : str = 'count', bins : list = []) :
+  def __init__(self, name : str = '', bins : list = []) :
     """Initializes the Channel class
 
       Args:
          name : channel name
-         type : channel type: 'count' (default) or 'binned_range' (see class description)
-         bins : list of bin defiinitions (depends on `type`, see class description)
+         bins : list of bin defiinitions
     """
     self.name = name
-    self.type = chan_type
-    self.bins = bins
     self.samples = {}
 
+  @abstractmethod
   def nbins(self) -> int :
     """Returns the number of bins in the channel
 
       Returns:
         the number of bins
     """
-    return len(self.bins)
+    pass
 
   def sample(self, name : str) :
+    """Access a sample by name
+      
+      Args
+        name : the sample name
+      Returns:
+        the named sample, or `None` if not defined
+    """
     return self.samples[name] if name in self.samples else None
 
   def __str__(self) -> str :
@@ -705,7 +705,7 @@ class Channel(JSONSerializable) :
       Returns:
         The object description
     """
-    s = "Channel '%s', type = %s" % (self.name, self.type)
+    s = "Channel '%s'" % self.name
     for sample in self.samples.values() : s += '\n    o ' + str(sample)
     return s
 
@@ -719,15 +719,10 @@ class Channel(JSONSerializable) :
         Channel: self
     """
     self.name = jdict['name']
-    self.type = jdict['type']
-    if self.type == 'binned_range' :
-      self.bins = jdict['bins']
-      self.obs_name = self.load_field('obs_name', jdict, '', str)
-      self.obs_unit = self.load_field('obs_unit', jdict, '', str)
-      for json_sample in jdict['samples'] :
-        sample = Sample()
-        sample.load_jdict(json_sample)
-        self.samples[sample.name] = sample
+    for json_sample in jdict['samples'] :
+      sample = Sample()
+      sample.load_jdict(json_sample)
+      self.samples[sample.name] = sample
     return self
 
   def fill_jdict(self, jdict) :
@@ -737,10 +732,211 @@ class Channel(JSONSerializable) :
          jdict: A dictionary containing JSON data
     """
     jdict['name'] = self.name
-    jdict['type'] = self.type
-    if self.type == 'binned_range' :
-      jdict['bins'] = self.bins
-      jdict['obs_name'] = self.obs_name
-      jdict['obs_unit'] = self.obs_unit
-      jdict['samples'] = []
-      for sample in self.samples : jdict['samples'].append(sample.dump_jdict())
+    jdict['samples'] = []
+    for sample in self.samples : jdict['samples'].append(sample.dump_jdict())
+
+  def load_data_jdict(self, jdict : dict, counts : np.array) :
+    """Load observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to parse
+    an observed data specification for this channel and fill an
+    array of event counts
+
+      Args:
+        jdict: A dictionary containing JSON data
+        counts : the array of data counts to fill
+    """
+    if not 'name' in jdict :
+      raise KeyError("Data channel definition must contain a 'name' field")
+    if jdict['name'] != self.name :
+      raise ValueError("Cannot load channel data defined for channel '%s' into channel '%s'" % (jdict['name'], self.name))
+    if not 'type' in jdict :
+      raise KeyError("Data channel definition must contain a 'type' field")
+    
+  def save_data_jdict(self, jdict : dict, counts : np.array) :
+    """Save observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to write
+    out an observed data specification for this channel into the
+    appropriate format
+
+    Args:
+      jdict  : A dictionary to fill with JSON data
+      counts : an array of data counts to read from
+    """
+    jdict['name'] = self.name
+    if len(counts) != self.nbins() :
+      raise ValueError("Cannot save channel data counts of length %d for channel '%s' with %d bins" % (len(counts), self.name, self.nbins()))
+
+
+# -------------------------------------------------------------------------
+class BinnedRangeChannel(Channel) :
+  """Class representing a model channel consisting of a binned observable range
+
+  Class derived from :class:`Channel` to handle a bin channel consisting
+  of a list of bins for a continuous observable.
+ 
+  In this case, each bin is stored as a dict with the format
+  { 'lo_edge' : <float value>, 'hi_edge': <float value> }
+  providing the lower and upper range of the bin
+
+    * `count` type: dict of the form { 'name' : <bin name> }
+  """
+  type_str = 'binned_range'
+
+  def __init__(self, name : str = '', bins : list = []) :
+    """Initializes the BinnedRangeChannel class
+
+      Args:
+         name : channel name
+         bins : list of bin definitions, each in the form of a dict
+                with format { 'lo_edge' : <float value>, 'hi_edge': <float value> }
+    """
+    super().__init__(name)
+    self.bins = bins
+
+  def nbins(self) -> int :
+    """Returns the number of bins in the channel
+
+      Returns:
+        the number of bins
+    """
+    return len(self.bins)
+
+  def load_jdict(self, jdict : dict) :
+    """Load object information from a dictionary of JSON data
+
+      Args:
+        jdict: A dictionary containing JSON data
+
+      Returns:
+        Channel: self
+    """
+    super().load_jdict(jdict)
+    if jdict['type'] != BinnedRangeChannel.type_str :
+      raise ValueError("Trying to load a BinnedRangeChannel from channel data of type '%s'" % jdict['type'])
+    self.bins = jdict['bins']
+    self.obs_name = self.load_field('obs_name', jdict, '', str)
+    self.obs_unit = self.load_field('obs_unit', jdict, '', str)
+    return self
+
+  def fill_jdict(self, jdict) :
+    """Save information to a dictionary of JSON data
+
+      Args:
+         jdict: A dictionary containing JSON data
+    """
+    super().fill_jdict(jdict)
+    jdict['bins'] = self.bins
+    jdict['obs_name'] = self.obs_name
+    jdict['obs_unit'] = self.obs_unit
+
+  def load_data_jdict(self, jdict : dict, counts : np.array) :
+    """Load observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to parse
+    an observed data specification for this channel and fill an
+    array of event counts
+
+      Args:
+        jdict: A dictionary containing JSON data
+        counts : the array of data counts to fill
+    """
+    super().load_data_jdict(jdict, counts)
+    if jdict['type'] != BinnedRangeChannel.type_str :
+      raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (jdict['type'], BinnedRangeChannel.type_str))
+    if not 'bins' in jdict :
+      raise KeyError("No 'bins' section defined for data channel '%s' in specified JSON file." % self.name)
+    if len(jdict['bins']) != self.nbins() :
+      raise ValueError("Binned range channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), self.nbins()))
+    for b, bin_data in enumerate(jdict['bins']) :
+      if bin_data['lo_edge'] != self.bins[b]['lo_edge'] or bin_data['hi_edge'] != self.bins[b]['hi_edge'] :
+        raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." %
+                         (bin_data['lo_edge'], bin_data['hi_edge'], self.bins[b]['lo_edge'], self.bins[b]['hi_edge']))
+      counts[b] = bin_data['counts']
+
+  def save_data_jdict(self, jdict : dict, counts : np.array) :
+    """Save observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to write
+    out an observed data specification for this channel into the
+    appropriate format
+
+    Args:
+      jdict  : A dictionary to fill with JSON data
+      counts : an array of data counts to read from
+    """
+    super().save_data_jdict(jdict, counts)
+    jdict['type'] = BinnedRangeChannel.type_str
+    jdict['obs_name'] = self.obs_name
+    jdict['obs_unit'] = self.obs_unit
+    jdict['bins'] = []
+    for b, bin_spec in enumerate(self.bins) :
+      bin_data = {}
+      bin_data['lo_edge'] = bin_spec['lo_edge']
+      bin_data['hi_edge'] = bin_spec['hi_edge']
+      bin_data['counts'] = counts[b]
+      jdict['bins'].append(bin_data)
+
+
+# -------------------------------------------------------------------------
+class SingleBinChannel(Channel) :
+  """Class representing a model channel consisting of a single bin
+
+  Class derived from :class:`Channel` to handle the case of a single 
+  counting bin
+  
+  In this case, each bin is stored as a dict with the format
+  { 'name' : <name> }.
+  """
+
+  type_str = 'bin'
+
+  def __init__(self, name : str = '') :
+    """Initializes the BinnedRangeChannel class
+
+      Args:
+         name : channel name (and bin name)
+    """
+    super().init(name)
+
+  def nbins(self) -> int :
+    """Returns the number of bins in the channel
+
+      Returns:
+        the number of bins
+    """
+    return 1
+
+  def load_data_jdict(self, jdict : dict, counts : np.array) :
+    """Load observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to parse
+    an observed data specification for this channel and fill an
+    array of event counts
+
+      Args:
+        jdict: A dictionary containing JSON data
+        counts : the array of data counts to fill
+    """
+    super().load_data_jdict(jdict, counts)
+    if jdict['type'] != SingleBinChannel.type_str :
+      raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (jdict['type'], SingleBinChannel.type_str))
+    if not 'counts' in jdict :
+      raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % self.name)
+    counts[0] = jdict['counts']
+
+  def save_data_jdict(self, jdict : dict, counts : np.array) :
+    """Save observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to write
+    out an observed data specification for this channel into the
+    appropriate format
+
+    Args:
+      jdict  : A dictionary to fill with JSON data
+      counts : an array of data counts to read from
+    """
+    super().save_data_jdict(jdict, counts)
+    jdict['type'] = SingleBinChannel.type_str
+    jdict['counts'] = counts[0]

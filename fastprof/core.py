@@ -31,7 +31,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-from .elements import ModelPOI, ModelNP, ModelAux, Channel, Sample, JSONSerializable
+from .elements import ModelPOI, ModelNP, ModelAux, Channel, SingleBinChannel, BinnedRangeChannel, Sample, JSONSerializable
 
 # -------------------------------------------------------------------------
 class Parameters :
@@ -640,7 +640,7 @@ class Model (JSONSerializable) :
     if not isinstance(exclude, list) and exclude is not None : exclude = [ exclude ]
     if channel is None :
       for chan in self.channels.values() :
-        if chan.type == 'binned_range' :
+        if isinstance(chan, BinnedRangeChannel) :
           channel = chan
           break
       if channel is None : raise ValueError('ERROR: Model does not contain a channel of binned_range type.')
@@ -850,7 +850,10 @@ class Model (JSONSerializable) :
       self.nps[par.name] = par
     self.channels = {}
     for json_channel in jdict['model']['channels'] :
-      channel = Channel()
+      if json_channel['type'] == 'bin' :
+        channel = SingleBinChannel()
+      elif json_channel['type'] == 'binned_range' :
+        channel = BinnedRangeChannel()
       channel.load_jdict(json_channel)
       if channel.name in self.channels :
         raise ValueError('ERROR: multiple channels defined with the same name (%s)' % channel.name)
@@ -977,7 +980,6 @@ class Data (JSONSerializable) :
     self.set_aux_obs(aux_obs)
     return self
 
-
   def load_jdict(self, jdict : dict) -> 'Data' :
     """Load object information from a dictionary of JSON data
 
@@ -987,21 +989,14 @@ class Data (JSONSerializable) :
       Returns:
         self
     """
-    if not 'data'    in jdict : raise KeyError("No 'data' section in specified JSON file")
-    if not 'channels'  in jdict['data'] : raise KeyError("No 'channels' section in specified JSON file")
+    if not 'data' in jdict : raise KeyError("No 'data' section in specified JSON file")
+    if not 'channels' in jdict['data'] : raise KeyError("No 'channels' section in specified JSON file")
     for channel in jdict['data']['channels'] :
       name = channel['name'] if 'name' in channel else ''
       if not name in self.model.channels : raise ValueError("Data channel '%s' in specified JSON file is not defined in the model." % name)
       model_channel = self.model.channels[name]
-      if not 'bins'  in channel : raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % name)
-      if len(channel['bins']) != model_channel.nbins() :
-        raise ValueError("Data channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), model_channel.nbins()))
       offset = self.model.channel_offsets[name]
-      for b, bin_data in enumerate(channel['bins']) :
-        if bin_data['lo_edge'] != model_channel.bins[b]['lo_edge'] or bin_data['hi_edge'] != model_channel.bins[b]['hi_edge'] :
-          raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." %
-                           (bin_data['lo_edge'], bin_data['hi_edge'], model_channel.bins[b]['lo_edge'], model_channel.bins[b]['hi_edge']))
-        self.counts[offset + b] = bin_data['counts']
+      model_channel.load_data_jdict(channel, self.counts[offset:offset + model_channel.nbins()])
     if not 'aux_obs' in jdict['data'] : raise KeyError("No 'aux_obs' section defined in specified JSON file." % name)
     data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in jdict['data']['aux_obs'] }
     aux_obs_values = []
@@ -1010,7 +1005,7 @@ class Data (JSONSerializable) :
         aux_obs_values.append(0)
         continue
       if not par.aux_obs in data_aux_obs : raise('Auxiliary observable %s defined in model, but not provided in the data' % par.aux_obs)
-      aux_obs_values.append((data_aux_obs[par.aux_obs] - par.nominal_value)/par.variation)
+      aux_obs_values.append(par.scaled_value(data_aux_obs[par.aux_obs]))
     self.set_aux_obs(np.array(aux_obs_values, dtype=float))
     return self
 
@@ -1021,8 +1016,17 @@ class Data (JSONSerializable) :
          jdict: A dictionary containing JSON data
     """
     jdict['data'] = {}
-    jdict['data']['counts'] = self.counts.tolist()
-    jdict['data']['aux_obs'] = self.aux_obs.tolist()
+    jdict['data']['channels'] = []
+    for channel_name, channel in self.model.channels.items() :
+      channel_data = {}
+      offset = self.model.channel_offsets[channel_name]
+      channel.save_data_jdict(channel_data, self.counts[offset:offset + channel.nbins()])
+      jdict['data']['channels'].append(channel_data)
+    jdict['data']['aux_obs'] = []
+    for p, par in enumerate(self.model.nps.values()) :
+      if par.aux_obs is None : continue
+      aux_data = { 'name' : par.aux_obs, 'value' : par.unscaled_value(self.aux_obs[p]) }
+      jdict['data']['aux_obs'].append(aux_data)
 
   def __str__(self) -> str :
     """Provides a description string
