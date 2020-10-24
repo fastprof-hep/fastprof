@@ -393,7 +393,7 @@ class ModelNP(JSONSerializable) :
     self.unit = self.load_field('unit', jdict, '', str)
     self.nominal_value = self.load_field('nominal_value', jdict, None, [int, float])
     self.variation = self.load_field('variation', jdict, None, [int, float])
-    self.constraint = self.load_field('constraint', jdict)
+    self.constraint = self.load_field('constraint', jdict, None)
     if self.constraint is not None :
       self.aux_obs = self.load_field('aux_obs', jdict, '', str)
     else :
@@ -408,7 +408,7 @@ class ModelNP(JSONSerializable) :
     """
     jdict['name'] = self.name
     jdict['unit'] = self.unit
-    jdict['nominal_val'] = self.nominal_value
+    jdict['nominal_value'] = self.nominal_value
     jdict['variation'] = self.variation
     jdict['constraint'] = self.constraint
     jdict['aux_obs'] = self.aux_obs
