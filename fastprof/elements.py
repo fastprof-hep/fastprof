@@ -1095,7 +1095,7 @@ class BinnedRangeChannel(Channel) :
     for b, bin_data in enumerate(jdict['bins']) :
       if bin_data['lo_edge'] != self.bins[b]['lo_edge'] or bin_data['hi_edge'] != self.bins[b]['hi_edge'] :
         raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." %
-                         (bin_data['lo_edge'], bin_data['hi_edge'], self.bins[b]['lo_edge'], self.bins[b]['hi_edge']))
+                         (b, self.name, bin_data['lo_edge'], bin_data['hi_edge'], self.bins[b]['lo_edge'], self.bins[b]['hi_edge']))
       counts[b] = bin_data['counts']
 
   def save_data_jdict(self, jdict : dict, counts : np.array) :
@@ -1141,7 +1141,7 @@ class SingleBinChannel(Channel) :
       Args:
          name : channel name (and bin name)
     """
-    super().init(name)
+    super().__init__(name)
 
   def nbins(self) -> int :
     """Returns the number of bins in the channel
