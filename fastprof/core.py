@@ -730,18 +730,17 @@ class Model (JSONSerializable) :
     for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
     return s
 
-  def expected_pars(self, pois : dict, minimizer : 'NPMinimizer' = None, data : 'Data' = None) -> Parameters :
+  def expected_pars(self, pois : dict, minimizer : 'NPMinimizer' = None) -> Parameters :
     """Assigns NP values to a set of POI values
 
       By default, returns a :class:`Parameters` object with the POI values
-      defined by the `pois` arg, and the NPs set to 0. If a minimizer and
-      a dataset are provided, will set the NPs to their profiled values.
+      defined by the `pois` arg, and the NPs set to 0. If a dataset is 
+      provided, will set the NPs to their profiled values.
       The `pois` arg can also be a class:`Parameters` object, from which
       the POI values will be taken (and the NP values ignored).
 
       Args:
          pois : A dict of POI name : value pairs, or a class:`Parameters` object.
-         minimizer (optional) : NP minimizer algorithm used to compute NP profile values
          data (optional) : dataset to use for the profiling
       Returns:
          Object containing the POI values and associated NP values.
@@ -750,8 +749,8 @@ class Model (JSONSerializable) :
       pars = pois
     else :
       pars = Parameters(pois, model=self)
-    if minimizer and data :
-      return minimizer.profile_nps(pars, data)
+    if minimizer is not None :
+      return minimizer.profile(pars)
     else :
       return pars
 
@@ -786,7 +785,7 @@ class Model (JSONSerializable) :
     """
     return Data(self).set_data(self.tot_exp(pars), pars.nps)
 
-  def generate_expected(self, pois, minimizer = None, data = None) :
+  def generate_expected(self, pois, minimizer = None) :
     """Generate an Asimov dataset for expected parameter values
 
       Same functionality as :meth:`Model.generate_asimov`, but with
@@ -800,7 +799,7 @@ class Model (JSONSerializable) :
       Returns:
          An Asimov dataset
     """
-    return self.generate_asimov(self.expected_pars(pois, minimizer, data))
+    return self.generate_asimov(self.expected_pars(pois, minimizer))
 
   @staticmethod
   def create(filename : str) -> 'Model' :

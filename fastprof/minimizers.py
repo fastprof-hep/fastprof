@@ -253,9 +253,9 @@ class POIMinimizer :
          best-fit parameters
     """
     if isinstance(hypo, (int, float)) :
-      hypo = data.model.expected_pars(hypo, self, data)
+      hypo = data.model.expected_pars(hypo, NPMinimizer(data))
     if isinstance(init_hypo, (int, float)) :
-      init_hypo = data.model.expected_pars(init_hypo, self, data)
+      init_hypo = data.model.expected_pars(init_hypo, NPMinimizer(data))
     #print('tmu @ %g' % hypo.poi)
     self.profile_nps(hypo, data)
     self.hypo_nll = self.min_nll
@@ -423,7 +423,7 @@ class OptiMinimizer (POIMinimizer) :
          best-fit parameters
     """
     if init_hypo == None :
-      current_hypo = self.init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, self)
+      current_hypo = self.init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, NPMinimizer(data))
     else :
       current_hypo = init_hypo.clone()
     def objective(pois) :
@@ -445,6 +445,8 @@ class OptiMinimizer (POIMinimizer) :
       return np.array(data.model.hess_poi(self.np_min.min_pars, data)*v[0])
     if self.method == 'scalar' :
       if self.debug > 0 : print('== Optimizer: using scalar  ----------------')
+      if self.bounds is None :
+        self.set_pois_from_model(data.model)
       #print('njpb', self.bounds, list(self.bounds.values())[0])
       result = scipy.optimize.minimize_scalar(objective, bounds=list(self.bounds.values())[0], method='bounded', options={'xatol': 1e-5 })
     elif self.method == 'L-BFGS-B':
