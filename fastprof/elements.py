@@ -107,9 +107,7 @@ class JSONSerializable :
       Returns:
         (depends): the value indexed by `key` in `dic`, or `default` if not present or not of the expected type.
     """
-    if not key in dic :
-      if default != None : return default
-      raise KeyError('Key %s not found in JSON dictionary' % key)
+    if not key in dic : return default
     val = dic[key]
     if not isinstance(types, list) : types = [ types ]
     if types != [] and not any([isinstance(val, t) for t in types]) :
