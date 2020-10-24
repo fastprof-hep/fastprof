@@ -33,7 +33,7 @@
       ],
       "channels": [
          {
-            "name": "counting_bin",
+            "name": "SR",
             "type": "bin",
             "samples": [
                {
@@ -62,7 +62,7 @@
    "data": {
       "channels": [
          {
-            "name"  : "counting_bin",
+            "name"  : "SR",
             "type"  : "bin",
             "counts": 1
          }

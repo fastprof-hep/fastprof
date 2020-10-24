@@ -1,0 +1,36 @@
+{
+   "model": {
+      "name": "simple_counting",
+      "POIs": [
+         {
+            "name": "nsig",
+            "min_value": 0.0,
+            "max_value": 10
+         }
+      ],
+      "channels": [
+         {
+            "name": "SR",
+            "samples": [
+               {
+                  "name": "Signal",
+                  "norm": "nsig"
+               },
+               {
+                  "name": "Background",
+                  "norm": 0.5
+               }
+            ]
+         }
+      ]
+   },
+
+   "data": {
+      "channels": [
+         {
+            "name"  : "SR",
+            "counts": 1
+         }
+      ]
+   }
+}
