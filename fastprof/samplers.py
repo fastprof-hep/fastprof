@@ -87,7 +87,7 @@ class Sampler :
       descr : a comment string to append to the message
     """
     if k % self.print_freq == 0 :
-      print('-- Processing iteration %d of %d %s' % (k, ntoys, descr))
+      #print('-- Processing iteration %d of %d %s' % (k, ntoys, descr))
       sys.stderr.write('\rProcessing iteration %d of %d %s' % (k, ntoys, descr))
 
   def generate(self, ntoys, hypo_descr : str = None) -> SamplingDistribution :
