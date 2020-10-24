@@ -31,7 +31,7 @@ import numpy as np
 from abc import abstractmethod
 
 from .core import Model, Data, Parameters, JSONSerializable, ModelPOI
-from .minimizers import POIMinimizer, OptiMinimizer
+from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
 from .test_statistics import QMu, QMuTilda
 
 
@@ -712,7 +712,7 @@ class TestStatisticCalculator :
       an object containing the PLR information
     """
     fast_plr_data = self.compute_fast_plr(hypo, data, name)
-    asimov = data.model.generate_expected(0, self.minimizer, data)
+    asimov = data.model.generate_expected(0, NPMinimizer(data))
     asimov_plr_data = self.compute_fast_plr(hypo, asimov, 'fast_asimov')
     fast_plr_data.set_asimov(asimov_plr_data)
     self.fill_pv(fast_plr_data)
@@ -731,7 +731,7 @@ class TestStatisticCalculator :
     """
     for plr_data in raster.plr_data.values() : self.fill_pv(plr_data)
 
-  def compute_fast_results(self, raster : Raster, data : Data, name : str = 'fast') -> Raster :
+  def compute_fast_results(self, hypos : list, data : Data, init_values : dict = {}, name : str = 'fast') -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Builds a raster object with the same hypothesis points as the one
@@ -746,12 +746,29 @@ class TestStatisticCalculator :
       a raster object containing the fast PLR and p-value results
     """
     fast_plr_data = {}
-    for i, plr_data in enumerate(raster.plr_data.values()) :
-      plr_data.free_fit.set_poi_values_and_ranges(self.minimizer)
-      fast_plr_data[plr_data.hypo] = self.compute_fast_q(plr_data.hypo, data, '%s_%g' % (name, i))
+    for i, hypo in enumerate(hypos) :
+      if hypo in init_values :
+        init_values[hypo].set_poi_values_and_ranges(self.minimizer)
+      fast_plr_data[hypo] = self.compute_fast_q(hypo, data, '%s_%g' % (name, i))
     fast = Raster(name, fast_plr_data)
     self.fill_all_pv(fast)
     return fast
+
+  def recompute_raster(self, raster : Raster, data : Data, name : str = 'fast') -> Raster :
+    """Compute fast PLR and p-values for a set of hypotheses
+
+    Builds a raster object with the same hypothesis points as the one
+    provided in input, containing PLR data and p-values computing
+    using a linear model.
+
+    Args:
+      raster : a raster object
+      data   : the input dataset
+      name   : name of the output :class:`PLRData` objects
+    Returns:
+      a raster object containing the fast PLR and p-value results
+    """
+    return self.compute_fast_results(raster.plr_data.keys(), data, { hypo : plr_data.free_fit for hypo, plr_data in raster.plr_data.items() }, name)
 
 
 class QMuCalculator(TestStatisticCalculator) :

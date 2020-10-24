@@ -88,7 +88,7 @@ def run(argv = None) :
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
   calc.fill_all_pv(raster)
-  faster = calc.compute_fast_results(raster, data)
+  faster = calc.recompute_raster(raster, data)
   raster.print(verbosity = options.verbosity, other=faster)
   if options.verbosity > 2 : print(str(faster))
   # Plot results
