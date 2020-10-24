@@ -244,7 +244,7 @@ class ModelAux(JSONSerializable) :
     unit          (str)   : the unit in which the parameter is expressed
  """
 
-  def __init__(self, name = '', min_value = None, max_value = None, unit : str = None) :
+  def __init__(self, name = '', min_value : float = None, max_value : float = None, unit : str = None) :
     self.name = name
     self.unit = unit
     self.min_value = min_value
@@ -255,7 +255,9 @@ class ModelAux(JSONSerializable) :
       Returns:
         The object description
     """
-    s = "Auxiliary observable '%s' : min = %g, max = %g" % (self.name, self.min_value, self.max_value)
+    s = "auxiliary observable '%s'" % self.name
+    if self.min_value is not None and self.max_value is not None :
+      s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
     return s
 
   def load_jdict(self, jdict) :
@@ -269,8 +271,8 @@ class ModelAux(JSONSerializable) :
     """
     self.name = self.load_field('name', jdict, '', str)
     self.unit = self.load_field('unit', jdict, '', str)
-    self.min_value = self.load_field('min_value', jdict, '', [int, float])
-    self.max_value = self.load_field('max_value', jdict, '', [int, float])
+    self.min_value = self.load_field('min_value', jdict, None, [int, float])
+    self.max_value = self.load_field('max_value', jdict, None, [int, float])
     return self
 
   def fill_jdict(self, jdict) :
