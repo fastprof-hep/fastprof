@@ -1,4 +1,4 @@
-from .elements        import ModelPOI, ModelNP, ModelAux, Channel, SingleBinChannel, BinnedRangeChannel, Sample, JSONSerializable
+from .elements        import ModelPOI, ModelNP, ModelAux, Norm, ParameterNorm, FormulaNorm, Sample, Channel, SingleBinChannel, BinnedRangeChannel, JSONSerializable
 from .core            import Model, Parameters, Data
 from .test_statistics import TMu, QMu, QMuTilda
 from .minimizers      import NPMinimizer, OptiMinimizer, ScanMinimizer
