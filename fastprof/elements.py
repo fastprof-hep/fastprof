@@ -415,6 +415,206 @@ class ModelNP(JSONSerializable) :
 
 
 # -------------------------------------------------------------------------
+class Norm(JSONSerializable) :
+  """Class representing the normalization term of a sample
+  
+  This is the base class for other types of normalization, and
+  also defines a constant normalization 
+  """
+
+  def __init__(self) :
+    """Create a new Norm object
+    """
+    pass
+  
+  def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
+    """provides the NP variations that are implicit in the norm
+
+      Args:
+         par       : the nuisance parameter for which to get variations
+         variation : magnitude of the variation, in numbers of sigmas        
+    """
+    return None
+
+  @abstractmethod
+  def value(self, pars_dict : dict) -> float :
+    """Computes the overall normalization factor
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         normalization factor value
+    """
+    pass
+
+  @abstractmethod
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    pass
+
+
+# -------------------------------------------------------------------------
+class ParameterNorm(JSONSerializable) :
+  """Class representing the normalization term of a sample as the
+  value of a single parameter
+
+  Attributes:
+     par_name     (str) : name of the parameter giving the normalization term
+  """
+
+  type_str = 'parameter'
+
+  def __init__(self, par_name : str = '') :
+    """Create a new Norm object
+    
+    Args:
+      par_name : name of the parameter that defines the norm value
+    """
+    self.par_name = par_name
+  
+  def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
+    """provides the NP variations that are implicit in the norm
+
+      Args:
+         par       : the nuisance parameter for which to get variations
+         variation : magnitude of the NP variation, in numbers of sigmas
+         normalize : if True, return the variation scaled to a +1sigma effect
+
+      Returns:
+        the relative yield variation for the specified NP variation
+    """
+    if par.name != self.par_name or par.nominal_value <= 0 : 
+      rel_var = 0
+    else :
+      rel_var = variation*par.variation/par.nominal_value
+    return { '%+g' % variation : rel_var, '%+g' % -variation : -rel_var }
+
+  def value(self, pars_dict : dict) -> float :
+    """Computes the overall normalization factor
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         normalization factor value
+    """
+    if not self.par_name in pars_dict :
+      raise KeyError("Cannot to compute normalization as the value of an unknown parameter '%s'. Known parameters are as follows: %s" % (par.name, str(pars_dict)))
+    return pars_dict[self.par_name]
+
+  def load_jdict(self, jdict) -> 'ParameterNorm' :
+    """Load object information from a dictionary of JSON data
+
+      Args:
+        jdict: A dictionary containing JSON data
+
+      Returns:
+        self
+    """
+    if 'norm_type' in jdict and jdict['norm_type'] != ParameterNorm.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], FormulaNorm.type_str))
+    self.par_name = self.load_field('norm', jdict, '', str)
+    return self
+
+  def fill_jdict(self, jdict) :
+    """Save information to a dictionary of JSON data
+
+      Args:
+         jdict: A dictionary containing JSON data
+    """
+    jdict['norm_type'] = ParameterNorm.type_str
+    jdict['norm'] = self.par_name
+
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    return '%s' % self.par_name
+
+
+# -------------------------------------------------------------------------
+class FormulaNorm(JSONSerializable) :
+  """Class representing the normalization term of a sample
+     as a formula expression.
+
+  Attributes:
+     formula  (str) : a string defining the normalization term
+                      as a function of the POIs
+  """
+
+  type_str = 'formula'
+
+  def __init__(self, formula : str = '') :
+    """Create a new FormulaNorm object
+    
+    Args:
+       formula : the formula expression for the norm
+    """
+    self.formula = formula
+
+  def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
+    """Provides the NP variations that are implicit in the norm
+    
+    This cannot be done by default for a generic formula, so return nothing
+    
+    Args:
+         par       : the nuisance parameter for which to get variations
+         variation : magnitude of the variation, in numbers of sigmas        
+    """
+    return None
+
+  def value(self, pars_dict : dict) -> float :
+    """Computes the overall normalization factor
+
+      Args:
+         pars_dict : a dictionary of parameter { name: value } pairs
+      Returns:
+         normalization factor value
+    """
+    try:
+      return eval(self.formula, pars_dict)/self.nominal_norm
+    except Exception as inst:
+      print("Error while evaluating the normalization '%s' of sample '%s'." % (self.formula, self.name))
+      raise(inst)
+
+  def load_jdict(self, jdict) -> 'FormulaNorm' :
+    """Load object information from a dictionary of JSON data
+
+      Args:
+        jdict: A dictionary containing JSON data
+
+      Returns:
+        self
+    """
+    if jdict['norm_type'] != FormulaNorm.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], FormulaNorm.type_str))
+    self.formula = self.load_field('norm', jdict, '', str)
+    return self
+
+  def fill_jdict(self, jdict) :
+    """Save information to a dictionary of JSON data
+
+      Args:
+         jdict: A dictionary containing JSON data
+    """
+    jdict['norm_type'] = FormulaNorm.type_str
+    jdict['norm'] = self.formula
+
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    return 'formula[%s]' % self.formula
+
+
+# -------------------------------------------------------------------------
 class Sample(JSONSerializable) :
   """Class representing a model sample
 
@@ -457,18 +657,19 @@ class Sample(JSONSerializable) :
                 coefficients for each NP (negative values only)
   """
 
-  def __init__(self, name : str = '', norm : str = '', nominal_norm : float = None, nominal_yields : np.ndarray = None, impacts : np.ndarray = None) :
+  def __init__(self, name : str = '', norm : Norm = None, nominal_norm : float = None,
+               nominal_yields : np.ndarray = None, impacts : np.ndarray = None) :
     """Create a new Sample object
 
       Args:
          name: sample name
-         norm: expression of the sample normalization factor, as a function of the POIs
+         norm: object describing the sample normalization
          nominal_norm: value of the normalization factor for which the nominal yields are provided
          nominal_yields: nominal event yields for all channel bins (np. array of size `nbins`)
          impacts: relative change of the nominal event yields for each NP (see class description for format)
     """
     self.name = name
-    self.norm_expr = norm
+    self.norm = norm
     self.nominal_norm = nominal_norm
     self.nominal_yields = nominal_yields
     self.impacts = impacts
@@ -476,6 +677,50 @@ class Sample(JSONSerializable) :
     self.neg_vars = {}
     self.pos_imps = {}
     self.neg_imps = {}
+
+  def set_np_data(self, nps : list, variation : float = 1) :
+    """Post-initialization update based on model NPs
+
+    The function performs a couple of updates that require passing
+    the model NPs, which isn't available at initialization time.
+    It is called by the model just before the sample data is loaded,
+    in :meth:`fastprof.Model.set_internal_vars`.
+    
+    The updates are
+
+    * Update the nominal_norm field: this can be set in the JSON or constructor,
+      but it can be natural to take it as the value obtained from the nominal
+      model parameter values. 
+    
+    * Update the nominal yields : if `None`, we assume there is just one bin,
+      and that the content matches the nominal norm (as would be the case if
+      the normalization is a raw number of events)
+    
+    * Update the `self.impacts` array, which stores the impact of all known NPs.
+      This is first loaded from JSON or specified in the constructor, and should
+      list all NPs. However the impact of NPs which enter only the normalization
+      can be deduced directly, if the normalization has a simple form. The
+      function sets these impacts if they are not present (if already defined,
+      they are not overwritten).
+    
+    Args:
+      nps       : list of all model NPs
+      variation : the +/- variation to store for norm NPs
+    """
+    if self.nominal_norm is None :
+      nominal_pars = { par.name : par.nominal_value for par in nps }
+      try :
+        self.nominal_norm = self.norm.value(nominal_pars)
+      except Exception as inst :
+        print("Cannot fill in empty nominal_norm field for sample '%s' using the following parameter values: %s" % (str(self), str(nominal_pars)))
+        raise(inst)
+    if self.nominal_yields is None :
+      self.nominal_yields = np.array([ self.nominal_norm ])
+    for par in nps :
+      if par.name in self.impacts : continue
+      impacts = [ self.norm.implicit_impact(par, +variation) ]
+      if impacts is None : continue
+      self.impacts[par.name] =  impacts * len(self.nominal_yields)
 
   def available_variations(self, par : str = None) -> list :
     """provides the available variations of the per-bin event yields for a given NP
@@ -584,7 +829,7 @@ class Sample(JSONSerializable) :
       print(inst)
       return self.impact(par, +1)
 
-  def norm(self, pars_dict : dict) -> float :
+  def normalization(self, pars_dict : dict) -> float :
     """Computes the overall normalization factor
 
       Args:
@@ -592,12 +837,7 @@ class Sample(JSONSerializable) :
       Returns:
          normalization factor value
     """
-    if self.norm_expr == '' : return 1
-    try:
-      return eval(self.norm_expr, pars_dict)/self.nominal_norm
-    except Exception as inst:
-      print("Error while evaluating the normalization '%s' of sample '%s'." % (self.norm_expr, self.name))
-      raise(inst)
+    return self.norm.value(pars_dict)/self.nominal_norm
 
   def __str__(self) -> str :
     """Provides a description string
@@ -605,7 +845,7 @@ class Sample(JSONSerializable) :
       Returns:
         The object description
     """
-    s = "Sample '%s', norm = %s (nominal = %g)" % (self.name, self.norm_expr, self.nominal_norm)
+    s = "Sample '%s', norm = %s (nominal = %g)" % (self.name, str(self.norm), self.nominal_norm)
     return s
 
   def load_jdict(self, jdict) -> 'Sample' :
@@ -618,7 +858,12 @@ class Sample(JSONSerializable) :
         self
     """
     self.name = self.load_field('name', jdict, '', str)
-    self.norm_expr = self.load_field('norm', jdict, '', str)
+    norm_type = self.load_field('norm_type', jdict, '', str)
+    if norm_type == ParameterNorm.type_str or norm_type == '' :
+      self.norm = ParameterNorm()
+    elif norm_type == FormulaNorm.type_str :
+      self.norm = FormulaNorm()
+    self.norm.load_jdict(jdict)
     self.nominal_norm = self.load_field('nominal_norm', jdict, None, [float, int])
     self.nominal_yields = self.load_field('nominal_yields', jdict, None, list)
     self.impacts = self.load_field('impacts', jdict, None, dict)
@@ -631,7 +876,7 @@ class Sample(JSONSerializable) :
          jdict: A dictionary containing JSON data
     """
     jdict['name'] = self.name
-    jdict['norm'] = self.norm_expr
+    self.norm.fill_jdict(jdict)
     jdict['nominal_norm'] = self.nominal_norm
     jdict['nominal_yields'] = self.nominal_yields
     jdict['impacts'] = self.impacts

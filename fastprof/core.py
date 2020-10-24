@@ -414,18 +414,21 @@ class Model (JSONSerializable) :
     self.nvariations = 1
     for channel in self.channels.values() :
       for sample in channel.samples.values() :
-        self.nominal_yields[self.sample_indices[sample.name], self.channel_offsets[channel.name]:] = sample.nominal_yields
+        sample.set_np_data(self.nps.values(), variation=1)
+        start = self.channel_offsets[channel.name]
+        stop  = start + channel.nbins()
+        self.nominal_yields[self.sample_indices[sample.name], start:stop] = sample.nominal_yields
         for p, par in enumerate(self.nps) :
           pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=False)
           if pos_cs.shape[0] > 2 or neg_cs.shape[0] > 2 : raise ValueError('Impact interpolation in %d > 2 dimensions not yet supported!' % max(pos_cs.shape[0], neg_cs.shape[0]))
           self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0], self.nvariations)
-          self.pos_impact_coeffs[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p, :pos_cs.shape[0]] = pos_cs.T
-          self.neg_impact_coeffs[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p, :neg_cs.shape[0]] = neg_cs.T
-          self.sym_impacts[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p] = sample.sym_impact(par)
+          self.pos_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
+          self.neg_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
+          self.sym_impacts[self.sample_indices[sample.name], start:stop, p] = sample.sym_impact(par)
           # Repeat for log coeffs
           pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=True)
-          self.log_pos_impact_coeffs[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p, :pos_cs.shape[0]] = pos_cs.T
-          self.log_neg_impact_coeffs[self.sample_indices[sample.name], self.channel_offsets[channel.name]:, p, :neg_cs.shape[0]] = neg_cs.T
+          self.log_pos_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
+          self.log_neg_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
           self.log_sym_impacts = np.log(1 + self.sym_impacts)
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
@@ -526,7 +529,7 @@ class Model (JSONSerializable) :
       Returns:
          Expected event yields per sample per bin
     """
-    nnom = (self.nominal_yields.T*np.array([ sample.norm(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T
+    nnom = (self.nominal_yields.T*np.array([ sample.normalization(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T
     k = self.k_exp(pars)
     if self.cutoff == 0 : return nnom*k
     return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
