@@ -657,8 +657,9 @@ class Model (JSONSerializable) :
     else :
       grid = np.linspace(0, channel.nbins(), channel.nbins())
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
-    offset = self.channel_offsets[channel.name]
-    nexp = self.n_exp(pars)[:,offset:offset + channel.nbins()]
+    start = self.channel_offsets[channel.name]
+    stop  = start + channel.nbins()
+    nexp = self.n_exp(pars)[:, start:stop]
     if exclude is None :
       tot_exp = nexp.sum(axis=0)
       line_style = '-'
@@ -671,11 +672,12 @@ class Model (JSONSerializable) :
       tot_exp = nexp.sum(axis=0) - nexp[samples,:].sum(axis=0)
       line_style = '--'
       title = 'Model excluding ' + ','.join(exclude)
-    yvals = tot_exp if not residuals or not data else tot_exp - data.counts
+    counts = data.counts[start:stop]
+    yvals = tot_exp if not residuals or not data else tot_exp - counts
     canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title)
     if data :
-      yerrs = [ math.sqrt(n) if n > 0 else 0 for n in data.counts ]
-      yvals = data.counts if not residuals else np.zeros(channel.nbins())
+      yerrs = [ math.sqrt(n) if n > 0 else 0 for n in counts ]
+      yvals = counts if not residuals else np.zeros(channel.nbins())
       canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data')
     canvas.set_xlim(grid[0], grid[-1])
     if variations is not None :
@@ -684,7 +686,7 @@ class Model (JSONSerializable) :
         vpars.set(v[0], v[1])
         col = 'r' if len(v) < 3 else v[2]
         style = '--' if v[1] > 0 else '-.'
-        tot_exp = self.n_exp(vpars)[:,offset:offset + channel.nbins()].sum(axis=0)
+        tot_exp = self.n_exp(vpars)[:, start:stop].sum(axis=0)
         canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
     canvas.legend()
     canvas.set_title(self.name)
