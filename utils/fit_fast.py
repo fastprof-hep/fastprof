@@ -87,7 +87,7 @@ def run(argv = None) :
     print('-- Profiled NP values :\n' + str(opti.hypo_pars))
     if len(model.pois) == 1 :
       print('\n== Computing the q~mu test statistic')
-      asimov = model.generate_expected(0, opti, data)
+      asimov = model.generate_expected(0, NPMinimizer(data))
       calc = QMuTildaCalculator(opti)
       plr_data = calc.compute_fast_q(hypo_pars, data)
       print('best-fit %s = % g' % (model.poi(0).name, opti.free_pars.pois[0]))
