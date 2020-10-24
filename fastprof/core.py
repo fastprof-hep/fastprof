@@ -563,7 +563,7 @@ class Model (JSONSerializable) :
          offset : if True, use offsetting to reduce floating-point precision issues
          floor  : if a positive number is provided, will check for negative event yields
                   and replace them with the floor value
-         no_constraints : omit the penalty  terms from the constraint in the computation.
+         no_constraints : omit the penalty terms from the constraint in the computation.
       Returns:
          The negative log-likelihood value
     """
@@ -647,6 +647,7 @@ class Model (JSONSerializable) :
           channel = chan
           break
       if channel is None : raise ValueError('ERROR: Model does not contain a channel of binned_range type.')
+      print("Plotting channel '%s'" % channel.name)
     else :
       if not channel in self.channels : raise KeyError('ERROR: Channel %s is not defined.' % channel)
       channel = self.channels[channel]
