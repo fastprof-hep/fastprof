@@ -1,0 +1,174 @@
+{
+   "model": {
+      "name": "multi_jet",
+      "POIs": [
+         {
+            "name" : "xs_BSM",
+            "unit" : "fb",
+            "min_value": 0.0,
+            "max_value": 10
+         }
+      ],
+      "NPs": [
+         {
+            "name": "np_lumi",
+            "nominal_value": 0.0,
+            "variation": 1,
+            "constraint": 1,
+            "aux_obs": "aux_lumi"
+         },
+         {
+            "name": "np_eff",
+            "nominal_value": 0.0,
+            "variation": 1,
+            "constraint": 1,
+            "aux_obs": "aux_eff"
+         },
+         {
+            "name": "nBkg",
+            "nominal_value": 64,
+            "variation": 8
+         }
+      ],
+      "aux_obs": [
+         {
+            "name": "aux_lumi",
+            "min_value": -5.0,
+            "max_value": 5.0
+         },
+         {
+            "name": "aux_eff",
+            "min_value": -5.0,
+            "max_value": 5.0
+         }
+      ],
+      "channels": [
+         {
+            "name": "2-jets",
+            "type": "binned_range",
+            "obs_name": "m_{jj}",
+            "obs_unit": "GeV",
+            "bins": [ 
+               { "lo_edge": 150, "hi_edge":  250 },
+               { "lo_edge": 250, "hi_edge":  500 },
+               { "lo_edge": 500, "hi_edge": 2000 }
+            ],
+            "samples": [
+               {
+                  "name": "Signal",
+                  "norm": "xs_BSM",
+                  "nominal_norm": 1,
+                  "nominal_yields": [
+                     0.01,
+                     0.1,
+                     2
+                  ],
+                  "impacts": {
+                     "np_lumi": [
+                        { "+1":  0.02, "-1":  -0.02 },
+                        { "+1":  0.02, "-1":  -0.02 },
+                        { "+1":  0.02, "-1":  -0.02 }
+                     ],
+                     "np_eff": [
+                        { "+1":  0.01, "-1":  -0.01 },
+                        { "+1":  0.05, "-1":  -0.05 },
+                        { "+1":  0.20, "-1":  -0.20 }
+                     ]
+                  }
+               },
+               {
+                  "name": "Background",
+                  "norm": "nBkg",
+                  "nominal_norm": 64,
+                  "nominal_yields": [
+                     50,
+                     10,
+                     1
+                  ],
+                  "impacts": {
+                     "np_lumi": [
+                        { "+1":  0, "-1":  0 },
+                        { "+1":  0, "-1":  0 },
+                        { "+1":  0, "-1":  0 }
+                     ],
+                     "np_eff": [
+                        { "+1":  0, "-1":  0 },
+                        { "+1":  0, "-1":  0 },
+                        { "+1":  0, "-1":  0 }
+                     ]
+                  }
+               }
+            ]
+         },
+         {
+            "name": "1-jet",
+            "type": "bin",
+            "samples": [
+               {
+                  "name": "Signal",
+                  "norm": "xs_BSM",
+                  "nominal_norm": 1,
+                  "nominal_yields": [ 1.5 ],
+                  "impacts": {
+                     "np_lumi": [ { "+1":  0.02, "-1":  -0.02 } ],
+                     "np_eff" : [ { "+1":  0.01, "-1":  -0.01 } ]
+                  }
+               },
+               {
+                  "name": "Background",
+                  "norm": "nBkg",
+                  "nominal_norm": 64,
+                  "nominal_yields": [ 3 ],
+                  "impacts": {
+                     "np_lumi": [ { "+1":  0, "-1":  0 } ],
+                     "np_eff" : [ { "+1":  0, "-1":  0 } ]
+                  }
+               }
+            ]
+         }
+      ]
+   },
+
+   "data": {
+      "channels": [
+         {
+            "name"  : "1-jet",
+            "type"  : "bin",
+            "counts": 1
+         },
+         {
+            "name": "2-jets",
+            "type": "binned_range",
+            "obs_name": "m_{jj}",
+            "obs_unit": "GeV",
+            "bins": [
+               {
+                  "lo_edge": 150,
+                  "hi_edge": 250,
+                  "counts" :  50
+               },
+               {
+                  "lo_edge": 250,
+                  "hi_edge": 500,
+                  "counts" :  10
+               },
+               {
+                  "lo_edge":  500,
+                  "hi_edge": 2000,
+                  "counts":     1
+               }
+            ]
+         }         
+      ],
+      "aux_obs": [
+         {
+            "name": "aux_lumi",
+            "value": 0.0
+         },
+         {
+            "name": "aux_eff",
+            "value": 0.0
+         }
+      ]
+   }
+}
