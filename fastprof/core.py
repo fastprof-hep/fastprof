@@ -829,7 +829,6 @@ class Model (JSONSerializable) :
     if not 'model'    in jdict : raise KeyError("No 'model' section in specified JSON file")
     if not 'POIs'     in jdict['model'] : raise KeyError("No 'POIs' section in specified JSON file")
     if not 'NPs'      in jdict['model'] : raise KeyError("No 'NPs' section in specified JSON file")
-    if not 'aux_obs'  in jdict['model'] : raise KeyError("No 'aux_obs' section in specified JSON file")
     if not 'channels' in jdict['model'] : raise KeyError("No 'channels' section in specified JSON file")
     for json_poi in jdict['model']['POIs'] :
       poi = ModelPOI()
@@ -838,18 +837,19 @@ class Model (JSONSerializable) :
         raise ValueError('ERROR: multiple POIs defined with the same name (%s)' % poi.name)
       self.pois[poi.name] = poi
     self.aux_obs = {}
-    for json_aux in jdict['model']['aux_obs'] :
-      par = ModelAux()
-      par.load_jdict(json_aux)
-      if par.name in self.aux_obs :
-        raise ValueError('ERROR: multiple auxiliary observables defined with the same name (%s)' % par.name)
-      self.aux_obs[par.name] = par
+    if 'aux_obs' in jdict['model'] :
+      for json_aux in jdict['model']['aux_obs'] :
+        par = ModelAux()
+        par.load_jdict(json_aux)
+        if par.name in self.aux_obs :
+          raise ValueError('ERROR: multiple auxiliary observables defined with the same name (%s)' % par.name)
+        self.aux_obs[par.name] = par
     self.nps = {}
     for json_np in jdict['model']['NPs'] :
       par = ModelNP()
       par.load_jdict(json_np)
       if par.aux_obs is not None and not par.aux_obs in self.aux_obs :
-        raise ValueError('ERROR: auxiliary observable %s for NP %s was not defined.' % (par.aux_obs, par.name))
+        self.aux_obs[par.aux_obs] = ModelAux(name=par.aux_obs, unit=par.unit)
       if par.name in self.nps :
         raise ValueError('ERROR: multiple NPs defined with the same name (%s)' % par.name)
       self.nps[par.name] = par

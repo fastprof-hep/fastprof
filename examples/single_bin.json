@@ -31,23 +31,6 @@
             "aux_obs": "aux_bkg"
          }
       ],
-      "aux_obs": [
-         {
-            "name": "aux_lumi",
-            "min_value": -5.0,
-            "max_value": 5.0
-         },
-         {
-            "name": "aux_eff",
-            "min_value": -5.0,
-            "max_value": 5.0
-         },
-         {
-            "name": "aux_bkg",
-            "min_value": -5.0,
-            "max_value": 5.0
-         }
-      ],
       "channels": [
          {
             "name": "counting_bin",
