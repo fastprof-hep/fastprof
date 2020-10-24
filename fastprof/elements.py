@@ -642,11 +642,11 @@ class Sample(JSONSerializable) :
           the nominal per-bin yields, provided as an 1D np.array with
           a size equal to the number of channel bins
      impacts (dict) : the relative variations in the per-bin yields
-          corresponding to :math:`\pm1\sigma` variations
+          corresponding to :math:`n\sigma` variations
           in the value of each NP; provided as a python dict
-          with a key for each NP, and each value itself a dict with
-          keys 'pos' and 'neg', associated with the :math:`+1\sigma`
-          and  :math:`-1\sigma` relative variations respectively.
+          with format { np_name: np_impacts } with the impacts provided
+          as a list (over bins) of small dicts { nsigmas : relative_variation }
+          for all the known variations.
      pos_vars : internal storage of variations used to define the impact
                 coefficients for each NP (positive values only)
      neg_vars : internal storage of variations used to define the impact
@@ -730,9 +730,8 @@ class Sample(JSONSerializable) :
       Returns:
         list of available variations
     """
-    if len(self.impacts) == 0 : return []
-    if par is None : par = list(self.impacts.keys())[0]
-    if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
+    if par is None and len(self.impacts) > 0 : par = list(self.impacts.keys())[0]
+    if not par in self.impacts : raise KeyError("No impact defined in sample '%s' for parameter '%s'." % (self.name, par))
     if len(self.impacts[par]) == 0 : return []
     return [ +1 if var == 'pos' else -1 if var == 'neg' else float(var) for var in self.impacts[par][0].keys() ]
 
@@ -741,12 +740,13 @@ class Sample(JSONSerializable) :
 
       Args:
          par       : name of the NP
-         variation : NP variation, in numbers of sigmas
+         variation : magnitude of the variation, in numbers of sigmas
          normalize : if True, return the variation scaled to a +1sigma effect
       Returns:
          per-bin relative variations (shape : nbins)
     """
-    if not par in self.impacts : raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
+    if not par in self.impacts : 
+      raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
     imp = None
     try:
       imp = np.array([ imp['%+g' % variation] for imp in self.impacts[par] ], dtype=float)
