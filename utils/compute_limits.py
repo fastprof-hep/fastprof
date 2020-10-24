@@ -78,7 +78,7 @@ def make_parser() :
   parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
   parser.add_argument("-b", "--bands"         , type=int  , default=None  , help="Number of bands to show")
   parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
-  parser.add_argument("-b", "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
+  parser.add_argument(      "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
   return parser
