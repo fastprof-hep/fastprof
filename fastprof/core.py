@@ -828,7 +828,6 @@ class Model (JSONSerializable) :
     self.pois = {}
     if not 'model'    in jdict : raise KeyError("No 'model' section in specified JSON file")
     if not 'POIs'     in jdict['model'] : raise KeyError("No 'POIs' section in specified JSON file")
-    if not 'NPs'      in jdict['model'] : raise KeyError("No 'NPs' section in specified JSON file")
     if not 'channels' in jdict['model'] : raise KeyError("No 'channels' section in specified JSON file")
     for json_poi in jdict['model']['POIs'] :
       poi = ModelPOI()
@@ -845,19 +844,20 @@ class Model (JSONSerializable) :
           raise ValueError('ERROR: multiple auxiliary observables defined with the same name (%s)' % par.name)
         self.aux_obs[par.name] = par
     self.nps = {}
-    for json_np in jdict['model']['NPs'] :
-      par = ModelNP()
-      par.load_jdict(json_np)
-      if par.aux_obs is not None and not par.aux_obs in self.aux_obs :
-        self.aux_obs[par.aux_obs] = ModelAux(name=par.aux_obs, unit=par.unit)
-      if par.name in self.nps :
-        raise ValueError('ERROR: multiple NPs defined with the same name (%s)' % par.name)
-      self.nps[par.name] = par
-    self.channels = {}
-    for json_channel in jdict['model']['channels'] :
-      if json_channel['type'] == 'bin' :
+    if 'NPs' in jdict['model'] :
+      for json_np in jdict['model']['NPs'] :
+        par = ModelNP()
+        par.load_jdict(json_np)
+        if par.aux_obs is not None and not par.aux_obs in self.aux_obs :
+          self.aux_obs[par.aux_obs] = ModelAux(name=par.aux_obs, unit=par.unit)
+        if par.name in self.nps :
+          raise ValueError('ERROR: multiple NPs defined with the same name (%s)' % par.name)
+        self.nps[par.name] = par
+      self.channels = {}
+    for json_channel in jdict['model']['channels'] :      
+      if not 'type' in json_channel or json_channel['type'] == SingleBinChannel.type_str :
         channel = SingleBinChannel()
-      elif json_channel['type'] == 'binned_range' :
+      elif json_channel['type'] == BinnedRangeChannel.type_str :
         channel = BinnedRangeChannel()
       channel.load_jdict(json_channel)
       if channel.name in self.channels :
@@ -1002,8 +1002,10 @@ class Data (JSONSerializable) :
       model_channel = self.model.channels[name]
       offset = self.model.channel_offsets[name]
       model_channel.load_data_jdict(channel, self.counts[offset:offset + model_channel.nbins()])
-    if not 'aux_obs' in jdict['data'] : raise KeyError("No 'aux_obs' section defined in specified JSON file." % name)
-    data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in jdict['data']['aux_obs'] }
+    if 'aux_obs' in jdict['data'] :
+      data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in jdict['data']['aux_obs'] }
+    else :
+      data_aux_obs = {}
     aux_obs_values = []
     for par in self.model.nps.values() :
       if par.aux_obs is None :

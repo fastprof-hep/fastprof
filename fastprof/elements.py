@@ -449,6 +449,18 @@ class Norm(JSONSerializable) :
     """
     pass
 
+  
+  def gradients(self, pars_dict : dict) -> dict :
+    """Computes gradients of the normalization wrt parameters
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         known gradients, in the form { par_name: dN/dpar },
+         or `None` if gradients are not defined
+    """
+    return None
+
   @abstractmethod
   def __str__(self) -> str :
     """Provides a description string
@@ -457,6 +469,79 @@ class Norm(JSONSerializable) :
         The object description
     """
     pass
+
+
+# -------------------------------------------------------------------------
+class NumberNorm(JSONSerializable) :
+  """Class representing the normalization term of a sample as a float
+
+  Attributes:
+     norm_value (float) : value of the normalization term
+  """
+
+  type_str = 'number'
+
+  def __init__(self, norm_value : float = None) :
+    """Create a new Norm object
+    
+    Args:
+      norm_value : normalization value
+    """
+    self.norm_value = norm_value
+  
+  def value(self, pars_dict : dict) -> float :
+    """Computes the overall normalization factor
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         normalization factor value
+    """
+    return self.norm_value
+
+  def gradients(self, pars_dict : dict) -> dict :
+    """Computes gradients of the normalization wrt parameters
+      
+      Here the norm is constant so the gradients are defined,
+      but all are 0. In this case, return an empty dict
+      
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         known gradients, in the form { par_name: dN/dpar }
+    """
+    return {}
+
+  def load_jdict(self, jdict) -> 'NumberNorm' :
+    """Load object information from a dictionary of JSON data
+
+      Args:
+        jdict: A dictionary containing JSON data
+
+      Returns:
+        self
+    """
+    if 'norm_type' in jdict and jdict['norm_type'] != NumberNorm.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], NumberNorm.type_str))
+    self.norm_value = self.load_field('norm', jdict, None, float)
+    return self
+
+  def fill_jdict(self, jdict) :
+    """Save information to a dictionary of JSON data
+
+      Args:
+         jdict: A dictionary containing JSON data
+    """
+    jdict['norm_type'] = NumberNorm.type_str
+    jdict['norm'] = self.norm_value
+
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    return '%s' % self.norm_value
 
 
 # -------------------------------------------------------------------------
@@ -504,8 +589,20 @@ class ParameterNorm(JSONSerializable) :
          normalization factor value
     """
     if not self.par_name in pars_dict :
-      raise KeyError("Cannot to compute normalization as the value of an unknown parameter '%s'. Known parameters are as follows: %s" % (par.name, str(pars_dict)))
+      raise KeyError("Cannot to compute normalization as the value of an unknown parameter '%s'. Known parameters are as follows: %s" % (self.par_name, str(pars_dict)))
     return pars_dict[self.par_name]
+
+  def gradients(self, pars_dict : dict) -> dict :
+    """Computes gradients of the normalization wrt parameters
+
+     Only one gradient is non-zero, return this one
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         known gradients, in the form { par_name: dN/dpar }
+    """
+    return { self.par_name : 1 }
 
   def load_jdict(self, jdict) -> 'ParameterNorm' :
     """Load object information from a dictionary of JSON data
@@ -517,7 +614,7 @@ class ParameterNorm(JSONSerializable) :
         self
     """
     if 'norm_type' in jdict and jdict['norm_type'] != ParameterNorm.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], FormulaNorm.type_str))
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], ParameterNorm.type_str))
     self.par_name = self.load_field('norm', jdict, '', str)
     return self
 
@@ -537,6 +634,103 @@ class ParameterNorm(JSONSerializable) :
         The object description
     """
     return '%s' % self.par_name
+
+
+# -------------------------------------------------------------------------
+class LinearCombNorm(JSONSerializable) :
+  """Class representing the normalization term of a sample as the
+  linear combination of parameter values
+
+  Attributes:
+     pars_coeffs (dict) : dict with the format { par_name : par_coeff } 
+                          mapping parameter names to their coefficients
+                          in the linear combination
+  """
+
+  type_str = 'linear_combination'
+
+  def __init__(self, pars_coeffs : dict = {}) :
+    """Create a new Norm object
+    
+    Args:
+      par_name : name of the parameter that defines the norm value
+    """
+    self.pars_coeffs = pars_coeffs
+  
+  def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
+    """provides the NP variations that are implicit in the norm
+
+      Args:
+         par       : the nuisance parameter for which to get variations
+         variation : magnitude of the NP variation, in numbers of sigmas
+         normalize : if True, return the variation scaled to a +1sigma effect
+
+      Returns:
+        the relative yield variation for the specified NP variation
+    """
+    if not par.name in self.pars_coeffs or par.nominal_value == 0 : 
+      rel_var = 0
+    else :
+      rel_var = variation*par.variation/par.nominal_value*self.pars_coeffs[par.name]
+    return { '%+g' % variation : rel_var, '%+g' % -variation : -rel_var }
+
+  def value(self, pars_dict : dict) -> float :
+    """Computes the overall normalization factor
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         normalization factor value
+    """
+    val = 0
+    for par_name in self.pars_coeffs :
+      if not par_name in pars_dict :
+        raise KeyError("Cannot to compute normalization as linear combination of the unknowm parameter '%s'. Known parameters are as follows: %s" % (par_name, str(pars_dict)))
+      val += self.pars_coeffs[par_name]*pars_dict[par_name]
+    return val
+
+  def gradients(self, pars_dict : dict) -> dict :
+    """Computes gradients of the normalization wrt parameters
+
+     Non-zero gradients are given by the linear coefficients
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         known gradients, in the form { par_name: dN/dpar }
+    """
+    return { par_name : self.pars_coeffs[par_name] for par_name in self.pars_coeffs }
+
+  def load_jdict(self, jdict) -> 'LinearCombNorm' :
+    """Load object information from a dictionary of JSON data
+
+      Args:
+        jdict: A dictionary containing JSON data
+
+      Returns:
+        self
+    """
+    if 'norm_type' in jdict and jdict['norm_type'] != LinearCombNorm.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], LinearCombNorm.type_str))
+    self.pars_coeffs = self.load_field('norm', jdict, {}, dict)
+    return self
+
+  def fill_jdict(self, jdict) :
+    """Save information to a dictionary of JSON data
+
+      Args:
+         jdict: A dictionary containing JSON data
+    """
+    jdict['norm_type'] = LinearCombNorm.type_str
+    jdict['norm'] = self.pars_coeffs
+
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    return ''.join([ '%+g*%s' % (self.pars_coeffs[par_name], par_name) for par_name in self.pars_coeffs ])
 
 
 # -------------------------------------------------------------------------
@@ -714,8 +908,10 @@ class Sample(JSONSerializable) :
       try :
         self.nominal_norm = self.norm.value(nominal_pars)
       except Exception as inst :
-        print("Cannot fill in empty nominal_norm field for sample '%s' using the following parameter values: %s" % (str(self), str(nominal_pars)))
-        raise(inst)
+        #print("Cannot fill in empty nominal_norm field for sample '%s' using the following parameter values: %s" % (self.name, str(nominal_pars)))
+        #raise(inst)
+        print("Using normalization = 1 for sample '%s'." % self.name)
+        self.nominal_norm = 1
     if self.nominal_yields is None :
       self.nominal_yields = np.array([ self.nominal_norm ])
     for par in nps :
@@ -847,7 +1043,7 @@ class Sample(JSONSerializable) :
       Returns:
         The object description
     """
-    s = "Sample '%s', norm = %s (nominal = %g)" % (self.name, str(self.norm), self.nominal_norm)
+    s = "Sample '%s', norm = %s (nominal = %s)" % (self.name, str(self.norm), str(self.nominal_norm))
     return s
 
   def load_jdict(self, jdict) -> 'Sample' :
@@ -861,7 +1057,17 @@ class Sample(JSONSerializable) :
     """
     self.name = self.load_field('name', jdict, '', str)
     norm_type = self.load_field('norm_type', jdict, '', str)
-    if norm_type == ParameterNorm.type_str or norm_type == '' :
+    # Automatic typecasting: either NumberNorm or ParameterNorm,
+    # depending if the 'norm' parameter represents a float
+    if norm_type == '' :
+      try:        
+        norm = self.load_field('norm', jdict, None, float)
+      except:
+        norm = None
+      norm_type = NumberNorm.type_str if norm is not None else ParameterNorm.type_str
+    if norm_type == NumberNorm.type_str :
+      self.norm = NumberNorm()
+    elif norm_type == ParameterNorm.type_str :
       self.norm = ParameterNorm()
     elif norm_type == FormulaNorm.type_str :
       self.norm = FormulaNorm()
@@ -982,7 +1188,8 @@ class Channel(JSONSerializable) :
 
   def load_data_jdict(self, jdict : dict, counts : np.array) :
     """Load observed data information from JSON
-    
+          raise KeyError("Data channel definition must contain a 'type' field")
+
     Utility function called from :class:`fastprof.Data` to parse
     an observed data specification for this channel and fill an
     array of event counts
@@ -995,8 +1202,6 @@ class Channel(JSONSerializable) :
       raise KeyError("Data channel definition must contain a 'name' field")
     if jdict['name'] != self.name :
       raise ValueError("Cannot load channel data defined for channel '%s' into channel '%s'" % (jdict['name'], self.name))
-    if not 'type' in jdict :
-      raise KeyError("Data channel definition must contain a 'type' field")
     
   def save_data_jdict(self, jdict : dict, counts : np.array) :
     """Save observed data information from JSON
@@ -1088,6 +1293,8 @@ class BinnedRangeChannel(Channel) :
         counts : the array of data counts to fill
     """
     super().load_data_jdict(jdict, counts)
+    if not 'type' in jdict :
+      raise KeyError("Data channel definition must contain a 'type' field")
     if jdict['type'] != BinnedRangeChannel.type_str :
       raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (jdict['type'], BinnedRangeChannel.type_str))
     if not 'bins' in jdict :
@@ -1165,7 +1372,7 @@ class SingleBinChannel(Channel) :
         counts : the array of data counts to fill
     """
     super().load_data_jdict(jdict, counts)
-    if jdict['type'] != SingleBinChannel.type_str :
+    if 'type' in jdict and jdict['type'] != SingleBinChannel.type_str :
       raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (jdict['type'], SingleBinChannel.type_str))
     if not 'counts' in jdict :
       raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % self.name)
