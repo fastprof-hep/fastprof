@@ -86,9 +86,9 @@ class Sampler :
       ntoys : the total number of toys to generate
       descr : a comment string to append to the message
     """
-    if k % self.print_freq == 0 :
+    if k % self.print_freq == 0 or k == ntoys - 1 :
       #print('-- Processing iteration %d of %d %s' % (k, ntoys, descr))
-      sys.stderr.write('\rProcessing iteration %d of %d %s' % (k, ntoys, descr))
+      sys.stderr.write('\rProcessing iteration %d of %d %s' % (k if k < ntoys - 1 else ntoys, ntoys, descr))
 
   def generate(self, ntoys, hypo_descr : str = None) -> SamplingDistribution :
     """Generate a specified number of samples
@@ -133,8 +133,8 @@ class Sampler :
           print('Processing toy iteration %d failed, and max number of tries (%d) reached -- returning null result.' % (k, self.max_tries))
       self.dist.samples[k] = result
     end_time = timer()
-    print('Done with POI hypothesis %s, end time %s. Generated %d good toys (%d total), elapsed time = %g s' % (str(self.gen_hypo.pois), datetime.datetime.now(), ntoys, ntotal, end_time - start_time))
     sys.stderr.write('\n')
+    print('Done with POI hypothesis %s, end time %s. Generated %d good toys (%d total), elapsed time = %g s' % (str(self.gen_hypo.pois), datetime.datetime.now(), ntoys, ntotal, end_time - start_time))
     return self.dist
 
   @abstractmethod
