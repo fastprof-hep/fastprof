@@ -327,7 +327,8 @@ We can make use of this feature by running again
 
 .. code-block:: console
 
-  python -i compute_limits.py -m model_mX2000.json -f wsfits_mX2000.json -n 1000 --bands 2 -o limit_mX2000
+  python -i compute_limits.py -m model_mX2000.json -f wsfits_mX2000.json -n 1000 --bands 2 \
+                              -o limit_mX2000
   
 This will simply load the distributions produced at the previous step, and show the results. The first part of the output is identical to what was produced by `check_model.py` above, and allows to check that the linear model reproduces the asymptotic results sufficiently well. This is a prerequisite for the next step of computing toys-based limits. After informing the user that existing sampling distributions have been found and loaded, the output should be as follows::
 
