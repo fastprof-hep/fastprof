@@ -866,7 +866,7 @@ class Sample(JSONSerializable) :
   """
 
   def __init__(self, name : str = '', norm : Norm = None, nominal_norm : float = None,
-               nominal_yields : np.ndarray = None, impacts : np.ndarray = None) :
+               nominal_yields : np.ndarray = None, impacts : dict = {}) :
     """Create a new Sample object
 
       Args:
@@ -1086,7 +1086,7 @@ class Sample(JSONSerializable) :
     self.norm.load_jdict(jdict)
     self.nominal_norm = self.load_field('nominal_norm', jdict, None, [float, int])
     self.nominal_yields = self.load_field('nominal_yields', jdict, None, list)
-    self.impacts = self.load_field('impacts', jdict, None, dict)
+    self.impacts = self.load_field('impacts', jdict, {}, dict)
     return self
 
   def fill_jdict(self, jdict) :
