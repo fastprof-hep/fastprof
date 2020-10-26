@@ -61,7 +61,7 @@ def make_parser() :
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of JSON file defining model")
   parser.add_argument("-f", "--fits-file"     , type=str  , required=True , help="Name of JSON file containing full-model fit results")
-  parser.add_argument("-n", "--ntoys"         , type=int  , default=10000 , help="Number of pseudo-datasets to produce")
+  parser.add_argument("-n", "--ntoys"         , type=int  , default=0     , help="Number of pseudo-datasets to produce")
   parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="Seed to use for random number generation")
   parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
@@ -150,10 +150,12 @@ def run(argv = None) :
 
   # Check the fastprof CLs against the ones in the reference: in principle this should match well,
   # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
-  print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
+  if options.ntoys > 0 : 
+    print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
   calc.fill_all_pv(raster)
   faster = calc.recompute_raster(raster, data)
   raster.print(verbosity = options.verbosity, other=faster)
+  if options.ntoys == 0 : return
 
   if options.seed != None : np.random.seed(options.seed)
   niter = options.iterations
