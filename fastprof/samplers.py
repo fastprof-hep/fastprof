@@ -114,7 +114,7 @@ class Sampler :
     self.dist = SamplingDistribution(ntoys)
     ntotal = 0
     for k in range(0, ntoys) :
-      if k % self.print_freq == 0 :
+      if k % self.print_freq == 0 or k == ntoys - 1 :
         descr = 'in hypo %s%s [generation rate = %5.1f Hz]' % (str(self.gen_hypo.pois), hypo_descr, k/(timer() - start_time) if k > 0 else 0)
         self.progress(k, ntoys, descr)
       success = False
