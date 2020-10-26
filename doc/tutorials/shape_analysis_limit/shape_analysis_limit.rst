@@ -2,7 +2,7 @@ Setting and upper limit on the signal yield in a shape analysis
 ---------------------------------------------------------------
 
 This tutorial covers the basic usage of the package to define a model, validate its behavior and use it to set toys-based limits on a model parameters.
-All the tutorial inputs can be found in `docs/source/tutorials/limit_setting/inputs` in the package installation directory, and the outputs in `docs/source/tutorials/limit_setting/outputs`.
+All the tutorial inputs can be found in `docs/source/tutorials/shape_analysis_limit/inputs` in the package installation directory, and the outputs in `docs/source/tutorials/shape_analysis_limit/outputs`.
 The outputs will anyway be created in the course of the tutorial, but they are provided either as a cross-check or a means to skip some of the steps of the process.
 
 The tutorial will have 4 main steps :
@@ -36,7 +36,7 @@ and for convenience we'll link the tutorial inputs from here:
 
 .. code-block:: console
 
-   ln -s ../doc/tutorials/limit_setting/inputs
+   ln -s ../doc/tutorials/shape_analysis_limit/inputs
    
 Defining the model
 ##################
@@ -44,8 +44,8 @@ Defining the model
 Model definitions are stored in JSON files, in the format described in detail in Section :ref:`json_format`. They can be written from scratch, but this example 
 will illustrate the use of a utility to convert the content a ROOT workspace.
 
-The input workspace that will be used can be found at `inputs/model.root` (as mentioned above this is `docs/source/tutorials/limit_setting/inputs` relative to the installation
-directory, but you should have linked `limit_setting` into your working directory as described in the previous section). It describes a simple shape analysis:
+The input workspace that will be used can be found at `inputs/model.root` (as mentioned above this is `docs/source/tutorials/shape_analysis_limit/inputs` relative to the installation
+directory, but you should have linked `shape_analysis_limit` into your working directory as described in the previous section). It describes a simple shape analysis:
 
 * The analysis observable is :math:`m_{obs}`, studied over the range :math:`500 < m_{obs} < 5500` GeV.
 
@@ -186,6 +186,9 @@ This yields::
 
 which in this case is exactly as expected: since the Asimov dataset is generated from the `fastprof` model, this is just a sanity check.
 
+Hypothesis tests
+################
+
 One can also run a hypothesis test by passing `--hypo` option. An example in data is
 
 .. code-block:: console
@@ -225,7 +228,7 @@ Which gives the output::
   pv          =  0.0118538
   cls         =  0.0677421
 
-The first block is the fit with free `xs` that was already shown above. The second block shows the fit with fixed `xs=0.2` fb, which as expected shows some pulls in the NP -- in particular downward pulls in `npAcc`, which is associated with a 10% uncertainty and therefore is able to mitigate a bit the discrepancy between the `xs=0.2` hypothesis and the `xs=0` value preferred by data. The resulting value of :math:`t_{\mu} = -2\log L(\text{xs}=0.2)/L(\text{best fit})` is about 4, which in the asymptotic approximation corresponds to a p-value (a.k.a. :math:`CL_{s+b}`) of about 1%, and a :math:`CL_{s+b}` exclusion at the 93% CL.
+The first block is the fit with free `xs` that was already shown above. The second block shows the fit with fixed `xs=0.2` fb, which as expected shows some pulls in the NP -- in particular downward pulls in `npAcc`, which is associated with a 10% uncertainty and therefore is able to mitigate a bit the discrepancy between the `xs=0.2` hypothesis and the `xs=0` value preferred by data. The resulting value of :math:`t_{\mu} = -2\log L(\text{xs}=0.2)/L(\text{best fit})` is about 4, which in the asymptotic approximation corresponds to a p-value (a.k.a. :math:`CL_{s+b}`) of about 1%, and a :math:`CL_s` exclusion at the 93% CL.
 
 Validating the model
 ####################

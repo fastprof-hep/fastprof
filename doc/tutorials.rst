@@ -6,4 +6,5 @@ Tutorials
 .. toctree::
    :glob:
 
-   tutorials/limit_setting/limit_setting
+   tutorials/counting_limit/counting_limit
+   tutorials/shape_analysis_limit/shape_analysis_limit

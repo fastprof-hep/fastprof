@@ -8,6 +8,14 @@
             "max_value": 10
          }
       ],
+      "NPs": [
+         {
+            "name": "np_bkg",
+            "nominal_value": 0.3,
+            "constraint": 0.03,
+            "aux_obs": "aux_bkg"
+         }
+      ],
       "channels": [
          {
             "name": "SR",
@@ -18,7 +26,7 @@
                },
                {
                   "name": "Background",
-                  "norm": 0.3
+                  "norm": "np_bkg"
                }
             ]
          }
@@ -30,6 +38,12 @@
          {
             "name"  : "SR",
             "counts": 0
+         }
+      ],
+      "aux_obs": [
+         {
+            "name": "aux_bkg",
+            "value": 0.3
          }
       ]
    }
