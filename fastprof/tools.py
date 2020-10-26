@@ -972,16 +972,16 @@ def process_setvals(setvals : str, model : Model, apply : bool = False) -> dict 
   par_dict = {}
   try:
     sets = [ a.replace(' ', '').split('=') for a in setvals.split(',') ]
-    for (var, val) in sets :
-      if not var in model.pois and not var in model.nps : raise ValueError("Parameter '%s' not defined in model." % var)
-      try :
-        float_val = float(val)
-      except ValueError as inst :
-        raise ValueError("Invalid numerical value '%s' in assignement to variable '%s'." % (val, var))
-      par_dict[var] = float_val
   except Exception as inst :
     print(inst)
-    raise ValueError("ERROR : invalid varaible assignment specification '%s'." % assignement)
+    raise ValueError("ERROR : invalid variable assignment specification '%s'." % setvals)
+  for (var, val) in sets :
+    if not var in model.pois and not var in model.nps : raise ValueError("Parameter '%s' not defined in model." % var)
+    try :
+      float_val = float(val)
+    except ValueError as inst :
+      raise ValueError("Invalid numerical value '%s' in assignment to variable '%s'." % (val, var))
+    par_dict[var] = float_val
   return par_dict
 
 
