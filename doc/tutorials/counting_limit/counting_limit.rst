@@ -107,7 +107,7 @@ The same can be repeated on the model with systematics, and in this case we can 
 
 This should produce the following plot:
   
-.. image:: outputs/counting_with_syst.png
+.. image:: outputs/counting_with_syst_variations.png
     :width:  70%
     :align:  center
 
@@ -140,7 +140,7 @@ We now fit with
 
   ./fit_fast.py -m inputs/simple_counting.json -d inputs/simple_counting_n1.json
 
-Where the second argument (`-d` or `--data-file`) specifies a separate dataset which takes precedence over the one contained in the model file
+Where the second argument (`-d` or `--data-file`) specifies a separate dataset which takes precedence over the one contained in the model file.
 The output is now::
 
   == Best-fit: nll = -0.0376357 @ at parameter values =
@@ -318,7 +318,7 @@ The command should also produce the plot below for the :math:`CL_s` limit:
     :width:  70%
     :align:  center
 
-This shows exclusion p-value as a function of `nsig`, which allows to identify the limit as the crossing with the :math:`p=0.05` level. As expected, the asymptotics and toys-based results are not in good agreement, and one can see that it is the toys-based one that agrees with the 3-event value. The 1σ and 2σ bands around the expectation (which matches the observed in this case) are also shown. Since the limits cannot flutcuate below the expected (which corresponds to 0 observed events), only the positive bands are present.
+This shows exclusion p-value as a function of `nsig`, which allows to identify the limit as the crossing with the :math:`p=0.05` level. As expected, the asymptotics and toys-based results are not in good agreement, and one can see that it is the toys-based one that agrees with the 3-event value. The 1σ and 2σ bands around the expectation (which matches the observed in this case) are also shown. Since the limits cannot fluctuate below the expected (which corresponds to 0 observed events), only the positive bands are present.
 
 Note that if the command is interrupted and restarted, the sampling distributions which have already been generated will be simply loaded, and the generation will continue where it left off (however lock files that are left by interrupted jobs should either be removed by hand, or ignored by passing the `--break-locks` option). This also means that once a job has completed, processing another set of observed results with the same model does not need to produce the toys again. For instance running the limit for 1 observed event using:
 
