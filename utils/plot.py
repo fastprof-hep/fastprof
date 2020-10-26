@@ -31,6 +31,7 @@ def make_parser() :
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"  , type=str  , required=True , help="Name of JSON file defining model")
   parser.add_argument("-c", "--channel"     , type=str  , default=None  , help="Name of selected channel (default: first one in the model)")
+  parser.add_argument("-i", "--plot-alone"  , type=str  , default=None  , help="Name of samples to plot by itself in a second (dashed) model line")
   parser.add_argument("-e", "--plot-without", type=str  , default=None  , help="Name of samples to exclude in a second (dashed) model line")
   parser.add_argument("-p", "--setval"      , type=str  , default=None  , help="Parameter values, in the form par1=val1,par2=val2,...")
   parser.add_argument("-d", "--data-file"   , type=str  , default=None  , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
@@ -58,7 +59,7 @@ def run(argv = None) :
 
   if options.data_file is not None :
     data = Data(model).load(options.data_file)
-    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
+    if data is None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
     print('Using dataset stored in file %s.' % options.data_file)
   elif options.asimov is not None :
     try:
@@ -111,8 +112,9 @@ def run(argv = None) :
   plt.ion()
   if not options.residuals :
     plt.figure(1, figsize=(8, 8), dpi=96)
-    model.plot(pars, data=data)
-    if options.plot_without is not None : model.plot(pars, exclude=options.plot_without)
+    model.plot(pars, data=data, labels=options.variations is None)
+    if options.plot_without is not None or options.plot_alone is not None :
+      model.plot(pars, only=options.plot_alone, exclude=options.plot_without, labels=options.variations is None)
     if options.log_scale : plt.yscale('log')
     if xmin is not None : plt.xlim(xmin, xmax)
     if ymin is not None : plt.ylim(ymin, ymax)
@@ -122,11 +124,12 @@ def run(argv = None) :
     if options.log_scale : ax1[0].set_yscale('log')
     if xmin is not None : ax1[0].set_xlim(xmin, xmax)
     if ymin is not None : ax1[0].set_ylim(ymin, ymax)
-    model.plot(pars, data=data, canvas=ax1[1], residuals=options.residuals)
+    model.plot(pars, data=data, canvas=ax1[1], residuals=options.residuals, labels=options.variations is None)
   if options.output_file is not None : plt.savefig(options.output_file)
 
   variations = None
-  colors = [ 'darkred', 'red', 'orange', 'lime', 'green', 'darkblue', 'purple', 'magenta' ]
+  colors_pos = [ 'purple', 'green', 'darkblue', 'lime' ]
+  colors_neg = [ 'darkred', 'red', 'orange', 'magenta' ]
   if options.variations is not None :
     # First try the comma-separated format
     try:
@@ -143,6 +146,7 @@ def run(argv = None) :
         except:
           raise ValueError('Invalid numerical value %s.' % val)
         if not var in model.nps : raise KeyError('Parameter %s is not defined in the model.' % var)
+        colors = colors_pos if val > 0 else colors_neg
         if color is None : color = colors[len(variations) % len(colors)]
         variations.append( (var, val, color,) )
     except:
@@ -159,12 +163,16 @@ def run(argv = None) :
     for i in range(len(model.nps), n1*n2) : fig_nps.delaxes(ax_nps.flatten()[i])
     for par, ax in zip(model.nps, ax_nps.flatten()) :
       model.plot(pars, data=data, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=ax)
+      if options.plot_without is not None or options.plot_alone is not None :
+        model.plot(pars, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=ax, only=options.plot_alone, exclude=options.plot_without)
       if options.log_scale : ax.set_yscale('log')
       if xmin is not None : ax.set_xlim(xmin, xmax)
       if ymin is not None : ax.set_ylim(ymin, ymax)
   elif variations is not None :
     plt.figure(1)
     model.plot(pars, variations=variations)
+    if options.plot_without is not None or options.plot_alone is not None :
+      model.plot(pars, variations=variations, only=options.plot_alone, exclude=options.plot_without)
     if options.log_scale : plt.yscale('log')
   if options.output_file is not None :
     split_name = os.path.splitext(options.output_file)
