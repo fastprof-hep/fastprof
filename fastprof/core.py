@@ -618,8 +618,8 @@ class Model (JSONSerializable) :
         + self.log_neg_impact_coeffs[:,:,:,0]*neg_np1 + self.log_neg_impact_coeffs[:,:,:,1]*(2*neg_nps)
       return (impact.T*self.k_exp(pars).T).T
 
-  def plot(self, pars : Parameters, data : 'Data' = None, channel : Channel = None, exclude : list = None,
-           variations : list = None, residuals : bool = False, canvas : plt.Figure = None) :
+  def plot(self, pars : Parameters, data : 'Data' = None, channel : Channel = None, only : list = None, exclude : list = None,
+           variations : list = None, residuals : bool = False, canvas : plt.Figure = None, labels : bool = True) :
     """Plot the expected event yields and optionally data as well
 
       The plot is performed for a single model, which must be of `binned_range` type.
@@ -638,60 +638,74 @@ class Model (JSONSerializable) :
                       providing the NP name and the value to set.
          residuals  : if True,  plot the data-model differences
          canvas     : a matplotlib Figure on which to plot (if None, plt.gca() is used)
+         labels     : if True (default), add labels to the legend 
     """
     if canvas is None : canvas = plt.gca()
+    if not isinstance(only, list)    and only    is not None : only = [ only ]
     if not isinstance(exclude, list) and exclude is not None : exclude = [ exclude ]
     if channel is None :
-      for chan in self.channels.values() :
-        if isinstance(chan, BinnedRangeChannel) :
-          channel = chan
-          break
-      if channel is None : raise ValueError('ERROR: Model does not contain a channel of binned_range type.')
+      channel = list(self.channels.values())[0]
       print("Plotting channel '%s'" % channel.name)
     else :
       if not channel in self.channels : raise KeyError('ERROR: Channel %s is not defined.' % channel)
       channel = self.channels[channel]
-    if len(channel.bins) > 0 :
+    if isinstance(channel, BinnedRangeChannel) :
       grid = [ b['lo_edge'] for b in channel.bins ]
       grid.append(channel.bins[-1]['hi_edge'])
+    elif isinstance(channel, SingleBinChannel) :
+      grid = [0,1]
     else :
-      grid = np.linspace(0, channel.nbins(), channel.nbins())
+      raise ValueError("Channel '%s' is o an unsupported type" % channel.name)
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     start = self.channel_offsets[channel.name]
     stop  = start + channel.nbins()
     nexp = self.n_exp(pars)[:, start:stop]
-    if exclude is None :
-      tot_exp = nexp.sum(axis=0)
-      line_style = '-'
-      title = 'Model'
-    else :
+    tot_exp = nexp.sum(axis=0)
+    if only is not None :
       samples = []
-      for ex in exclude :
-        if not ex in channel.samples : raise ValueError('Sample %s is not defined.' % ex)
-        samples.append(list(channel.samples).index(ex))
-      tot_exp = nexp.sum(axis=0) - nexp[samples,:].sum(axis=0)
+      for sample_name in only :
+        if not sample_name in channel.samples : raise ValueError('Sample %s is not defined.' % sample_name)
+        samples.append(list(channel.samples).index(sample_name))
+      subtract = nexp[samples,:].sum(axis=0)
+      subtract = tot_exp - subtract
+      line_style = '--'
+      title = ','.join(only)
+    elif exclude is not None :
+      samples = []
+      for sample_name in exclude :
+        if not sample_name in channel.samples : raise ValueError('Sample %s is not defined.' % sample_name)
+        samples.append(list(channel.samples).index(sample_name))
+      subtract = nexp[samples,:].sum(axis=0)
       line_style = '--'
       title = 'Model excluding ' + ','.join(exclude)
-    counts = data.counts[start:stop]
-    yvals = tot_exp if not residuals or not data else tot_exp - counts
-    canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title)
-    if data :
+    else :
+      subtract = np.zeros(nexp.shape[1])
+      line_style = '-'
+      title = 'Model'
+    yvals = tot_exp - subtract if not residuals or data is None else tot_exp - subtract - counts
+    canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title if labels else None)
+    if data is not None :
+      counts = data.counts[start:stop]
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in counts ]
       yvals = counts if not residuals else np.zeros(channel.nbins())
-      canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data')
+      canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data' if labels else None)
     canvas.set_xlim(grid[0], grid[-1])
     if variations is not None :
       for v in variations :
         vpars = pars.clone()
         vpars.set(v[0], v[1])
         col = 'r' if len(v) < 3 else v[2]
-        style = '--' if v[1] > 0 else '-.'
-        tot_exp = self.n_exp(vpars)[:, start:stop].sum(axis=0)
-        canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=style, label='%s=%+g' %(v[0], v[1]))
-    canvas.legend()
+        tot_exp = self.n_exp(vpars)[:, start:stop].sum(axis=0) - subtract
+        canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=line_style, label='%s=%+g' %(v[0], v[1]) if labels else None)
+    if labels : canvas.legend()
     canvas.set_title(self.name)
-    canvas.set_xlabel('$' + channel.obs_name + '$' + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
-    canvas.set_ylabel('Events / bin')
+    if isinstance(channel, BinnedRangeChannel) :
+      canvas.set_xlabel('$' + channel.obs_name + '$' + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
+      canvas.set_ylabel('Events / bin')
+    elif isinstance(channel, SingleBinChannel) :
+      canvas.set_xlabel(channel.name)
+      canvas.set_ylabel('Events')
+
     #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
 
   def grad_poi(self, pars : Parameters, data : 'Data') -> np.ndarray :
