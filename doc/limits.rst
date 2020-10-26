@@ -46,11 +46,11 @@ Given the iterative nature of the limit search, the full procedure can be summar
 
 3. Compute the observed value of the test statistic :math:`q_{\mu}^{\text{obs}}` at each hypothesis :math:`\mu`
 
-4. Compute the p-value at each hypothesis as the quantile of :math:`q_{\mu}^{\text{obs}}` within the corresponding sampling distribution.
+4. Compute the p-value at each hypothesis as the quantile of :math:`q_{\mu}^{\text{obs}}` within the corresponding sampling distribution. This uses the *mid-p-value* technique to be robust against narrow peaks in the sampling distributions.
 
 5. Interpolate between the tested hypothesis to determine the upper limit on :math:`\mu` at the desired CL value.
 
-For a  :math:`CL_s` limit, steps 2. and 4. need to be performed twice, one for the nominal hypothesis, and once for :math:`\mu = 0`.
+For a  :math:`CL_s` limit, steps 2. and 4. need to be performed twice, one for the nominal hypothesis, and once for :math:`\mu = 0` to compute the :math:`CL_b` term.
 
 
 .. [CLs] A. L. Read, *Modified frequentist analysis of search results (the* :math:`CL_s` *method)*, `CERN-OPEN-2000-005 <http://cdsweb.cern.ch/record/451614>`_
