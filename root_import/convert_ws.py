@@ -331,7 +331,7 @@ def run(argv = None) :
       np_spec['unit'] = par.unit
       np_spec['nominal_value'] = par.nominal
       np_spec['variation'] = par.error
-      np_spec['constraint'] = None if par.is_free else 1
+      np_spec['constraint'] = None if par.is_free else par.error
       np_spec['aux_obs'] = None if par.is_free else cons_aux[par.name].GetName()
       np_specs.append(np_spec)
     model_dict['NPs'] = np_specs
