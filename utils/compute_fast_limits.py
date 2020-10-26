@@ -61,7 +61,7 @@ def make_parser() :
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of JSON file defining model")
   parser.add_argument("-y", "--hypos"         , type=str  , required=True , help="List of POI hypothesis values (poi1=val1,poi2=val2:...)")
-  parser.add_argument("-n", "--ntoys"         , type=int  , default=10000 , help="Number of pseudo-datasets to produce")
+  parser.add_argument("-n", "--ntoys"         , type=int  , default=0     , help="Number of pseudo-datasets to produce")
   parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="Seed to use for random number generation")
   parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
@@ -139,9 +139,11 @@ def run(argv = None) :
 
   # Check the fastprof CLs against the ones in the reference: in principle this should match well,
   # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
-  print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
+  if options.ntoys > 0 : 
+    print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
   faster = calc.compute_fast_results(hypos, data)
   faster.print(verbosity = options.verbosity)
+  if options.ntoys == 0 : return
 
   if options.seed != None : np.random.seed(options.seed)
   niter = options.iterations
@@ -161,8 +163,6 @@ def run(argv = None) :
     cl_b.minimizer.set_pois_from_model(model)
     samplers_clsb.append(clsb)
     samplers_cl_b.append(cl_b)
-
-  if options.ntoys == 0 : return
 
   opti_samples = CLsSamples( \
     Samples(samplers_clsb, options.output_file), \
