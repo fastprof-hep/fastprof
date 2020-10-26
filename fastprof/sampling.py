@@ -31,7 +31,9 @@ class SamplingDistribution :
   value lookup, and the computation of quantiles.
 
   Attributes:
-    samples (np.arrray) : the sampling distribution
+    samples  (np.arrray) : the sampling distribution
+    filename (str)       : the filename from which the
+                           distribution was loaded
   """
   def __init__(self, nentries : int = 0) :
     """Initialize the `SamplingDistribution` object
@@ -40,6 +42,7 @@ class SamplingDistribution :
       nentries : the number of samples to reserve in the array
     """
     self.samples = np.zeros(nentries)
+    self.filename = None
 
   def sort(self) :
     """Sort the samples in increasing order
@@ -70,6 +73,7 @@ class SamplingDistribution :
     if nbefore > 0 and nafter > nbefore :
       print('Info: File %s contained more samples than expected (expected %d, got %d), only using the first %d.' % (filename, nbefore, nafter, nbefore))
       self.samples = self.samples[:nbefore]
+    self.filename = filename
     return self
 
   def save(self, filename : str, sort_before_saving : bool = True) -> 'SamplingDistribution' :
@@ -94,6 +98,11 @@ class SamplingDistribution :
     and `apv` is a given asymptotic p-value, the result is the
     corresponding sampling p-value.
 
+    The p-value is computed using the *mid-p-value* method to 
+    properly handle the Poisson case without systematics: if the
+    distribution is made up of delta functions, and `apv` is right
+    on a peak, then exactly half the peak is counted.
+
     If `with_error` is `True`, return also the sampling error,
     computed as a binomial uncertainty.
 
@@ -103,7 +112,9 @@ class SamplingDistribution :
     Returns:
       the quantile (i.e. usually the sampling p-value)
     """
-    nbelow = np.searchsorted(self.samples, apv)
+    nbelow_lft = np.searchsorted(self.samples, apv, 'left')
+    nbelow_rgt = np.searchsorted(self.samples, apv, 'right')
+    nbelow = (nbelow_lft + nbelow_rgt)/2
     ntot = len(self.samples)
     # Add +1 terms to avoid uncertainty going to 0 at the edges of the distribution
     return (nbelow/ntot, math.sqrt((nbelow+1)*(ntot - nbelow + 1)/ntot)/ntot) if with_error else nbelow/ntot
