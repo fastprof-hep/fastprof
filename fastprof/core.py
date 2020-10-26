@@ -695,7 +695,13 @@ class Model (JSONSerializable) :
         vpars = pars.clone()
         vpars.set(v[0], v[1])
         col = 'r' if len(v) < 3 else v[2]
-        tot_exp = self.n_exp(vpars)[:, start:stop].sum(axis=0) - subtract
+        nexp = self.n_exp(vpars)[:, start:stop]
+        if only is None and exclude is None :
+          subtract = np.zeros(nexp.shape[1])
+        else :
+          subtract = nexp[samples,:].sum(axis=0)
+          if only is not None : subtract = nexp.sum(axis=0) - subtract
+        tot_exp = nexp.sum(axis=0) - subtract
         canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=line_style, label='%s=%+g' %(v[0], v[1]) if labels else None)
     if labels : canvas.legend()
     canvas.set_title(self.name)
