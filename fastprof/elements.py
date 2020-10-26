@@ -313,6 +313,7 @@ class ModelNP(JSONSerializable) :
     nominal_value  (float) : the reference value of the parameter used to compute nominal sample yields
     variation      (float) : the uncertainty on the parameter value
     constraint     (float) : the value of the width of the constraint Gaussian,
+                             in "unscaled" units (same as `nominal_value` and `variation`)
                              for constrained NPs (otherwise None).
     aux_obs        (:class:`ModelAux`) : pointer to the corresponding aux. obs. object,
                                          for constrained NPs.
@@ -359,6 +360,16 @@ class ModelNP(JSONSerializable) :
     """
     return (unscaled_value - self.nominal_value)/self.variation
 
+  def scaled_constraint(self) -> float :
+    """computes the scaled value of the NP constraint
+
+      See the class description (:class:`ModelNP`) for an explanation of scaled/unscaled.
+
+      Returns:
+        The scaled constraint value
+    """
+    return self.constraint/self.variation
+
   def generate_aux(self, value) :
     """randomly generate an aux. obs value for this NP
 
@@ -397,6 +408,7 @@ class ModelNP(JSONSerializable) :
     self.variation = self.load_field('variation', jdict, None, [int, float])
     self.constraint = self.load_field('constraint', jdict, None)
     if self.constraint is not None :
+      if self.variation is None : self.variation = float(self.constraint)
       self.aux_obs = self.load_field('aux_obs', jdict, '', str)
     else :
       self.aux_obs = None

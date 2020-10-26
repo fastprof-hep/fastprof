@@ -435,7 +435,7 @@ class Model (JSONSerializable) :
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
     for p, par in enumerate(self.nps.values()) :
       if par.constraint is None : break # we've reached the end of the constrained NPs in the NP list
-      self.constraint_hessian[p,p] = 1/par.constraint**2
+      self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
 
   def poi(self, index : str) -> ModelPOI :
     """Returns a POI object by index
