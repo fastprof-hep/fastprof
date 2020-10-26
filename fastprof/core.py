@@ -84,13 +84,13 @@ class Parameters :
     if isinstance(pois, (float, int)) : pois = np.array([ pois], dtype=float)
     if not isinstance(pois, np.ndarray) or pois.ndim != 1 : raise ValueError('Input POIs should be a 1D np.array, got ' + str(pois))
     if model is not None and pois.size != model.npois : raise ValueError('Cannot initialize Parameters with %d POIs, when %d are defined in the model' % (pois.size, model.npois))
-    self.pois = pois
+    self.pois = np.array(pois)
     if nps is None : nps  = np.array([], dtype=float)
     if model is not None and nps.size == 0 : nps = np.zeros(model.nnps)
     if isinstance(nps, (float, int)) : nps  = np.array([ nps ], dtype=float)
     if not isinstance(nps, np.ndarray) or nps.ndim != 1 : raise ValueError('Input NPs should be a 1D np.array, got ' + str(nps))
     if model is not None and nps.size != model.nnps : raise ValueError('Cannot initialize Parameters with %d NPs, when %d are defined in the model'  % (nps .size, model.nnps))
-    self.nps  = nps
+    self.nps  = np.array(nps)
     self.model = model
 
   def clone(self) -> 'Parameters' :
@@ -155,7 +155,7 @@ class Parameters :
         self
     """
     if pois.shape != self.pois.shape : raise ValueError('Cannot set POI array %s to %s.' % (str(self.pois), str(pois)))
-    self.pois = pois
+    self.pois = np.array(pois)
     return self
 
   def set_nps(self, nps : np.ndarray) -> 'Parameters' :
@@ -167,7 +167,7 @@ class Parameters :
         self
     """
     if nps.shape != self.nps.shape : raise ValueError('Cannot set NP array %s to %s.' % (str(self.nps), str(nps)))
-    self.nps = nps
+    self.nps = np.array(nps)
     return self
 
   def set(self, par : str, val : float, unscaled : bool = False) -> 'Parameters' :
@@ -944,7 +944,7 @@ class Data (JSONSerializable) :
         raise ValueError('Input data counts should be a 1D vector, got ' + str(counts))
       if counts.size != self.model.nbins :
         raise ValueError('Input data counts should have a size equal to the number of model bins (%d), got %d.' % (model.nbins, len(counts)))
-      self.counts = counts
+      self.counts = np.array(counts)
     else :
       self.counts = np.zeros(self.model.nbins)
     return self
@@ -960,12 +960,12 @@ class Data (JSONSerializable) :
     if isinstance(aux_obs, list) : aux_obs = np.array( aux_obs, dtype=float )
     if not isinstance(aux_obs, np.ndarray) : aux_obs = np.array([ aux_obs ], dtype=float)
     if aux_obs.size == 0 :
-      self.aux_obs = self.model.np_nominal_values
+      self.aux_obs = np.array(self.model.np_nominal_values)
     else :
       if aux_obs.ndim != 1 :
         raise ValueError('Input aux data should be a 1D vector, got ' + str(aux_obs))
       if aux_obs.size == self.model.nnps :
-        self.aux_obs = aux_obs
+        self.aux_obs = np.array(aux_obs)
       elif aux_obs.size == self.model.ncons :
         self.aux_obs = np.concatenate((aux_obs, self.model.np_nominal_values[self.model.ncons:]))
       else :
