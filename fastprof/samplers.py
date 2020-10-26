@@ -261,7 +261,7 @@ class OptiSampler (Sampler) :
       the computed p-value, or `None` if the computation fails
     """
     tmu = self.minimizer.tmu(self.test_hypo, data, self.test_hypo)
-    if tmu < 1E-7 :
+    if tmu < 0 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
       if self.debug and self.minimizer.tmu_debug < -10 :
         os.makedirs('data', exist_ok=True)

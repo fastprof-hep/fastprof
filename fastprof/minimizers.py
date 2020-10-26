@@ -267,14 +267,15 @@ class POIMinimizer :
     self.free_deltas = self.np_min.min_deltas
     tmu = 2*(self.hypo_nll - self.free_nll)
     if tmu < 0 :
-      print('Warning: computed negative tmu = %g !' % tmu)
-      if tmu < -5 :
-        print('Hypothesis definition   :', hypo)
-        print('Hypothesis fit result   :', self.hypo_pars)
-        print('Free fit starting value :', init_hypo)
-        print('Free fit result         :', self.free_pars)
-        print(data.aux_obs)
-      self.tmu_debug = tmu
+      if tmu < -1E-10 :
+        print('Warning: computed negative tmu = %g !' % tmu)
+        if tmu < -5 :
+          print('Hypothesis definition   :', hypo)
+          print('Hypothesis fit result   :', self.hypo_pars)
+          print('Free fit starting value :', init_hypo)
+          print('Free fit result         :', self.free_pars)
+          print(data.aux_obs)
+        self.tmu_debug = tmu
       tmu = 0
     return tmu
 
