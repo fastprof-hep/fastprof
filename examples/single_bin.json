@@ -12,22 +12,19 @@
          {
             "name": "np_lumi",
             "nominal_value": 0.0,
-            "variation": 1,
             "constraint": 1,
             "aux_obs": "aux_lumi"
          },
          {
             "name": "np_eff",
             "nominal_value": 0.0,
-            "variation": 1,
             "constraint": 1,
             "aux_obs": "aux_eff"
          },
          {
             "name": "np_bkg",
             "nominal_value": 0.4,
-            "variation": 0.05,
-            "constraint": 1,
+            "constraint": 0.05,
             "aux_obs": "aux_bkg"
          }
       ],
@@ -63,7 +60,6 @@
       "channels": [
          {
             "name"  : "SR",
-            "type"  : "bin",
             "counts": 1
          }
       ],

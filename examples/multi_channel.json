@@ -13,14 +13,12 @@
          {
             "name": "np_lumi",
             "nominal_value": 0.0,
-            "variation": 1,
             "constraint": 1,
             "aux_obs": "aux_lumi"
          },
          {
             "name": "np_eff",
             "nominal_value": 0.0,
-            "variation": 1,
             "constraint": 1,
             "aux_obs": "aux_eff"
          },
@@ -28,18 +26,6 @@
             "name": "nBkg",
             "nominal_value": 64,
             "variation": 8
-         }
-      ],
-      "aux_obs": [
-         {
-            "name": "aux_lumi",
-            "min_value": -5.0,
-            "max_value": 5.0
-         },
-         {
-            "name": "aux_eff",
-            "min_value": -5.0,
-            "max_value": 5.0
          }
       ],
       "channels": [
@@ -133,12 +119,10 @@
       "channels": [
          {
             "name"  : "1-jet",
-            "type"  : "bin",
             "counts": 1
          },
          {
             "name": "2-jets",
-            "type": "binned_range",
             "obs_name": "m_{jj}",
             "obs_unit": "GeV",
             "bins": [
