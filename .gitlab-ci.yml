@@ -7,13 +7,9 @@ default:
     - source ./setup.sh
 
 single_bin_limit:
-  script:
-    - testing/single_bin_limit/run.sh > out.log
-  post_script:
-    - testing/single_bin_limit/diff.sh out.log testing/single_bin_limit/ref.log
+  script:       testing/single_bin_limit/run.sh > out.log
+  after_script: testing/single_bin_limit/diff.sh out.log testing/single_bin_limit/ref.log
     
 multi_channel_limit:
-  script:
-    - testing/multi_channel_limit/run.sh > out.log
-  post_script:
-    - testing/multi_channel_limit/diff.sh out.log testing/multi_channel_limit/ref.log
+  script:       testing/multi_channel_limit/run.sh > out.log
+  after_script: testing/multi_channel_limit/diff.sh out.log testing/multi_channel_limit/ref.log
