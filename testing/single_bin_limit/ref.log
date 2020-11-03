@@ -1,0 +1,88 @@
+Using normalization = 1 for sample 'Signal'.
+Using dataset stored in file doc/tutorials/counting_limit/inputs/simple_counting.json.
+Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :
+| nsig            | pv              | cls             | clb             
+| 0.5             | 0.135628        | 0.419604        | 0.323228        
+| 1               | 0.0702381       | 0.207289        | 0.338842        
+| 1.5             | 0.0379614       | 0.108703        | 0.349221        
+| 2               | 0.0210099       | 0.0588599       | 0.356948        
+| 2.5             | 0.0118076       | 0.0325214       | 0.363072        
+| 3               | 0.00670788      | 0.0182218       | 0.368124        
+| 3.5             | 0.00384148      | 0.0103152       | 0.37241         
+| 4               | 0.0022137       | 0.00588558      | 0.376122        
+| 5               | 0.000745519     | 0.00195009      | 0.3823          
+| 6               | 0.000254556     | 0.000657254     | 0.387302        
+Asymptotic 95% CLs limit for raster 'fast' = 2.13606
+Running with POI {'nsig': 0.0}, bounds {'nsig': (0.0, 10)}, and 1 iteration(s).
+Processing CL_{s+b} sampling distributions for hypos: 
+{'nsig': 0.5}
+{'nsig': 1.0}
+{'nsig': 1.5}
+{'nsig': 2.0}
+{'nsig': 2.5}
+{'nsig': 3.0}
+{'nsig': 3.5}
+{'nsig': 4.0}
+{'nsig': 5.0}
+{'nsig': 6.0}
+Samples for hypo = {'nsig': 0.5} already produced, just loading (100 samples from simple_counting_toys_0.5.npy)
+Samples for hypo = {'nsig': 1.0} already produced, just loading (100 samples from simple_counting_toys_1.npy)
+Samples for hypo = {'nsig': 1.5} already produced, just loading (100 samples from simple_counting_toys_1.5.npy)
+Samples for hypo = {'nsig': 2.0} already produced, just loading (100 samples from simple_counting_toys_2.npy)
+Samples for hypo = {'nsig': 2.5} already produced, just loading (100 samples from simple_counting_toys_2.5.npy)
+Samples for hypo = {'nsig': 3.0} already produced, just loading (100 samples from simple_counting_toys_3.npy)
+Samples for hypo = {'nsig': 3.5} already produced, just loading (100 samples from simple_counting_toys_3.5.npy)
+Samples for hypo = {'nsig': 4.0} already produced, just loading (100 samples from simple_counting_toys_4.npy)
+Samples for hypo = {'nsig': 5.0} already produced, just loading (100 samples from simple_counting_toys_5.npy)
+Samples for hypo = {'nsig': 6.0} already produced, just loading (100 samples from simple_counting_toys_6.npy)
+Processing CL_b sampling distributions for hypos: 
+{'nsig': 0.5}
+{'nsig': 1.0}
+{'nsig': 1.5}
+{'nsig': 2.0}
+{'nsig': 2.5}
+{'nsig': 3.0}
+{'nsig': 3.5}
+{'nsig': 4.0}
+{'nsig': 5.0}
+{'nsig': 6.0}
+Samples for hypo = {'nsig': 0.5} already produced, just loading (100 samples from simple_counting_toys_clb_0.5.npy)
+Samples for hypo = {'nsig': 1.0} already produced, just loading (100 samples from simple_counting_toys_clb_1.npy)
+Samples for hypo = {'nsig': 1.5} already produced, just loading (100 samples from simple_counting_toys_clb_1.5.npy)
+Samples for hypo = {'nsig': 2.0} already produced, just loading (100 samples from simple_counting_toys_clb_2.npy)
+Samples for hypo = {'nsig': 2.5} already produced, just loading (100 samples from simple_counting_toys_clb_2.5.npy)
+Samples for hypo = {'nsig': 3.0} already produced, just loading (100 samples from simple_counting_toys_clb_3.npy)
+Samples for hypo = {'nsig': 3.5} already produced, just loading (100 samples from simple_counting_toys_clb_3.5.npy)
+Samples for hypo = {'nsig': 4.0} already produced, just loading (100 samples from simple_counting_toys_clb_4.npy)
+Samples for hypo = {'nsig': 5.0} already produced, just loading (100 samples from simple_counting_toys_clb_5.npy)
+Samples for hypo = {'nsig': 6.0} already produced, just loading (100 samples from simple_counting_toys_clb_6.npy)
+| nsig            | sampling_pv     | sampling_cls    | sampling_clb    | pv              | cls             | clb             
+| 0.5             | 0.195           | 0.58209         | 0.335           | 0.135628        | 0.419604        | 0.323228        
+| 1               | 0.155           | 0.3875          | 0.4             | 0.0702381       | 0.207289        | 0.338842        
+| 1.5             | 0.075           | 0.205479        | 0.365           | 0.0379614       | 0.108703        | 0.349221        
+| 2               | 0.03            | 0.0789474       | 0.38            | 0.0210099       | 0.0588599       | 0.356948        
+| 2.5             | 0.055           | 0.1375          | 0.4             | 0.0118076       | 0.0325214       | 0.363072        
+| 3               | 0.02            | 0.0533333       | 0.375           | 0.00670788      | 0.0182218       | 0.368124        
+| 3.5             | 0.015           | 0.0375          | 0.4             | 0.00384148      | 0.0103152       | 0.37241         
+| 4               | 0               | 0               | 0.365           | 0.0022137       | 0.00588558      | 0.376122        
+| 5               | 0.005           | 0.0151515       | 0.33            | 0.000745519     | 0.00195009      | 0.3823          
+| 6               | 0               | 0               | 0.39            | 0.000254556     | 0.000657254     | 0.387302        
+Asymptotic 95% CLs limit for raster 'fast' = 2.13606
+Asymptotics, fast model, CLsb : UL(95%) = 1.27299  (N = [1.27298907 0.3       ])
+Multiple solutions found for nominal sampling_pv[nsig] = 0.05 ([1.66338377 2.36498431 2.6097782 ]), returning the first one
+Multiple solutions found for nominal+err sampling_pv[nsig] = 0.05 ([1.95660271 2.01736367 2.82058867]), returning the first one
+Sampling   , fast model, CLsb : UL(95%) = 1.66338 +/- 0.238137 (N = [1.66338377 0.3       ])
+Asymptotics, fast model, CLs  : UL(95%) = 2.13606  (N = [2.13605832 0.3       ])
+Multiple solutions found for nominal sampling_cls[nsig] = 0.05 ([3.03418993 3.97168782 4.53370782]), returning the first one
+Multiple solutions found for nominal+err sampling_cls[nsig] = 0.05 ([3.72321356 4.96675075 5.80038578]), returning the first one
+Multiple solutions found for nominal-err sampling_cls[nsig] = 0.05 ([1.73285021 2.34112514 2.78615516]), returning the first one
+Sampling   , fast model, CLs  : UL(95%) = 3.03419 +/- 0.995182 (N = [3.03418993 0.3       ])
+Multiple solutions found for nominal sampling_cls_-2[nsig] = 0.05 ([3.03418993 3.97168782 4.53370782]), returning the first one
+Expected limit band, fast model, -2 sigma band : UL(95%) = 3.03419  (N = [3.03418993 0.3       ])
+Multiple solutions found for nominal sampling_cls_-1[nsig] = 0.05 ([3.03418993 3.97168782 4.53370782]), returning the first one
+Expected limit band, fast model, -1 sigma band : UL(95%) = 3.03419  (N = [3.03418993 0.3       ])
+Multiple solutions found for nominal sampling_cls_+0[nsig] = 0.05 ([3.03418993 3.97168782 4.53370782]), returning the first one
+Expected limit band, fast model, +0 sigma band : UL(95%) = 3.03419  (N = [3.03418993 0.3       ])
+Expected limit band, fast model, +1 sigma band : UL(95%) = 3.6681  (N = [3.66810222 0.3       ])
+Multiple solutions found for nominal sampling_cls_+2[nsig] = 0.05 ([3.66039135 4.91762844 5.93433617]), returning the first one
+Expected limit band, fast model, +2 sigma band : UL(95%) = 3.66039  (N = [3.66039135 0.3       ])
