@@ -179,5 +179,4 @@ def run(argv = None) :
     plt.savefig(split_name[0] + '_variations' + split_name[1])
 
 
-
 if __name__ == '__main__' : run()
