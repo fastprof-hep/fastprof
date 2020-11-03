@@ -7,7 +7,7 @@ setup(
   author           = 'N. Berger',
   author_email     = 'nicolas.berger@cern.ch',
   packages         = [ 'fastprof', 'root_import', 'utils' ],
-  install_requires = [ 'numpy', 'scipy', 'pandas', 'matplotlib', 'sphinx-rtd-theme', 'sphinx-argparse' ],
+  install_requires = [ 'numpy', 'scipy', 'pandas', 'matplotlib', 'sphinx-rtd-theme', 'sphinx-argparse', 'mock' ],
   entry_points = {
     'console_scripts': [
       'convert_ws.py      = root_import.convert_ws:run',
