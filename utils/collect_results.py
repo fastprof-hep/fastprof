@@ -257,8 +257,8 @@ def run(argv = None) :
     if options.bands is not None and k == 0 :
       band_colors = [ 'k', 'g', 'y', 'c', 'b' ]
       for i in reversed(range(1, options.bands + 1)) :
-        plt.fill_between(good_pos_bands[key], bands[key][+i], bands[key][-i], color=band_colors[i], label=key + ' +- %dσ band' % i)
-        items.append(key + ' +- %dσ band' % i)
+        plt.fill_between(good_pos_bands[key], bands[key][+i], bands[key][-i], color=band_colors[i], label=key + ' +- %dsigma band' % i)
+        items.append(key + ' +- %dsigma band' % i)
       plt.plot(good_pos_bands[key], bands[key][0], 'k--', label=key + ' expected')
       items.append(key + ' expected')
     line_colors = [ 'b', 'r', 'g', 'k', 'y', 'c' ]

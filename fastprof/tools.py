@@ -381,8 +381,8 @@ class Raster(JSONSerializable) :
       order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
       log_scale : if `True`, interpolate in the log of the p-values. If `False`
          (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
-      with_error : if `True`, return a triplet with (nominal limit, limit + 1σ error,
-         limit - 1σ error), where the uncertainties are propagated from those of the p-values.
+      with_error : if `True`, return a triplet with (nominal limit, limit + 1sigma error,
+         limit - 1sigma error), where the uncertainties are propagated from those of the p-values.
 
     Returns:
       self
