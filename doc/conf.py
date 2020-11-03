@@ -221,7 +221,7 @@ mathjax_config = {
         }
 }
 
-import mock
+import mock,sys
 
 MOCK_MODULES = [ 'ROOT' ]
 for mod_name in MOCK_MODULES:
