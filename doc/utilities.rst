@@ -6,4 +6,4 @@ Utilities
 .. toctree::
    :glob:
 
-   utils/*
+   scripts/*
