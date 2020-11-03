@@ -220,3 +220,5 @@ mathjax_config = {
             }
         }
 }
+
+autodoc_mock_imports = [ 'ROOT' ]
