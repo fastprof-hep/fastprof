@@ -162,17 +162,17 @@ def run(argv = None) :
   cons_nps = []
   free_nps = []
   
-  pdfs = main_pdf.pdfList()
   try:
-    for aux in aux_obs :
-      for pdf in pdfs :
-        if len(pdf.getDependents(ROOT.RooArgSet(aux))) > 0 :
-          matching_pars = pdf.getDependents(nps)
-          if len(matching_pars) == 1 :
-            mpar = ROOT.RooArgList(matching_pars).at(0)
-            print('INFO: Matching aux %s to NP %s' % (aux.GetName(), mpar.GetName()))
-            cons_nps.append(mpar)
-            cons_aux[mpar.GetName()] = aux
+    for pdf in ws.allPdfs() :
+      matching_auxs = pdf.getDependents(aux_obs)
+      if len(matching_auxs) == 1 :
+        matching_pars = pdf.getDependents(nps)
+        maux = ROOT.RooArgList(matching_auxs).at(0)
+        if len(matching_pars) == 1 :
+          mpar = ROOT.RooArgList(matching_pars).at(0)
+          print('INFO: Matching aux %s to NP %s' % (maux.GetName(), mpar.GetName()))
+          cons_nps.append(mpar)
+          cons_aux[mpar.GetName()] = maux
   except Exception as inst :
     print(inst)
     ValueError('Could not identify nuisance parameters')
@@ -206,10 +206,10 @@ def run(argv = None) :
 
   for component in main_pdf.getComponents() :
     if isinstance(component, ROOT.RooSimultaneous) :
-      cat = pdf.indexCat()
+      cat = component.indexCat()
       for i in range(0, cat.size()) :
         channel_name = cat.lookupType(i).GetName()
-        channel_pdfs.append(pdf.getPdf(channel_name))
+        channel_pdfs.append(component.getPdf(channel_name))
         if len(channel_names_user) > i : channel_name = channel_names_user[i]
         channel_names.append(channel_name)
       break
@@ -222,10 +222,32 @@ def run(argv = None) :
   # 6. Make the channel objects (identify samples)
   # ---------------------------------------------------------
 
+  if options.normpar_names == None :
+    normpar_names = {}
+  else :
+    try:
+      normpar_specs = options.normpar_names.split(',')
+      normpar_names = {}
+      for spec in normpar_specs :
+        spec_names = spec.split(':')
+        if len(spec_names) == 1 : spec_names = [ '*' ] + spec_names
+        if len(spec_names) == 2 : spec_names = [ '*' ] + spec_names
+        normpar_names[spec_names[0], spec_names[1]] = spec_names[2]
+    except Exception as inst :
+      print(inst)
+      raise ValueError('Invalid sample normpar name specification %s : should be of the form chan1:samp1:par1,chan2:samp2:par2,...' % options.normpar_names)
+  normpars = {}
+  for key, normpar_name in normpar_names.items() :
+    normpar = ws.var(normpar_name)
+    if normpar != None :
+      normpars[key] = normpar
+    else :
+      raise ValueError("Normalization parameter '%s' not found in workspace." % normpar_name)
+
   channels = []
   
   for channel_name, channel_pdf in zip(channel_names, channel_pdfs) :
-    channel = make_channel(channel_name, channel_pdf, pois, mconfig, options)
+    channel = make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, options)
     channels.append(channel)
 
   # 7 - Fill the model information
@@ -444,7 +466,18 @@ def run(argv = None) :
 
 
 # ---------------------------------------------------------------------
-def make_channel(channel_name, channel_pdf, pois, mconfig, options) :
+def make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, options) :
+  
+  if options.verbosity > 0 : print("Creating channel '%' from PDF '%'" % (channel_name, channel_pdf.GetName()))
+  if isinstance(channel_pdf, ROOT.RooProdPdf) :
+    for i in range(0, channel_pdf.pdfList().getSize()) :
+      pdf = channel_pdf.pdfList().at(i)
+      if len(pdf.getDependents(aux_obs)) > 0 : continue
+      if not isinstance(pdf, ROOT.RooAbsPdf) :
+        print("Got unexpected PDF of class '%' in PDF '%s' for channel '%s', skipping it." % (pdf.Class().GetName(), channel_pdf.GetName(), channel_name))
+        continue
+      channel_pdf = pdf
+      break
   channel = WSChannel()
   channel.type = 'binned_range'
   channel.name = channel_name
@@ -466,25 +499,6 @@ def make_channel(channel_name, channel_pdf, pois, mconfig, options) :
       print(inst)
       raise ValueError('Invalid sample name specification %s : should be of the form name1,name2,...' % options.sample_names)
 
-  if options.normpar_names == None :
-    normpar_names = []
-  else :
-    try:
-      normpar_names = options.normpar_names.split(',')
-    except Exception as inst :
-      print(inst)
-      raise ValueError('Invalid sample normpar name specification %s : should be of the form par1,par2,...' % options.normpar_names)
-  normpars = []
-  for normpar_name in normpar_names :
-    if normpar_name == '' :
-      normpars.append(None)
-      continue
-    normpar = ws.var(normpar_name)
-    if normpar != None :
-      normpars.append(normpar)
-    else :
-      raise ValueError('Normalization parameter %s not found in workspace' % normpar_name)
-
   channel.samples = []
   channel.default_sample = None # the sample to which unassigned variations will be associated (e.g. spurious signal, not scaled by any sample normpars)
 
@@ -493,13 +507,24 @@ def make_channel(channel_name, channel_pdf, pois, mconfig, options) :
     sample.pdf = channel_pdf.pdfList().at(i)
     sample.name = sample_names[i] if i < len(sample_names) else sample.pdf.GetName()
     sample.normvar = channel_pdf.coefList().at(i)
-    sample.normpar = normpars[i] if i < len(normpars) else None
+    sample.normpar = None
+    if (channel.name, sample.name) in normpars : 
+      sample.normpar = normpars[channel.name, sample.name]
+    elif ('*', sample.name) in normpars : 
+      sample.normpar = normpars['*', sample.name]
+    elif ('*', '*') in normpars : 
+      sample.normpar = normpars['*', '*']
     if sample.normpar == None :
       if isinstance(sample.normvar, ROOT.RooRealVar) :
         sample.normpar = sample.normvar
       else :
         poi_candidates = sample.normvar.getVariables().selectCommon(pois)
-        if poi_candidates.getSize() == 1 : sample.normpar = ROOT.RooArgList(poi_candidates).at(0)
+        if poi_candidates.getSize() == 1 :
+          sample.normpar = ROOT.RooArgList(poi_candidates).at(0)
+        else :
+          print("Normalization of sample '%s' depends on multiple POIs:" % sample.name)
+          sample.normvar.Print()
+          poi_candidates.Print()
     if sample.normpar == None :
       raise ValueError('Cannot identify normalization variable for sample %s, please specify manually.' % sample.name)
     channel.samples.append(sample)
