@@ -130,7 +130,7 @@ Asymptotic 95% CLs limit for raster 'fast' = 1.1277
 Asymptotics, fast model, CLsb : UL(95%) = 0.704568  (N = [ 2.54349121 64.        ])
 Sampling   , fast model, CLsb : UL(95%) = 0.957418 +/- 0.106724 (N = [ 3.45628061 64.        ])
 Asymptotics, fast model, CLs  : UL(95%) = 1.1277  (N = [ 4.07099367 64.        ])
-@@@ Sampling   , fast model, CLs  : UL(95%) = 1.429 +/- 0.123397 (N = [ 5.15870514 64.        ])
+Sampling   , fast model, CLs  : UL(95%) = 1.429 +/- 0.123397 (N = [ 5.15870514 64.        ])
 Reducing interpolation order to 2 to match the number of available points
 Root-finding not supported yet for non-cubic splines, failing
 Expected limit band, fast model, -1 sigma band : UL(95%) = 1.3266  (N = [ 4.78903976 64.        ])
