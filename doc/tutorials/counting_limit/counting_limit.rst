@@ -287,7 +287,7 @@ The toys-based limit is run using the same command as above except for an additi
          -y nsig=0.5:nsig=1:nsig=1.5:nsig=2:nsig=2.5:nsig=3:nsig=3.5:nsig=4:nsig=5:nsig=6 \  
          -n 10000 -o simple_counting_toys -b 2
 
-The `-b 2` option specifies that the 1 and 2σ bands should be shown on the plots produced. After a few minutes of processing, the output should be as follows:::
+The `-b 2` option specifies that the 1 and :math:`2\sigma` bands should be shown on the plots produced. After a few minutes of processing, the output should be as follows:::
 
   | nsig            | sampling_pv     | sampling_cls    | sampling_clb    | pv              | cls             | clb             
   | 0.5             | 0.22595         | 0.610676        | 0.37            | 0.135628        | 0.419604        | 0.323228        
@@ -320,7 +320,7 @@ The command should also produce the plot below for the :math:`CL_s` limit:
     :width:  70%
     :align:  center
 
-This shows exclusion p-value as a function of `nsig`, which allows to identify the limit as the crossing with the :math:`p=0.05` level. As expected, the asymptotics and toys-based results are not in good agreement, and one can see that it is the toys-based one that agrees with the 3-event value. The 1σ and 2σ bands around the expectation (which matches the observed in this case) are also shown. Since the limits cannot fluctuate below the expected (which corresponds to 0 observed events), only the positive bands are present.
+This shows exclusion p-value as a function of `nsig`, which allows to identify the limit as the crossing with the :math:`p=0.05` level. As expected, the asymptotics and toys-based results are not in good agreement, and one can see that it is the toys-based one that agrees with the 3-event value. The 1 and :math:`2\sigma` bands around the expectation (which matches the observed in this case) are also shown. Since the limits cannot fluctuate below the expected (which corresponds to 0 observed events), only the positive bands are present.
 
 Note that if the command is interrupted and restarted, the sampling distributions which have already been generated will be simply loaded, and the generation will continue where it left off (however lock files that are left by interrupted jobs should either be removed by hand, or ignored by passing the `--break-locks` option). This also means that once a job has completed, processing another set of observed results with the same model does not need to produce the toys again. For instance running the limit for 1 observed event using:
 
