@@ -1,88 +1,139 @@
-Using normalization = 1 for sample 'Signal'.
-Using dataset stored in file doc/tutorials/counting_limit/inputs/simple_counting.json.
+Using dataset stored in file doc/tutorials/counting_limit/inputs/single_bin.json.
 Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :
-| nsig            | pv              | cls             | clb             
-| 0.5             | 0.135628        | 0.419604        | 0.323228        
-| 1               | 0.0702381       | 0.207289        | 0.338842        
-| 1.5             | 0.0379614       | 0.108703        | 0.349221        
-| 2               | 0.0210099       | 0.0588599       | 0.356948        
-| 2.5             | 0.0118076       | 0.0325214       | 0.363072        
-| 3               | 0.00670788      | 0.0182218       | 0.368124        
-| 3.5             | 0.00384148      | 0.0103152       | 0.37241         
-| 4               | 0.0022137       | 0.00588558      | 0.376122        
-| 5               | 0.000745519     | 0.00195009      | 0.3823          
-| 6               | 0.000254556     | 0.000657254     | 0.387302        
-Asymptotic 95% CLs limit for raster 'fast' = 2.13606
-Running with POI {'nsig': 0.0}, bounds {'nsig': (0.0, 10)}, and 1 iteration(s).
+| xs_BSM          | pv              | cls             | clb             
+| 1               | 0.541126        | 0.715886        | 0.755882        
+| 3               | 0.23758         | 0.327127        | 0.726262        
+| 5               | 0.100207        | 0.141299        | 0.709182        
+| 7               | 0.0415935       | 0.0596551       | 0.697234        
+| 9               | 0.0171547       | 0.0249306       | 0.688098        
+| 12              | 0.00453486      | 0.0066931       | 0.677543        
+Asymptotic 95% CLs limit for raster 'fast' = 7.40612
+Running with POI {'xs_BSM': 0.0}, bounds {'xs_BSM': (0.0, 20)}, and 1 iteration(s).
 Processing CL_{s+b} sampling distributions for hypos: 
-{'nsig': 0.5}
-{'nsig': 1.0}
-{'nsig': 1.5}
-{'nsig': 2.0}
-{'nsig': 2.5}
-{'nsig': 3.0}
-{'nsig': 3.5}
-{'nsig': 4.0}
-{'nsig': 5.0}
-{'nsig': 6.0}
-Samples for hypo = {'nsig': 0.5} already produced, just loading (100 samples from simple_counting_toys_0.5.npy)
-Samples for hypo = {'nsig': 1.0} already produced, just loading (100 samples from simple_counting_toys_1.npy)
-Samples for hypo = {'nsig': 1.5} already produced, just loading (100 samples from simple_counting_toys_1.5.npy)
-Samples for hypo = {'nsig': 2.0} already produced, just loading (100 samples from simple_counting_toys_2.npy)
-Samples for hypo = {'nsig': 2.5} already produced, just loading (100 samples from simple_counting_toys_2.5.npy)
-Samples for hypo = {'nsig': 3.0} already produced, just loading (100 samples from simple_counting_toys_3.npy)
-Samples for hypo = {'nsig': 3.5} already produced, just loading (100 samples from simple_counting_toys_3.5.npy)
-Samples for hypo = {'nsig': 4.0} already produced, just loading (100 samples from simple_counting_toys_4.npy)
-Samples for hypo = {'nsig': 5.0} already produced, just loading (100 samples from simple_counting_toys_5.npy)
-Samples for hypo = {'nsig': 6.0} already produced, just loading (100 samples from simple_counting_toys_6.npy)
+{'xs_BSM': 1.0}
+{'xs_BSM': 3.0}
+{'xs_BSM': 5.0}
+{'xs_BSM': 7.0}
+{'xs_BSM': 9.0}
+{'xs_BSM': 12.0}
+Processing sampling distribution for hypo {'xs_BSM': 1.0}
+Generating POI hypothesis [1.] (1 of 6), starting at 2020-11-04 00:23:26.973850. Full gen hypo = 
+POIs : xs_BSM       =   1.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [1.], end time 2020-11-04 00:23:30.904153. Generated 500 good toys (500 total), elapsed time = 3.93014 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 3.0}
+Generating POI hypothesis [3.] (2 of 6), starting at 2020-11-04 00:23:30.907970. Full gen hypo = 
+POIs : xs_BSM       =   3.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [3.], end time 2020-11-04 00:23:33.902113. Generated 500 good toys (500 total), elapsed time = 2.99399 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 5.0}
+Generating POI hypothesis [5.] (3 of 6), starting at 2020-11-04 00:23:33.902720. Full gen hypo = 
+POIs : xs_BSM       =   5.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [5.], end time 2020-11-04 00:23:36.505093. Generated 500 good toys (500 total), elapsed time = 2.60221 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 7.0}
+Generating POI hypothesis [7.] (4 of 6), starting at 2020-11-04 00:23:36.505751. Full gen hypo = 
+POIs : xs_BSM       =   7.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [7.], end time 2020-11-04 00:23:38.935227. Generated 500 good toys (500 total), elapsed time = 2.42932 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 9.0}
+Generating POI hypothesis [9.] (5 of 6), starting at 2020-11-04 00:23:38.935846. Full gen hypo = 
+POIs : xs_BSM       =   9.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [9.], end time 2020-11-04 00:23:41.365755. Generated 500 good toys (500 total), elapsed time = 2.42976 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 12.0}
+Generating POI hypothesis [12.] (6 of 6), starting at 2020-11-04 00:23:41.366373. Full gen hypo = 
+POIs : xs_BSM       =  12.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [12.], end time 2020-11-04 00:23:43.933463. Generated 500 good toys (500 total), elapsed time = 2.56694 s
+Done
 Processing CL_b sampling distributions for hypos: 
-{'nsig': 0.5}
-{'nsig': 1.0}
-{'nsig': 1.5}
-{'nsig': 2.0}
-{'nsig': 2.5}
-{'nsig': 3.0}
-{'nsig': 3.5}
-{'nsig': 4.0}
-{'nsig': 5.0}
-{'nsig': 6.0}
-Samples for hypo = {'nsig': 0.5} already produced, just loading (100 samples from simple_counting_toys_clb_0.5.npy)
-Samples for hypo = {'nsig': 1.0} already produced, just loading (100 samples from simple_counting_toys_clb_1.npy)
-Samples for hypo = {'nsig': 1.5} already produced, just loading (100 samples from simple_counting_toys_clb_1.5.npy)
-Samples for hypo = {'nsig': 2.0} already produced, just loading (100 samples from simple_counting_toys_clb_2.npy)
-Samples for hypo = {'nsig': 2.5} already produced, just loading (100 samples from simple_counting_toys_clb_2.5.npy)
-Samples for hypo = {'nsig': 3.0} already produced, just loading (100 samples from simple_counting_toys_clb_3.npy)
-Samples for hypo = {'nsig': 3.5} already produced, just loading (100 samples from simple_counting_toys_clb_3.5.npy)
-Samples for hypo = {'nsig': 4.0} already produced, just loading (100 samples from simple_counting_toys_clb_4.npy)
-Samples for hypo = {'nsig': 5.0} already produced, just loading (100 samples from simple_counting_toys_clb_5.npy)
-Samples for hypo = {'nsig': 6.0} already produced, just loading (100 samples from simple_counting_toys_clb_6.npy)
-| nsig            | sampling_pv     | sampling_cls    | sampling_clb    | pv              | cls             | clb             
-| 0.5             | 0.195           | 0.58209         | 0.335           | 0.135628        | 0.419604        | 0.323228        
-| 1               | 0.155           | 0.3875          | 0.4             | 0.0702381       | 0.207289        | 0.338842        
-| 1.5             | 0.075           | 0.205479        | 0.365           | 0.0379614       | 0.108703        | 0.349221        
-| 2               | 0.03            | 0.0789474       | 0.38            | 0.0210099       | 0.0588599       | 0.356948        
-| 2.5             | 0.055           | 0.1375          | 0.4             | 0.0118076       | 0.0325214       | 0.363072        
-| 3               | 0.02            | 0.0533333       | 0.375           | 0.00670788      | 0.0182218       | 0.368124        
-| 3.5             | 0.015           | 0.0375          | 0.4             | 0.00384148      | 0.0103152       | 0.37241         
-| 4               | 0               | 0               | 0.365           | 0.0022137       | 0.00588558      | 0.376122        
-| 5               | 0.005           | 0.0151515       | 0.33            | 0.000745519     | 0.00195009      | 0.3823          
-| 6               | 0               | 0               | 0.39            | 0.000254556     | 0.000657254     | 0.387302        
-Asymptotic 95% CLs limit for raster 'fast' = 2.13606
-Asymptotics, fast model, CLsb : UL(95%) = 1.27299  (N = [1.27298907 0.3       ])
-Multiple solutions found for nominal sampling_pv[nsig] = 0.05 ([1.66338377 2.36498431 2.6097782 ]), returning the first one
-Multiple solutions found for nominal+err sampling_pv[nsig] = 0.05 ([1.95660271 2.01736367 2.82058867]), returning the first one
-Sampling   , fast model, CLsb : UL(95%) = 1.66338 +/- 0.238137 (N = [1.66338377 0.3       ])
-Asymptotics, fast model, CLs  : UL(95%) = 2.13606  (N = [2.13605832 0.3       ])
-Multiple solutions found for nominal sampling_cls[nsig] = 0.05 ([3.03418993 3.97168782 4.53370782]), returning the first one
-Multiple solutions found for nominal+err sampling_cls[nsig] = 0.05 ([3.72321356 4.96675075 5.80038578]), returning the first one
-Multiple solutions found for nominal-err sampling_cls[nsig] = 0.05 ([1.73285021 2.34112514 2.78615516]), returning the first one
-Sampling   , fast model, CLs  : UL(95%) = 3.03419 +/- 0.995182 (N = [3.03418993 0.3       ])
-Multiple solutions found for nominal sampling_cls_-2[nsig] = 0.05 ([3.03418993 3.97168782 4.53370782]), returning the first one
-Expected limit band, fast model, -2 sigma band : UL(95%) = 3.03419  (N = [3.03418993 0.3       ])
-Multiple solutions found for nominal sampling_cls_-1[nsig] = 0.05 ([3.03418993 3.97168782 4.53370782]), returning the first one
-Expected limit band, fast model, -1 sigma band : UL(95%) = 3.03419  (N = [3.03418993 0.3       ])
-Multiple solutions found for nominal sampling_cls_+0[nsig] = 0.05 ([3.03418993 3.97168782 4.53370782]), returning the first one
-Expected limit band, fast model, +0 sigma band : UL(95%) = 3.03419  (N = [3.03418993 0.3       ])
-Expected limit band, fast model, +1 sigma band : UL(95%) = 3.6681  (N = [3.66810222 0.3       ])
-Multiple solutions found for nominal sampling_cls_+2[nsig] = 0.05 ([3.66039135 4.91762844 5.93433617]), returning the first one
-Expected limit band, fast model, +2 sigma band : UL(95%) = 3.66039  (N = [3.66039135 0.3       ])
+{'xs_BSM': 1.0}
+{'xs_BSM': 3.0}
+{'xs_BSM': 5.0}
+{'xs_BSM': 7.0}
+{'xs_BSM': 9.0}
+{'xs_BSM': 12.0}
+Processing sampling distribution for hypo {'xs_BSM': 1.0}
+Generating POI hypothesis [0.] (1 of 6), starting at 2020-11-04 00:23:43.934066. Full gen hypo = 
+POIs : xs_BSM       =   0.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [0.], end time 2020-11-04 00:23:48.556724. Generated 500 good toys (500 total), elapsed time = 4.62256 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 3.0}
+Generating POI hypothesis [0.] (2 of 6), starting at 2020-11-04 00:23:48.557363. Full gen hypo = 
+POIs : xs_BSM       =   0.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [0.], end time 2020-11-04 00:23:53.310383. Generated 500 good toys (500 total), elapsed time = 4.75292 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 5.0}
+Generating POI hypothesis [0.] (3 of 6), starting at 2020-11-04 00:23:53.310972. Full gen hypo = 
+POIs : xs_BSM       =   0.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [0.], end time 2020-11-04 00:23:58.035659. Generated 500 good toys (500 total), elapsed time = 4.72456 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 7.0}
+Generating POI hypothesis [0.] (4 of 6), starting at 2020-11-04 00:23:58.036519. Full gen hypo = 
+POIs : xs_BSM       =   0.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [0.], end time 2020-11-04 00:24:02.821278. Generated 500 good toys (500 total), elapsed time = 4.78464 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 9.0}
+Generating POI hypothesis [0.] (5 of 6), starting at 2020-11-04 00:24:02.821879. Full gen hypo = 
+POIs : xs_BSM       =   0.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [0.], end time 2020-11-04 00:24:07.598150. Generated 500 good toys (500 total), elapsed time = 4.77618 s
+Done
+Processing sampling distribution for hypo {'xs_BSM': 12.0}
+Generating POI hypothesis [0.] (6 of 6), starting at 2020-11-04 00:24:07.598743. Full gen hypo = 
+POIs : xs_BSM       =   0.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg       =   0.0000 (unscaled :       0.4000)
+Done with POI hypothesis [0.], end time 2020-11-04 00:24:12.307318. Generated 500 good toys (500 total), elapsed time = 4.70845 s
+Done
+| xs_BSM          | sampling_pv     | sampling_cls    | sampling_clb    | pv              | cls             | clb             
+| 1               | 0.594           | 0.767442        | 0.774           | 0.541126        | 0.715886        | 0.755882        
+| 3               | 0.286           | 0.353086        | 0.81            | 0.23758         | 0.327127        | 0.726262        
+| 5               | 0.122           | 0.146988        | 0.83            | 0.100207        | 0.141299        | 0.709182        
+| 7               | 0.058           | 0.0736041       | 0.788           | 0.0415935       | 0.0596551       | 0.697234        
+| 9               | 0.038           | 0.0475          | 0.8             | 0.0171547       | 0.0249306       | 0.688098        
+| 12              | 0.012           | 0.0147059       | 0.816           | 0.00453486      | 0.0066931       | 0.677543        
+Asymptotic 95% CLs limit for raster 'fast' = 7.40612
+Asymptotics, fast model, CLsb : UL(95%) = 6.58292  (N = [3.29146109 0.4       ])
+Sampling   , fast model, CLsb : UL(95%) = 7.59536 +/- 0.887268 (N = [3.79767883 0.4       ])
+Asymptotics, fast model, CLs  : UL(95%) = 7.40612  (N = [3.70306196 0.4       ])
+Sampling   , fast model, CLs  : UL(95%) = 8.75963 +/- 1.02767 (N = [4.37981465 0.4       ])
+Reducing interpolation order to 2 to match the number of available points
+Root-finding not supported yet for non-cubic splines, failing
+Expected limit band, fast model, -1 sigma band : UL(95%) = 5.29672  (N = [2.64836227 0.4       ])
+Expected limit band, fast model, +0 sigma band : UL(95%) = 5.67  (N = [2.83499819 0.4       ])
+Expected limit band, fast model, +1 sigma band : UL(95%) = 9.04084  (N = [4.52042129 0.4       ])
+Expected limit band, fast model, +2 sigma band : UL(95%) = 11.3797  (N = [5.68985807 0.4       ])

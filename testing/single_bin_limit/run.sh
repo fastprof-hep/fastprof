@@ -1,4 +1,4 @@
 python utils/compute_fast_limits.py \
-   -m doc/tutorials/counting_limit/inputs/simple_counting.json \
-   -y nsig=0.5:nsig=1:nsig=1.5:nsig=2:nsig=2.5:nsig=3:nsig=3.5:nsig=4:nsig=5:nsig=6 \
-   -n 100 -o simple_counting_toys -b 2
+   -m doc/tutorials/counting_limit/inputs/single_bin.json \
+   -y xs_BSM=1:xs_BSM=3:xs_BSM=5:xs_BSM=7:xs_BSM=9:xs_BSM=12 \
+   -n 500 -s 131071 -o single_bin_limit -b 2
