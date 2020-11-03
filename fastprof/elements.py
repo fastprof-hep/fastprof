@@ -1306,10 +1306,8 @@ class BinnedRangeChannel(Channel) :
         counts : the array of data counts to fill
     """
     super().load_data_jdict(jdict, counts)
-    if not 'type' in jdict :
-      raise KeyError("Data channel definition must contain a 'type' field")
-    if jdict['type'] != BinnedRangeChannel.type_str :
-      raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (jdict['type'], BinnedRangeChannel.type_str))
+    if not 'name' in jdict :
+      raise KeyError("Data channel definition must contain a 'name' field")
     if not 'bins' in jdict :
       raise KeyError("No 'bins' section defined for data channel '%s' in specified JSON file." % self.name)
     if len(jdict['bins']) != self.nbins() :
