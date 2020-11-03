@@ -193,7 +193,8 @@ Hypothesis tests
 One can also run a hypothesis test by passing `--hypo` option. An example is
 
 .. code-block:: console
-  ./fit_fast.py -m inputs/simple_counting.json --hypo nsig=2
+
+   ./fit_fast.py -m inputs/simple_counting.json --hypo nsig=2
 
 Which gives the output::
 
@@ -218,7 +219,8 @@ The first block is the fit with free `nsig` that was already shown above. The se
 The same can also be done using the model with a background systematic:
 
 .. code-block:: console
-  ./fit_fast.py -m inputs/counting_with_syst.json --hypo nsig=2
+
+   ./fit_fast.py -m inputs/counting_with_syst.json --hypo nsig=2
 
 Which gives the output::
 
