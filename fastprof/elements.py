@@ -1154,11 +1154,12 @@ class Channel(JSONSerializable) :
 
   def sample(self, name : str) :
     """Access a sample by name
-      
-      Args
-        name : the sample name
-      Returns:
-        the named sample, or `None` if not defined
+
+    Args:
+      name : the sample name
+
+    Returns:
+      the named sample, or `None` if not defined
     """
     return self.samples[name] if name in self.samples else None
 
@@ -1172,14 +1173,14 @@ class Channel(JSONSerializable) :
     for sample in self.samples.values() : s += '\n    o ' + str(sample)
     return s
 
-  def load_jdict(self, jdict : dict) :
+  def load_jdict(self, jdict : dict) -> 'Channel' :
     """Load object information from a dictionary of JSON data
 
       Args:
         jdict: A dictionary containing JSON data
 
       Returns:
-        Channel: self
+        self
     """
     self.name = jdict['name']
     for json_sample in jdict['samples'] :
@@ -1188,7 +1189,7 @@ class Channel(JSONSerializable) :
       self.samples[sample.name] = sample
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_jdict(self, jdict : dict) :
     """Save information to a dictionary of JSON data
 
       Args:
