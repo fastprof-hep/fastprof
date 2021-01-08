@@ -190,7 +190,8 @@ def run(argv = None) :
     if with_error :
       limit_error = (limit_result[1] - limit_result[2])/2 if limit_result[1] is not None and limit_result[2] is not None else None
       error_str = '+/- %g' % limit_error if not limit_error is None else ''
-    if not limit_value is None : print(description + ' : UL(%g%%) = %g %s (N = %s)' % (100*options.cl, limit_value, error_str, str(model.n_exp(model.expected_pars(limit_value)).sum(axis=1))) )
+    if not limit_value is None : 
+      print(description + ' : UL(%g%%) = %g %s (N = %s)' % (100*options.cl, limit_value, error_str, str(model.tot_sample_exp(model.expected_pars(limit_value)) )) )
     return limit_result
 
   faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)

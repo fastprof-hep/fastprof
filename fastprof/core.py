@@ -30,8 +30,9 @@ The code is organized around the following classes:
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from abc import abstractmethod
 
-from .elements import ModelPOI, ModelNP, ModelAux, Channel, SingleBinChannel, BinnedRangeChannel, Sample, JSONSerializable
+from .elements import ModelPOI, ModelNP, ModelAux, Sample, JSONSerializable
 
 # -------------------------------------------------------------------------
 class Parameters :
@@ -274,6 +275,483 @@ class Parameters :
     return self
 
 
+
+# -------------------------------------------------------------------------
+class Channel(JSONSerializable) :
+  """Class representing a model channel
+
+  Provides the functionality for HistFactory channel structures,
+  representing a set of measurement bins. Two types of channels
+  are currently implemented, differing in how the
+  bin list is handled:
+
+  * `bin` : a channel with a single measurement bin
+
+  * `binned_range` : a channel with multiple bins spanning
+    a range of a continuous observable.
+
+  Each type corresponds to a different class derived from
+  this one: :class:`SingleBinChannel` and :class:`BinnedRangeChannel`
+  respectively.
+
+  This class is the common base, defining :
+  * The channel name
+
+  * A list of :class:`Sample` objects representing the processes
+    contributing to the event yield in each bin.
+
+  Attributes:
+     name (str) : the name of the channel
+     bins (list) : a list of python dict objects defining each bin
+     samples (dict) : the channel samples, as a dict mapping the sample names
+        to the sample objects (see :class:`Sample`).
+  """
+
+  def __init__(self, name : str = '', bins : list = []) :
+    """Initializes the Channel class
+
+      Args:
+         name : channel name
+         bins : list of bin defiinitions
+    """
+    self.name = name
+    self.samples = {}
+
+  @abstractmethod
+  def nbins(self) -> int :
+    """Returns the number of bins in the channel
+
+      Returns:
+        the number of bins
+    """
+    pass
+
+  def sample(self, name : str) :
+    """Access a sample by name
+
+    Args:
+      name : the sample name
+
+    Returns:
+      the named sample, or `None` if not defined
+    """
+    return self.samples[name] if name in self.samples else None
+
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    s = "Channel '%s'" % self.name
+    for sample in self.samples.values() : s += '\n    o ' + str(sample)
+    return s
+
+  def load_jdict(self, jdict : dict) -> 'Channel' :
+    """Load object information from a dictionary of JSON data
+
+      Args:
+        jdict: A dictionary containing JSON data
+
+      Returns:
+        self
+    """
+    self.name = jdict['name']
+    for json_sample in jdict['samples'] :
+      sample = Sample()
+      sample.load_jdict(json_sample)
+      self.samples[sample.name] = sample
+    return self
+
+  def fill_jdict(self, jdict : dict) :
+    """Save information to a dictionary of JSON data
+
+      Args:
+         jdict: A dictionary containing JSON data
+    """
+    jdict['name'] = self.name
+    jdict['samples'] = []
+    for sample in self.samples : jdict['samples'].append(sample.dump_jdict())
+
+  def load_data_jdict(self, jdict : dict, counts : np.array) :
+    """Load observed data information from JSON
+
+    Utility function called from :class:`fastprof.Data` to parse
+    an observed data specification for this channel and fill an
+    array of event counts
+
+      Args:
+        jdict: A dictionary containing JSON data
+        counts : the array of data counts to fill
+    """
+    if not 'name' in jdict :
+      raise KeyError("Data channel definition must contain a 'name' field")
+    if jdict['name'] != self.name :
+      raise ValueError("Cannot load channel data defined for channel '%s' into channel '%s'" % (jdict['name'], self.name))
+    
+  def save_data_jdict(self, jdict : dict, counts : np.array) :
+    """Save observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to write
+    out an observed data specification for this channel into the
+    appropriate format
+
+    Args:
+      jdict  : A dictionary to fill with JSON data
+      counts : an array of data counts to read from
+    """
+    jdict['name'] = self.name
+    if len(counts) != self.nbins() :
+      raise ValueError("Cannot save channel data counts of length %d for channel '%s' with %d bins" % (len(counts), self.name, self.nbins()))
+
+  def set_internal_vars(self, nps, use_asym_impacts = True, use_linear_nps = False, variations = None, cutoff = 0) :
+    """Private method to initialize internal attributes
+
+      The Model class contains both primary atttributes and secondary
+      attributes that are pre-computed from the primary ones to speed
+      up computations later. The primary->secondary computation is
+      performed by this method, which is called from both
+      :meth:`Model.__init__` and :meth:`Model.load_jdict`.
+    """
+    self.use_asym_impacts = use_asym_impacts
+    self.use_linear_nps = use_linear_nps
+    self.nvariations = 1
+    self.cutoff = cutoff
+    self.nominal_yields = np.zeros((len(self.samples), self.nbins()))
+    if self.use_asym_impacts :    
+      self.pos_impact_coeffs = np.zeros((len(self.samples), self.nbins(), len(nps), self.nvariations))
+      self.neg_impact_coeffs = np.zeros((len(self.samples), self.nbins(), len(nps), self.nvariations))
+    self.sym_impact_coeffs = np.zeros((len(self.samples), self.nbins(), len(nps)))
+    for s, sample in enumerate(self.samples.values()) :
+      sample.set_np_data(nps.values(), variation=1)
+      self.nominal_yields[s,:] = sample.nominal_yields
+      for p, par in enumerate(nps) :
+        if self.use_asym_impacts :
+          pos_cs, neg_cs = sample.impact_coefficients(par, variations, is_log=not self.use_linear_nps)
+          if pos_cs.shape[0] > self.nvariations or neg_cs.shape[0] > self.nvariations :
+            self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0])
+            self.pos_impact_coeffs.resize(len(self.samples), self.nbins(), len(nps), self.nvariations)
+            self.neg_impact_coeffs.resize(len(self.samples), self.nbins(), len(nps), self.nvariations)
+          self.pos_impact_coeffs[s, :, p, :pos_cs.shape[0]] = pos_cs.T
+          self.neg_impact_coeffs[s, :, p, :neg_cs.shape[0]] = neg_cs.T
+        self.sym_impact_coeffs[s, :, p] = sample.sym_impact(par)
+
+  def k_exp(self, pars : Parameters) -> np.array :
+    """Returns the modifier to event yields due to NPs
+
+      The expected event yield is modified by the NPs in a way
+      that depends on the modeling options (see the documentation of
+      :class:`Model` for details). This function returns a 2D
+      np.array with dimensions `nbins` x `nsamples`,
+      where each value is the event yield modifier for each sample
+      in each bin.
+
+      Args:
+         pars : a set of parameter values (only the NP values are used)
+      Returns:
+         Event yield modifiers
+    """
+    if self.use_asym_impacts :
+      pos_np = np.maximum(pars.nps, 0)
+      neg_np = np.minimum(pars.nps, 0)
+      if self.nvariations > 1 :
+        pos_vdm = np.vander(pos_np, self.nvariations + 1, True)[:,1:] # remove the first column with only 1s
+        neg_vdm = np.vander(neg_np, self.nvariations + 1, True)[:,1:] # remove the first column with only 1s
+        delta = np.tensordot(self.pos_impact_coeffs, pos_vdm, axes=2) + np.tensordot(self.neg_impact_coeffs, neg_vdm, axes=2)
+      else :
+        delta = np.tensordot(self.pos_impact_coeffs[:,:,:,0], pos_np, axes=1) + np.tensordot(self.neg_impact_coeffs[:,:,:,0], neg_np, axes=1)
+      if self.use_linear_nps :
+        return 1 + delta
+      else :
+        return np.exp(delta)
+    else :
+      if self.use_linear_nps :
+        return 1 + self.sym_impact_coeffs.dot(pars.nps)
+      else :
+        return np.exp(np.log(1 + self.sym_impact_coeffs).dot(pars.nps))
+
+  def n_exp(self, pars : Parameters) -> np.array :
+    """Returns the expected event yields for a given parameter value
+
+    The expected yields correspond to the nominal yields for each sample,
+    corrected for the overall normalization terms (function of the POIs)
+    and the NP impacts (function of the NPs, see :meth:`Model.k_exp`)
+    They provided for each sample in each measurement bin, as a 2D
+    np.array with dimensions`nbins` x `nsamples`.
+
+      Args:
+         pars: a set of parameter values
+      Returns:
+         Expected event yields per sample per bin
+    """
+    nnom = (self.nominal_yields.T*np.array([ sample.normalization(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T
+    k = self.k_exp(pars)
+    if self.cutoff == 0 : return nnom*k
+    return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
+
+  def tot_bin_exp(self, pars, floor = None) -> np.array :
+    """Returns the total expected event yields for a given parameter value
+
+      Same as :meth:`Channel.n_exp`, except that the yields are summed over
+      all samples. They are provided as a 1D np.array of size `nbins`.
+
+      Args:
+         pars: a set of parameter values
+      Returns:
+         Expected event yields per bin
+    """
+    ntot = self.n_exp(pars).sum(axis=0)
+    return ntot if floor is None else np.maximum(ntot, floor)
+
+  def tot_sample_exp(self, pars : Parameters, floor = None) -> dict :
+    """Returns the total expected event yields for a given parameter value
+
+      Same as :meth:`Channel.n_exp`, except that the yields are summed over
+      all bins. They are provided as a dictionary indexed by sample name.
+
+      Args:
+         pars: a set of parameter values
+      Returns:
+         dict mapping sample name : expected event yield
+    """
+    ntot = self.n_exp(pars).sum(axis=1)
+    if floor is not None : ntot = np.maximum(ntot, floor)
+    return { sample.name : ntot[s] for s, sample in enumerate(self.samples.values()) }  
+
+  def nll(self, pars : Parameters, data : np.ndarray, offset : bool = True, floor : bool = None) -> float :
+    """Returns the negative log-likelihood value for a given parameter set and dataset
+
+      If the `offset` argument is `True` (default), the nll is computed relatively
+      to the case where all yields are nominal. This leads to smaller nll values,
+      which reduces potential floating-point issues. When computing the difference
+      of two nll values as in a profile-likelihood ratio computation, the offset
+      cancels out in the difference.
+
+      Args:
+         pars   : a set of parameter values
+         data   : observed data for this channel
+         offset : if True, use offsetting to reduce floating-point precision issues
+         floor  : if a positive number is provided, will check for negative event yields
+                  and replace them with the floor value
+      Returns:
+         The negative log-likelihood value for the model PDF and the observed data
+    """
+    ntot = self.tot_bin_exp(pars, floor)
+    if not offset :
+      result = np.sum(ntot - data*np.log(ntot))
+    else :
+      nexp0 = self.nominal_yields.sum(axis=0)
+      result = np.sum(ntot - nexp0 - data*(np.log(ntot/nexp0)))
+    if math.isnan(result) : result = math.inf
+    return result
+
+  def linear_impacts(self, pars : Parameters, use_simple_sym_impacts = True) -> np.array :
+    """Returns the NP impacts used in linear computations
+
+      The NP minimization for linear models assumes by definition that the impact
+      of NPs on all bin contents are linear (see package documentation). This
+      method provides an exact computation of this, i.e. the derivative of k_exp
+      wrt the NP. Since this computation is expensive, it can be replaced by
+      just `sym_impacts`, i.e. the linear impact terms at NP=0.
+
+      Args:
+         pars : a set of parameter values
+      Returns:
+         The impact matrix for all samples, bins and NPs
+    """
+    if use_simple_sym_impacts : return self.sym_impact_coeffs
+    pos_nps = np.maximum(pars.nps, 0)
+    neg_nps = np.minimum(pars.nps, 0)
+    pos_der = +np.sign(pos_nps)
+    neg_der = -np.sign(neg_nps)
+    nul_nps = (pars.nps == 0)
+    impact = self.sym_impact_coeffs*nul_nps
+    for i in range(0, self.pos_impact_coeffs.shape[3]) :
+      impact += self.pos_impact_coeffs[:,:,:,i]*((i+1)*pos_der) + \
+                self.neg_impact_coeffs[:,:,:,i]*((i+1)*neg_der)
+      pos_der *= pos_nps
+      neg_der *= neg_nps
+    if self.use_linear_nps :
+      return impact
+    else :
+      # For the exp case, mutiply by the exponential. Needs a bit of gymnastics since the
+      # exp has one less dimension (nnps) which happens to be the last one, while numpy
+      # automatically "broadcasts" only leading dimensions.
+      return (impact.T*self.k_exp(pars).T).T
+
+
+# -------------------------------------------------------------------------
+class BinnedRangeChannel(Channel) :
+  """Class representing a model channel consisting of a binned observable range
+
+  Class derived from :class:`Channel` to handle a bin channel consisting
+  of a list of bins for a continuous observable.
+ 
+  In this case, each bin is stored as a dict with the format
+  { 'lo_edge' : <float value>, 'hi_edge': <float value> }
+  providing the lower and upper range of the bin
+
+    * `count` type: dict of the form { 'name' : <bin name> }
+  """
+  type_str = 'binned_range'
+
+  def __init__(self, name : str = '', bins : list = []) :
+    """Initializes the BinnedRangeChannel class
+
+      Args:
+         name : channel name
+         bins : list of bin definitions, each in the form of a dict
+                with format { 'lo_edge' : <float value>, 'hi_edge': <float value> }
+    """
+    super().__init__(name)
+    self.bins = bins
+
+  def nbins(self) -> int :
+    """Returns the number of bins in the channel
+
+      Returns:
+        the number of bins
+    """
+    return len(self.bins)
+
+  def load_jdict(self, jdict : dict) :
+    """Load object information from a dictionary of JSON data
+
+      Args:
+        jdict: A dictionary containing JSON data
+
+      Returns:
+        Channel: self
+    """
+    super().load_jdict(jdict)
+    if jdict['type'] != BinnedRangeChannel.type_str :
+      raise ValueError("Trying to load a BinnedRangeChannel from channel data of type '%s'" % jdict['type'])
+    self.bins = jdict['bins']
+    self.obs_name = self.load_field('obs_name', jdict, '', str)
+    self.obs_unit = self.load_field('obs_unit', jdict, '', str)
+    return self
+
+  def fill_jdict(self, jdict) :
+    """Save information to a dictionary of JSON data
+
+      Args:
+         jdict: A dictionary containing JSON data
+    """
+    super().fill_jdict(jdict)
+    jdict['bins'] = self.bins
+    jdict['obs_name'] = self.obs_name
+    jdict['obs_unit'] = self.obs_unit
+
+  def load_data_jdict(self, jdict : dict, counts : np.array) :
+    """Load observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to parse
+    an observed data specification for this channel and fill an
+    array of event counts
+
+      Args:
+        jdict: A dictionary containing JSON data
+        counts : the array of data counts to fill
+    """
+    super().load_data_jdict(jdict, counts)
+    if not 'name' in jdict :
+      raise KeyError("Data channel definition must contain a 'name' field")
+    if not 'bins' in jdict :
+      raise KeyError("No 'bins' section defined for data channel '%s' in specified JSON file." % self.name)
+    if len(jdict['bins']) != self.nbins() :
+      raise ValueError("Binned range channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), self.nbins()))
+    for b, bin_data in enumerate(jdict['bins']) :
+      if bin_data['lo_edge'] != self.bins[b]['lo_edge'] or bin_data['hi_edge'] != self.bins[b]['hi_edge'] :
+        raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." %
+                         (b, self.name, bin_data['lo_edge'], bin_data['hi_edge'], self.bins[b]['lo_edge'], self.bins[b]['hi_edge']))
+      counts[b] = bin_data['counts']
+
+  def save_data_jdict(self, jdict : dict, counts : np.array) :
+    """Save observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to write
+    out an observed data specification for this channel into the
+    appropriate format
+
+    Args:
+      jdict  : A dictionary to fill with JSON data
+      counts : an array of data counts to read from
+    """
+    super().save_data_jdict(jdict, counts)
+    jdict['type'] = BinnedRangeChannel.type_str
+    jdict['obs_name'] = self.obs_name
+    jdict['obs_unit'] = self.obs_unit
+    jdict['bins'] = []
+    for b, bin_spec in enumerate(self.bins) :
+      bin_data = {}
+      bin_data['lo_edge'] = bin_spec['lo_edge']
+      bin_data['hi_edge'] = bin_spec['hi_edge']
+      bin_data['counts'] = float(counts[b])
+      jdict['bins'].append(bin_data)
+
+
+# -------------------------------------------------------------------------
+class SingleBinChannel(Channel) :
+  """Class representing a model channel consisting of a single bin
+
+  Class derived from :class:`Channel` to handle the case of a single 
+  counting bin
+  
+  In this case, each bin is stored as a dict with the format
+  { 'name' : <name> }.
+  """
+
+  type_str = 'bin'
+
+  def __init__(self, name : str = '') :
+    """Initializes the BinnedRangeChannel class
+
+      Args:
+         name : channel name (and bin name)
+    """
+    super().__init__(name)
+
+  def nbins(self) -> int :
+    """Returns the number of bins in the channel
+
+      Returns:
+        the number of bins
+    """
+    return 1
+
+  def load_data_jdict(self, jdict : dict, counts : np.array) :
+    """Load observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to parse
+    an observed data specification for this channel and fill an
+    array of event counts
+
+      Args:
+        jdict: A dictionary containing JSON data
+        counts : the array of data counts to fill
+    """
+    super().load_data_jdict(jdict, counts)
+    if 'type' in jdict and jdict['type'] != SingleBinChannel.type_str :
+      raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (jdict['type'], SingleBinChannel.type_str))
+    if not 'counts' in jdict :
+      raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % self.name)
+    counts[0] = jdict['counts']
+
+  def save_data_jdict(self, jdict : dict, counts : np.array) :
+    """Save observed data information from JSON
+    
+    Utility function called from :class:`fastprof.Data` to write
+    out an observed data specification for this channel into the
+    appropriate format
+
+    Args:
+      jdict  : A dictionary to fill with JSON data
+      counts : an array of data counts to read from
+    """
+    super().save_data_jdict(jdict, counts)
+    jdict['type'] = SingleBinChannel.type_str
+    jdict['counts'] = int(counts[0])
+
 # -------------------------------------------------------------------------
 class Model (JSONSerializable) :
   """Class representing the statistical model
@@ -394,42 +872,7 @@ class Model (JSONSerializable) :
     self.nnps  = len(self.nps)
     self.ncons = len(self.aux_obs)
     self.nfree = self.nnps - self.ncons
-    self.samples = {}
-    self.sample_indices = {}
-    self.channel_offsets = {}
-    self.nbins = 0
-    for channel in self.channels.values() :
-      self.channel_offsets[channel.name] = self.nbins
-      self.nbins += channel.nbins()
-      for sample in channel.samples.values() :
-        if not sample.name in self.sample_indices :
-          self.samples[sample.name] = sample
-          self.sample_indices[sample.name] = len(self.sample_indices)
-    self.nominal_yields = np.zeros((len(self.sample_indices), self.nbins))
-    self.sym_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
-    self.pos_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
-    self.neg_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
-    self.log_pos_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
-    self.log_neg_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
-    self.nvariations = 1
-    for channel in self.channels.values() :
-      for sample in channel.samples.values() :
-        sample.set_np_data(self.nps.values(), variation=1)
-        start = self.channel_offsets[channel.name]
-        stop  = start + channel.nbins()
-        self.nominal_yields[self.sample_indices[sample.name], start:stop] = sample.nominal_yields
-        for p, par in enumerate(self.nps) :
-          pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=False)
-          if pos_cs.shape[0] > 2 or neg_cs.shape[0] > 2 : raise ValueError('Impact interpolation in %d > 2 dimensions not yet supported!' % max(pos_cs.shape[0], neg_cs.shape[0]))
-          self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0], self.nvariations)
-          self.pos_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
-          self.neg_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
-          self.sym_impacts[self.sample_indices[sample.name], start:stop, p] = sample.sym_impact(par)
-          # Repeat for log coeffs
-          pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=True)
-          self.log_pos_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
-          self.log_neg_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
-          self.log_sym_impacts = np.log(1 + self.sym_impacts)
+    for channel in self.channels.values() : channel.set_internal_vars(self.nps, self.use_asym_impacts, self.use_linear_nps, self.variations, self.cutoff)
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
@@ -485,69 +928,6 @@ class Model (JSONSerializable) :
       if par is None or par.name == par : par.constraint = val
     self.set_internal_vars()
 
-  def k_exp(self, pars : Parameters) -> np.array :
-    """Returns the modifier to event yields due to NPs
-
-      The expected event yield is modified by the NPs in a way
-      that depends on the modeling options (see the documentation of
-      :class:`Model` for details). This function returns a 2D
-      np.array with dimensions `nbins` x `nsamples`,
-      where each value is the event yield modifier for each sample
-      in each bin.
-
-      Args:
-         pars : a set of parameter values (only the NP values are used)
-      Returns:
-         Event yield modifiers
-    """
-    if self.use_asym_impacts :
-      pos_np = np.maximum(pars.nps, 0)
-      neg_np = np.minimum(pars.nps, 0)
-      pos2 = np.array([pos_np, np.square(pos_np)])
-      neg2 = np.array([neg_np, np.square(neg_np)])
-      if self.use_linear_nps :
-        return 1 + np.tensordot(self.pos_impact_coeffs, pos2.T, axes=2) + np.tensordot(self.neg_impact_coeffs, neg2.T, axes=2)
-      else :
-        return np.exp(np.tensordot(self.log_pos_impact_coeffs, pos2.T, axes=2) + np.tensordot(self.log_neg_impact_coeffs, neg2.T, axes=2))
-    else :
-      if self.use_linear_nps :
-        return 1 + self.sym_impacts.dot(pars.nps)
-      else :
-        return np.exp(self.log_sym_impacts.dot(pars.nps))
-
-  def n_exp(self, pars : Parameters) -> np.array :
-    """Returns the expected event yields for a given parameter value
-
-    The expected yields correspond to the nominal yields for each sample,
-    corrected for the overall normalization terms (function of the POIs)
-    and the NP impacts (function of the NPs, see :meth:`Model.k_exp`)
-    They provided for each sample in each measurement bin, as a 2D
-    np.array with dimensions`nbins` x `nsamples`.
-
-      Args:
-         pars: a set of parameter values
-      Returns:
-         Expected event yields per sample per bin
-    """
-    nnom = (self.nominal_yields.T*np.array([ sample.normalization(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T
-    k = self.k_exp(pars)
-    if self.cutoff == 0 : return nnom*k
-    return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
-
-  def tot_exp(self, pars, floor = None) -> np.array :
-    """Returns the total expected event yields for a given parameter value
-
-      Same as :meth:`Model.n_exp`, except that the yields are summed over
-      all samples. They are provided as a 1D np.array of size `nbins`.
-
-      Args:
-         pars: a set of parameter values
-      Returns:
-         Expected event yields per bin
-    """
-    ntot = self.n_exp(pars).sum(axis=0)
-    return ntot if floor is None else np.maximum(ntot, floor)
-
   def nll(self, pars : Parameters, data : 'Data', offset : bool = True, floor : bool = None, no_constraints : bool = False) -> float :
     """Returns the negative log-likelihood value for a given parameter set and dataset
 
@@ -567,56 +947,39 @@ class Model (JSONSerializable) :
       Returns:
          The negative log-likelihood value
     """
+    if data.model is not self : raise('Cannot compute NLL for a dataset using a different model')
     delta = data.aux_obs - pars.nps
-    ntot = self.tot_exp(pars, floor)
-    try :
-      if not offset :
-        result = np.sum(ntot - data.counts*np.log(ntot))
-      else :
-        nexp0 = self.nominal_yields.sum(axis=0)
-        result = np.sum(ntot - nexp0 - data.counts*(np.log(ntot/nexp0)))
-      if not no_constraints :
-         result += 0.5*np.linalg.multi_dot((delta, self.constraint_hessian, delta))
-      if math.isnan(result) : result = math.inf
+#    try :
+    result = np.sum([ channel.nll(pars, data.counts[channel.name], offset, floor) for channel in self.channels.values() ])
+    if not no_constraints :
+      result += 0.5*np.linalg.multi_dot((delta, self.constraint_hessian, delta))
       return result
-    except Exception as inst:
-      print('Fast NLL computation failed with the following exception, returning +Inf')
-      print(inst)
-      return np.Infinity
+#    except Exception as inst:
+#      print('Fast NLL computation failed with the following exception, returning +Inf')
+#      print(inst)
+#      return np.Infinity    
 
-  def linear_impacts(self, pars : Parameters) -> np.array :
-    """Returns the NP impacts used in linear computations
+  def tot_sample_exp(self, pars : Parameters, floor = None) -> dict :
+    """Returns the total expected event yields for a given parameter value
 
-      The NP minimization for linear models assumes by definition that the impact
-      of NPs on all bin contents are linear (see package documentation). This
-      method provides an exact computation of this, i.e. the dericative of k_exp
-      wrt the NP. Since this computation is expensive, it can be replaced by
-      just `sym_impacts`, i.e. the linear impact terms at NP=0.
+      Same as :meth:`Channel.tot_sample_exp`, except that it covers all
+      the samples defined in the model. The expected yields are provided
+      as a dictionary indexed by sample name.
 
       Args:
-         pars : a set of parameter values
+         pars: a set of parameter values
       Returns:
-         The impact matrix for all samples, bins and NPs
+         dict mapping sample name : expected event yield
     """
-    if self.use_simple_sym_impacts : return self.sym_impacts
-    if np.array_equal(pars.nps, np.zeros(self.nnps)) : return self.sym_impacts
-    pos_nps = np.maximum(pars.nps, 0)
-    neg_nps = np.minimum(pars.nps, 0)
-    pos_np1 = np.sign(pos_nps)
-    neg_np1 = -np.sign(neg_nps)
-    nul_nps = (pars.nps == 0)
-    if self.use_linear_nps :
-      return nul_nps*self.sym_impacts \
-        + self.pos_impact_coeffs[:,:,:,0]*pos_np1 + self.pos_impact_coeffs[:,:,:,1]*(2*pos_nps) \
-        + self.neg_impact_coeffs[:,:,:,0]*neg_np1 + self.neg_impact_coeffs[:,:,:,1]*(2*neg_nps)
-    else :
-      # For the exp case, mutiply by the exponential. Needs a bit of gymnastics since the
-      # exp has one less dimension (nnps) which happens to be the last one, while numpy
-      # automatically "broadcasts" only leading dimensions.
-      impact = nul_nps*self.sym_impacts \
-        + self.log_pos_impact_coeffs[:,:,:,0]*pos_np1 + self.log_pos_impact_coeffs[:,:,:,1]*(2*pos_nps) \
-        + self.log_neg_impact_coeffs[:,:,:,0]*neg_np1 + self.log_neg_impact_coeffs[:,:,:,1]*(2*neg_nps)
-      return (impact.T*self.k_exp(pars).T).T
+    channel_yields = [ channel.tot_sample_exp(pars, floor) for channel in self.channels.values() ]
+    yields = {}
+    for channel_yield in channel_yields :
+      for sample in channel_yield :
+        if not sample in yields :
+          yields[sample] = channel_yield[sample]
+        else :
+          yields[sample] += channel_yield[sample]
+    return yields
 
   def plot(self, pars : Parameters, data : 'Data' = None, channel : Channel = None, only : list = None, exclude : list = None,
            variations : list = None, residuals : bool = False, canvas : plt.Figure = None, labels : bool = True) :
@@ -657,9 +1020,7 @@ class Model (JSONSerializable) :
     else :
       raise ValueError("Channel '%s' is o an unsupported type" % channel.name)
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
-    start = self.channel_offsets[channel.name]
-    stop  = start + channel.nbins()
-    nexp = self.n_exp(pars)[:, start:stop]
+    nexp = channel.n_exp(pars)
     tot_exp = nexp.sum(axis=0)
     if only is not None :
       samples = []
@@ -685,7 +1046,7 @@ class Model (JSONSerializable) :
     yvals = tot_exp - subtract if not residuals or data is None else tot_exp - subtract - counts
     canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title if labels else None)
     if data is not None :
-      counts = data.counts[start:stop]
+      counts = data.counts[channel.name]
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in counts ]
       yvals = counts if not residuals else np.zeros(channel.nbins())
       canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data' if labels else None)
@@ -695,7 +1056,7 @@ class Model (JSONSerializable) :
         vpars = pars.clone()
         vpars.set(v[0], v[1])
         col = 'r' if len(v) < 3 else v[2]
-        nexp = self.n_exp(vpars)[:, start:stop]
+        nexp = channel.n_exp(vpars)
         if only is None and exclude is None :
           subtract = np.zeros(nexp.shape[1])
         else :
@@ -787,7 +1148,8 @@ class Model (JSONSerializable) :
       Returns:
          A randomly-generated dataset
     """
-    return Data(self, np.random.poisson(self.tot_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
+    return Data(self, { channel.name : np.random.poisson(channel.tot_bin_exp(pars)) for channel in self.channels.values() },
+                      [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
 
   def generate_asimov(self, pars : Parameters) -> 'Data' :
     """Generate an Asimov dataset for given parameter values
@@ -803,7 +1165,7 @@ class Model (JSONSerializable) :
       Returns:
          An Asimov dataset
     """
-    return Data(self).set_data(self.tot_exp(pars), pars.nps)
+    return Data(self).set_data({ channel.name : channel.tot_bin_exp(pars) for channel in self.channels.values() }, pars.nps)
 
   def generate_expected(self, pois, minimizer = None) :
     """Generate an Asimov dataset for expected parameter values
@@ -937,7 +1299,7 @@ class Data (JSONSerializable) :
      aux_obs (np.ndarray): the observed aux. obs. values
      model (Model): pointer to a :class:`Model` object containing the full model.
   """
-  def __init__(self, model : Model, counts : np.ndarray = None, aux_obs : np.ndarray = None) :
+  def __init__(self, model : Model, counts : dict = None, aux_obs : np.ndarray = None) :
     """Initialize the object
 
       Args:
@@ -946,7 +1308,7 @@ class Data (JSONSerializable) :
     """
     super().__init__()
     self.model = model
-    self.set_counts(counts if counts is not None else [])
+    self.set_counts(counts if counts is not None else {})
     self.set_aux_obs(aux_obs if aux_obs is not None else [])
 
   def set_counts(self, counts) -> 'Data' :
@@ -957,16 +1319,22 @@ class Data (JSONSerializable) :
       Returns:
          self
     """
-    if isinstance(counts, list) : counts = np.array( counts, dtype=float )
-    if not isinstance(counts, np.ndarray) : counts = np.array([ counts ], dtype=float)
-    if counts.size > 0 :
-      if counts.ndim != 1 :
-        raise ValueError('Input data counts should be a 1D vector, got ' + str(counts))
-      if counts.size != self.model.nbins :
-        raise ValueError('Input data counts should have a size equal to the number of model bins (%d), got %d.' % (model.nbins, len(counts)))
-      self.counts = np.array(counts)
-    else :
-      self.counts = np.zeros(self.model.nbins)
+    self.counts = {}
+    if not isinstance(counts, dict) :
+      if len(self.model.channels) > 1 : raise ValueError('Multi-channel data counts need to be specified as a dict, but %s was provided' % str(counts))
+      counts = { list(self.model.channels.keys())[0] : counts }
+    for channel_name, channel_counts in counts.items() :
+      if isinstance(channel_counts, list) : channel_counts = np.array(channel_counts, dtype=float )
+      if not isinstance(channel_counts, np.ndarray) : channel_counts = np.array([ channel_counts ], dtype=float)
+      channel = self.model.channels[channel_name]
+      if channel_counts.size > 0 :
+        if channel_counts.ndim != 1 :
+          raise ValueError('Input data counts should be a 1D vector, got ' + str(channel_counts))
+        if channel_counts.size != channel.nbins() :
+          raise ValueError('Input data counts should have a size equal to the number of model bins (%d), got %d.' % (channel.nbins(), len(channel_counts)))
+        self.counts[channel_name] = channel_counts
+      else :
+        self.counts[channel_name] = np.zeros(channel.nbins())
     return self
 
   def set_aux_obs(self, aux_obs) :
@@ -1020,8 +1388,8 @@ class Data (JSONSerializable) :
       name = channel['name'] if 'name' in channel else ''
       if not name in self.model.channels : raise ValueError("Data channel '%s' in specified JSON file is not defined in the model." % name)
       model_channel = self.model.channels[name]
-      offset = self.model.channel_offsets[name]
-      model_channel.load_data_jdict(channel, self.counts[offset:offset + model_channel.nbins()])
+      self.counts[name] = np.zeros(model_channel.nbins())
+      model_channel.load_data_jdict(channel, self.counts[name])
     if 'aux_obs' in jdict['data'] :
       data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in jdict['data']['aux_obs'] }
     else :
@@ -1046,8 +1414,7 @@ class Data (JSONSerializable) :
     jdict['data']['channels'] = []
     for channel_name, channel in self.model.channels.items() :
       channel_data = {}
-      offset = self.model.channel_offsets[channel_name]
-      channel.save_data_jdict(channel_data, self.counts[offset:offset + channel.nbins()])
+      channel.save_data_jdict(channel_data, self.counts[channel_name])
       jdict['data']['channels'].append(channel_data)
     jdict['data']['aux_obs'] = []
     for p, par in enumerate(self.model.nps.values()) :

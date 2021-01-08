@@ -1,5 +1,5 @@
-from .elements        import ModelPOI, ModelNP, ModelAux, Norm, ParameterNorm, FormulaNorm, Sample, Channel, SingleBinChannel, BinnedRangeChannel, JSONSerializable
-from .core            import Model, Parameters, Data
+from .elements        import ModelPOI, ModelNP, ModelAux, Norm, ParameterNorm, FormulaNorm, Sample, JSONSerializable
+from .core            import Model, Parameters, Data, Channel, SingleBinChannel, BinnedRangeChannel
 from .test_statistics import TMu, QMu, QMuTilda
 from .minimizers      import NPMinimizer, OptiMinimizer, ScanMinimizer
 from .sampling        import SamplingDistribution, Samples, CLsSamples

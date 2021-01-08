@@ -79,19 +79,21 @@ class NPMinimizer :
          of the best-fit NPs
     """
     model = self.data.model
-    n_nom = model.n_exp(hypo)
-    t_nom = n_nom.sum(axis=0)
-    delta_obs = t_nom - self.data.counts
-    ratio_nom = n_nom / t_nom
     # i : bin index
     # k,l : sample indices
     # a,b,c : NP indices
-    impacts = model.linear_impacts(hypo)
-    ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts)
-    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
-    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts)
-    if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts)
-    p += model.constraint_hessian
+    q = model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    p = model.constraint_hessian
+    for channel in model.channels.values() :
+      n_nom = channel.n_exp(hypo)
+      t_nom = n_nom.sum(axis=0)
+      delta_obs = t_nom - self.data.counts[channel.name]
+      ratio_nom = n_nom / t_nom
+      impacts = channel.linear_impacts(hypo, model.use_simple_sym_impacts)
+      ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts)
+      q += np.einsum('i,ia->a', delta_obs, ratio_impacts)
+      p += np.einsum('i,ia,ib->ab', self.data.counts[channel.name], ratio_impacts, ratio_impacts)
+      if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts)
     return (p,q)
 
   def profile(self, hypo : Parameters) -> Parameters :
