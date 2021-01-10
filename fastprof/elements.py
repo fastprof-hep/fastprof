@@ -1338,7 +1338,7 @@ class BinnedRangeChannel(Channel) :
       bin_data = {}
       bin_data['lo_edge'] = bin_spec['lo_edge']
       bin_data['hi_edge'] = bin_spec['hi_edge']
-      bin_data['counts'] = counts[b]
+      bin_data['counts'] = int(counts[b])
       jdict['bins'].append(bin_data)
 
 
@@ -1402,4 +1402,4 @@ class SingleBinChannel(Channel) :
     """
     super().save_data_jdict(jdict, counts)
     jdict['type'] = SingleBinChannel.type_str
-    jdict['counts'] = counts[0]
+    jdict['counts'] = int(counts[0])

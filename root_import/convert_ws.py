@@ -230,8 +230,8 @@ def run(argv = None) :
       normpar_names = {}
       for spec in normpar_specs :
         spec_names = spec.split(':')
-        if len(spec_names) == 1 : spec_names = [ '*' ] + spec_names
-        if len(spec_names) == 2 : spec_names = [ '*' ] + spec_names
+        if len(spec_names) == 1 : spec_names = [ '' ] + spec_names
+        if len(spec_names) == 2 : spec_names = [ '' ] + spec_names
         normpar_names[spec_names[0], spec_names[1]] = spec_names[2]
     except Exception as inst :
       print(inst)
@@ -510,10 +510,10 @@ def make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, op
     sample.normpar = None
     if (channel.name, sample.name) in normpars : 
       sample.normpar = normpars[channel.name, sample.name]
-    elif ('*', sample.name) in normpars : 
-      sample.normpar = normpars['*', sample.name]
-    elif ('*', '*') in normpars : 
-      sample.normpar = normpars['*', '*']
+    elif ('', sample.name) in normpars : 
+      sample.normpar = normpars['', sample.name]
+    elif ('', '') in normpars : 
+      sample.normpar = normpars['', '']
     if sample.normpar == None :
       if isinstance(sample.normvar, ROOT.RooRealVar) :
         sample.normpar = sample.normvar
@@ -526,7 +526,7 @@ def make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, op
           sample.normvar.Print()
           poi_candidates.Print()
     if sample.normpar == None :
-      raise ValueError('Cannot identify normalization variable for sample %s, please specify manually.' % sample.name)
+      raise ValueError('Cannot identify normalization variable for sample %s, please specify manually. Known specifications are : \n%s' % (sample.name, str(normpars)))
     channel.samples.append(sample)
     if sample.name == options.default_sample : channel.default_sample = sample
   

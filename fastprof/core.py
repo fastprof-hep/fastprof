@@ -347,7 +347,7 @@ class Model (JSONSerializable) :
 
   def __init__(self, pois : dict = {}, nps : dict = {}, aux_obs : dict = {}, channels : dict = {},
                use_asym_impacts : bool = True, use_linear_nps : bool = False, use_simple_sym_impacts : bool = True,
-               use_lognormal_terms : bool = False, variations : list = None) :
+               use_lognormal_terms : bool = False, variations : list = None, verbosity = 0) :
     """Initialize Model object
 
       Args:
@@ -379,6 +379,7 @@ class Model (JSONSerializable) :
     self.use_lognormal_terms = use_lognormal_terms
     self.cutoff = 0
     self.variations = variations
+    self.verbosity = verbosity
     self.set_internal_vars()
 
   def set_internal_vars(self) :
@@ -398,6 +399,7 @@ class Model (JSONSerializable) :
     self.sample_indices = {}
     self.channel_offsets = {}
     self.nbins = 0
+    self.nvariations = 1
     for channel in self.channels.values() :
       self.channel_offsets[channel.name] = self.nbins
       self.nbins += channel.nbins()
@@ -406,30 +408,27 @@ class Model (JSONSerializable) :
           self.samples[sample.name] = sample
           self.sample_indices[sample.name] = len(self.sample_indices)
     self.nominal_yields = np.zeros((len(self.sample_indices), self.nbins))
-    self.sym_impacts = np.zeros((len(self.sample_indices), self.nbins, len(self.nps)))
-    self.pos_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
-    self.neg_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
-    self.log_pos_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
-    self.log_neg_impact_coeffs = np.zeros((len(self.sample_indices), self.nbins, len(self.nps), 2))
-    self.nvariations = 1
-    for channel in self.channels.values() :
+    if self.use_asym_impacts :    
+      self.pos_impact_coeffs = np.zeros((len(self.samples), self.nbins, len(self.nps), self.nvariations))
+      self.neg_impact_coeffs = np.zeros((len(self.samples), self.nbins, len(self.nps), self.nvariations))
+    self.sym_impact_coeffs = np.zeros((len(self.samples), self.nbins, len(self.nps)))
+    for c, channel in enumerate(self.channels.values()) :
+      if self.verbosity > 0 : print('Initializing channel %s (%d of %d)' % (channel.name, c+1, len(self.channels)))
       for sample in channel.samples.values() :
         sample.set_np_data(self.nps.values(), variation=1)
         start = self.channel_offsets[channel.name]
         stop  = start + channel.nbins()
         self.nominal_yields[self.sample_indices[sample.name], start:stop] = sample.nominal_yields
         for p, par in enumerate(self.nps) :
-          pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=False)
-          if pos_cs.shape[0] > 2 or neg_cs.shape[0] > 2 : raise ValueError('Impact interpolation in %d > 2 dimensions not yet supported!' % max(pos_cs.shape[0], neg_cs.shape[0]))
-          self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0], self.nvariations)
-          self.pos_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
-          self.neg_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
-          self.sym_impacts[self.sample_indices[sample.name], start:stop, p] = sample.sym_impact(par)
-          # Repeat for log coeffs
-          pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=True)
-          self.log_pos_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
-          self.log_neg_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
-          self.log_sym_impacts = np.log(1 + self.sym_impacts)
+          if self.use_asym_impacts :
+            pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=not self.use_linear_nps)
+            if pos_cs.shape[0] > self.nvariations or neg_cs.shape[0] > self.nvariations :
+              self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0])
+              self.pos_impact_coeffs.resize(len(self.samples), self.nbins, len(self.nps), self.nvariations)
+              self.neg_impact_coeffs.resize(len(self.samples), self.nbins, len(self.nps), self.nvariations)
+            self.pos_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
+            self.neg_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
+          self.sym_impact_coeffs[self.sample_indices[sample.name], start:stop, p] = sample.sym_impact(par)
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
@@ -503,18 +502,23 @@ class Model (JSONSerializable) :
     if self.use_asym_impacts :
       pos_np = np.maximum(pars.nps, 0)
       neg_np = np.minimum(pars.nps, 0)
-      pos2 = np.array([pos_np, np.square(pos_np)])
-      neg2 = np.array([neg_np, np.square(neg_np)])
-      if self.use_linear_nps :
-        return 1 + np.tensordot(self.pos_impact_coeffs, pos2.T, axes=2) + np.tensordot(self.neg_impact_coeffs, neg2.T, axes=2)
+      if self.nvariations > 1 :
+        pos_vdm = np.vander(pos_np, self.nvariations + 1, True)[:,1:] # remove the first column with only 1s
+        neg_vdm = np.vander(neg_np, self.nvariations + 1, True)[:,1:] # remove the first column with only 1s
+        delta = np.tensordot(self.pos_impact_coeffs, pos_vdm, axes=2) + np.tensordot(self.neg_impact_coeffs, neg_vdm, axes=2)
       else :
-        return np.exp(np.tensordot(self.log_pos_impact_coeffs, pos2.T, axes=2) + np.tensordot(self.log_neg_impact_coeffs, neg2.T, axes=2))
+        delta = np.tensordot(self.pos_impact_coeffs[:,:,:,0], pos_np, axes=1) + np.tensordot(self.neg_impact_coeffs[:,:,:,0], neg_np, axes=1)
+      if self.use_linear_nps :
+        return 1 + delta
+      else :
+        return np.exp(delta)
     else :
       if self.use_linear_nps :
-        return 1 + self.sym_impacts.dot(pars.nps)
+        return 1 + self.sym_impact_coeffs.dot(pars.nps)
       else :
-        return np.exp(self.log_sym_impacts.dot(pars.nps))
+        return np.exp(np.log(1 + self.sym_impact_coeffs).dot(pars.nps))
 
+    
   def n_exp(self, pars : Parameters) -> np.array :
     """Returns the expected event yields for a given parameter value
 
@@ -534,7 +538,7 @@ class Model (JSONSerializable) :
     if self.cutoff == 0 : return nnom*k
     return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
 
-  def tot_exp(self, pars, floor = None) -> np.array :
+  def tot_bin_exp(self, pars, floor = None) -> np.array :
     """Returns the total expected event yields for a given parameter value
 
       Same as :meth:`Model.n_exp`, except that the yields are summed over
@@ -568,7 +572,7 @@ class Model (JSONSerializable) :
          The negative log-likelihood value
     """
     delta = data.aux_obs - pars.nps
-    ntot = self.tot_exp(pars, floor)
+    ntot = self.tot_bin_exp(pars, floor)
     try :
       if not offset :
         result = np.sum(ntot - data.counts*np.log(ntot))
@@ -598,24 +602,25 @@ class Model (JSONSerializable) :
       Returns:
          The impact matrix for all samples, bins and NPs
     """
-    if self.use_simple_sym_impacts : return self.sym_impacts
-    if np.array_equal(pars.nps, np.zeros(self.nnps)) : return self.sym_impacts
+    if self.use_simple_sym_impacts : return self.sym_impact_coeffs
+    if np.array_equal(pars.nps, np.zeros(self.nnps)) : return self.sym_impact_coeffs
     pos_nps = np.maximum(pars.nps, 0)
     neg_nps = np.minimum(pars.nps, 0)
     pos_np1 = np.sign(pos_nps)
     neg_np1 = -np.sign(neg_nps)
     nul_nps = (pars.nps == 0)
+    impact = self.sym_impact_coeffs*nul_nps
+    for i in range(0, self.pos_impact_coeffs.shape[3]) :
+      impact += self.pos_impact_coeffs[:,:,:,i]*((i+1)*pos_der) + \
+                self.neg_impact_coeffs[:,:,:,i]*((i+1)*neg_der)
+      pos_der *= pos_nps
+      neg_der *= neg_nps
     if self.use_linear_nps :
-      return nul_nps*self.sym_impacts \
-        + self.pos_impact_coeffs[:,:,:,0]*pos_np1 + self.pos_impact_coeffs[:,:,:,1]*(2*pos_nps) \
-        + self.neg_impact_coeffs[:,:,:,0]*neg_np1 + self.neg_impact_coeffs[:,:,:,1]*(2*neg_nps)
+      return impact
     else :
       # For the exp case, mutiply by the exponential. Needs a bit of gymnastics since the
       # exp has one less dimension (nnps) which happens to be the last one, while numpy
       # automatically "broadcasts" only leading dimensions.
-      impact = nul_nps*self.sym_impacts \
-        + self.log_pos_impact_coeffs[:,:,:,0]*pos_np1 + self.log_pos_impact_coeffs[:,:,:,1]*(2*pos_nps) \
-        + self.log_neg_impact_coeffs[:,:,:,0]*neg_np1 + self.log_neg_impact_coeffs[:,:,:,1]*(2*neg_nps)
       return (impact.T*self.k_exp(pars).T).T
 
   def plot(self, pars : Parameters, data : 'Data' = None, channel : Channel = None, only : list = None, exclude : list = None,
@@ -787,7 +792,7 @@ class Model (JSONSerializable) :
       Returns:
          A randomly-generated dataset
     """
-    return Data(self, np.random.poisson(self.tot_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
+    return Data(self, np.random.poisson(self.tot_bin_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
 
   def generate_asimov(self, pars : Parameters) -> 'Data' :
     """Generate an Asimov dataset for given parameter values
@@ -803,7 +808,7 @@ class Model (JSONSerializable) :
       Returns:
          An Asimov dataset
     """
-    return Data(self).set_data(self.tot_exp(pars), pars.nps)
+    return Data(self).set_data(self.tot_bin_exp(pars), pars.nps)
 
   def generate_expected(self, pois, minimizer = None) :
     """Generate an Asimov dataset for expected parameter values
@@ -822,7 +827,7 @@ class Model (JSONSerializable) :
     return self.generate_asimov(self.expected_pars(pois, minimizer))
 
   @staticmethod
-  def create(filename : str) -> 'Model' :
+  def create(filename : str, verbosity = 1) -> 'Model' :
     """Shortcut method to instantiate a model from a JSON file
 
       Same behavior as creating a default model and loading from the file,
@@ -833,7 +838,7 @@ class Model (JSONSerializable) :
       Returns:
          The created model
     """
-    return Model().load(filename)
+    return Model(verbosity=verbosity).load(filename)
 
   def load_jdict(self, jdict : dict) -> 'Model' :
     """Load object information from a dictionary of JSON data
@@ -845,10 +850,11 @@ class Model (JSONSerializable) :
         self
     """
     self.name = self.load_field('name', jdict, '', str)
-    self.pois = {}
     if not 'model'    in jdict : raise KeyError("No 'model' section in specified JSON file")
     if not 'POIs'     in jdict['model'] : raise KeyError("No 'POIs' section in specified JSON file")
     if not 'channels' in jdict['model'] : raise KeyError("No 'channels' section in specified JSON file")
+    if self.verbosity > 0 : print('Loading parameters')
+    self.pois = {}
     for json_poi in jdict['model']['POIs'] :
       poi = ModelPOI()
       poi.load_jdict(json_poi)
@@ -873,8 +879,9 @@ class Model (JSONSerializable) :
         if par.name in self.nps :
           raise ValueError('ERROR: multiple NPs defined with the same name (%s)' % par.name)
         self.nps[par.name] = par
-      self.channels = {}
-    for json_channel in jdict['model']['channels'] :      
+    self.channels = {}
+    if self.verbosity > 0 : print('Loading channels')
+    for json_channel in jdict['model']['channels'] :
       if not 'type' in json_channel or json_channel['type'] == SingleBinChannel.type_str :
         channel = SingleBinChannel()
       elif json_channel['type'] == BinnedRangeChannel.type_str :
@@ -1016,10 +1023,12 @@ class Data (JSONSerializable) :
     """
     if not 'data' in jdict : raise KeyError("No 'data' section in specified JSON file")
     if not 'channels' in jdict['data'] : raise KeyError("No 'channels' section in specified JSON file")
-    for channel in jdict['data']['channels'] :
-      name = channel['name'] if 'name' in channel else ''
-      if not name in self.model.channels : raise ValueError("Data channel '%s' in specified JSON file is not defined in the model." % name)
-      model_channel = self.model.channels[name]
+    for model_channel in self.model.channels.values() :
+      name = model_channel.name
+      try :
+        channel = next(json_channel for json_channel in jdict['data']['channels'] if json_channel['name'] == name)
+      except:
+        raise ValueError("Model channel '%s' not found in specified JSON file." % name)
       offset = self.model.channel_offsets[name]
       model_channel.load_data_jdict(channel, self.counts[offset:offset + model_channel.nbins()])
     if 'aux_obs' in jdict['data'] :
