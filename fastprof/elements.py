@@ -535,7 +535,10 @@ class NumberNorm(JSONSerializable) :
     """
     if 'norm_type' in jdict and jdict['norm_type'] != NumberNorm.type_str :
       raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], NumberNorm.type_str))
-    self.norm_value = self.load_field('norm', jdict, None, float)
+    self.norm_value = self.load_field('norm', jdict, '', [float, str])
+    if self.norm_value == '' : self.norm_value = 1
+    if isinstance(self.norm_value, str) :
+      raise ValueError("Normalization data for type '%s' is the string '%s', not supported for numerical norms." % (jdict['norm_type'], self.norm_value))
     return self
 
   def fill_jdict(self, jdict) :
@@ -1072,11 +1075,15 @@ class Sample(JSONSerializable) :
     # Automatic typecasting: either NumberNorm or ParameterNorm,
     # depending if the 'norm' parameter represents a float
     if norm_type == '' :
-      try:        
-        norm = self.load_field('norm', jdict, None, float)
-      except:
-        norm = None
-      norm_type = NumberNorm.type_str if norm is not None else ParameterNorm.type_str
+      norm = self.load_field('norm', jdict, None, str)
+      if norm == '' :
+        norm_type = NumberNorm.type_str
+      else :
+        try:
+          norm = self.load_field('norm', jdict, None, float)
+          norm_type = NumberNorm.type_str
+        except:
+          norm_type = ParameterNorm.type_str
     if norm_type == NumberNorm.type_str :
       self.norm = NumberNorm()
     elif norm_type == ParameterNorm.type_str :
