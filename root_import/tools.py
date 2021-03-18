@@ -1,4 +1,5 @@
 import ROOT
+import numpy as np
 
 def process_setvals(setvals, ws, parse_only = False) :
   try:
@@ -77,3 +78,9 @@ def make_asimov(setvals, mconfig, pdf = None, data = None, robust = True) :
   for (var, val, save_val) in saves : var.setVal(save_val)
   return asimov
 
+def format_float(x, num_digits = 7) :
+  if x == 0 or abs(np.log10(abs(x))) < 4 : return np.format_float_positional(x, num_digits, True, False, trim='-')
+  return np.format_float_scientific(x, num_digits, trim='-')
+
+def trim_float(x, num_digits = 7) :
+  return float(np.format_float_scientific(x, num_digits, trim='-'))
