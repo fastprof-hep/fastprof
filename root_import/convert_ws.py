@@ -41,7 +41,7 @@ into the definition file of a linear model, as follows:
 
 The output is a single JSON file which defines the model as well as the 
 dataset if one was specified. A validation file is also produced if the 
-`--validation-data` option was set: this contains information that can be
+`--validation-output` option was set: this contains information that can be
 used to assess if the linearity assumption is valid for the model.
 """
 __author__ = "N. Berger <Nicolas.Berger@cern.ch"
@@ -53,7 +53,7 @@ import json
 import array
 import math
 import ROOT
-from root_import.tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
+from root_import.tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned, trim_float
 
 class WSChannel() : pass
 class WSSample() : pass
@@ -67,10 +67,9 @@ def make_parser() :
   parser.add_argument("-f", "--ws-file"          , type=str  , required=True    , help="Name of file containing the workspace")
   parser.add_argument("-w", "--ws-name"          , type=str  , default='modelWS', help="Name workspace object inside the specified file")
   parser.add_argument("-m", "--model-config-name", type=str  , default='mconfig', help="Name of model config within the specified workspace")
-  parser.add_argument("-c", "--channel-names"    , type=str  , default=None     , help="Names of the model channels, in the form c1,c2,..., in the same order as the RooSimPdf components")
-  parser.add_argument("-s", "--sample-names"     , type=str  , default=None     , help="Names of the model samples, in the form s1,s2,..., in the same order as the RooAddPdf components")
+  parser.add_argument("-c", "--channels"         , type=str  , default=None     , help="Names of the model channels, in the form c1,c2,..., in the same order as the RooSimPdf components")
+  parser.add_argument("-s", "--samples"          , type=str  , default=None     , help="Names of the model samples, in the form c1:s1:p1,..., with c1 a channel name, s1 the sample name, and p1 its normpar name")
   parser.add_argument(      "--default-sample"   , type=str  , default=None     , help="Names of the model samples, in the form s1,s2,..., in the same order as the RooAddPdf components")
-  parser.add_argument("-n", "--normpar-names"    , type=str  , default=None     , help="Names of the norm pars for each sample, in the form p1,p2,..., in the same order as the samples")
   parser.add_argument("-b", "--binning"          , type=str  , required=True    , help="Binning used, in the form xmin:xmax:nbins[:log]")
   parser.add_argument("-e", "--epsilon"          , type=float, default=1        , help="Scale factor applied to uncertainties for impact computations")
   parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="List of variable value changes, in the form var1=val1,var2=val2,...")
@@ -86,6 +85,7 @@ def make_parser() :
   parser.add_argument(      "--regularize"       , type=float, default=0        , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
   parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
+  parser.add_argument(      "--digits"           , type=int  , default=7        , help="Number of significant digits in float values")
   parser.add_argument("-l", "--validation-output", type=str  , default=None     , help="Name of output file for validation data")
   parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
   return parser
@@ -194,12 +194,12 @@ def run(argv = None) :
   # ---------------------------------------------------------
   
   channel_names_user = []
-  if options.channel_names is not None :
+  if options.channels is not None :
     try:
-      channel_names_user = options.channel_names.split(',')
+      channel_names_user = options.channels.split(',')
     except Exception as inst :
       print(inst)
-      raise ValueError('Invalid channel name specification %s : should be of the form name1,name2,...' % options.channel_names)
+      raise ValueError('Invalid channel name specification %s : should be of the form name1,name2,...' % options.channels)
 
   channel_pdfs = []
   channel_names = []
@@ -219,33 +219,31 @@ def run(argv = None) :
       break
 
 
-  # 6. Make the channel objects (identify samples)
+  # 6. Make the channel objects (and identify samples)
   # ---------------------------------------------------------
-
-  if options.normpar_names == None :
-    normpar_names = {}
-  else :
+  
+  normpars = {}
+  if options.samples is not None :
     try:
-      normpar_specs = options.normpar_names.split(',')
+      sample_specs = options.samples.replace(' ', '').replace('\n', '').split(',')
       normpar_names = {}
-      for spec in normpar_specs :
+      for spec in sample_specs :
         spec_names = spec.split(':')
         if len(spec_names) == 1 : spec_names = [ '' ] + spec_names
         if len(spec_names) == 2 : spec_names = [ '' ] + spec_names
-        normpar_names[spec_names[0], spec_names[1]] = spec_names[2]
+        if not spec_names[0] in normpar_names : normpar_names[spec_names[0]] = {}
+        normpar_names[spec_names[0]][spec_names[1]] = spec_names[2]
     except Exception as inst :
       print(inst)
-      raise ValueError('Invalid sample normpar name specification %s : should be of the form chan1:samp1:par1,chan2:samp2:par2,...' % options.normpar_names)
-  normpars = {}
-  for key, normpar_name in normpar_names.items() :
-    normpar = ws.var(normpar_name)
-    if normpar != None :
-      normpars[key] = normpar
-    else :
-      raise ValueError("Normalization parameter '%s' not found in workspace." % normpar_name)
-
-  channels = []
+      raise ValueError('Invalid sample normpar name specification %s : should be of the form chan1:samp1:par1,chan2:samp2:par2,...' % options.samples)
+    for channel_name, channel_normpar_names in normpar_names.items() :
+      for sample_name, normpar_name in channel_normpar_names.items() :
+        normpar = ws.var(normpar_name)
+        if normpar == None : raise ValueError("Normalization parameter '%s' not found in workspace." % normpar_name)
+        if not channel_name in normpars : normpars[channel_name] = {} 
+        normpars[channel_name][sample_name] = normpar
   
+  channels = []  
   for channel_name, channel_pdf in zip(channel_names, channel_pdfs) :
     channel = make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, options)
     channels.append(channel)
@@ -281,10 +279,10 @@ def run(argv = None) :
     zero_normpars = []
     for channel in channels :
       for sample in channel.samples :
-        if sample.normpar.getMin() > 0 : sample.normpar.setMin(0) # allow setting variable to 0
+        if sample.normpar is not None and sample.normpar.getMin() > 0 : sample.normpar.setMin(0) # allow setting variable to 0
         # If a normpar is zero, we cannot get the expected nominal_yields for this component. In this case, fit an Asimov and set the parameter at the +2sigma level
       for sample in channel.samples : 
-        if sample.normpar.getVal() == 0 : zero_normpars.append(sample.normpar)
+        if sample.normpar is not None and sample.normpar.getVal() == 0 : zero_normpars.append(sample.normpar)
     if len(zero_normpars) > 0 :
       ws.saveSnapshot('nominalNPs', nps)
       asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
@@ -301,6 +299,7 @@ def run(argv = None) :
         par.setVal(2*par.getError())
         if par.getVal() == 0 :
           raise ValueError('ERROR : normalization parameter %s is exactly 0, cannot extract sample nominal_yields' % par.GetName())
+        print('=== Set POI nominal value to %s = %g' % (par.GetName(), par.getVal()))
 
     for par in nuis_pars :
       par.nominal = par.obj.getVal()
@@ -321,11 +320,11 @@ def run(argv = None) :
     if len(variations) == 0 :
       raise ValueError('Should have at least 1 NP variation implemented for a valid model')
 
-    validation_points = np.linspace(-5, 5, 21) if options.validation_output != '' else []
+    validation_points = np.linspace(-5, 5, 21) if options.validation_output is not None else []
 
     # Fill the channel information
     for i, channel in enumerate(channels) :
-      fill_channel_yields(channel, i, len(channels), bins, nuis_pars, nps, variations, options, validation_points)
+      fill_channel_yields(channel, i, len(channels), bins, nuis_pars, variations, options, validation_points)
 
   # 8 - Fill model JSON
   # --------------------------------
@@ -387,8 +386,11 @@ def run(argv = None) :
       for sample in channel.samples :
         sample_spec = {}
         sample_spec['name'] = sample.name
-        sample_spec['norm'] = sample.normpar.GetName() if pois.find(sample.normpar.GetName()) or nps.find(sample.normpar.GetName()) else ''
-        sample_spec['nominal_norm'] = sample.nominal_norm
+        if sample.normpar is not None and (pois.find(sample.normpar.GetName()) or nps.find(sample.normpar.GetName())) :
+          sample_spec['norm'] = sample.normpar.GetName()
+          sample_spec['nominal_norm'] = sample.nominal_norm
+        else :
+          sample_spec['norm'] = ''
         sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
         #sample_spec['impacts'] = { par : [{ 'pos' : impact['pos'], 'neg' : impact['neg'] } for impact in sample.impacts[par]] for par in sample.impacts }
         sample_spec['impacts'] = sample.impacts
@@ -490,111 +492,154 @@ def make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, op
     raise ValueError('Channel %s has %d observables -- multiple observables not supported yet.')
   channel.obs = ROOT.RooArgList(channel_obs).at(0)
 
-  if options.sample_names == None :
-    sample_names = []
-  else :
-    try:
-      sample_names = options.sample_names.split(',')
-    except Exception as inst :
-      print(inst)
-      raise ValueError('Invalid sample name specification %s : should be of the form name1,name2,...' % options.sample_names)
-
   channel.samples = []
   channel.default_sample = None # the sample to which unassigned variations will be associated (e.g. spurious signal, not scaled by any sample normpars)
 
-  for i in range(0, channel_pdf.pdfList().getSize()) :
-    sample = WSSample()
-    sample.pdf = channel_pdf.pdfList().at(i)
-    sample.name = sample_names[i] if i < len(sample_names) else sample.pdf.GetName()
-    sample.normvar = channel_pdf.coefList().at(i)
-    sample.normpar = None
-    if (channel.name, sample.name) in normpars : 
-      sample.normpar = normpars[channel.name, sample.name]
-    elif ('', sample.name) in normpars : 
-      sample.normpar = normpars['', sample.name]
-    elif ('', '') in normpars : 
-      sample.normpar = normpars['', '']
-    if sample.normpar == None :
-      if isinstance(sample.normvar, ROOT.RooRealVar) :
-        sample.normpar = sample.normvar
+  user_samples = normpars[''] if '' in normpars else {}
+  if channel.name in normpars : user_samples.update(normpars[channel.name])
+  if len(user_samples) > 0 :
+    for user_sample in user_samples :
+      sample = WSSample()
+      sample.name = user_sample
+      sample.normpar = user_samples[user_sample]
+      if sample.name == options.default_sample : channel.default_sample = sample
+      channel.samples.append(sample)
+  else :
+    for i in range(0, channel_pdf.pdfList().getSize()) :
+      sample = WSSample()
+      sample.name = channel_pdf.pdfList().at(i).GetName()
+      sample.normpar = None
+      normvar = channel_pdf.coefList().at(i)
+      if isinstance(normvar, ROOT.RooRealVar) :
+        sample.normpar = normvar
       else :
-        poi_candidates = sample.normvar.getVariables().selectCommon(pois)
+        poi_candidates = normvar.getVariables().selectCommon(pois)
         if poi_candidates.getSize() == 1 :
           sample.normpar = ROOT.RooArgList(poi_candidates).at(0)
         else :
           print("Normalization of sample '%s' depends on multiple POIs:" % sample.name)
-          sample.normvar.Print()
+          normvar.Print()
           poi_candidates.Print()
-    if sample.normpar == None :
-      raise ValueError('Cannot identify normalization variable for sample %s, please specify manually. Known specifications are : \n%s' % (sample.name, str(normpars)))
-    channel.samples.append(sample)
-    if sample.name == options.default_sample : channel.default_sample = sample
-  
-  if channel.default_sample is None : channel.default_sample = channel.samples[-1] # if unspecified, take the last one
+      if sample.normpar == None :
+        raise ValueError('Cannot identify normalization variable for sample %s, please specify manually. Known specifications are : \n%s' % (sample.name, str(normpars)))
+      if sample.name == options.default_sample : channel.default_sample = sample
+      channel.samples.append(sample)  
+  if channel.default_sample is None : 
+    default_sample = WSSample()
+    default_sample.name = 'unassigned_background'
+    default_sample.normpar = None
+    channel.samples.append(default_sample)
+    channel.default_sample = default_sample
   return channel
+
+def integral(channel) :
+  return channel.pdf.expectedEvents(0)*channel.bin_integral.getVal()
+
+def save_normpars(channel) :
+  for sample in channel.samples :
+    if sample.normpar is not None :
+      sample.normpar_save = sample.normpar.getVal()
+
+def save_nominal(channel) :
+  for sample in channel.samples :
+    if sample.normpar is not None :
+      sample.nominal_norm = sample.normpar.getVal()
+
+def set_normpars(channel, value = None) :
+  for sample in channel.samples : 
+    if sample.normpar is not None :
+      sample.normpar.setVal(sample.nominal_norm if value is None else value)
+
 
 # ---------------------------------------------------------------------
 def fill_yields(channel, key) :
+  save_normpars(channel)
+  set_normpars(channel, 0)
+  n_unassigned = integral(channel)
   for sample in channel.samples :
-    sample.yields[key] = 0
-    save_val = sample.normpar.getVal()
+    if sample.normpar is None : 
+      sample.yields[key] = 0
+      continue
+    sample.normpar.setVal(sample.normpar_save)
+    sample.yields[key] = integral(channel) - n_unassigned
     sample.normpar.setVal(0)
-    sample.n_unassigned = sample.normvar.getVal()*sample.bin_integral.getVal()
-    sample.normpar.setVal(save_val)
-  for sample in channel.samples :
-    sample.yields[key] += sample.normvar.getVal()*sample.bin_integral.getVal() - sample.n_unassigned
-    channel.default_sample.yields[key] += sample.n_unassigned
+  channel.default_sample.yields[key] += n_unassigned
+  for sample in channel.samples : print('yield', key, sample.name, sample.yields[key], n_unassigned)
 
-def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, nps, variations, options, validation_points) :
+def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, variations, options, validation_points) :
+  print('=== Processing channel %s (%d of %d)' % (channel.name, channel_index, nchannels))
   nbins = len(bins) - 1
   if options.validation_output != '' :
     channel.valid_data = {}
     for par in nuis_pars :
       channel.valid_data[par.name] = np.ndarray((len(channel.samples), nbins, len(validation_points)))
+  save_nominal(channel)
+  set_normpars(channel, 0)
   for sample in channel.samples :
-    print('=== Sample %s normalized to normalization parameter %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), sample.normvar.getVal()))
-    sample.nominal_norm = sample.normpar.getVal()
+    if sample.normpar is not None :
+      sample.normpar.setVal(sample.nominal_norm)
+      print('=== Sample %s normalized to normalization parameter %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), channel.pdf.expectedEvents(ROOT.RooArgSet(channel.obs))))
+      sample.normpar.setVal(0)
+    else :
+      print('=== Sample %s (unnormalized)' % sample.name)    
     sample.nominal_yields = np.zeros(nbins) 
     sample.yields = {}
     sample.impacts = {}
     for par in nuis_pars : sample.impacts[par.name] = []
   print('=== Nominal NP values :')
-  nps.Print("V")
-  print('\n')
+  for par in nuis_pars : par.obj.Print()
   for i in range(0, nbins) :
-    sys.stderr.write("\rProcessing bin %d of %d in channel '%s' (%d of %d)" % (i+1, nbins, channel.name, channel_index + 1, nchannels))
-    sys.stderr.flush()
+    print('=== Bin [%g, %g] (%d of %d)' % (bins[i], bins[i+1], i, nbins))
+    #sys.stderr.write("\rProcessing bin %d of %d in channel '%s' (%d of %d)" % (i+1, nbins, channel.name, channel_index + 1, nchannels))
+    #sys.stderr.flush()
     xmin = bins[i]
     xmax = bins[i + 1]
     channel.obs.setRange('bin_%d' % i, xmin, xmax)
-    for sample in channel.samples :
-      sample.bin_integral = sample.pdf.createIntegral(ROOT.RooArgSet(channel.obs), ROOT.RooArgSet(channel.obs), 'bin_%d' % i)
+    channel.bin_integral = channel.pdf.createIntegral(ROOT.RooArgSet(channel.obs), ROOT.RooArgSet(channel.obs), 'bin_%d' % i)
+    #ROOT.SetOwnership(channel.bin_integral, True) # needed ?
+    set_normpars(channel)
+    #print('Nominal pars:')
+    #print('-------------')
+    #for s in channel.samples :
+      #if s.normpar is not None : print(s.normpar.GetName(), '=', s.normpar.getVal())
+    #for p in nuis_pars : print(p.obj.GetName(), '=', p.obj.getVal())
     fill_yields(channel, 'nominal')
-    for sample in channel.samples : 
-      sample.nominal_yields[i] = sample.yields['nominal']
-      print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
-    for par in nuis_pars :
-      for sample in channel.samples : sample.impacts[par.name].append({})
+    for sample in channel.samples :
+      sample.nominal_yields[i] = trim_float(sample.yields['nominal'], options.digits)
+      if sample.normpar is not None :
+        print('-- Nominal %s = %g (%s = %g)' % (sample.name, sample.nominal_yields[i], sample.normpar.GetName(), sample.nominal_norm))
+      else :
+        print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
+    for p, par in enumerate(nuis_pars) :
+      sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d" % (channel.name, channel_index + 1, nchannels, i+1, nbins, p, len(nuis_pars)))
+      sys.stderr.flush()
       delta = par.error*options.epsilon
+      for sample in channel.samples : sample.impacts[par.name].append({})
       for variation in variations :
+        set_normpars(channel)
         par.obj.setVal(par.nominal + variation*delta)
+        #print('%s %g impact pars:' % (par.name, variation))
+        #print('-------------')
+        #for s in channel.samples :
+          #if s.normpar is not None : print(s.normpar.GetName(), '=', s.normpar.getVal())
+        #for p in nuis_pars : print(p.obj.GetName(), '=', p.obj.getVal())
         fill_yields(channel, 'var')
-        for sample in channel.samples :
-          sample.impact = ((sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1) if sample.yields['nominal'] != 0 else 0
+        par.obj.setVal(par.nominal)
+        for sample in channel.samples : 
+          sample.impact = trim_float((sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1, options.digits) if sample.yields['nominal'] != 0 else 0
           sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
           print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
-        par.obj.setVal(par.nominal)
       if options.validation_output != '' :
         par_data = channel.valid_data[par.name]
-        fill_yields(channel, 'ref')
-        nref = np.array([sample.yields['ref'] for sample in channel.samples])
         for k, val in enumerate(validation_points) :
+          set_normpars(channel)
           par.obj.setVal(par.nominal + val*par.error)
-          fill_yields(channel, 'var')
-          nvar = np.array([sample.yields['var'] for sample in channel.samples])
-          par_data[:,i,k] = nvar/np.maximum(nref, 1E-5) 
-          print('== validation %-10s: %+6g variation = %s' % (par.name, val, str(par_data[:,i,k])))
-        par.obj.setVal(par.nominal)
+          fill_yields(channel, 'valid')
+          par.obj.setVal(par.nominal)
+          for s, sample in enumerate(channel.samples) : 
+            par_data[s,i,k] = trim_float(sample.yields['valid']/max(sample.yields['nominal'], 1E-5), options.digits)
+            print('== validation %-10s: %+6g variation = %s' % (par.name, val, str(par_data[s,i,k])))
+  set_normpars(channel)
   sys.stderr.write('\n')
 
 
