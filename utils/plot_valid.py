@@ -112,7 +112,7 @@ def run(argv = None) :
 
   if options.sample != None :
     sample = channel.sample(options.sample)
-    if not sample : raise KeyError('Sample %s not found in channel %s.' % (channel.name, options.sample))
+    if not sample : raise KeyError('Sample %s not found in channel %s.' % (options.sample, channel.name))
   else :
     sample = list(channel.samples.values())[0]
 
