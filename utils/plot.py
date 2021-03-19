@@ -74,7 +74,7 @@ def run(argv = None) :
 
   if options.setval is not None :
     try :
-      poi_dict = process_setvals(options.setval, model)
+      poi_dict = process_setvals(options.setval, model, match_nps = False)
     except Exception as inst :
       print(inst)
       raise ValueError("ERROR : invalid POI specification string '%s'." % options.setval)
@@ -89,7 +89,7 @@ def run(argv = None) :
     mini.minimize(data)
     pars = mini.min_pars
   else :
-    pars = model.expected_pars(0)
+    pars = model.expected_pars([0]*model.npois)
 
   xmin = None
   xmax = None
@@ -133,28 +133,30 @@ def run(argv = None) :
   if options.variations is not None :
     # First try the comma-separated format
     try:
+      var_val = float(options.variations)
+      variations = 'all'
+    except :
+      pass
+    if variations == None :
       variations = []
-      for spec in options.variations.split(',') :
-        try :
-          varval,color = spec.split(':')
-        except:
-          varval = spec
-          color = None
-        var,val = varval.split('=')
-        try :
-          val = float(val)
-        except:
-          raise ValueError('Invalid numerical value %s.' % val)
-        if not var in model.nps : raise KeyError('Parameter %s is not defined in the model.' % var)
+      try :
+        for spec in options.variations.split(',') :
+          specfields = spec.split(':')
+          varval = specfields[0]
+          color = specfields[1] if len(specfields) == 2 else None 
+          var,val = varval.split('=')
+          try :
+            val = float(val)
+          except:
+            raise ValueError('Invalid numerical value %s.' % val)
+        if not var in model.nps :
+          raise KeyError('Parameter %s is not defined in the model.' % var)
         colors = colors_pos if val > 0 else colors_neg
         if color is None : color = colors[len(variations) % len(colors)]
         variations.append( (var, val, color,) )
-    except:
-      variations = 'all'
-      try:
-        var_val = float(options.variations)
-      except:
-        raise ValueError('Invalid variations specification %s : should be a comma-separated list of var=val[:color] items, or a single number')
+      except Exception as inst :
+        print(inst)
+        raise ValueError('Invalid variations specification %s : should be a comma-separated list of var=val[:color] items, or a single number' % options.variations)
 
   if variations == 'all' :
     n1 = math.ceil(math.sqrt(model.nnps))
