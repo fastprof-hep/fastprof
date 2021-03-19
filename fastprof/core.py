@@ -82,8 +82,10 @@ class Parameters :
       if np.isnan(poi_array).any() : raise ValueError('Input POI dictionary did not contain a valid numerival value for each POI : %s' % str(pois))
       pois = poi_array
     if isinstance(pois, (float, int)) : pois = np.array([ pois], dtype=float)
+    if isinstance(pois, list) : pois = np.array(pois)
     if not isinstance(pois, np.ndarray) or pois.ndim != 1 : raise ValueError('Input POIs should be a 1D np.array, got ' + str(pois))
-    if model is not None and pois.size != model.npois : raise ValueError('Cannot initialize Parameters with %d POIs, when %d are defined in the model' % (pois.size, model.npois))
+    if model is not None and pois.size != model.npois :
+      raise ValueError('Cannot initialize Parameters with %d POIs, when %d are defined in the model.\nModel POIs:\n%s' % (pois.size, model.npois,'\n'.join(model.pois.keys())))
     self.pois = np.array(pois)
     if nps is None : nps  = np.array([], dtype=float)
     if model is not None and nps.size == 0 : nps = np.zeros(model.nnps)
