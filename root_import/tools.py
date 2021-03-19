@@ -24,8 +24,7 @@ def process_setconsts(setconsts, ws) :
   for var in varlist :
     matching_vars = ROOT.RooArgList(ws.allVars().selectByName(var))
     if matching_vars.getSize() == 0 :
-      print("ERROR : no variables matching '%s' in model" % var)
-      raise ValueError
+      raise ValueError("ERROR : no variables matching '%s' in model" % var)
     for i in range(0, matching_vars.getSize()) :
       thisvar =  matching_vars.at(i)
       thisvar.setConstant()
