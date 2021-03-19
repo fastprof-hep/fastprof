@@ -139,7 +139,7 @@ def run(argv = None) :
   if not mconfig : raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
 
   main_pdf = mconfig.GetPdf()
-  pois = mconfig.GetParametersOfInterest()
+  pois = mconfig.GetParametersOfInterest().selectByAttrib('Constant', False)
   nps = mconfig.GetNuisanceParameters().selectByAttrib('Constant', False)
   aux_obs = mconfig.GetGlobalObservables()
 
@@ -193,13 +193,17 @@ def run(argv = None) :
   # 5. Identify the model channels
   # ---------------------------------------------------------
   
-  channel_names_user = []
+  user_channels = {}
   if options.channels is not None :
     try:
-      channel_names_user = options.channels.split(',')
+      channel_specs = options.channels.split(',')
+      for channel_spec in channel_specs :
+        fields = channel_spec.split(':')
+        if len(fields) == 1 : fields.append('')
+        user_channels[int(fields[0])] = fields[1]
     except Exception as inst :
       print(inst)
-      raise ValueError('Invalid channel name specification %s : should be of the form name1,name2,...' % options.channels)
+      raise ValueError('Invalid channel name specification %s : should be of the form index1:name1,index2:name2,...' % options.channels)
 
   channel_pdfs = []
   channel_names = []
@@ -208,14 +212,14 @@ def run(argv = None) :
     if isinstance(component, ROOT.RooSimultaneous) :
       cat = component.indexCat()
       for i in range(0, cat.size()) :
+        if len(user_channels) > 0 and not i in user_channels : continue
         channel_name = cat.lookupType(i).GetName()
         channel_pdfs.append(component.getPdf(channel_name))
-        if len(channel_names_user) > i : channel_name = channel_names_user[i]
-        channel_names.append(channel_name)
+        channel_names.append(user_channels[i] if len(user_channels) > 0 and user_channels[i] != '' else channel_name)
       break
     elif isinstance(component, ROOT.RooAddPdf) :
       channel_pdfs.append(component)
-      channel_names.append(channel_names_user[0] if len(channel_names_user) > 0 else component.GetName())
+      channel_names.append(user_channels[0] if 0 in user_channels else component.GetName())
       break
 
 
@@ -449,7 +453,7 @@ def run(argv = None) :
   # 11 - Also dump validation information unless deactivated
   # --------------------------------------------------------
 
-  if options.validation_output != '' :
+  if options.validation_output is not None :
     valid_lists = {}
     for poi in pois : valid_lists[poi.GetName()] = poi.getVal()
     valid_lists['points'] = validation_points.tolist()
@@ -458,7 +462,7 @@ def run(argv = None) :
       for par in nuis_pars : 
         channel_valid[par.name] = channel.valid_data[par.name].tolist()
       valid_lists[channel.name] = channel_valid
-    if options.validation_output is not None :
+    if options.validation_output != '' :
       validation_filename = options.validation_output
     else :
       split_name = os.path.splitext(options.output_file)
@@ -564,12 +568,12 @@ def fill_yields(channel, key) :
     sample.yields[key] = integral(channel) - n_unassigned
     sample.normpar.setVal(0)
   channel.default_sample.yields[key] += n_unassigned
-  for sample in channel.samples : print('yield', key, sample.name, sample.yields[key], n_unassigned)
+  #for sample in channel.samples : print('yield', key, sample.name, sample.yields[key], n_unassigned)
 
 def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, variations, options, validation_points) :
   print('=== Processing channel %s (%d of %d)' % (channel.name, channel_index, nchannels))
   nbins = len(bins) - 1
-  if options.validation_output != '' :
+  if options.validation_output is not None :
     channel.valid_data = {}
     for par in nuis_pars :
       channel.valid_data[par.name] = np.ndarray((len(channel.samples), nbins, len(validation_points)))
@@ -629,7 +633,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
           sample.impact = trim_float((sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1, options.digits) if sample.yields['nominal'] != 0 else 0
           sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
           print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
-      if options.validation_output != '' :
+      if options.validation_output is not None :
         par_data = channel.valid_data[par.name]
         for k, val in enumerate(validation_points) :
           set_normpars(channel)
