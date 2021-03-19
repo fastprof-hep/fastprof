@@ -29,6 +29,7 @@ import math
 import scipy
 import numpy as np
 from abc import abstractmethod
+import re
 
 from .core import Model, Data, Parameters, JSONSerializable, ModelPOI
 from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
@@ -945,7 +946,7 @@ class ParBound :
     return self.__str__()
 
 
-def process_setvals(setvals : str, model : Model, apply : bool = False) -> dict :
+def process_setvals(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True) -> dict :
   """Parse a set of model POI value assignments
 
   The input string is expected in the form
@@ -976,12 +977,21 @@ def process_setvals(setvals : str, model : Model, apply : bool = False) -> dict 
     print(inst)
     raise ValueError("ERROR : invalid variable assignment specification '%s'." % setvals)
   for (var, val) in sets :
-    if not var in model.pois and not var in model.nps : raise ValueError("Parameter '%s' not defined in model." % var)
+    if match_pois :
+      matching_pois = [ p for p in model.pois.keys() if re.match(var, p) ]
+      if len(matching_pois) == 0 and not match_nps : raise ValueError("No POIs matching '%s' defined in model." % var)
+    else : matching_pois = []
+    if match_nps :
+      matching_nps = [ p for p in model.nps.keys() if re.match(var, p) ]
+      if len(matching_nps) == 0 and not match_pois : raise ValueError("No NPs matching '%s' defined in model." % var)
+    else : matching_nps = []
+    matching_all = matching_pois + matching_nps
+    if len(matching_all) == 0 : raise ValueError("No parameters matching '%s' defined in model." % var)
     try :
       float_val = float(val)
     except ValueError as inst :
-      raise ValueError("Invalid numerical value '%s' in assignment to variable '%s'." % (val, var))
-    par_dict[var] = float_val
+      raise ValueError("Invalid numerical value '%s' in assignment to variable(s) '%s'." % (val, var))
+    for var in matching_all : par_dict[var] = float_val
   return par_dict
 
 
