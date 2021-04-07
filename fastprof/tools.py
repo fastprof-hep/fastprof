@@ -33,7 +33,7 @@ import re
 
 from .core import Model, Data, Parameters, JSONSerializable, ModelPOI
 from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
-from .test_statistics import QMu, QMuTilda
+from .test_statistics import TMu, QMu, QMuTilda
 
 
 class FitResult(JSONSerializable) :
@@ -411,6 +411,53 @@ class Raster(JSONSerializable) :
     limit_dn = self.interpolate_limit(hypos, values_dn, target_pv, order, log_scale, name = 'nominal-err %s[%s]' % (pv_key, poi_name))
     return (limit, limit_up, limit_dn)
 
+  def interpolate(self, xs : list, ys : list, target : float, order : int = 3, log_scale : bool = True, name : str = 'solution') -> list :
+    """Perform a one-dimensional interpolation
+
+    Takes 2 lists of same size, corresponding to the `x` and `y`
+    dimensions, and interpolates to find the value giving y=target.
+
+    Returns the list of all solutions.
+    
+    Uses the `InterpolatedUnivariateSpline` method from `scipy`, with
+    spline order specified by the `order` parameter. If `log_scale` is
+    `True`, the interpolation is performed in the log of the p-values.
+
+    Args:
+      x : list of `x` values
+      y : list of `y` values
+      target : the target value
+      order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
+      log_scale : if `True`, interpolate in the log of the p-values. If `False`
+         (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
+      name : the computation name, for logging purposes
+    Returns:
+      The list of interpolated solutions
+    """
+    interp_xs = []
+    interp_ys = []
+    for x, y in zip(xs, ys) :
+      if log_scale :
+        if y <= 0 : continue
+        value = math.log(y/target)
+      else :
+        value = y - target
+      interp_ys.append(value)
+      interp_xs.append(x)
+    if len(interp_xs) < 2 :
+      print('Cannot interpolate using %d point(s), giving up' % len(interp_xs))
+      return None
+    if len(interp_xs) < order + 1 :
+      order = len(interp_xs) - 1
+      print('Reducing interpolation order to %d to match the number of available points' % order)
+    finder = scipy.interpolate.InterpolatedUnivariateSpline(interp_xs, interp_ys, k=order)
+    if order == 3 :
+      roots = finder.roots()
+    else :
+      print('Root-finding not supported yet for non-cubic splines, failing')
+      return []
+    return roots
+
   def interpolate_limit(self, hypos : list, pvs : list, target_pv : float = 0.05, order : int = 3, log_scale : bool = True, name : str = 'pv') -> float :
     """Perform a one-dimensional interpolation to compute a limit
 
@@ -421,10 +468,6 @@ class Raster(JSONSerializable) :
     If multiple values are found, the first one is returned. If no
     value is found, returns `None`.
 
-    Uses the `InterpolatedUnivariateSpline` method from `scipy`, with
-    spline order specified by the `order` parameter. If `log_scale` is
-    `True`, the interpolation is performed in the log of the p-values.
-
     Args:
       hypos : list of POI values
       pvs   : list of p-values
@@ -434,30 +477,9 @@ class Raster(JSONSerializable) :
          (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
 
     Returns:
-      The interpolated solution
+      The interpolated limit
     """
-    interp_hypos  = []
-    interp_pvs = []
-    for hypo, pv in zip(hypos, pvs) :
-      if log_scale :
-        if pv <= 0 : continue
-        value = math.log(pv/target_pv)
-      else :
-        value = pv - target_pv
-      interp_pvs.append(value)
-      interp_hypos.append(hypo)
-    if len(interp_hypos) < 2 :
-      print('Cannot interpolate using %d point(s), giving up' % len(interp_hypos))
-      return None
-    if len(interp_hypos) < order + 1 :
-      order = len(interp_hypos) - 1
-      print('Reducing interpolation order to %d to match the number of available points' % order)
-    finder = scipy.interpolate.InterpolatedUnivariateSpline(interp_hypos, interp_pvs, k=order)
-    if order == 3 :
-      roots = finder.roots()
-    else :
-      print('Root-finding not supported yet for non-cubic splines, failing')
-      return None
+    roots = self.interpolate(hypos, pvs, target_pv, order, log_scale, name)
     if len(roots) == 0 :
       print("No solution found for %s = %g." % (name, target_pv))
       #print("No solution found for %s = %g. Interpolation set:" % (name, target_pv))
@@ -772,6 +794,58 @@ class TestStatisticCalculator :
     return self.compute_fast_results(raster.plr_data.keys(), data, { hypo : plr_data.free_fit for hypo, plr_data in raster.plr_data.items() }, name)
 
 
+class TMuCalculator(TestStatisticCalculator) :
+  """Calculator class for :math:`t_{\mu}`
+
+  Implements test statistic and p-value
+  computations in :class:`PLRData` objects for
+  the :math:`t_{\mu}` test statistic defined in
+  the :mod:`test_statistics.py` module.
+  """
+
+  def __init__(self, minimizer : POIMinimizer) :
+    """Initialize the `TMuCalculator` object
+
+    Args:
+      minimizer : a minimizer algorithm.
+    """
+    super().__init__(minimizer)
+
+  @classmethod
+  def make_q(cls, plr_data : PLRData) -> TMu :
+    """Builds a :class:`QMu` test statistic object from PLR data
+
+    Args:
+      cls : the TMuCalculator class object (classmethod input)
+      plr_data : an object containing PLR information
+    Returns:
+      the test statistic
+    """
+    return TMu(test_poi = plr_data.hypo[cls.poi(plr_data)], tmu = plr_data.test_statistics['tmu'])
+
+  def fill_pv(self, plr_data : PLRData) -> 'TMuCalculator' :
+    """Fills p-value information from PLR data
+
+    Builds a :class:`TMu` test statistic from the :class:`PLRData`
+    object provided as input, computes the associated test statistic
+    value and p-value, and stores these in the :class:`PLRData`
+    object.
+
+    Args:
+      plr_data : an object storing PLR information
+    Returns:
+      self
+    """
+    try :
+      q = self.make_q(plr_data)
+      plr_data.test_statistics['q_mu'] = q.value()
+      plr_data.pvs['pv' ] = q.asymptotic_pv()
+    except Exception as inst:
+      print("t_mu computation failed for PLR '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo.dict(pois_only=True)))
+      raise(inst)
+    return self
+
+
 class QMuCalculator(TestStatisticCalculator) :
   """Calculator class for :math:`q_{\mu}`
 
@@ -794,6 +868,7 @@ class QMuCalculator(TestStatisticCalculator) :
     """Builds a :class:`QMu` test statistic object from PLR data
 
     Args:
+      cls : the QMuCalculator class object (classmethod input)
       plr_data : an object containing PLR information
     Returns:
       the test statistic
@@ -849,6 +924,7 @@ class QMuTildaCalculator(TestStatisticCalculator) :
     """Builds a :class:`QMuTilda` test statistic object from PLR data
 
     Args:
+      cls : the QMuTildaCalculator class object (classmethod input)
       plr_data : an object containing PLR information
     Returns:
       the test statistic
