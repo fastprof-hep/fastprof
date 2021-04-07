@@ -21,6 +21,7 @@ setup(
       'dump_samples.py    = utils.dump_samples:run',
       'iterate.py         = utils.iterate:run',
       'collect_results.py = utils.collect_results:run'
+      'poi_scan.py        = utils.poi_scan:run'
     ],
   },
   scripts          = [
