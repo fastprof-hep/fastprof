@@ -150,7 +150,7 @@ class TMu(TestStatistic) :
       the asymptotic p-value
     """
     if ts == None : ts = self.value()
-    return scipy.stats.norm.sf(math.sqrt(ts))
+    return scipy.stats.norm.sf(math.sqrt(ts) if ts > 0 else 0)
 
   def asymptotic_pdf(self, ts) :
     """Value of the PDF of the test statistic, under
