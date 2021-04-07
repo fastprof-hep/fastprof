@@ -188,11 +188,11 @@ def run(argv = None) :
       hypos = None
     except:
       try :
-        hypo_specs = [ process_setval(spec, parse_only=True) for spec in options.hypos.split(':') ]
+        hypo_specs = [ process_setval(spec, parse_only=True) for spec in options.hypos.split('/') ]
         hypos = [ { var : val for var, val, save in hypo_spec } for hypo_spec in hypo_specs ]
       except Exception as inst :
         print(inst)
-        raise ValueError("Could not parse list of hypothesis values '%s' : expected colon-separated list of variable assignments" % options.hypos)
+        raise ValueError("Could not parse list of hypothesis values '%s' : expected /-separated list of variable assignments" % options.hypos)
   elif option.hypos_file :
     fits_file = open(options.hypos)
     fit_results_dict = json.load(fits_file)
