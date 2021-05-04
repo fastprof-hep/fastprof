@@ -103,13 +103,17 @@ def run(argv = None) :
   # 1 - Parse bin specifications, retrieve workspace contents
   # ---------------------------------------------------------
 
+  bins = []
   try:
-    binspec = options.binning.split(':')
-    if len(binspec) == 4 and binspec[3] == 'log' :
-      bins = np.logspace(1, math.log(float(binspec[1]))/math.log(float(binspec[0])), int(binspec[2]) + 1, True, float(binspec[0]))
-      print('bins = ', bins)
-    else :
-      bins = np.linspace(float(binspec[0]), float(binspec[1]), int(binspec[2]) + 1)
+    binspecs = options.binning.split('|')
+    for binspec in binspecs :
+      is_last = (binspec == binspecs[-1])
+      binspec_fields = binspec.split(':')
+      nbins = int(binspec_fields[2]) + (1 if is_last else 0)
+      if len(binspec_fields) == 4 and binspec_fields[3] == 'log' :
+        bins.extend(np.logspace(1, math.log(float(binspec_fields[1]))/math.log(float(binspec_fields[0])), nbins, is_last, float(binspec_fields[0])))
+      else :
+        bins.extend(np.linspace(float(binspec_fields[0]), float(binspec_fields[1]), nbins, is_last))
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid bin specification %s : the format should be xmin:xmax:nbins[:log]' % options.binning)
@@ -199,29 +203,35 @@ def run(argv = None) :
       channel_specs = options.channels.split(',')
       for channel_spec in channel_specs :
         fields = channel_spec.split(':')
-        if len(fields) == 1 : fields.append('')
-        user_channels[int(fields[0])] = fields[1]
+        user_channels[fields[0]] = fields[1] if len(fields) == 2 else ''  
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid channel name specification %s : should be of the form index1:name1,index2:name2,...' % options.channels)
 
-  channel_pdfs = []
-  channel_names = []
+  channels = []
 
   for component in main_pdf.getComponents() :
     if isinstance(component, ROOT.RooSimultaneous) :
       cat = component.indexCat()
       for i in range(0, cat.size()) :
-        if len(user_channels) > 0 and not i in user_channels : continue
+        channel = WSChannel()
+        channel.type = 'binned_range'
         channel_name = cat.lookupType(i).GetName()
-        channel_pdfs.append(component.getPdf(channel_name))
-        channel_names.append(user_channels[i] if len(user_channels) > 0 and user_channels[i] != '' else channel_name)
+        if len(user_channels) > 0 and not str(i) in user_channels and not channel_name in user_channels : continue
+        channel.pdf = component.getPdf(channel_name)
+        channel.name = user_channels[str(i)] if str(i) in user_channels and user_channels[str(i)] != '' else channel_name
+        channel.index = i
+        channel.cat = cat
+        channels.append(channel)
       break
     elif isinstance(component, ROOT.RooAddPdf) :
-      channel_pdfs.append(component)
-      channel_names.append(user_channels[0] if 0 in user_channels else component.GetName())
+      channel = WSChannel()
+      channel.type = 'binned_range'
+      channel.pdf = component
+      channel.name = user_channels[0] if 0 in user_channels else component.GetName()
+      channel.cat = None
+      channels.append(channel)
       break
-
 
   # 6. Make the channel objects (and identify samples)
   # ---------------------------------------------------------
@@ -247,10 +257,8 @@ def run(argv = None) :
         if not channel_name in normpars : normpars[channel_name] = {} 
         normpars[channel_name][sample_name] = normpar
   
-  channels = []  
-  for channel_name, channel_pdf in zip(channel_names, channel_pdfs) :
-    channel = make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, options)
-    channels.append(channel)
+  for channel in channels :
+    fill_channel(channel, pois, aux_obs, mconfig, normpars, options)
 
   # 7 - Fill the model information
   # ------------------------------
@@ -396,14 +404,12 @@ def run(argv = None) :
         else :
           sample_spec['norm'] = ''
         sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
-        #sample_spec['impacts'] = { par : [{ 'pos' : impact['pos'], 'neg' : impact['neg'] } for impact in sample.impacts[par]] for par in sample.impacts }
         sample_spec['impacts'] = sample.impacts
         sample_specs.append(sample_spec)
       channel_spec['samples'] = sample_specs
       channel_specs.append(channel_spec)
     model_dict['channels'] = channel_specs
     jdict['model'] = model_dict
-
 
   # 9 - Fill the dataset information
   # --------------------------------
@@ -419,7 +425,7 @@ def run(argv = None) :
     channel_datum['obs_unit'] = channel.obs.getUnit()
     bin_array = array.array('d', bins)
     hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
-    unbinned_data.fillHistogram(hist, ROOT.RooArgList(channel.obs))
+    unbinned_data.fillHistogram(hist, ROOT.RooArgList(channel.obs), '' if channel.cat is None else '%s==%d' % (channel.cat.GetName(), channel.index))
     bin_specs = []
     for b in range(0, nbins) :
       bin_spec = {}
@@ -472,24 +478,20 @@ def run(argv = None) :
 
 
 # ---------------------------------------------------------------------
-def make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, options) :
+def fill_channel(channel, pois, aux_obs, mconfig, normpars, options) :
   
-  if options.verbosity > 0 : print("Creating channel '%' from PDF '%'" % (channel_name, channel_pdf.GetName()))
-  if isinstance(channel_pdf, ROOT.RooProdPdf) :
-    for i in range(0, channel_pdf.pdfList().getSize()) :
-      pdf = channel_pdf.pdfList().at(i)
+  if options.verbosity > 0 : print("Creating channel '%' from PDF '%'" % (channel.name, channel.pdf.GetName()))
+  if isinstance(channel.pdf, ROOT.RooProdPdf) :
+    for i in range(0, channel.pdf.pdfList().getSize()) :
+      pdf = channel.pdf.pdfList().at(i)
       if len(pdf.getDependents(aux_obs)) > 0 : continue
       if not isinstance(pdf, ROOT.RooAbsPdf) :
-        print("Got unexpected PDF of class '%' in PDF '%s' for channel '%s', skipping it." % (pdf.Class().GetName(), channel_pdf.GetName(), channel_name))
+        print("Got unexpected PDF of class '%' in PDF '%s' for channel '%s', skipping it." % (pdf.Class().GetName(), channel.pdf.GetName(), channel.name))
         continue
-      channel_pdf = pdf
+      channel.pdf = pdf
       break
-  channel = WSChannel()
-  channel.type = 'binned_range'
-  channel.name = channel_name
-  channel.pdf = channel_pdf
 
-  channel_obs = mconfig.GetObservables().selectCommon(channel_pdf.getVariables())
+  channel_obs = mconfig.GetObservables().selectCommon(channel.pdf.getVariables())
   if channel_obs.getSize() == 0 :
     raise ValueError('Cannot identify observables for channel %s.')
   if channel_obs.getSize() > 1 :
@@ -509,11 +511,11 @@ def make_channel(channel_name, channel_pdf, pois, aux_obs, mconfig, normpars, op
       if sample.name == options.default_sample : channel.default_sample = sample
       channel.samples.append(sample)
   else :
-    for i in range(0, channel_pdf.pdfList().getSize()) :
+    for i in range(0, channel.pdf.pdfList().getSize()) :
       sample = WSSample()
-      sample.name = channel_pdf.pdfList().at(i).GetName()
+      sample.name = channel.pdf.pdfList().at(i).GetName()
       sample.normpar = None
-      normvar = channel_pdf.coefList().at(i)
+      normvar = channel.pdf.coefList().at(i)
       if isinstance(normvar, ROOT.RooRealVar) :
         sample.normpar = normvar
       else :
@@ -615,7 +617,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
       else :
         print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
     for p, par in enumerate(nuis_pars) :
-      sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d" % (channel.name, channel_index + 1, nchannels, i+1, nbins, p, len(nuis_pars)))
+      sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d [%30s]" % (channel.name, channel_index + 1, nchannels, i+1, nbins, p, len(nuis_pars), par.name[:30]))
       sys.stderr.flush()
       delta = par.error*options.epsilon
       for sample in channel.samples : sample.impacts[par.name].append({})
