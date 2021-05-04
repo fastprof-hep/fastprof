@@ -946,7 +946,8 @@ class Sample(JSONSerializable) :
     if par is None and len(self.impacts) > 0 : par = list(self.impacts.keys())[0]
     if not par in self.impacts : raise KeyError("No impact defined in sample '%s' for parameter '%s'." % (self.name, par))
     if len(self.impacts[par]) == 0 : return []
-    return [ +1 if var == 'pos' else -1 if var == 'neg' else float(var) for var in self.impacts[par][0].keys() ]
+    prototype = self.impacts[par][0] if isinstance(self.impacts[par], list) else self.impacts[par]
+    return [ +1 if var == 'pos' else -1 if var == 'neg' else float(var) for var in prototype.keys() ]
 
   def impact(self, par : str, variation : float = +1, normalize : bool = False) -> np.array :
     """provides the relative variations of the per-bin event yields for a given NP
@@ -961,17 +962,20 @@ class Sample(JSONSerializable) :
     if not par in self.impacts : 
       raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
     imp = None
-    try:
-      imp = np.array([ imp['%+g' % variation] for imp in self.impacts[par] ], dtype=float)
-    except Exception as inst:
-      # Legacy naming scheme
-      if (variation == 1 or variation == -1) :
-        which = 'pos' if variation == 1 else 'neg'
-        try:
-          imp = np.array([ imp[which] for imp in self.impacts[par] ], dtype=float)
-        except Exception as inst:
-          print('Impact lookup failed for sample %s, parameter %s, variation %+g' % (self.name, par, variation))
-          raise(inst)
+    if isinstance(self.impacts[par], list) :
+      try:
+        imp = np.array([ imp['%+g' % variation] for imp in self.impacts[par] ], dtype=float)
+      except Exception as inst:
+        # Legacy naming scheme
+        if (variation == 1 or variation == -1) :
+          which = 'pos' if variation == 1 else 'neg'
+          try:
+            imp = np.array([ imp[which] for imp in self.impacts[par] ], dtype=float)
+          except Exception as inst:
+            print('Impact lookup failed for sample %s, parameter %s, variation %+g' % (self.name, par, variation))
+            raise(inst)
+    if isinstance(self.impacts[par], dict) :
+      imp = np.array([ self.impacts[par]['%+g' % variation] ] * len(self.nominal_yields), dtype=float)
     if imp is None : return imp
     return (1 + imp)**(1/variation) - 1 if normalize else imp
 

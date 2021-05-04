@@ -86,6 +86,7 @@ def make_parser() :
   parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
   parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
   parser.add_argument(      "--digits"           , type=int  , default=7        , help="Number of significant digits in float values")
+  parser.add_argument("-t", "--packing-tolerance", type=float, default=None     , help="Level of precision for considering two impact values to be equal")
   parser.add_argument("-l", "--validation-output", type=str  , default=None     , help="Name of output file for validation data")
   parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
   return parser
@@ -337,6 +338,13 @@ def run(argv = None) :
     # Fill the channel information
     for i, channel in enumerate(channels) :
       fill_channel_yields(channel, i, len(channels), bins, nuis_pars, variations, options, validation_points)
+
+    if options.packing_tolerance is not None :
+      for channel in channels :
+        for sample in channel.samples :
+          for par_name in sample.impacts :
+            sample.impacts[par_name] = pack(sample.impacts[par_name], options.packing_tolerance, options.digits)
+
 
   # 8 - Fill model JSON
   # --------------------------------
@@ -632,7 +640,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
         fill_yields(channel, 'var')
         par.obj.setVal(par.nominal)
         for sample in channel.samples : 
-          sample.impact = trim_float((sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1, options.digits) if sample.yields['nominal'] != 0 else 0
+          sample.impact = (sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1 if sample.yields['nominal'] != 0 else 0
           sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
           print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
       if options.validation_output is not None :
@@ -648,5 +656,25 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
   set_normpars(channel)
   sys.stderr.write('\n')
 
+# Check if all the impacts are the same (within tolerance), if so return the average
+def pack(impacts, tolerance=1E-5, num_digits=7) :
+  n = len(impacts)
+  pack_ok = True
+  if n == 0 : return []
+  average = { key : 0 for key in impacts[0] }
+  for impact in impacts :
+    for key in average : average[key] += impact[key]/n
+  for impact in impacts :
+    for key in average :
+      if abs(impact[key] - average[key]) > tolerance :
+        if num_digits is None :
+          return impacts
+        else :
+          pack_ok = False
+          impact[key] = trim_float(impact[key], num_digits)
+  if num_digits is not None :
+    for key in average :
+      average[key] = trim_float(average[key], num_digits)
+  return average if pack_ok else impacts
 
 if __name__ == '__main__' : run()
