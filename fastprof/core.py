@@ -24,14 +24,14 @@ The code is organized around the following classes:
 
   * :class:`Data` : a class storing the observed data: the observed bin yields for each channel and the auxiliary observables for each NP.
 
-  All the classes support loading from / saving to JSON files. The basic mechanism for this is implemented in the :class:`fastprof.elements.JSONSerializable` base class from which they all derive.
+  All the classes support loading from / saving to markup files. The basic mechanism for this is implemented in the :class:`fastprof.elements.Serializable` base class from which they all derive.
 """
 
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-from .elements import ModelPOI, ModelNP, ModelAux, Channel, SingleBinChannel, BinnedRangeChannel, Sample, JSONSerializable
+from .elements import ModelPOI, ModelNP, ModelAux, Channel, SingleBinChannel, BinnedRangeChannel, Sample, Serializable
 
 # -------------------------------------------------------------------------
 class Parameters :
@@ -277,7 +277,7 @@ class Parameters :
 
 
 # -------------------------------------------------------------------------
-class Model (JSONSerializable) :
+class Model (Serializable) :
   """Class representing the statistical model
 
   The class provides a description of the full statistical model, consisting
@@ -391,7 +391,7 @@ class Model (JSONSerializable) :
       attributes that are pre-computed from the primary ones to speed
       up computations later. The primary->secondary computation is
       performed by this method, which is called from both
-      :meth:`Model.__init__` and :meth:`Model.load_jdict`.
+      :meth:`Model.__init__` and :meth:`Model.load_dict`.
     """
     self.npois = len(self.pois)
     self.nnps  = len(self.nps)
@@ -830,52 +830,52 @@ class Model (JSONSerializable) :
 
   @staticmethod
   def create(filename : str, verbosity = 0) -> 'Model' :
-    """Shortcut method to instantiate a model from a JSON file
+    """Shortcut method to instantiate a model from a markup file
 
       Same behavior as creating a default model and loading from the file,
       rolled into a single command
 
       Args:
-         filename : name of a JSON file containing the model definition
+         filename : name of a markup file containing the model definition
       Returns:
          The created model
     """
     return Model(verbosity=verbosity).load(filename)
 
-  def load_jdict(self, jdict : dict) -> 'Model' :
-    """Load object information from a dictionary of JSON data
+  def load_dict(self, sdict : dict) -> 'Model' :
+    """Load object information from a dictionary of markup data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         self
     """
-    self.name = self.load_field('name', jdict, '', str)
-    if not 'model'    in jdict : raise KeyError("No 'model' section in specified JSON file")
-    if not 'POIs'     in jdict['model'] : raise KeyError("No 'POIs' section in specified JSON file")
-    if not 'channels' in jdict['model'] : raise KeyError("No 'channels' section in specified JSON file")
+    self.name = self.load_field('name', sdict, '', str)
+    if not 'model'    in sdict : raise KeyError("No 'model' section in specified markup file")
+    if not 'POIs'     in sdict['model'] : raise KeyError("No 'POIs' section in specified markup file")
+    if not 'channels' in sdict['model'] : raise KeyError("No 'channels' section in specified markup file")
     if self.verbosity > 0 : print('Loading parameters')
     self.pois = {}
-    for json_poi in jdict['model']['POIs'] :
+    for dict_poi in sdict['model']['POIs'] :
       poi = ModelPOI()
-      poi.load_jdict(json_poi)
+      poi.load_dict(dict_poi)
       if poi.name in self.pois :
         raise ValueError('ERROR: multiple POIs defined with the same name (%s)' % poi.name)
       self.pois[poi.name] = poi
     self.aux_obs = {}
-    if 'aux_obs' in jdict['model'] :
-      for json_aux in jdict['model']['aux_obs'] :
+    if 'aux_obs' in sdict['model'] :
+      for dict_aux in sdict['model']['aux_obs'] :
         par = ModelAux()
-        par.load_jdict(json_aux)
+        par.load_dict(dict_aux)
         if par.name in self.aux_obs :
           raise ValueError('ERROR: multiple auxiliary observables defined with the same name (%s)' % par.name)
         self.aux_obs[par.name] = par
     self.nps = {}
-    if 'NPs' in jdict['model'] :
-      for json_np in jdict['model']['NPs'] :
+    if 'NPs' in sdict['model'] :
+      for dict_np in sdict['model']['NPs'] :
         par = ModelNP()
-        par.load_jdict(json_np)
+        par.load_dict(dict_np)
         if par.aux_obs is not None and not par.aux_obs in self.aux_obs :
           self.aux_obs[par.aux_obs] = ModelAux(name=par.aux_obs, unit=par.unit)
         if par.name in self.nps :
@@ -883,31 +883,34 @@ class Model (JSONSerializable) :
         self.nps[par.name] = par
     self.channels = {}
     if self.verbosity > 0 : print('Loading channels')
-    for json_channel in jdict['model']['channels'] :
-      if not 'type' in json_channel or json_channel['type'] == SingleBinChannel.type_str :
+    for dict_channel in sdict['model']['channels'] :
+      if not 'type' in dict_channel or dict_channel['type'] == SingleBinChannel.type_str :
         channel = SingleBinChannel()
-      elif json_channel['type'] == BinnedRangeChannel.type_str :
+      elif dict_channel['type'] == BinnedRangeChannel.type_str :
         channel = BinnedRangeChannel()
-      channel.load_jdict(json_channel)
+      channel.load_dict(dict_channel)
       if channel.name in self.channels :
         raise ValueError('ERROR: multiple channels defined with the same name (%s)' % channel.name)
       self.channels[channel.name] = channel
     self.set_internal_vars()
     return self
 
-  def fill_jdict(self, jdict : dict) :
-    """Save information to a dictionary of JSON data
+  def fill_dict(self, sdict : dict) :
+    """Save information to a dictionary of markup data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
-    jdict['model'] = {}
-    jdict['model']['name'] = self.name
-    jdict['model']['channels'] = []
-    for poi in self.pois    : jdict['model']['POIs']   .append(poi.dump_jdict())
-    for aux in self.aux_obs : jdict['model']['aux_obs'].append(aux.dump_jdict())
-    for par in self.nps     : jdict['model']['NPs']    .append(par.dump_jdict())
-    for channel in self.channels : jdict['model']['channels'].append(channel.dump_jdict())
+    sdict['model'] = {}
+    sdict['model']['name'] = self.name
+    sdict['model']['POIs'] = []
+    sdict['model']['NPs'] = []
+    sdict['model']['aux_obs'] = []
+    sdict['model']['channels'] = []
+    for poi in self.pois.values()    : sdict['model']['POIs']   .append(poi.dump_dict())
+    for par in self.nps.values()     : sdict['model']['NPs']    .append(par.dump_dict())
+    for aux in self.aux_obs.values() : sdict['model']['aux_obs'].append(aux.dump_dict())
+    for channel in self.channels.values() : sdict['model']['channels'].append(channel.dump_dict())
 
   def __str__(self) -> str :
     """Provides a description string
@@ -925,7 +928,7 @@ class Model (JSONSerializable) :
 
 
 # -------------------------------------------------------------------------
-class Data (JSONSerializable) :
+class Data (Serializable) :
   """Class representing a set of observed data
 
   Stores a complete dataset:
@@ -1014,27 +1017,27 @@ class Data (JSONSerializable) :
     self.set_aux_obs(aux_obs)
     return self
 
-  def load_jdict(self, jdict : dict) -> 'Data' :
-    """Load object information from a dictionary of JSON data
+  def load_dict(self, sdict : dict) -> 'Data' :
+    """Load object information from a dictionary of markup data
 
       Args:
-        jdict : A dictionary containing JSON data
+        sdict : A dictionary containing markup data
 
       Returns:
         self
     """
-    if not 'data' in jdict : raise KeyError("No 'data' section in specified JSON file")
-    if not 'channels' in jdict['data'] : raise KeyError("No 'channels' section in specified JSON file")
+    if not 'data' in sdict : raise KeyError("No 'data' section in specified markup file")
+    if not 'channels' in sdict['data'] : raise KeyError("No 'channels' section in specified markup file")
     for model_channel in self.model.channels.values() :
       name = model_channel.name
       try :
-        channel = next(json_channel for json_channel in jdict['data']['channels'] if json_channel['name'] == name)
+        channel = next(dict_channel for dict_channel in sdict['data']['channels'] if dict_channel['name'] == name)
       except:
-        raise ValueError("Model channel '%s' not found in specified JSON file." % name)
+        raise ValueError("Model channel '%s' not found in specified markup file." % name)
       offset = self.model.channel_offsets[name]
-      model_channel.load_data_jdict(channel, self.counts[offset:offset + model_channel.nbins()])
-    if 'aux_obs' in jdict['data'] :
-      data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in jdict['data']['aux_obs'] }
+      model_channel.load_data_dict(channel, self.counts[offset:offset + model_channel.nbins()])
+    if 'aux_obs' in sdict['data'] :
+      data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in sdict['data']['aux_obs'] }
     else :
       data_aux_obs = {}
     aux_obs_values = []
@@ -1047,24 +1050,24 @@ class Data (JSONSerializable) :
     self.set_aux_obs(np.array(aux_obs_values, dtype=float))
     return self
 
-  def fill_jdict(self, jdict : dict) :
-    """Save information to a dictionary of JSON data
+  def fill_dict(self, sdict : dict) :
+    """Save information to a dictionary of markup data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
-    jdict['data'] = {}
-    jdict['data']['channels'] = []
+    sdict['data'] = {}
+    sdict['data']['channels'] = []
     for channel_name, channel in self.model.channels.items() :
       channel_data = {}
       offset = self.model.channel_offsets[channel_name]
-      channel.save_data_jdict(channel_data, self.counts[offset:offset + channel.nbins()])
-      jdict['data']['channels'].append(channel_data)
-    jdict['data']['aux_obs'] = []
+      channel.save_data_dict(channel_data, self.counts[offset:offset + channel.nbins()])
+      sdict['data']['channels'].append(channel_data)
+    sdict['data']['aux_obs'] = []
     for p, par in enumerate(self.model.nps.values()) :
       if par.aux_obs is None : continue
       aux_data = { 'name' : par.aux_obs, 'value' : par.unscaled_value(self.aux_obs[p]) }
-      jdict['data']['aux_obs'].append(aux_data)
+      sdict['data']['aux_obs'].append(aux_data)
 
   def __str__(self) -> str :
     """Provides a description string

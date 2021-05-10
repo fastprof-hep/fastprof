@@ -31,12 +31,13 @@ import numpy as np
 from abc import abstractmethod
 import re
 
-from .core import Model, Data, Parameters, JSONSerializable, ModelPOI
+from .elements import Serializable
+from .core import Model, Data, Parameters, ModelPOI
 from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
 from .test_statistics import TMu, QMu, QMuTilda
 
 
-class FitResult(JSONSerializable) :
+class FitResult(Serializable) :
   """Class describing the result of a ML fit
 
   Attributes:
@@ -126,7 +127,7 @@ class FitResult(JSONSerializable) :
     return  "  Fit '%s' : nll = %g, pars :\n%s" % (self.name, self.nll, str(self.pars()))
 
 
-class PLRData(JSONSerializable) :
+class PLRData(Serializable) :
   """Class storing the information relative to a PLR-based hypothesis test
 
   The information consists of the hypothesis under test, the results of
@@ -258,7 +259,7 @@ class PLRData(JSONSerializable) :
     return s
 
 
-class Raster(JSONSerializable) :
+class Raster(Serializable) :
   """Class describing PLR test results over multiple hypotheses
 
   Attributes:

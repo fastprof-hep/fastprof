@@ -10,7 +10,7 @@
 
   * :class:`Sample` objects, each defining a contribution to a channel.
 
-  All the classes support loading from / saving to JSON files. The basic mechanism for this is implemented in the :class:`JSONSerializable` base class from which they all derive.
+  All the classes support loading from / saving to JSON files. The basic mechanism for this is implemented in the :class:`Serializable` base class from which they all derive.
 """
 
 import numpy as np
@@ -18,7 +18,7 @@ import json
 from abc import abstractmethod
 
 # -------------------------------------------------------------------------
-class JSONSerializable :
+class Serializable :
   """An abstract base class for objects that load from / save to a JSON filename
 
   The class implements
@@ -27,8 +27,8 @@ class JSONSerializable :
 
   * load_json() and save_json() with JSON object arguments.
 
-  Both sets are implemented in terms of the abstract methods load_jdict() and
-  fill_jdict(), which operate on dictionaries and should be implemented
+  Both sets are implemented in terms of the abstract methods load_dict() and
+  fill_dict(), which operate on dictionaries and should be implemented
   in the derived classes.
   """
 
@@ -42,11 +42,11 @@ class JSONSerializable :
         filename: name of the file to load from
 
       Returns:
-        JSONSerializable: self
+        Serializable: self
     """
     with open(filename, 'r') as fd :
-      jdict = json.load(fd)
-      return self.load_jdict(jdict)
+      sdict = json.load(fd)
+      return self.load_dict(sdict)
 
   def save(self, filename) :
     """Save the object to a JSON file
@@ -55,11 +55,11 @@ class JSONSerializable :
         filename: name of the file to load from
 
       Returns:
-        JSONSerializable: self
+        Serializable: self
     """
     with open(filename, 'w') as fd :
-      jdict = self.dump_jdict()
-      return json.dump(jdict, fd, ensure_ascii=True, indent=3)
+      sdict = self.dump_dict()
+      return json.dump(sdict, fd, ensure_ascii=True, indent=3)
 
   def load_json(self, js : str) :
     """Load the object from a JSON string
@@ -68,10 +68,10 @@ class JSONSerializable :
         js: JSON data to load, in string format
 
       Returns:
-        JSONSerializable: self
+        Serializable: self
     """
-    jdict = json.loads(js)
-    return self.load_jdict(jdict)
+    sdict = json.loads(js)
+    return self.load_dict(sdict)
 
   def dump_json(self) -> str :
     """Dumps the object as a JSON string
@@ -79,18 +79,18 @@ class JSONSerializable :
       Returns:
         str: the JSON string encoding the object contents
     """
-    jdict = self.dump_jdict(jdict)
-    return json.dumps(jdict)
+    sdict = self.dump_dict(sdict)
+    return json.dumps(sdict)
 
-  def dump_jdict(self) :
+  def dump_dict(self) :
     """Dumps the object as a dictionary of JSON data
 
       Returns:
         dict: dictionary with the object contents
     """
-    jdict = {}
-    self.fill_jdict(jdict)
-    return jdict
+    sdict = {}
+    self.fill_dict(sdict)
+    return sdict
 
   def load_field(self, key : str, dic : dict, default = None, types : list = []) :
     """Load an field from a dictionary of JSON data
@@ -117,11 +117,11 @@ class JSONSerializable :
     return val
 
   @abstractmethod
-  def load_jdict(self, jdict: dict) -> 'JSONSerializable' :
+  def load_dict(self, sdict: dict) -> 'Serializable' :
     """Abstract method to load information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         self
@@ -129,11 +129,11 @@ class JSONSerializable :
     return self
 
   @abstractmethod
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Abstract method to save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
 
       Returns:
          None
@@ -142,11 +142,11 @@ class JSONSerializable :
 
 
 # -------------------------------------------------------------------------
-class ModelPOI(JSONSerializable) :
+class ModelPOI(Serializable) :
   """Class representing a POI of the model
 
   Stores the information relevant for POIs (see attributes),
-  implements JSON loading/saving through JSONSerializable
+  implements JSON loading/saving through Serializable
   base class.
 
   Attributes:
@@ -195,46 +195,46 @@ class ModelPOI(JSONSerializable) :
     if self.initial_value is not None : s += ' init = %g' % self.initial_value
     return s
 
-  def load_jdict(self, jdict) :
+  def load_dict(self, sdict) :
     """load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         ModelPOI: self
     """
-    self.name      = self.load_field('name'     , jdict,  self.name, str)
-    self.unit      = self.load_field('unit'     , jdict,  '', str)
-    self.value     = self.load_field('value'    , jdict,  0, [int, float])
-    self.error     = self.load_field('error'    , jdict,  0, [int, float])
-    self.min_value = self.load_field('min_value', jdict,  0, [int, float])
-    self.max_value = self.load_field('max_value', jdict,  0, [int, float])
-    self.initial_value = self.load_field('initial_value', jdict, 0, [int, float])
+    self.name      = self.load_field('name'     , sdict,  self.name, str)
+    self.unit      = self.load_field('unit'     , sdict,  '', str)
+    self.value     = self.load_field('value'    , sdict,  0, [int, float])
+    self.error     = self.load_field('error'    , sdict,  0, [int, float])
+    self.min_value = self.load_field('min_value', sdict,  0, [int, float])
+    self.max_value = self.load_field('max_value', sdict,  0, [int, float])
+    self.initial_value = self.load_field('initial_value', sdict, 0, [int, float])
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['name']      = self.name
-    jdict['unit']      = self.unit
-    jdict['value']     = self.value
-    jdict['error']     = self.error
-    jdict['min_value'] = self.min_value
-    jdict['max_value'] = self.max_value
-    jdict['initial_value'] = self.max_value
+    sdict['name']      = self.name
+    sdict['unit']      = self.unit
+    sdict['value']     = self.value
+    sdict['error']     = self.error
+    sdict['min_value'] = self.min_value
+    sdict['max_value'] = self.max_value
+    sdict['initial_value'] = self.max_value
 
 
 # -------------------------------------------------------------------------
-class ModelAux(JSONSerializable) :
+class ModelAux(Serializable) :
   """Class representing an auxiliary observable of the model
 
   Stores the information relevant for the auxiliary observables
   that provide a constraint on some model NPs (see attributes).
-  Implements JSON loading/saving through JSONSerializable
+  Implements JSON loading/saving through Serializable
   base class.
 
   Attributes:
@@ -260,39 +260,39 @@ class ModelAux(JSONSerializable) :
       s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
     return s
 
-  def load_jdict(self, jdict) :
+  def load_dict(self, sdict) :
     """load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         ModelAux: self
     """
-    self.name = self.load_field('name', jdict, '', str)
-    self.unit = self.load_field('unit', jdict, '', str)
-    self.min_value = self.load_field('min_value', jdict, None, [int, float])
-    self.max_value = self.load_field('max_value', jdict, None, [int, float])
+    self.name = self.load_field('name', sdict, '', str)
+    self.unit = self.load_field('unit', sdict, '', str)
+    self.min_value = self.load_field('min_value', sdict, None, [int, float])
+    self.max_value = self.load_field('max_value', sdict, None, [int, float])
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['name'] = self.name
-    jdict['unit'] = self.unit
-    jdict['min_value'] = self.min_value
-    jdict['max_value'] = self.max_value
+    sdict['name'] = self.name
+    sdict['unit'] = self.unit
+    sdict['min_value'] = self.min_value
+    sdict['max_value'] = self.max_value
 
 
 # -------------------------------------------------------------------------
-class ModelNP(JSONSerializable) :
+class ModelNP(Serializable) :
   """Class representing a NP of the model
 
   Stores the information relevant for NPs (see attributes),
-  implements JSON loading/saving through JSONSerializable
+  implements JSON loading/saving through Serializable
   base class.
 
   The NPs have two representations:
@@ -393,43 +393,43 @@ class ModelNP(JSONSerializable) :
     s += 'constraint = %g' % self.constraint if self.constraint is not None else 'free parameter'
     return s
 
-  def load_jdict(self, jdict) :
+  def load_dict(self, sdict) :
     """load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         ModelNP: self
     """
-    self.name = self.load_field('name', jdict, '', str)
-    self.unit = self.load_field('unit', jdict, '', str)
-    self.nominal_value = self.load_field('nominal_value', jdict, None, [int, float])
-    self.variation = self.load_field('variation', jdict, None, [int, float])
-    self.constraint = self.load_field('constraint', jdict, None)
+    self.name = self.load_field('name', sdict, '', str)
+    self.unit = self.load_field('unit', sdict, '', str)
+    self.nominal_value = self.load_field('nominal_value', sdict, None, [int, float])
+    self.variation = self.load_field('variation', sdict, None, [int, float])
+    self.constraint = self.load_field('constraint', sdict, None)
     if self.constraint is not None :
       if self.variation is None : self.variation = float(self.constraint)
-      self.aux_obs = self.load_field('aux_obs', jdict, '', str)
+      self.aux_obs = self.load_field('aux_obs', sdict, '', str)
     else :
       self.aux_obs = None
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['name'] = self.name
-    jdict['unit'] = self.unit
-    jdict['nominal_value'] = self.nominal_value
-    jdict['variation'] = self.variation
-    jdict['constraint'] = self.constraint
-    jdict['aux_obs'] = self.aux_obs
+    sdict['name'] = self.name
+    sdict['unit'] = self.unit
+    sdict['nominal_value'] = self.nominal_value
+    sdict['variation'] = self.variation
+    sdict['constraint'] = self.constraint
+    sdict['aux_obs'] = self.aux_obs
 
 
 # -------------------------------------------------------------------------
-class Norm(JSONSerializable) :
+class Norm(Serializable) :
   """Class representing the normalization term of a sample
   
   This is the base class for other types of normalization, and
@@ -484,7 +484,7 @@ class Norm(JSONSerializable) :
 
 
 # -------------------------------------------------------------------------
-class NumberNorm(JSONSerializable) :
+class NumberNorm(Serializable) :
   """Class representing the normalization term of a sample as a float
 
   Attributes:
@@ -524,31 +524,31 @@ class NumberNorm(JSONSerializable) :
     """
     return {}
 
-  def load_jdict(self, jdict) -> 'NumberNorm' :
+  def load_dict(self, sdict) -> 'NumberNorm' :
     """Load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         self
     """
-    if 'norm_type' in jdict and jdict['norm_type'] != NumberNorm.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], NumberNorm.type_str))
-    self.norm_value = self.load_field('norm', jdict, '', [float, str])
+    if 'norm_type' in sdict and sdict['norm_type'] != NumberNorm.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['norm_type'], NumberNorm.type_str))
+    self.norm_value = self.load_field('norm', sdict, '', [float, str])
     if self.norm_value == '' : self.norm_value = 1
     if isinstance(self.norm_value, str) :
-      raise ValueError("Normalization data for type '%s' is the string '%s', not supported for numerical norms." % (jdict['norm_type'], self.norm_value))
+      raise ValueError("Normalization data for type '%s' is the string '%s', not supported for numerical norms." % (sdict['norm_type'], self.norm_value))
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['norm_type'] = NumberNorm.type_str
-    jdict['norm'] = self.norm_value
+    sdict['norm_type'] = NumberNorm.type_str
+    sdict['norm'] = self.norm_value
 
   def __str__(self) -> str :
     """Provides a description string
@@ -560,7 +560,7 @@ class NumberNorm(JSONSerializable) :
 
 
 # -------------------------------------------------------------------------
-class ParameterNorm(JSONSerializable) :
+class ParameterNorm(Serializable) :
   """Class representing the normalization term of a sample as the
   value of a single parameter
 
@@ -619,28 +619,28 @@ class ParameterNorm(JSONSerializable) :
     """
     return { self.par_name : 1 }
 
-  def load_jdict(self, jdict) -> 'ParameterNorm' :
+  def load_dict(self, sdict) -> 'ParameterNorm' :
     """Load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         self
     """
-    if 'norm_type' in jdict and jdict['norm_type'] != ParameterNorm.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], ParameterNorm.type_str))
-    self.par_name = self.load_field('norm', jdict, '', str)
+    if 'norm_type' in sdict and sdict['norm_type'] != ParameterNorm.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['norm_type'], ParameterNorm.type_str))
+    self.par_name = self.load_field('norm', sdict, '', str)
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['norm_type'] = ParameterNorm.type_str
-    jdict['norm'] = self.par_name
+    sdict['norm_type'] = ParameterNorm.type_str
+    sdict['norm'] = self.par_name
 
   def __str__(self) -> str :
     """Provides a description string
@@ -652,7 +652,7 @@ class ParameterNorm(JSONSerializable) :
 
 
 # -------------------------------------------------------------------------
-class LinearCombNorm(JSONSerializable) :
+class LinearCombNorm(Serializable) :
   """Class representing the normalization term of a sample as the
   linear combination of parameter values
 
@@ -716,28 +716,28 @@ class LinearCombNorm(JSONSerializable) :
     """
     return { par_name : self.pars_coeffs[par_name] for par_name in self.pars_coeffs }
 
-  def load_jdict(self, jdict) -> 'LinearCombNorm' :
+  def load_dict(self, sdict) -> 'LinearCombNorm' :
     """Load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         self
     """
-    if 'norm_type' in jdict and jdict['norm_type'] != LinearCombNorm.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], LinearCombNorm.type_str))
-    self.pars_coeffs = self.load_field('norm', jdict, {}, dict)
+    if 'norm_type' in sdict and sdict['norm_type'] != LinearCombNorm.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['norm_type'], LinearCombNorm.type_str))
+    self.pars_coeffs = self.load_field('norm', sdict, {}, dict)
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['norm_type'] = LinearCombNorm.type_str
-    jdict['norm'] = self.pars_coeffs
+    sdict['norm_type'] = LinearCombNorm.type_str
+    sdict['norm'] = self.pars_coeffs
 
   def __str__(self) -> str :
     """Provides a description string
@@ -749,7 +749,7 @@ class LinearCombNorm(JSONSerializable) :
 
 
 # -------------------------------------------------------------------------
-class FormulaNorm(JSONSerializable) :
+class FormulaNorm(Serializable) :
   """Class representing the normalization term of a sample
      as a formula expression.
 
@@ -793,28 +793,28 @@ class FormulaNorm(JSONSerializable) :
       print("Error while evaluating the normalization '%s' of sample '%s'." % (self.formula, self.name))
       raise(inst)
 
-  def load_jdict(self, jdict) -> 'FormulaNorm' :
+  def load_dict(self, sdict) -> 'FormulaNorm' :
     """Load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         self
     """
-    if jdict['norm_type'] != FormulaNorm.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (jdict['norm_type'], FormulaNorm.type_str))
-    self.formula = self.load_field('norm', jdict, '', str)
+    if sdict['norm_type'] != FormulaNorm.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['norm_type'], FormulaNorm.type_str))
+    self.formula = self.load_field('norm', sdict, '', str)
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['norm_type'] = FormulaNorm.type_str
-    jdict['norm'] = self.formula
+    sdict['norm_type'] = FormulaNorm.type_str
+    sdict['norm'] = self.formula
 
   def __str__(self) -> str :
     """Provides a description string
@@ -826,7 +826,7 @@ class FormulaNorm(JSONSerializable) :
 
 
 # -------------------------------------------------------------------------
-class Sample(JSONSerializable) :
+class Sample(Serializable) :
   """Class representing a model sample
 
   Provides the functionality for HistFactory sample structures,
@@ -1065,26 +1065,26 @@ class Sample(JSONSerializable) :
     s = "Sample '%s', norm = %s (nominal = %s)" % (self.name, str(self.norm), str(self.nominal_norm))
     return s
 
-  def load_jdict(self, jdict) -> 'Sample' :
+  def load_dict(self, sdict) -> 'Sample' :
     """Load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         self
     """
-    self.name = self.load_field('name', jdict, '', str)
-    norm_type = self.load_field('norm_type', jdict, '', str)
+    self.name = self.load_field('name', sdict, '', str)
+    norm_type = self.load_field('norm_type', sdict, '', str)
     # Automatic typecasting: either NumberNorm or ParameterNorm,
     # depending if the 'norm' parameter represents a float
     if norm_type == '' :
-      norm = self.load_field('norm', jdict, None, str)
+      norm = self.load_field('norm', sdict, None, str)
       if norm == '' :
         norm_type = NumberNorm.type_str
       else :
         try:
-          norm = self.load_field('norm', jdict, None, float)
+          norm = self.load_field('norm', sdict, None, float)
           norm_type = NumberNorm.type_str
         except:
           norm_type = ParameterNorm.type_str
@@ -1094,27 +1094,27 @@ class Sample(JSONSerializable) :
       self.norm = ParameterNorm()
     elif norm_type == FormulaNorm.type_str :
       self.norm = FormulaNorm()
-    self.norm.load_jdict(jdict)
-    self.nominal_norm = self.load_field('nominal_norm', jdict, None, [float, int])
-    self.nominal_yields = self.load_field('nominal_yields', jdict, None, list)
-    self.impacts = self.load_field('impacts', jdict, {}, dict)
+    self.norm.load_dict(sdict)
+    self.nominal_norm = self.load_field('nominal_norm', sdict, None, [float, int])
+    self.nominal_yields = self.load_field('nominal_yields', sdict, None, list)
+    self.impacts = self.load_field('impacts', sdict, {}, dict)
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['name'] = self.name
-    self.norm.fill_jdict(jdict)
-    jdict['nominal_norm'] = self.nominal_norm
-    jdict['nominal_yields'] = self.nominal_yields
-    jdict['impacts'] = self.impacts
+    sdict['name'] = self.name
+    self.norm.fill_dict(sdict)
+    sdict['nominal_norm'] = self.nominal_norm
+    sdict['nominal_yields'] = list(self.nominal_yields)
+    sdict['impacts'] = self.impacts
 
 
 # -------------------------------------------------------------------------
-class Channel(JSONSerializable) :
+class Channel(Serializable) :
   """Class representing a model channel
 
   Provides the functionality for HistFactory channel structures,
@@ -1182,33 +1182,33 @@ class Channel(JSONSerializable) :
     for sample in self.samples.values() : s += '\n    o ' + str(sample)
     return s
 
-  def load_jdict(self, jdict : dict) -> 'Channel' :
+  def load_dict(self, sdict : dict) -> 'Channel' :
     """Load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         self
     """
-    self.name = jdict['name']
-    for json_sample in jdict['samples'] :
+    self.name = sdict['name']
+    for dict_sample in sdict['samples'] :
       sample = Sample()
-      sample.load_jdict(json_sample)
+      sample.load_dict(dict_sample)
       self.samples[sample.name] = sample
     return self
 
-  def fill_jdict(self, jdict : dict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    jdict['name'] = self.name
-    jdict['samples'] = []
-    for sample in self.samples : jdict['samples'].append(sample.dump_jdict())
+    sdict['name'] = self.name
+    sdict['samples'] = []
+    for sample in self.samples.values() : sdict['samples'].append(sample.dump_dict())
 
-  def load_data_jdict(self, jdict : dict, counts : np.array) :
+  def load_data_dict(self, sdict : dict, counts : np.array) :
     """Load observed data information from JSON
           raise KeyError("Data channel definition must contain a 'type' field")
 
@@ -1217,15 +1217,15 @@ class Channel(JSONSerializable) :
     array of event counts
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
         counts : the array of data counts to fill
     """
-    if not 'name' in jdict :
+    if not 'name' in sdict :
       raise KeyError("Data channel definition must contain a 'name' field")
-    if jdict['name'] != self.name :
-      raise ValueError("Cannot load channel data defined for channel '%s' into channel '%s'" % (jdict['name'], self.name))
+    if sdict['name'] != self.name :
+      raise ValueError("Cannot load channel data defined for channel '%s' into channel '%s'" % (sdict['name'], self.name))
     
-  def save_data_jdict(self, jdict : dict, counts : np.array) :
+  def save_data_dict(self, sdict : dict, counts : np.array) :
     """Save observed data information from JSON
     
     Utility function called from :class:`fastprof.Data` to write
@@ -1233,10 +1233,10 @@ class Channel(JSONSerializable) :
     appropriate format
 
     Args:
-      jdict  : A dictionary to fill with JSON data
+      sdict  : A dictionary to fill with JSON data
       counts : an array of data counts to read from
     """
-    jdict['name'] = self.name
+    sdict['name'] = self.name
     if len(counts) != self.nbins() :
       raise ValueError("Cannot save channel data counts of length %d for channel '%s' with %d bins" % (len(counts), self.name, self.nbins()))
 
@@ -1275,35 +1275,35 @@ class BinnedRangeChannel(Channel) :
     """
     return len(self.bins)
 
-  def load_jdict(self, jdict : dict) :
+  def load_dict(self, sdict : dict) :
     """Load object information from a dictionary of JSON data
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
 
       Returns:
         Channel: self
     """
-    super().load_jdict(jdict)
-    if jdict['type'] != BinnedRangeChannel.type_str :
-      raise ValueError("Trying to load a BinnedRangeChannel from channel data of type '%s'" % jdict['type'])
-    self.bins = jdict['bins']
-    self.obs_name = self.load_field('obs_name', jdict, '', str)
-    self.obs_unit = self.load_field('obs_unit', jdict, '', str)
+    super().load_dict(sdict)
+    if sdict['type'] != BinnedRangeChannel.type_str :
+      raise ValueError("Trying to load a BinnedRangeChannel from channel data of type '%s'" % sdict['type'])
+    self.bins = sdict['bins']
+    self.obs_name = self.load_field('obs_name', sdict, '', str)
+    self.obs_unit = self.load_field('obs_unit', sdict, '', str)
     return self
 
-  def fill_jdict(self, jdict) :
+  def fill_dict(self, sdict) :
     """Save information to a dictionary of JSON data
 
       Args:
-         jdict: A dictionary containing JSON data
+         sdict: A dictionary containing JSON data
     """
-    super().fill_jdict(jdict)
-    jdict['bins'] = self.bins
-    jdict['obs_name'] = self.obs_name
-    jdict['obs_unit'] = self.obs_unit
+    super().fill_dict(sdict)
+    sdict['bins'] = self.bins
+    sdict['obs_name'] = self.obs_name
+    sdict['obs_unit'] = self.obs_unit
 
-  def load_data_jdict(self, jdict : dict, counts : np.array) :
+  def load_data_dict(self, sdict : dict, counts : np.array) :
     """Load observed data information from JSON
     
     Utility function called from :class:`fastprof.Data` to parse
@@ -1311,23 +1311,23 @@ class BinnedRangeChannel(Channel) :
     array of event counts
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
         counts : the array of data counts to fill
     """
-    super().load_data_jdict(jdict, counts)
-    if not 'name' in jdict :
+    super().load_data_dict(sdict, counts)
+    if not 'name' in sdict :
       raise KeyError("Data channel definition must contain a 'name' field")
-    if not 'bins' in jdict :
+    if not 'bins' in sdict :
       raise KeyError("No 'bins' section defined for data channel '%s' in specified JSON file." % self.name)
-    if len(jdict['bins']) != self.nbins() :
+    if len(sdict['bins']) != self.nbins() :
       raise ValueError("Binned range channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), self.nbins()))
-    for b, bin_data in enumerate(jdict['bins']) :
+    for b, bin_data in enumerate(sdict['bins']) :
       if bin_data['lo_edge'] != self.bins[b]['lo_edge'] or bin_data['hi_edge'] != self.bins[b]['hi_edge'] :
         raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." %
                          (b, self.name, bin_data['lo_edge'], bin_data['hi_edge'], self.bins[b]['lo_edge'], self.bins[b]['hi_edge']))
       counts[b] = bin_data['counts']
 
-  def save_data_jdict(self, jdict : dict, counts : np.array) :
+  def save_data_dict(self, sdict : dict, counts : np.array) :
     """Save observed data information from JSON
     
     Utility function called from :class:`fastprof.Data` to write
@@ -1335,20 +1335,20 @@ class BinnedRangeChannel(Channel) :
     appropriate format
 
     Args:
-      jdict  : A dictionary to fill with JSON data
+      sdict  : A dictionary to fill with JSON data
       counts : an array of data counts to read from
     """
-    super().save_data_jdict(jdict, counts)
-    jdict['type'] = BinnedRangeChannel.type_str
-    jdict['obs_name'] = self.obs_name
-    jdict['obs_unit'] = self.obs_unit
-    jdict['bins'] = []
+    super().save_data_dict(sdict, counts)
+    sdict['type'] = BinnedRangeChannel.type_str
+    sdict['obs_name'] = self.obs_name
+    sdict['obs_unit'] = self.obs_unit
+    sdict['bins'] = []
     for b, bin_spec in enumerate(self.bins) :
       bin_data = {}
       bin_data['lo_edge'] = bin_spec['lo_edge']
       bin_data['hi_edge'] = bin_spec['hi_edge']
       bin_data['counts'] = int(counts[b])
-      jdict['bins'].append(bin_data)
+      sdict['bins'].append(bin_data)
 
 
 # -------------------------------------------------------------------------
@@ -1380,7 +1380,7 @@ class SingleBinChannel(Channel) :
     """
     return 1
 
-  def load_data_jdict(self, jdict : dict, counts : np.array) :
+  def load_data_dict(self, sdict : dict, counts : np.array) :
     """Load observed data information from JSON
     
     Utility function called from :class:`fastprof.Data` to parse
@@ -1388,17 +1388,17 @@ class SingleBinChannel(Channel) :
     array of event counts
 
       Args:
-        jdict: A dictionary containing JSON data
+        sdict: A dictionary containing JSON data
         counts : the array of data counts to fill
     """
-    super().load_data_jdict(jdict, counts)
-    if 'type' in jdict and jdict['type'] != SingleBinChannel.type_str :
-      raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (jdict['type'], SingleBinChannel.type_str))
-    if not 'counts' in jdict :
+    super().load_data_dict(sdict, counts)
+    if 'type' in sdict and sdict['type'] != SingleBinChannel.type_str :
+      raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (sdict['type'], SingleBinChannel.type_str))
+    if not 'counts' in sdict :
       raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % self.name)
-    counts[0] = jdict['counts']
+    counts[0] = sdict['counts']
 
-  def save_data_jdict(self, jdict : dict, counts : np.array) :
+  def save_data_dict(self, sdict : dict, counts : np.array) :
     """Save observed data information from JSON
     
     Utility function called from :class:`fastprof.Data` to write
@@ -1406,9 +1406,9 @@ class SingleBinChannel(Channel) :
     appropriate format
 
     Args:
-      jdict  : A dictionary to fill with JSON data
+      sdict  : A dictionary to fill with JSON data
       counts : an array of data counts to read from
     """
-    super().save_data_jdict(jdict, counts)
-    jdict['type'] = SingleBinChannel.type_str
-    jdict['counts'] = int(counts[0])
+    super().save_data_dict(sdict, counts)
+    sdict['type'] = SingleBinChannel.type_str
+    sdict['counts'] = int(counts[0])
