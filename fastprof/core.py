@@ -349,7 +349,7 @@ class Model (JSONSerializable) :
 
   def __init__(self, pois : dict = {}, nps : dict = {}, aux_obs : dict = {}, channels : dict = {},
                use_asym_impacts : bool = True, use_linear_nps : bool = False, use_simple_sym_impacts : bool = True,
-               use_lognormal_terms : bool = False, variations : list = None, verbosity = 0) :
+               use_lognormal_terms : bool = False, variations : list = None, verbosity : int = 0) :
     """Initialize Model object
 
       Args:
@@ -406,7 +406,7 @@ class Model (JSONSerializable) :
       self.channel_offsets[channel.name] = self.nbins
       self.nbins += channel.nbins()
       for sample in channel.samples.values() :
-        if not sample.name in self.sample_indices :
+        if not sample.name in self.samples :
           self.samples[sample.name] = sample
           self.sample_indices[sample.name] = len(self.sample_indices)
     self.nominal_yields = np.zeros((len(self.sample_indices), self.nbins))
@@ -417,7 +417,7 @@ class Model (JSONSerializable) :
     for c, channel in enumerate(self.channels.values()) :
       if self.verbosity > 0 : print('Initializing channel %s (%d of %d)' % (channel.name, c+1, len(self.channels)))
       for sample in channel.samples.values() :
-        sample.set_np_data(self.nps.values(), variation=1)
+        sample.set_np_data(self.nps.values(), variation=1, verbosity=self.verbosity)
         start = self.channel_offsets[channel.name]
         stop  = start + channel.nbins()
         self.nominal_yields[self.sample_indices[sample.name], start:stop] = sample.nominal_yields
@@ -829,7 +829,7 @@ class Model (JSONSerializable) :
     return self.generate_asimov(self.expected_pars(pois, minimizer))
 
   @staticmethod
-  def create(filename : str, verbosity = 1) -> 'Model' :
+  def create(filename : str, verbosity = 0) -> 'Model' :
     """Shortcut method to instantiate a model from a JSON file
 
       Same behavior as creating a default model and loading from the file,

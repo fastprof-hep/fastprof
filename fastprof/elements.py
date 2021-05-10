@@ -889,7 +889,7 @@ class Sample(JSONSerializable) :
     self.pos_imps = {}
     self.neg_imps = {}
 
-  def set_np_data(self, nps : list, variation : float = 1) :
+  def set_np_data(self, nps : list, variation : float = 1, verbosity : int = 0) :
     """Post-initialization update based on model NPs
 
     The function performs a couple of updates that require passing
@@ -925,7 +925,7 @@ class Sample(JSONSerializable) :
       except Exception as inst :
         #print("Cannot fill in empty nominal_norm field for sample '%s' using the following parameter values: %s" % (self.name, str(nominal_pars)))
         #raise(inst)
-        print("Using normalization = 1 for sample '%s'." % self.name)
+        if verbosity > 0 : print("Using normalization = 1 for sample '%s'." % self.name)
         self.nominal_norm = 1
     if self.nominal_yields is None :
       self.nominal_yields = np.array([ self.nominal_norm ])
@@ -1139,17 +1139,15 @@ class Channel(JSONSerializable) :
 
   Attributes:
      name (str) : the name of the channel
-     bins (list) : a list of python dict objects defining each bin
      samples (dict) : the channel samples, as a dict mapping the sample names
         to the sample objects (see :class:`Sample`).
   """
 
-  def __init__(self, name : str = '', bins : list = []) :
+  def __init__(self, name : str = '') :
     """Initializes the Channel class
 
       Args:
          name : channel name
-         bins : list of bin defiinitions
     """
     self.name = name
     self.samples = {}
