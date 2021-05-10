@@ -1076,3 +1076,63 @@ class Data (JSONSerializable) :
     s += 'counts  = ' + str(self.counts)  + '\n'
     s += 'aux_obs = ' + str(self.aux_obs) + '\n'
     return s
+  
+  
+# -------------------------------------------------------------------------
+class Merger :
+  
+  def __init__(self, models) :
+    self.models = models
+    if len(models) == 0 :
+      raise ValueError('Merging not possible: no models specified')
+    self.target = models[0]
+    self.models = models[1:]
+
+  def check(self) :
+    for i, model in enumerate(self.models) :
+      if model.npois != self.target.npois :
+        print("Merging not possible: unexpected number of POIs for model at index %d : got %d, should be %d." % (i+1, model.npois, self.target.npois))
+        return False
+      if model.nnps != self.target.nnps :
+        print("Merging not possible: unexpected number of NPs for model at index %d : got %d, should be %d." % (i+1, model.nnps, self.target.nnps))
+        return False
+      if model.ncons != self.target.ncons :
+        print("Merging not possible: unexpected number of constrained NPs for model at index %d : got %d, should be %d." % (i+1, model.ncons, self.target.ncons))
+        return False
+      if len(model.samples) != len(self.target.samples) :
+        print("Merging not possible: unexpected number of samples for model at index %d : got %d, should be %d." % (i+1, len(model.samples), len(self.target.samples)))
+        return False
+      for par_mod, par_ref in zip(model.pois, self.target.pois) :
+        if par_mod != par_ref :
+          print("Merging not possible: unexpected POI at index %d : got %s, should be %s." % (i, par_mod, par_ref))
+          return False
+      for par_mod, par_ref in zip(model.nps, self.target.nps) :
+        if par_mod != par_ref :
+          print("Merging not possible: unexpected NP at index %d : got %s, should be %s." % (i, par_mod, par_ref))
+          return False
+      for sample_ref, sample_mod in zip(model.samples, self.target.samples) :
+        if sample_mod != sample_ref :
+          print("Merging not possible: unexpected sample at index %d : got %s, should be %s." % (i, sample_mod, sample_ref))
+          return False
+      for channel_mod in enumerate(model.channels) :
+        if channel_mod in self.target.channels :
+          print("Merging not possible: model at index %d includes channel %s, which is already present in the target model." % (i, channel_mod))
+          return False
+    return True
+
+  def merge(self) :
+    for model in self.models :
+      for channel in model.channels :
+        self.target.channels[channel] = model.channels[channel]
+        self.target.channel_offsets[channel] = model.channel_offsets[channel] + self.target.nbins
+        self.target.nbins += model.nbins
+    all_models = [ self.target ] + self.models 
+    self.target.nominal_yields = np.concatenate(tuple(model.nominal_yields for model in all_models), axis=1)
+    self.target.sym_impact_coeffs = np.concatenate(tuple(model.sym_impact_coeffs for model in all_models), axis=1)
+    self.target.pos_impact_coeffs = np.concatenate(tuple(model.pos_impact_coeffs for model in all_models), axis=1)
+    self.target.neg_impact_coeffs = np.concatenate(tuple(model.neg_impact_coeffs for model in all_models), axis=1)
+    if self.target.use_lognormal_terms :
+      self.target.log_sym_impact_coeffs = np.concatenate(tuple(model.log_sym_impact_coeffs for model in all_models), axis=1)
+      self.target.log_pos_impact_coeffs = np.concatenate(tuple(model.log_pos_impact_coeffs for model in all_models), axis=1)
+      self.target.log_neg_impact_coeffs = np.concatenate(tuple(model.log_neg_impact_coeffs for model in all_models), axis=1)
+    return self.target
