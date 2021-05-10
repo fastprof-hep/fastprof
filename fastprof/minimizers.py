@@ -114,7 +114,7 @@ class NPMinimizer :
     p, q = self.pq_einsum(hypo)
     d = np.linalg.det(p)
     if abs(d) < 1E-8 :
-      print('Linear system has an ill-conditioned coefficient matrix (det= %g), returning null result' % d)
+      print('Linear system has an ill-conditioned coefficient matrix (det=%g), returning null result' % d)
       deltas = np.zeros(self.data.model.nnps)
     else :
       deltas = np.linalg.inv(p).dot(q)
