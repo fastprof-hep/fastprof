@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 def make_parser() :
   parser = ArgumentParser("fit_fast.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
-  parser.add_argument("-m", "--model-file"       , type=str  , required=True , help="Name of JSON file defining model")
-  parser.add_argument("-d", "--data-file"        , type=str  , default=''    , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
+  parser.add_argument("-m", "--model-file"       , type=str  , required=True , help="Name of markup file defining model")
+  parser.add_argument("-d", "--data-file"        , type=str  , default=''    , help="Name of markup file defining the dataset (optional, otherwise taken from model file)")
   parser.add_argument("-y", "--hypos"            , type=str  , required=True , help="Parameter hypothesis to test")
   parser.add_argument("-a", "--asimov"           , type=str  , default=None  , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
   parser.add_argument("-r", "--setrange"         , type=str  , default=None  , help="List of variable range changes, in the form var1:[min1]:[max1],var2:[min2]:[max2],...")

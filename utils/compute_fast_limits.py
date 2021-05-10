@@ -33,7 +33,7 @@ linear statistical model.
   for comparison, as well as those of the linear model if a dataset is
   supplied either as observed data (`--data-file` argument) or an Asimov
   dataset (`--asimov`).
-  The results are stored in a JSON file (`-o` argument)
+  The results are stored in a markup file (`-o` argument)
   Plots of CL vs hypothesis are also shown, as well as the expected
   limit and its uncertainty bands for the null hypothesis if the `--bands`
   option is specified.
@@ -59,14 +59,14 @@ from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, 
 def make_parser() :
   parser = ArgumentParser("compute_limits_fast.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
-  parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of JSON file defining model")
+  parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of markup file defining model")
   parser.add_argument("-y", "--hypos"         , type=str  , required=True , help="List of POI hypothesis values (poi1=val1,poi2=val2:...)")
   parser.add_argument("-n", "--ntoys"         , type=int  , default=0     , help="Number of pseudo-datasets to produce")
   parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="Seed to use for random number generation")
   parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
   parser.add_argument("-%", "--print-freq"    , type=int  , default=1000  , help="Verbosity level")
-  parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Use the dataset stored in the specified JSON file")
+  parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Use the dataset stored in the specified markup file")
   parser.add_argument("-a", "--asimov"        , type=str  , default=None  , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")

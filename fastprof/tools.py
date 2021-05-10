@@ -95,28 +95,28 @@ class FitResult(Serializable) :
     minimizer.bounds = { poi_name : (self.fitpars[poi_name].min_value, self.fitpars[poi_name].max_value) for poi_name in self.model.pois }
     return self
 
-  def load_jdict(self, jdict : dict) -> 'FitResult' :
+  def load_dict(self, sdict : dict) -> 'FitResult' :
     """Loads the object data
 
     Args:
-      jdict : a dictionary of JSON data from which to load the object information
+      sdict : a dictionary of markup data from which to load the object information
     Returns:
       self
     """
-    for par_name, par_dict in jdict['fit_pars'].items() :
-      fitpar = ModelPOI(par_name).load_jdict(par_dict)
+    for par_name, par_dict in sdict['fit_pars'].items() :
+      fitpar = ModelPOI(par_name).load_dict(par_dict)
       self.fitpars[fitpar.name] = fitpar
-    self.nll = jdict['nll']
+    self.nll = sdict['nll']
     return self
 
-  def fill_jdict(self, jdict : dict) :
+  def fill_dict(self, sdict : dict) :
     """Saves the object data
 
     Args:
-      jdict : a dictionary of JSON data in which to store the object information
+      sdict : a dictionary of markup data in which to store the object information
     """
-    jdict['fit_pars'] = { par.name : par.dump_jdict() for par in self.fitpars }
-    jdict['nll'] = self.nll
+    sdict['fit_pars'] = { par.name : par.dump_dict() for par in self.fitpars }
+    sdict['nll'] = self.nll
 
   def __str__(self) -> str :
     """A description string
@@ -216,34 +216,34 @@ class PLRData(Serializable) :
     self.test_statistics[local_key] = asimov_plr_data.test_statistics['tmu']
     self.asimov = asimov_plr_data
 
-  def load_jdict(self, jdict : dict) -> 'PLRData' :
+  def load_dict(self, sdict : dict) -> 'PLRData' :
     """Loads the object data
 
     Args:
-      jdict : a dictionary of JSON data from which to load the object information
+      sdict : a dictionary of markup data from which to load the object information
     Returns:
       self
     """
-    self.hypo = Parameters(jdict['hypo'], model=self.model)
-    self.free_fit = FitResult('free_fit', model=self.model).load_jdict(jdict['free_fit'])
-    self.hypo_fit = FitResult('hypo_fit', model=self.model, hypo=self.hypo).load_jdict(jdict['hypo_fit'])
-    self.test_statistics = jdict['test_statistics'] if 'test_statistics' in jdict else {}
-    self.pvs = jdict['pvs'] if 'pvs' in jdict else {}
+    self.hypo = Parameters(sdict['hypo'], model=self.model)
+    self.free_fit = FitResult('free_fit', model=self.model).load_dict(sdict['free_fit'])
+    self.hypo_fit = FitResult('hypo_fit', model=self.model, hypo=self.hypo).load_dict(sdict['hypo_fit'])
+    self.test_statistics = sdict['test_statistics'] if 'test_statistics' in sdict else {}
+    self.pvs = sdict['pvs'] if 'pvs' in sdict else {}
     self.update()
     return self
 
-  def fill_jdict(self, jdict : dict) :
+  def fill_dict(self, sdict : dict) :
     """Save the object data
 
     Args:
-      jdict : a dictionary of JSON data in which to save the object information
+      sdict : a dictionary of markup data in which to save the object information
     Returns:
       self
     """
-    jdict['free_fit'] = self.free_fit.dump_jdict()
-    jdict['hypo_fit'] = self.hypo_fit.dump_jdict()
-    jdict['test_statistics'] = self.test_statistics
-    jdict['pvs'] = self.pvs
+    sdict['free_fit'] = self.free_fit.dump_dict()
+    sdict['hypo_fit'] = self.hypo_fit.dump_dict()
+    sdict['test_statistics'] = self.test_statistics
+    sdict['pvs'] = self.pvs
 
   def __str__(self) -> str :
     """A description string for the object
@@ -490,30 +490,30 @@ class Raster(Serializable) :
       print('Multiple solutions found for %s = %g (%s), returning the first one' % (name, target_pv, str(roots)))
     return roots[0]
 
-  def load_jdict(self, jdict : dict) -> 'Raster' :
+  def load_dict(self, sdict : dict) -> 'Raster' :
     """Loads the object data
 
     Args:
-      jdict : a dictionary of JSON data from which to load the object information
+      sdict : a dictionary of markup data from which to load the object information
     Returns:
       self
     """
-    for i, plr_dict in enumerate(jdict[self.name]) :
-      plr_data = PLRData('%s_%d' % (self.name, i), model=self.model).load_jdict(plr_dict)
+    for i, plr_dict in enumerate(sdict[self.name]) :
+      plr_data = PLRData('%s_%d' % (self.name, i), model=self.model).load_dict(plr_dict)
       self.plr_data[plr_data.hypo] = plr_data
     if self.use_global_best_fit : self.set_global_best_fit()
     if self.fill_missing : self.compute_tmu()
     return self
 
-  def fill_jdict(self, jdict : dict) :
+  def fill_dict(self, sdict : dict) :
     """Saves the object data
 
     Args:
-      jdict : a dictionary of JSON data in which to store the object information
+      sdict : a dictionary of markup data in which to store the object information
     """
-    jdict[self.name] = []
+    sdict[self.name] = []
     for plr_data in self.plr_data.values() :
-      jdict[self.name].append(plr_data.dump_jdict())
+      sdict[self.name].append(plr_data.dump_dict())
 
   def load_with_asimov(self, filename : str, asimov_key : str = 'asimov') -> 'Raster' :
     """Loads the object data and Asimov information

@@ -41,7 +41,7 @@ def make_parser() :
   parser.add_argument("-x", "--x-range"    , type=str, default=''  , help="X-axis range, in the form min,max")
   parser.add_argument("-t", "--t-value"    , type=str, default=''  , help="Show t-value instead of p-value")
   parser.add_argument("-y", "--hypo"       , type=str, default=''  , help="Generation hypothesis, format: <file>:<index>")
-  parser.add_argument("-m", "--model-file" , type=str, default=''  , help="Name of JSON file defining model")
+  parser.add_argument("-m", "--model-file" , type=str, default=''  , help="Name of markup file defining model")
   parser.add_argument("-r", "--reference"  , action='store_true'   , help="Use log scale for plotting")
   parser.add_argument("-o", "--output-file", type=str  , default='', help="Output file name")
   return parser

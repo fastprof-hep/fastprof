@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 __doc__ = """
-*Convert a ROOT workspace into fastprof JSON format*
+*Convert a ROOT workspace into fastprof markup format*
 
 The script takes as input a ROOT workspace, and converts the contents
 into the definition file of a linear model, as follows:
@@ -39,7 +39,7 @@ into the definition file of a linear model, as follows:
   `--setconst` and `--setrange` options, which set respectively the value,
   constness and range of model parameters.
 
-The output is a single JSON file which defines the model as well as the 
+The output is a single markup file which defines the model as well as the 
 dataset if one was specified. A validation file is also produced if the 
 `--validation-output` option was set: this contains information that can be
 used to assess if the linearity assumption is valid for the model.
@@ -346,7 +346,7 @@ def run(argv = None) :
             sample.impacts[par_name] = pack(sample.impacts[par_name], options.packing_tolerance, options.digits)
 
 
-  # 8 - Fill model JSON
+  # 8 - Fill model markup
   # --------------------------------
 
   jdict = {}

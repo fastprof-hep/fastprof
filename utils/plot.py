@@ -29,12 +29,12 @@ import os
 def make_parser() :
   parser = ArgumentParser("plot.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
-  parser.add_argument("-m", "--model-file"  , type=str  , required=True , help="Name of JSON file defining model")
+  parser.add_argument("-m", "--model-file"  , type=str  , required=True , help="Name of markup file defining model")
   parser.add_argument("-c", "--channel"     , type=str  , default=None  , help="Name of selected channel (default: first one in the model)")
   parser.add_argument("-i", "--plot-alone"  , type=str  , default=None  , help="Name of samples to plot by itself in a second (dashed) model line")
   parser.add_argument("-e", "--plot-without", type=str  , default=None  , help="Name of samples to exclude in a second (dashed) model line")
   parser.add_argument("-p", "--setval"      , type=str  , default=None  , help="Parameter values, in the form par1=val1,par2=val2,...")
-  parser.add_argument("-d", "--data-file"   , type=str  , default=None  , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
+  parser.add_argument("-d", "--data-file"   , type=str  , default=None  , help="Name of markup file defining the dataset (optional, otherwise taken from model file)")
   parser.add_argument("-a", "--asimov"      , type=str  , default=None  , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
   parser.add_argument("-x", "--x-range"     , type=str  , default=None  , help="X-axis range, in the form min,max")
   parser.add_argument("-y", "--y-range"     , type=str  , default=None  , help="Y-axis range, in the form min,max")

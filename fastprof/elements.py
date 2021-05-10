@@ -10,7 +10,7 @@
 
   * :class:`Sample` objects, each defining a contribution to a channel.
 
-  All the classes support loading from / saving to JSON files. The basic mechanism for this is implemented in the :class:`Serializable` base class from which they all derive.
+  All the classes support loading from / saving to markup files. The basic mechanism for this is implemented in the :class:`Serializable` base class from which they all derive.
 """
 
 import numpy as np
@@ -19,13 +19,13 @@ from abc import abstractmethod
 
 # -------------------------------------------------------------------------
 class Serializable :
-  """An abstract base class for objects that load from / save to a JSON filename
+  """An abstract base class for objects that load from / save to a markup filename
 
   The class implements
 
   * load() and save() methods with filename arguments,
 
-  * load_json() and save_json() with JSON object arguments.
+  * load_json() and save_json() with markup object arguments.
 
   Both sets are implemented in terms of the abstract methods load_dict() and
   fill_dict(), which operate on dictionaries and should be implemented
@@ -36,7 +36,7 @@ class Serializable :
     pass
 
   def load(self, filename : str) :
-    """Load the object from a JSON file
+    """Load the object from a markup file
 
       Args:
         filename: name of the file to load from
@@ -49,7 +49,7 @@ class Serializable :
       return self.load_dict(sdict)
 
   def save(self, filename) :
-    """Save the object to a JSON file
+    """Save the object to a markup file
 
       Args:
         filename: name of the file to load from
@@ -62,10 +62,10 @@ class Serializable :
       return json.dump(sdict, fd, ensure_ascii=True, indent=3)
 
   def load_json(self, js : str) :
-    """Load the object from a JSON string
+    """Load the object from a markup string
 
       Args:
-        js: JSON data to load, in string format
+        js: markup data to load, in string format
 
       Returns:
         Serializable: self
@@ -74,16 +74,16 @@ class Serializable :
     return self.load_dict(sdict)
 
   def dump_json(self) -> str :
-    """Dumps the object as a JSON string
+    """Dumps the object as a markup string
 
       Returns:
-        str: the JSON string encoding the object contents
+        str: the markup string encoding the object contents
     """
     sdict = self.dump_dict(sdict)
     return json.dumps(sdict)
 
   def dump_dict(self) :
-    """Dumps the object as a dictionary of JSON data
+    """Dumps the object as a dictionary of markup data
 
       Returns:
         dict: dictionary with the object contents
@@ -93,7 +93,7 @@ class Serializable :
     return sdict
 
   def load_field(self, key : str, dic : dict, default = None, types : list = []) :
-    """Load an field from a dictionary of JSON data
+    """Load an field from a dictionary of markup data
 
       If the key is not present, or if the value type is not among the
       ones listed in `types`, then `default` is returned instead.
@@ -111,17 +111,17 @@ class Serializable :
     val = dic[key]
     if not isinstance(types, list) : types = [ types ]
     if types != [] and not any([isinstance(val, t) for t in types]) :
-      raise TypeError('Object at key %s in JSON dictionary has type %s, not the expected %s' %
+      raise TypeError('Object at key %s in markup dictionary has type %s, not the expected %s' %
                       (key, val.__class__.__name__, '|'.join([t.__name__ for t in types])))
     if types == [ list ] : val = np.array(val, dtype=float)
     return val
 
   @abstractmethod
   def load_dict(self, sdict: dict) -> 'Serializable' :
-    """Abstract method to load information from a dictionary of JSON data
+    """Abstract method to load information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         self
@@ -130,10 +130,10 @@ class Serializable :
 
   @abstractmethod
   def fill_dict(self, sdict) :
-    """Abstract method to save information to a dictionary of JSON data
+    """Abstract method to save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
 
       Returns:
          None
@@ -146,7 +146,7 @@ class ModelPOI(Serializable) :
   """Class representing a POI of the model
 
   Stores the information relevant for POIs (see attributes),
-  implements JSON loading/saving through Serializable
+  implements markup loading/saving through Serializable
   base class.
 
   Attributes:
@@ -196,10 +196,10 @@ class ModelPOI(Serializable) :
     return s
 
   def load_dict(self, sdict) :
-    """load object information from a dictionary of JSON data
+    """load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         ModelPOI: self
@@ -214,10 +214,10 @@ class ModelPOI(Serializable) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['name']      = self.name
     sdict['unit']      = self.unit
@@ -234,7 +234,7 @@ class ModelAux(Serializable) :
 
   Stores the information relevant for the auxiliary observables
   that provide a constraint on some model NPs (see attributes).
-  Implements JSON loading/saving through Serializable
+  Implements markup loading/saving through Serializable
   base class.
 
   Attributes:
@@ -261,10 +261,10 @@ class ModelAux(Serializable) :
     return s
 
   def load_dict(self, sdict) :
-    """load object information from a dictionary of JSON data
+    """load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         ModelAux: self
@@ -276,10 +276,10 @@ class ModelAux(Serializable) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['name'] = self.name
     sdict['unit'] = self.unit
@@ -292,7 +292,7 @@ class ModelNP(Serializable) :
   """Class representing a NP of the model
 
   Stores the information relevant for NPs (see attributes),
-  implements JSON loading/saving through Serializable
+  implements markup loading/saving through Serializable
   base class.
 
   The NPs have two representations:
@@ -394,10 +394,10 @@ class ModelNP(Serializable) :
     return s
 
   def load_dict(self, sdict) :
-    """load object information from a dictionary of JSON data
+    """load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         ModelNP: self
@@ -415,10 +415,10 @@ class ModelNP(Serializable) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['name'] = self.name
     sdict['unit'] = self.unit
@@ -525,10 +525,10 @@ class NumberNorm(Serializable) :
     return {}
 
   def load_dict(self, sdict) -> 'NumberNorm' :
-    """Load object information from a dictionary of JSON data
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         self
@@ -542,10 +542,10 @@ class NumberNorm(Serializable) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['norm_type'] = NumberNorm.type_str
     sdict['norm'] = self.norm_value
@@ -620,10 +620,10 @@ class ParameterNorm(Serializable) :
     return { self.par_name : 1 }
 
   def load_dict(self, sdict) -> 'ParameterNorm' :
-    """Load object information from a dictionary of JSON data
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         self
@@ -634,10 +634,10 @@ class ParameterNorm(Serializable) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['norm_type'] = ParameterNorm.type_str
     sdict['norm'] = self.par_name
@@ -717,10 +717,10 @@ class LinearCombNorm(Serializable) :
     return { par_name : self.pars_coeffs[par_name] for par_name in self.pars_coeffs }
 
   def load_dict(self, sdict) -> 'LinearCombNorm' :
-    """Load object information from a dictionary of JSON data
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         self
@@ -731,10 +731,10 @@ class LinearCombNorm(Serializable) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['norm_type'] = LinearCombNorm.type_str
     sdict['norm'] = self.pars_coeffs
@@ -794,10 +794,10 @@ class FormulaNorm(Serializable) :
       raise(inst)
 
   def load_dict(self, sdict) -> 'FormulaNorm' :
-    """Load object information from a dictionary of JSON data
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         self
@@ -808,10 +808,10 @@ class FormulaNorm(Serializable) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['norm_type'] = FormulaNorm.type_str
     sdict['norm'] = self.formula
@@ -899,7 +899,7 @@ class Sample(Serializable) :
     
     The updates are
 
-    * Update the nominal_norm field: this can be set in the JSON or constructor,
+    * Update the nominal_norm field: this can be set in the markup or constructor,
       but it can be natural to take it as the value obtained from the nominal
       model parameter values. 
     
@@ -908,7 +908,7 @@ class Sample(Serializable) :
       the normalization is a raw number of events)
     
     * Update the `self.impacts` array, which stores the impact of all known NPs.
-      This is first loaded from JSON or specified in the constructor, and should
+      This is first loaded from markup or specified in the constructor, and should
       list all NPs. However the impact of NPs which enter only the normalization
       can be deduced directly, if the normalization has a simple form. The
       function sets these impacts if they are not present (if already defined,
@@ -1066,10 +1066,10 @@ class Sample(Serializable) :
     return s
 
   def load_dict(self, sdict) -> 'Sample' :
-    """Load object information from a dictionary of JSON data
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         self
@@ -1101,10 +1101,10 @@ class Sample(Serializable) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['name'] = self.name
     self.norm.fill_dict(sdict)
@@ -1183,10 +1183,10 @@ class Channel(Serializable) :
     return s
 
   def load_dict(self, sdict : dict) -> 'Channel' :
-    """Load object information from a dictionary of JSON data
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         self
@@ -1199,17 +1199,17 @@ class Channel(Serializable) :
     return self
 
   def fill_dict(self, sdict : dict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     sdict['name'] = self.name
     sdict['samples'] = []
     for sample in self.samples.values() : sdict['samples'].append(sample.dump_dict())
 
   def load_data_dict(self, sdict : dict, counts : np.array) :
-    """Load observed data information from JSON
+    """Load observed data information from markup
           raise KeyError("Data channel definition must contain a 'type' field")
 
     Utility function called from :class:`fastprof.Data` to parse
@@ -1217,7 +1217,7 @@ class Channel(Serializable) :
     array of event counts
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
         counts : the array of data counts to fill
     """
     if not 'name' in sdict :
@@ -1226,14 +1226,14 @@ class Channel(Serializable) :
       raise ValueError("Cannot load channel data defined for channel '%s' into channel '%s'" % (sdict['name'], self.name))
     
   def save_data_dict(self, sdict : dict, counts : np.array) :
-    """Save observed data information from JSON
+    """Save observed data information from markup
     
     Utility function called from :class:`fastprof.Data` to write
     out an observed data specification for this channel into the
     appropriate format
 
     Args:
-      sdict  : A dictionary to fill with JSON data
+      sdict  : A dictionary to fill with markup data
       counts : an array of data counts to read from
     """
     sdict['name'] = self.name
@@ -1276,10 +1276,10 @@ class BinnedRangeChannel(Channel) :
     return len(self.bins)
 
   def load_dict(self, sdict : dict) :
-    """Load object information from a dictionary of JSON data
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
 
       Returns:
         Channel: self
@@ -1293,10 +1293,10 @@ class BinnedRangeChannel(Channel) :
     return self
 
   def fill_dict(self, sdict) :
-    """Save information to a dictionary of JSON data
+    """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing JSON data
+         sdict: A dictionary containing markup data
     """
     super().fill_dict(sdict)
     sdict['bins'] = self.bins
@@ -1304,23 +1304,23 @@ class BinnedRangeChannel(Channel) :
     sdict['obs_unit'] = self.obs_unit
 
   def load_data_dict(self, sdict : dict, counts : np.array) :
-    """Load observed data information from JSON
+    """Load observed data information from markup
     
     Utility function called from :class:`fastprof.Data` to parse
     an observed data specification for this channel and fill an
     array of event counts
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
         counts : the array of data counts to fill
     """
     super().load_data_dict(sdict, counts)
     if not 'name' in sdict :
       raise KeyError("Data channel definition must contain a 'name' field")
     if not 'bins' in sdict :
-      raise KeyError("No 'bins' section defined for data channel '%s' in specified JSON file." % self.name)
+      raise KeyError("No 'bins' section defined for data channel '%s' in specified markup file." % self.name)
     if len(sdict['bins']) != self.nbins() :
-      raise ValueError("Binned range channel '%s' in specified JSON file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), self.nbins()))
+      raise ValueError("Binned range channel '%s' in specified markup file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), self.nbins()))
     for b, bin_data in enumerate(sdict['bins']) :
       if bin_data['lo_edge'] != self.bins[b]['lo_edge'] or bin_data['hi_edge'] != self.bins[b]['hi_edge'] :
         raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." %
@@ -1328,14 +1328,14 @@ class BinnedRangeChannel(Channel) :
       counts[b] = bin_data['counts']
 
   def save_data_dict(self, sdict : dict, counts : np.array) :
-    """Save observed data information from JSON
+    """Save observed data information from markup
     
     Utility function called from :class:`fastprof.Data` to write
     out an observed data specification for this channel into the
     appropriate format
 
     Args:
-      sdict  : A dictionary to fill with JSON data
+      sdict  : A dictionary to fill with markup data
       counts : an array of data counts to read from
     """
     super().save_data_dict(sdict, counts)
@@ -1381,32 +1381,32 @@ class SingleBinChannel(Channel) :
     return 1
 
   def load_data_dict(self, sdict : dict, counts : np.array) :
-    """Load observed data information from JSON
+    """Load observed data information from markup
     
     Utility function called from :class:`fastprof.Data` to parse
     an observed data specification for this channel and fill an
     array of event counts
 
       Args:
-        sdict: A dictionary containing JSON data
+        sdict: A dictionary containing markup data
         counts : the array of data counts to fill
     """
     super().load_data_dict(sdict, counts)
     if 'type' in sdict and sdict['type'] != SingleBinChannel.type_str :
       raise ValueError("Cannot load channel data defined for type '%s' into channel of type '%s'" % (sdict['type'], SingleBinChannel.type_str))
     if not 'counts' in sdict :
-      raise KeyError("No 'counts' section defined for data channel '%s' in specified JSON file." % self.name)
+      raise KeyError("No 'counts' section defined for data channel '%s' in specified markup file." % self.name)
     counts[0] = sdict['counts']
 
   def save_data_dict(self, sdict : dict, counts : np.array) :
-    """Save observed data information from JSON
+    """Save observed data information from markup
     
     Utility function called from :class:`fastprof.Data` to write
     out an observed data specification for this channel into the
     appropriate format
 
     Args:
-      sdict  : A dictionary to fill with JSON data
+      sdict  : A dictionary to fill with markup data
       counts : an array of data counts to read from
     """
     super().save_data_dict(sdict, counts)

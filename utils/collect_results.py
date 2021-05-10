@@ -3,7 +3,7 @@
 __doc__ = """
 *Collect results from different model points and plot them together*
 
-Results computed at specified model points, stored in output JSON files,
+Results computed at specified model points, stored in output markup files,
 are collected together to make plots as a function of model parameters.
 
 For now only one model parameter is considered. Parameter values are specified
@@ -19,7 +19,7 @@ variation bands if `--bands` is specified. If `--errors` is specified,
 statistical uncertainties in the results are included if they are available
 in the input results files.
 
-The results are plotted and written to the JSON file specfied by `--output-file`.
+The results are plotted and written to the markup file specfied by `--output-file`.
 If `--root-output` is also provided, results are formatted as `TGraph` or
 `TGraphAsymError` ROOT objects and written to the specified ROOT file.
 

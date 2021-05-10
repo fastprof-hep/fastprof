@@ -25,7 +25,6 @@ __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import matplotlib.pyplot as plt
-import json
 
 from fastprof import Model, Data, Raster, QMuCalculator, QMuTildaCalculator, OptiMinimizer, process_setvals, process_setranges
 
@@ -33,10 +32,10 @@ from fastprof import Model, Data, Raster, QMuCalculator, QMuTildaCalculator, Opt
 def make_parser() :
   parser = ArgumentParser("check_model.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
-  parser.add_argument("-m", "--model-file"    , type=str  , default=''     , help="Name of JSON file defining model")
-  parser.add_argument("-d", "--data-file"     , type=str  , default=''     , help="Name of JSON file defining the dataset (optional, otherwise taken from model file)")
+  parser.add_argument("-m", "--model-file"    , type=str  , default=''     , help="Name of markup file defining model")
+  parser.add_argument("-d", "--data-file"     , type=str  , default=''     , help="Name of markup file defining the dataset (optional, otherwise taken from model file)")
   parser.add_argument("-a", "--asimov"        , type=str  , default=None   , help="Fit an Asimov dataset for the specified POI value")
-  parser.add_argument("-f", "--fits-file"     , type=str  , default=''     , help="Name of JSON file containing full-model fit results")
+  parser.add_argument("-f", "--fits-file"     , type=str  , default=''     , help="Name of markup file containing full-model fit results")
   parser.add_argument("-r", "--setrange"      , type=str  , default=None   , help="List of variable range changes, in the form var1:[min1]:[max1],var2:[min2]:[max2],...")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1      , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None   , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")

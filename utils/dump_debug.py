@@ -45,7 +45,7 @@ def make_parser() :
   parser.add_argument("-l", "--log-scale" , action='store_true'    , help="Use log scale for plotting")
   parser.add_argument("-r", "--reference" , action='store_true'    , help="Use log scale for plotting")
   parser.add_argument("-y", "--hypo"      , type=str  , default='' , help="Generation hypothesis, format: <file>:<index>")
-  parser.add_argument("-m", "--model-file", type=str  , default='' , help="Name of JSON file defining model")
+  parser.add_argument("-m", "--model-file", type=str  , default='' , help="Name of markup file defining model")
   parser.add_argument("-n", "--np-range"  , type=float, default=3  , help="X-axis range [-x, x] for NP histograms")
   parser.add_argument("-t", "--tmu-range" , type=float, default=10 , help="X-axis range [0, x] for tmu histograms")
   return parser

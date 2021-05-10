@@ -30,7 +30,7 @@ __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from fastprof import Model, Data, OptiMinimizer, JSONSerializable
+from fastprof import Model, Data, OptiMinimizer, Serializable
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import numpy as np
@@ -39,7 +39,7 @@ import math
 ####################################################################################################################################
 ###
 
-class ValidationData (JSONSerializable) :
+class ValidationData (Serializable) :
   def __init__(self, model, filename = '') :
     super().__init__()
     self.model = model
@@ -66,8 +66,8 @@ class ValidationData (JSONSerializable) :
 def make_parser() :
   parser = ArgumentParser("plot_valid.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
-  parser.add_argument("-m", "--model-file"     , type=str  , required=True, help="Name of JSON file defining model")
-  parser.add_argument("-v", "--validation-file", type=str  , default=None , help="Name of JSON file containing validation data (default: <model_file>_validation.json)")
+  parser.add_argument("-m", "--model-file"     , type=str  , required=True, help="Name of markup file defining model")
+  parser.add_argument("-v", "--validation-file", type=str  , default=None , help="Name of markup file containing validation data (default: <model_file>_validation.json)")
   parser.add_argument("-c", "--channel"        , type=str  , default=None , help="Name of selected channel (default: first one in the model)")
   parser.add_argument("-s", "--sample"         , type=str  , default=None , help="Name of selected sample (default: first one in the channel)")
   parser.add_argument("-b", "--bins"           , type=str  , required=True, help="List of bins for which to plot validation data")
