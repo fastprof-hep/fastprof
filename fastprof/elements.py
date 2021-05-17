@@ -14,7 +14,7 @@
 """
 
 import numpy as np
-import json
+import json, yaml
 from abc import abstractmethod
 
 # -------------------------------------------------------------------------
@@ -35,52 +35,83 @@ class Serializable :
   def __init__(self) :
     pass
 
-  def load(self, filename : str) :
+  def load(self, filename : str, flavor : str = None) :
     """Load the object from a markup file
 
       Args:
         filename: name of the file to load from
-
+        flavor  : input markup flavor (currently supported: 'json' [default], 'yaml')      
       Returns:
         Serializable: self
     """
+    if flavor is None : flavor = self.guess_flavor(filename, 'json')
     with open(filename, 'r') as fd :
-      sdict = json.load(fd)
-      return self.load_dict(sdict)
+      if flavor == 'json' :
+        sdict = json.load(fd)
+      elif flavor == 'yaml' :
+        sdict = yaml.safe_load(fd)
+      else :
+        raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
+    return self.load_dict(sdict)
 
-  def save(self, filename) :
+  def save(self, filename, flavor : str = None) :
     """Save the object to a markup file
 
       Args:
         filename: name of the file to load from
+        flavor  : input markup flavor (currently supported: 'json' [default], 'yaml')      
 
       Returns:
         Serializable: self
     """
+    if flavor is None : flavor = self.guess_flavor(filename, 'json')
+    sdict = self.dump_dict()
     with open(filename, 'w') as fd :
-      sdict = self.dump_dict()
-      return json.dump(sdict, fd, ensure_ascii=True, indent=3)
+      if flavor == 'json' : return json.dump(sdict, fd, ensure_ascii=True, indent=3)
+      if flavor == 'yaml' : return yaml.dump(sdict, fd, sort_keys=False, default_flow_style=None, width=10000)
+      raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
 
-  def load_json(self, js : str) :
+  def guess_flavor(self, filename, default) :
+    """Save the object to a markup file
+
+      Args:
+        filename: name of the file to load from
+        default : return value if guessing is unsuccessful      
+
+      Returns:
+        str: the markup flavor 
+    """
+    if filename[-4:] == 'json' : return 'json'
+    if filename[-4:] == 'yaml' : return 'yaml'
+    return default
+    
+  def load_markup(self, data : str, flavor : str = 'json') :
     """Load the object from a markup string
 
       Args:
-        js: markup data to load, in string format
+        data: markup data to load, in string format
 
       Returns:
         Serializable: self
     """
-    sdict = json.loads(js)
+    if flavor == 'json' :
+      sdict = json.loads(data)
+    elif flavor == 'yaml' :
+      sdict = yaml.load(data)
+    else :
+      raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
     return self.load_dict(sdict)
 
-  def dump_json(self) -> str :
+  def dump_markup(self, flavor : str = 'json') -> str :
     """Dumps the object as a markup string
 
       Returns:
         str: the markup string encoding the object contents
     """
     sdict = self.dump_dict(sdict)
-    return json.dumps(sdict)
+    if flavor == 'json' : return json.dumps(sdict, ensure_ascii=True, indent=3)
+    if flavor == 'yaml' : return yaml.dump(sdict, sort_keys=False, default_flow_style=None, width=10000)
+    raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
 
   def dump_dict(self) :
     """Dumps the object as a dictionary of markup data
@@ -115,6 +146,14 @@ class Serializable :
                       (key, val.__class__.__name__, '|'.join([t.__name__ for t in types])))
     if types == [ list ] : val = np.array(val, dtype=float)
     return val
+
+  def unnumpy(self, obj) :
+    if isinstance(obj, np.float64) : return float(obj)
+    if isinstance(obj, np.ndarray) or isinstance(obj, list) : 
+      return [ self.unnumpy(element) for element in obj ]
+    if isinstance(obj, dict) :
+      return { key : self.unnumpy(value) for key, value in obj.items() }
+    return obj
 
   @abstractmethod
   def load_dict(self, sdict: dict) -> 'Serializable' :
@@ -1109,8 +1148,8 @@ class Sample(Serializable) :
     sdict['name'] = self.name
     self.norm.fill_dict(sdict)
     sdict['nominal_norm'] = self.nominal_norm
-    sdict['nominal_yields'] = list(self.nominal_yields)
-    sdict['impacts'] = self.impacts
+    sdict['nominal_yields'] = self.unnumpy(self.nominal_yields)
+    sdict['impacts'] = self.unnumpy(self.impacts)
 
 
 # -------------------------------------------------------------------------

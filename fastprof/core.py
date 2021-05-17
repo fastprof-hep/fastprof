@@ -829,7 +829,7 @@ class Model (Serializable) :
     return self.generate_asimov(self.expected_pars(pois, minimizer))
 
   @staticmethod
-  def create(filename : str, verbosity = 0) -> 'Model' :
+  def create(filename : str, verbosity : int = 0, flavor : str = None) -> 'Model' :
     """Shortcut method to instantiate a model from a markup file
 
       Same behavior as creating a default model and loading from the file,
@@ -837,10 +837,12 @@ class Model (Serializable) :
 
       Args:
          filename : name of a markup file containing the model definition
+         verbosity: level of verbosity (0=minimal)
+         flavor   : input markup flavor (currently supported: 'json' [default], 'yaml')
       Returns:
          The created model
     """
-    return Model(verbosity=verbosity).load(filename)
+    return Model(verbosity=verbosity).load(filename, flavor=flavor)
 
   def load_dict(self, sdict : dict) -> 'Model' :
     """Load object information from a dictionary of markup data

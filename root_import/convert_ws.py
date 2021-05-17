@@ -49,7 +49,7 @@ __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import numpy as np
-import json
+import json,yaml
 import array
 import math
 import ROOT
@@ -86,6 +86,7 @@ def make_parser() :
   parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
   parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
   parser.add_argument(      "--digits"           , type=int  , default=7        , help="Number of significant digits in float values")
+  parser.add_argument(      "--markup"           , type=str  , default='json'   , help="Output markup flavor (supported : 'json', 'yaml')")
   parser.add_argument("-t", "--packing-tolerance", type=float, default=None     , help="Level of precision for considering two impact values to be equal")
   parser.add_argument("-l", "--validation-output", type=str  , default=None     , help="Name of output file for validation data")
   parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
@@ -349,7 +350,7 @@ def run(argv = None) :
   # 8 - Fill model markup
   # --------------------------------
 
-  jdict = {}
+  sdict = {}
 
   if not options.data_only :
     model_dict = {}
@@ -396,8 +397,8 @@ def run(argv = None) :
       bin_specs = []
       for b in range(0, nbins) :
         bin_spec = {}
-        bin_spec['lo_edge'] = bins[b]
-        bin_spec['hi_edge'] = bins[b+1]
+        bin_spec['lo_edge'] = float(bins[b])
+        bin_spec['hi_edge'] = float(bins[b+1])
         bin_specs.append(bin_spec)
       channel_spec['obs_name'] = channel.obs.GetTitle().replace('#','\\')
       channel_spec['obs_unit'] = channel.obs.getUnit()
@@ -417,7 +418,7 @@ def run(argv = None) :
       channel_spec['samples'] = sample_specs
       channel_specs.append(channel_spec)
     model_dict['channels'] = channel_specs
-    jdict['model'] = model_dict
+    sdict['model'] = model_dict
 
   # 9 - Fill the dataset information
   # --------------------------------
@@ -437,8 +438,8 @@ def run(argv = None) :
     bin_specs = []
     for b in range(0, nbins) :
       bin_spec = {}
-      bin_spec['lo_edge'] = bins[b]
-      bin_spec['hi_edge'] = bins[b+1]
+      bin_spec['lo_edge'] = float(bins[b])
+      bin_spec['hi_edge'] = float(bins[b+1])
       bin_spec['counts'] = hist.GetBinContent(b+1)
       bin_specs.append(bin_spec)
     channel_datum['bins'] = bin_specs
@@ -454,14 +455,17 @@ def run(argv = None) :
     aux_specs.append(aux_spec)
   data_dict['aux_obs'] = aux_specs
 
-  jdict['data'] = data_dict
+  sdict['data'] = data_dict
 
 
   # 10 - Write everything to file
   # ----------------------------
 
   with open(options.output_file, 'w') as fd:
-    json.dump(jdict, fd, ensure_ascii=True, indent=3)
+    if options.markup == 'json' : 
+      json.dump(sdict, fd, ensure_ascii=True, indent=3)
+    else :
+      yaml.dump(sdict, fd, sort_keys=False, default_flow_style=None, width=10000)
 
 
   # 11 - Also dump validation information unless deactivated
