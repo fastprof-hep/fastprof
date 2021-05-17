@@ -574,7 +574,7 @@ class NumberNorm(Serializable) :
     """
     if 'norm_type' in sdict and sdict['norm_type'] != NumberNorm.type_str :
       raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['norm_type'], NumberNorm.type_str))
-    self.norm_value = self.load_field('norm', sdict, '', [float, str])
+    self.norm_value = self.load_field('norm', sdict, '', [int, float, str])
     if self.norm_value == '' : self.norm_value = 1
     if isinstance(self.norm_value, str) :
       raise ValueError("Normalization data for type '%s' is the string '%s', not supported for numerical norms." % (sdict['norm_type'], self.norm_value))
