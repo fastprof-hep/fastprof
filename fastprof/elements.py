@@ -1338,9 +1338,11 @@ class BinnedRangeChannel(Channel) :
          sdict: A dictionary containing markup data
     """
     super().fill_dict(sdict)
-    sdict['bins'] = self.bins
+    sdict['type'] = BinnedRangeChannel.type_str
     sdict['obs_name'] = self.obs_name
     sdict['obs_unit'] = self.obs_unit
+    sdict['bins'] = self.bins
+    sdict['samples'] = sdict.pop('samples') # reorder to have samples at end
 
   def load_data_dict(self, sdict : dict, counts : np.array) :
     """Load observed data information from markup
@@ -1418,6 +1420,31 @@ class SingleBinChannel(Channel) :
         the number of bins
     """
     return 1
+
+  def load_dict(self, sdict : dict) :
+    """Load object information from a dictionary of markup data
+
+      Args:
+        sdict: A dictionary containing markup data
+
+      Returns:
+        Channel: self
+    """
+    super().load_dict(sdict)
+    if self.load_field('type', sdict, SingleBinChannel.type_str, str) != SingleBinChannel.type_str :
+      raise ValueError("Trying to load a BinnedRangeChannel from channel data of type '%s'" % sdict['type'])
+    return self
+
+  def fill_dict(self, sdict) :
+    """Save information to a dictionary of markup data
+
+      Args:
+         sdict: A dictionary containing markup data
+    """
+    super().fill_dict(sdict)
+    sdict['type'] = SingleBinChannel.type_str
+    sdict['samples'] = sdict.pop('samples') # reorder to have samples at end
+
 
   def load_data_dict(self, sdict : dict, counts : np.array) :
     """Load observed data information from markup
