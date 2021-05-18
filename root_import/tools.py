@@ -19,16 +19,21 @@ def process_setvals(setvals, ws, parse_only = False) :
   return output
 
 
-def process_setconsts(setconsts, ws) :
+def process_setconsts(setconsts, ws, const = True) :
   varlist = setconsts.split(',')
   for var in varlist :
-    matching_vars = ROOT.RooArgList(ws.allVars().selectByName(var))
-    if matching_vars.getSize() == 0 :
-      raise ValueError("ERROR : no variables matching '%s' in model" % var)
+    if var.find('*') >= 0 :
+      matching_vars = ROOT.RooArgList(ws.allVars().selectByName(var))
+      if matching_vars.getSize() == 0 :
+        raise ValueError("ERROR : no variables matching '%s' in model" % var)
+    else :
+      var_obj = ws.var(var)
+      if var_obj is None : raise ValueError("ERROR : variable '%s' not found in model" % var)
+      matching_vars = ROOT.RooArgList(var_obj)
     for i in range(0, matching_vars.getSize()) :
       thisvar =  matching_vars.at(i)
-      thisvar.setConstant()
-      print("INFO : setting variable '%s' constant (current value: %g)" % (thisvar.GetName(), thisvar.getVal()))
+      thisvar.setConstant(const)
+      print("INFO : setting variable '%s' %s (current value: %g)" % (thisvar.GetName(), 'constant' if const else 'free', thisvar.getVal()))
 
 
 def process_setranges(setranges, ws) :

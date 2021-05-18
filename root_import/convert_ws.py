@@ -74,6 +74,7 @@ def make_parser() :
   parser.add_argument("-e", "--epsilon"          , type=float, default=1        , help="Scale factor applied to uncertainties for impact computations")
   parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="List of variable value changes, in the form var1=val1,var2=val2,...")
   parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="List of variables to set constant")
+  parser.add_argument(      "--setfree"          , type=str  , default=''       , help="List of variables to set free")
   parser.add_argument("-r", "--setrange"         , type=str  , default=''       , help="List of variable range changes, in the form var1:[min1]:[max1],var2:[min2]:[max2],...")
   parser.add_argument("-d", "--data-name"        , type=str  , default=''       , help="Name of dataset object within the input workspace")
   parser.add_argument("-a", "--asimov"           , type=str  , default=None     , help="Perform an Asimov fit before conversion")
@@ -134,7 +135,8 @@ def run(argv = None) :
   # -----------------------------------------------------------------
 
   if options.setval   != '' : process_setvals  (options.setval  , ws)
-  if options.setconst != '' : process_setconsts(options.setconst, ws)
+  if options.setconst != '' : process_setconsts(options.setconst, ws, const=True)
+  if options.setfree  != '' : process_setconsts(options.setfree , ws, const=False)
   if options.setrange != '' : process_setranges(options.setrange, ws)
 
 
