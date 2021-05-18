@@ -435,7 +435,7 @@ def run(argv = None) :
     channel_datum['obs_name'] = channel.obs.GetTitle().replace('#','\\')
     channel_datum['obs_unit'] = channel.obs.getUnit()
     bin_array = array.array('d', bins)
-    hist = ROOT.TH1D('h', 'histogram', nbins, bin_array)
+    hist = ROOT.TH1D('%s_hist' % channel.name, 'Data histogram for channel %s' % channel.name, nbins, bin_array)
     unbinned_data.fillHistogram(hist, ROOT.RooArgList(channel.obs), '' if channel.cat is None else '%s==%d' % (channel.cat.GetName(), channel.index))
     bin_specs = []
     for b in range(0, nbins) :
@@ -511,6 +511,7 @@ def fill_channel(channel, pois, aux_obs, mconfig, normpars, options) :
   if channel_obs.getSize() > 1 :
     raise ValueError('Channel %s has %d observables -- multiple observables not supported yet.')
   channel.obs = ROOT.RooArgList(channel_obs).at(0)
+  if options.data_only : return channel
 
   channel.samples = []
   channel.default_sample = None # the sample to which unassigned variations will be associated (e.g. spurious signal, not scaled by any sample normpars)
