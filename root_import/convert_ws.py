@@ -554,7 +554,7 @@ def fill_channel(channel, pois, aux_obs, mconfig, normpars, options) :
   return channel
 
 def integral(channel) :
-  return channel.pdf.expectedEvents(0)*channel.bin_integral.getVal()
+  return (channel.pdf.expectedEvents(0) if channel.normalized_integral else 1)*channel.bin_integral.getVal()
 
 def save_normpars(channel) :
   for sample in channel.samples :
@@ -616,7 +616,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
     xmin = bins[i]
     xmax = bins[i + 1]
     channel.obs.setRange('bin_%d' % i, xmin, xmax)
-    channel.bin_integral = channel.pdf.createIntegral(ROOT.RooArgSet(channel.obs), ROOT.RooArgSet(channel.obs), 'bin_%d' % i)
+    create_bin_integral(channel, i)
     #ROOT.SetOwnership(channel.bin_integral, True) # needed ?
     set_normpars(channel)
     #print('Nominal pars:')
@@ -662,6 +662,27 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
             print('== validation %-10s: %+6g variation = %s' % (par.name, val, str(par_data[s,i,k])))
   set_normpars(channel)
   sys.stderr.write('\n')
+
+def create_bin_integral(channel, bin_index) :
+  if isinstance(channel.pdf, ROOT.RooAddPdf) :
+    channel.terms = ROOT.RooArgList()
+    channel.norm_factors = []
+    channel.pdf_ints = []
+    channel.products = []
+    for i in range(0, channel.pdf.pdfList().getSize()) :
+      norm_factor = channel.pdf.coefList().at(i)
+      channel.norm_factors.append(norm_factor)
+      pdf = channel.pdf.pdfList().at(i)
+      pdf_int = pdf.createIntegral(ROOT.RooArgSet(channel.obs), ROOT.RooArgSet(channel.obs), 'bin_%d' % bin_index)
+      channel.pdf_ints.append(pdf_int)
+      product = ROOT.RooProduct('prod_term_%d_bin%d' % (i, bin_index), '', ROOT.RooArgList(norm_factor, pdf_int))
+      channel.terms.add(product)
+      channel.products.append(product)
+    channel.bin_integral = ROOT.RooAddition('fast_integral_bin%d' % bin_index, '', channel.terms)
+    channel.normalized_integral = False
+  else :
+    channel.bin_integral = channel.pdf.createIntegral(ROOT.RooArgSet(channel.obs), ROOT.RooArgSet(channel.obs), 'bin_%d' % bin_index)
+    channel.normalized_integral = True
 
 # Check if all the impacts are the same (within tolerance), if so return the average
 def pack(impacts, tolerance=1E-5, num_digits=7) :
