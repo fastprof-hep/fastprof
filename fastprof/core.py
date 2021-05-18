@@ -81,7 +81,11 @@ class Parameters :
         if poi in poi_list : poi_array[poi_list.index(poi)] = val
       if np.isnan(poi_array).any() : raise ValueError('Input POI dictionary did not contain a valid numerival value for each POI : %s' % str(pois))
       pois = poi_array
-    if isinstance(pois, (float, int)) : pois = np.array([ pois], dtype=float)
+    if isinstance(pois, (float, int)) : 
+      if model is not None :
+        pois = np.array([pois]*model.npois, dtype=float)
+      else :
+        pois = np.array([pois], dtype=float)        
     if isinstance(pois, list) : pois = np.array(pois)
     if not isinstance(pois, np.ndarray) or pois.ndim != 1 : raise ValueError('Input POIs should be a 1D np.array, got ' + str(pois))
     if model is not None and pois.size != model.npois :
