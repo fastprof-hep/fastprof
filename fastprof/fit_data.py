@@ -1,8 +1,5 @@
-"""Module defining utility classes for reporting
-  profile-likelihood test results over multiple
-  hypotheses.
-
-  The classes are
+"""
+Classes defining the result of likelihood fits
 
   * :class:`FitResult` : stores the result of a
     Maximumum-likelihood (ML) fit
@@ -15,26 +12,15 @@
   * :class:`Raster` : stores PLR data for a
     set of tested hypotheses
 
-  * :class:`TestStatisticCalculator` : perform
-    test statistic and p-value computations using
-    :class:`PLRData` storage. Derived classes are
-    defined for the main test statistics (for now,
-    :class:`test_statistics.QMu` and
-    :class:`test_statistics.QMuTilda`.
-
 """
 
-import json
 import math
 import scipy
 import numpy as np
-from abc import abstractmethod
-import re
 
 from .base import Serializable
-from .core import Model, Data, Parameters, ModelPOI
-from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
-from .test_statistics import TMu, QMu, QMuTilda
+from .core import Model, Parameters, ModelPOI
+from .minimizers import OptiMinimizer
 
 
 class FitResult(Serializable) :

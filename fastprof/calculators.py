@@ -1,6 +1,5 @@
-"""Module defining utility classes for reporting
-  profile-likelihood test results over multiple
-  hypotheses.
+"""
+Classes implementing the computation of test statistics.
 
   The classes are
 
@@ -13,15 +12,10 @@
 
 """
 
-import json
-import math
-import scipy
-import numpy as np
 from abc import abstractmethod
-import re
 
-from .base import Serializable
 from .core import Model, Data, Parameters, ModelPOI
+from .fit_data import FitResult, FitData, Raster
 from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
 from .test_statistics import TMu, QMu, QMuTilda
 
