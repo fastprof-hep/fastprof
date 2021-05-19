@@ -1,10 +1,10 @@
-"""utility functions
-
+"""
+Common functions for utils/ scripts
 
 """
 
 import re
-from .core import Model
+from fastprof import Model
 
 
 def process_setvals(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True) -> dict :

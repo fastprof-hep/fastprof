@@ -26,7 +26,9 @@ import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import matplotlib.pyplot as plt
 
-from fastprof import Model, Data, Raster, QMuCalculator, QMuTildaCalculator, OptiMinimizer, process_setvals, process_setranges
+from fastprof import Model, Data, Raster, QMuCalculator, QMuTildaCalculator, OptiMinimizer
+from .utils import process_setvals
+
 
 ####################################################################################################################################
 def make_parser() :

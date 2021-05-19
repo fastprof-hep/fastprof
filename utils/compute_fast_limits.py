@@ -51,7 +51,9 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, process_setvals
+from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound
+from .utils import process_setvals
+
 
 ####################################################################################################################################
 ###

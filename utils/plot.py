@@ -19,7 +19,8 @@ are used.
 __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from fastprof import Model, Data, Parameters, OptiMinimizer, process_setvals
+from fastprof import Model, Data, Parameters, OptiMinimizer
+from .utils import process_setvals
 import matplotlib.pyplot as plt
 import math
 import os
