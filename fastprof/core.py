@@ -31,7 +31,9 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-from .elements import ModelPOI, ModelNP, ModelAux, Channel, SingleBinChannel, BinnedRangeChannel, Sample, Serializable
+from .base import ModelPOI, ModelNP, ModelAux, Serializable
+from .sample import Sample
+from .channels import Channel, SingleBinChannel, BinnedRangeChannel
 
 # -------------------------------------------------------------------------
 class Parameters :

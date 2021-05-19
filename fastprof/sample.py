@@ -5,7 +5,7 @@
 """
 
 from .base import Serializable
-from .norm import Norm
+from .norms import Norm
 import numpy as np
 from abc import abstractmethod
 

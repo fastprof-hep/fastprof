@@ -31,7 +31,7 @@ import numpy as np
 from abc import abstractmethod
 import re
 
-from .elements import Serializable
+from .base import Serializable
 from .core import Model, Data, Parameters, ModelPOI
 from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
 from .test_statistics import TMu, QMu, QMuTilda
