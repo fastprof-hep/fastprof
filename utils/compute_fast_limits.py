@@ -52,7 +52,7 @@ import copy
 import json
 
 from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound
-from .utils import process_setvals
+from utils import process_setvals
 
 
 ####################################################################################################################################
