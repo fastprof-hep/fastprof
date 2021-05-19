@@ -15,7 +15,7 @@ Classes implementing the computation of test statistics.
 from abc import abstractmethod
 
 from .core import Model, Data, Parameters, ModelPOI
-from .fit_data import FitResult, FitData, Raster
+from .fit_data import FitResult, PLRData, Raster
 from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
 from .test_statistics import TMu, QMu, QMuTilda
 
