@@ -26,7 +26,7 @@ class Scan1D :
     self.name = name
     if calculator : calculator.fill_all_pv(raster)
     if not raster.is_filled(pv_key, as_ts = False) :
-      raise KeyError("No p-value information with key '%s' found in raster '%s'." % (raster.name, pv_key)) 
+      raise KeyError("No p-value information with key '%s' found in raster '%s'." % (pv_key, raster.name)) 
     self.key = pv_key
     if poi_name is not None :
       if poi_name in self.raster.pois() :
