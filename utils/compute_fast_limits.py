@@ -185,14 +185,14 @@ def run(argv = None) :
 
   faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
 
-  scan_asy_full_clsb = UpperLimitScan(faster, 'pv'          , name='Asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
+  scan_asy_fast_clsb = UpperLimitScan(faster, 'pv'          , name='Asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
   scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='Sampling   , fast model', cl=options.cl, cl_name='CL_{s+b}')
-  scan_asy_full_cls  = UpperLimitScan(faster, 'cls'         , name='Asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
+  scan_asy_fast_cls  = UpperLimitScan(faster, 'cls'         , name='Asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
   scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='Sampling   , fast model', cl=options.cl, cl_name='CL_s' )
 
-  limit_asy_full_clsb = scan_asy_full_clsb.limit(print_result=True)
+  limit_asy_fast_clsb = scan_asy_fast_clsb.limit(print_result=True)
   limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_errors=True)
-  limit_asy_full_cls  = scan_asy_full_cls .limit(print_result=True)
+  limit_asy_fast_cls  = scan_asy_fast_cls .limit(print_result=True)
   limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, with_errors=True)
 
   if options.bands :
@@ -207,7 +207,7 @@ def run(argv = None) :
     plt.ion()
     fig1 = plt.figure(1)
     scan_sampling_clsb.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
-    scan_asy_full_clsb.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
+    scan_asy_fast_clsb.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
 
@@ -215,7 +215,7 @@ def run(argv = None) :
     if options.bands :
       opti_samples.plot_bands(options.bands)
     scan_sampling_cls.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
-    scan_asy_full_cls.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
+    scan_asy_fast_cls.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
     fig1.savefig(options.output_file + '_clsb.pdf')
@@ -230,11 +230,11 @@ def run(argv = None) :
   jdict['limit_sampling_CLs']    = limit_sampling_cls[0]
   jdict['limit_sampling_CLs_up'] = limit_sampling_cls[1]
   jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[2]
-  jdict['limit_asymptotics_CLs'] = limit_asy_full_cls
+  jdict['limit_asymptotics_CLs'] = limit_asy_fast_cls
   jdict['limit_sampling_CLsb']    = limit_sampling_clsb[0]
   jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[1]
   jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[2]
-  jdict['limit_asymptotics_CLsb'] = limit_asy_full_clsb
+  jdict['limit_asymptotics_CLsb'] = limit_asy_fast_clsb
 
   if options.bands :
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
