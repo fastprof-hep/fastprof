@@ -1,4 +1,4 @@
-Setting and upper limit on the signal yield in a shape analysis
+Setting an upper limit on the signal yield in a shape analysis
 ---------------------------------------------------------------
 
 This tutorial covers the basic usage of the package to define a model, validate its behavior and use it to set toys-based limits on a model parameters.
@@ -44,7 +44,7 @@ Defining the model
 Model definitions are stored in JSON files, in the format described in detail in Section :ref:`json_format`. They can be written from scratch, but this example 
 will illustrate the use of a utility to convert the content a ROOT workspace.
 
-The input workspace that will be used can be found at `inputs/model.root` (as mentioned above this is `docs/source/tutorials/shape_analysis_limit/inputs` relative to the installation
+The input workspace that will be used can be found at `inputs/model.root` (as mentioned above this is `doc/tutorials/shape_analysis_limit/inputs` relative to the installation
 directory, but you should have linked `shape_analysis_limit` into your working directory as described in the previous section). It describes a simple shape analysis:
 
 * The analysis observable is :math:`m_{obs}`, studied over the range :math:`500 < m_{obs} < 5500` GeV.
