@@ -110,13 +110,16 @@ def run(argv = None) :
   try:
     binspecs = options.binning.split('|')
     for binspec in binspecs :
-      is_last = (binspec == binspecs[-1])
+      add_last = False
       binspec_fields = binspec.split(':')
-      nbins = int(binspec_fields[2]) + (1 if is_last else 0)
+      if binspec_fields[2][-1] == '+' :
+        add_last = True
+        binspec_fields[2] = binspec_fields[2][:-1]
+      nbins = int(binspec_fields[2])
       if len(binspec_fields) == 4 and binspec_fields[3] == 'log' :
-        bins.extend(np.logspace(1, math.log(float(binspec_fields[1]))/math.log(float(binspec_fields[0])), nbins, is_last, float(binspec_fields[0])))
+        bins.extend(np.logspace(1, math.log(float(binspec_fields[1]))/math.log(float(binspec_fields[0])), nbins, add_last, float(binspec_fields[0])))
       else :
-        bins.extend(np.linspace(float(binspec_fields[0]), float(binspec_fields[1]), nbins, is_last))
+        bins.extend(np.linspace(float(binspec_fields[0]), float(binspec_fields[1]), nbins, add_last))
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid bin specification %s : the format should be xmin:xmax:nbins[:log]' % options.binning)
