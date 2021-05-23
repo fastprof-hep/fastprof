@@ -14,8 +14,6 @@ Classes defining the result of likelihood fits
 
 """
 
-import math
-import scipy
 import numpy as np
 
 from .base import Serializable
@@ -292,6 +290,47 @@ class Raster(Serializable) :
     if self.use_global_best_fit : self.set_global_best_fit()
     if self.fill_missing : self.compute_tmu()
 
+  def key_value(self, key : str, hypo : Parameters) -> float :
+    """Utility function to retrieve numerical values from the PLR data
+
+    Method called by :meth:`print` to access various numerical values
+    in the PLR data object indexed by `hypo`. `key` can be either a
+    key in the `pvs` and `test_statistics` collections, a best-fit
+    parameter value in the form 'best\_' + par_name, or a hypothesis
+    parameter value in the form par_name.
+
+    Args:
+      key : string indexing a particular numerical value
+      hypo : hypothesis for which to retrieve the value
+    Returns:
+      the numerical value
+    """
+    if not hypo in self.plr_data : raise KeyError('While trying to access key %s, hypo %s was not found in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
+    for poi in self.pois() :
+      if key == poi : return hypo[poi]
+      if key == 'best_' + poi : return self.plr_data[hypo].free_fit.fitpars[poi].value
+    if key in self.plr_data[hypo].pvs :
+      value = self.plr_data[hypo].pvs[key]
+      return value if not isinstance(value, tuple) else value[0]
+    if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
+    raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
+
+  def is_filled(self, key : str, only_pv : bool = False, only_ts : bool = False) :
+    """Utility function to check if all the data is available for a given key 
+
+    Args:
+      key : string indexing a particular entry
+      as_pv : check among p-value entries
+      as_ts : check among test statistic entries
+    Returns:
+      True if the information for `key` is filled in all the raster hypotheses,
+      False otherwise.
+    """
+    for hypo in self.plr_data :
+      if (key not in self.plr_data[hypo].pvs and not only_ts) and (key not in self.plr_data[hypo].test_statistics and not only_pv) :
+        return False
+    return True
+
   def pois(self) -> dict :
     """Shortcut method to the list of POIs
 
@@ -348,134 +387,6 @@ class Raster(Serializable) :
     """
     for plr_data in self.plr_data.values() : plr_data.compute_tmu()
 
-  def contour(self, pv_key : str = 'cls', target_pv : float = 0.05, order : int = 3, log_scale : bool = True, with_error : bool = False) -> float :
-    """Compute a contour at a predefined p-value level
-
-    The contour is obtained by interpolating the p-values at each raster
-    point to identify the points in the space of hypothesis values
-    where the p-value corresponds to the target p-value.
-
-    The set of interpolated p-values is made up of elements from the
-    `self.pvs` dict of each :class:`PLRData` object, at the key
-    position provided by the argument `pv_key`.
-
-    The current implementation works in 1D only, with defaults designed
-    to compute a :math:`CL_s` upper limit at 95% CL. The interpolation is
-    performed by the :meth:`Raster.interpolate_limit` method.
-
-    Args:
-      pv_key : the key of the selected p-values in :class:`PLRData`
-      target_pv : the target p-value
-      order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
-      log_scale : if `True`, interpolate in the log of the p-values. If `False`
-         (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
-      with_error : if `True`, return a triplet with (nominal limit, limit + 1sigma error,
-         limit - 1sigma error), where the uncertainties are propagated from those of the p-values.
-
-    Returns:
-      self
-    """
-    if len(self.pois()) > 1 : raise ValueError('Cannot interpolate limit in more than 1 dimension.')
-    poi_name = list(self.pois())[0]
-    hypos = []
-    values = []
-    if with_error :
-      values_up = []
-      values_dn = []
-    for hypo, plr_data in self.plr_data.items() :
-      hypos.append(hypo[poi_name])
-      if not pv_key in plr_data.pvs : raise KeyError("P-value '%s' not found at hypo %s." % (pv_key, str(hypo.dict(pois_only=True))))
-      if not with_error :
-        values.append(plr_data.pvs[pv_key])
-      else :
-        if not isinstance(plr_data.pvs[pv_key], tuple) or len(plr_data.pvs[pv_key]) < 2 : raise ValueError("p-value data at key '%s' in hypo %s does not contain error bands." %  (pv_key, str(hypo.dict(pois_only=True))))
-        values.append(plr_data.pvs[pv_key][0])
-        values_up.append(plr_data.pvs[pv_key][0] + plr_data.pvs[pv_key][1])
-        values_dn.append(plr_data.pvs[pv_key][0] - plr_data.pvs[pv_key][1])
-    limit = self.interpolate_limit(hypos, values, target_pv, order, log_scale, name = 'nominal %s[%s]' % (pv_key, poi_name))
-    if not with_error : return limit
-    limit_up = self.interpolate_limit(hypos, values_up, target_pv, order, log_scale, name = 'nominal+err %s[%s]' % (pv_key, poi_name))
-    limit_dn = self.interpolate_limit(hypos, values_dn, target_pv, order, log_scale, name = 'nominal-err %s[%s]' % (pv_key, poi_name))
-    return (limit, limit_up, limit_dn)
-
-  def interpolate(self, xs : list, ys : list, target : float, order : int = 3, log_scale : bool = True, name : str = 'solution') -> list :
-    """Perform a one-dimensional interpolation
-
-    Takes 2 lists of same size, corresponding to the `x` and `y`
-    dimensions, and interpolates to find the value giving y=target.
-
-    Returns the list of all solutions.
-    
-    Uses the `InterpolatedUnivariateSpline` method from `scipy`, with
-    spline order specified by the `order` parameter. If `log_scale` is
-    `True`, the interpolation is performed in the log of the p-values.
-
-    Args:
-      x : list of `x` values
-      y : list of `y` values
-      target : the target value
-      order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
-      log_scale : if `True`, interpolate in the log of the p-values. If `False`
-         (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
-      name : the computation name, for logging purposes
-    Returns:
-      The list of interpolated solutions
-    """
-    interp_xs = []
-    interp_ys = []
-    for x, y in zip(xs, ys) :
-      if log_scale :
-        if y <= 0 : continue
-        value = math.log(y/target)
-      else :
-        value = y - target
-      interp_ys.append(value)
-      interp_xs.append(x)
-    if len(interp_xs) < 2 :
-      print('Cannot interpolate using %d point(s), giving up' % len(interp_xs))
-      return None
-    if len(interp_xs) < order + 1 :
-      order = len(interp_xs) - 1
-      print('Reducing interpolation order to %d to match the number of available points' % order)
-    finder = scipy.interpolate.InterpolatedUnivariateSpline(interp_xs, interp_ys, k=order)
-    if order == 3 :
-      roots = finder.roots()
-    else :
-      print('Root-finding not supported yet for non-cubic splines, failing')
-      return []
-    return roots
-
-  def interpolate_limit(self, hypos : list, pvs : list, target_pv : float = 0.05, order : int = 3, log_scale : bool = True, name : str = 'pv') -> float :
-    """Perform a one-dimensional interpolation to compute a limit
-
-    Takes 2 lists of same size, corresponding to the `x` (`hypos)
-    and `y` (`pvs`) dimensions, and interpolates to find the values
-    giving pv=target_pv.
-
-    If multiple values are found, the first one is returned. If no
-    value is found, returns `None`.
-
-    Args:
-      hypos : list of POI values
-      pvs   : list of p-values
-      target_pv : the target p-value
-      order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
-      log_scale : if `True`, interpolate in the log of the p-values. If `False`
-         (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
-
-    Returns:
-      The interpolated limit
-    """
-    roots = self.interpolate(hypos, pvs, target_pv, order, log_scale, name)
-    if len(roots) == 0 :
-      print("No solution found for %s = %g." % (name, target_pv))
-      #print("No solution found for %s = %g. Interpolation set:" % (name, target_pv))
-      #print([(h,v) for h,v in zip(interp_hypos, interp_pvs)])
-      return None
-    if len(roots) > 1 :
-      print('Multiple solutions found for %s = %g (%s), returning the first one' % (name, target_pv, str(roots)))
-    return roots[0]
-
   def load_dict(self, sdict : dict) -> 'Raster' :
     """Loads the object data
 
@@ -528,32 +439,7 @@ class Raster(Serializable) :
       s += '\n' + str(plr_data)
     return s
 
-  def key_value(self, key : str, hypo : Parameters) -> float :
-    """Utility function to retrieve numerical values from the PLR data
-
-    Method called by :meth:`print` to access various numerical values
-    in the PLR data object indexed by `hypo`. `key` can be either a
-    key in the `pvs` and `test_statistics` collections, a best-fit
-    parameter value in the form 'best\_' + par_name, or a hypothesis
-    parameter value in the form par_name.
-
-    Args:
-      key : string indexing a particular numerical value
-      hypo : hypothesis for which to retrieve the value
-    Returns:
-      the numerical value
-    """
-    if not hypo in self.plr_data : raise KeyError('While trying to access key %s, hypo %s was not found in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
-    for poi in self.pois() :
-      if key == poi : return hypo[poi]
-      if key == 'best_' + poi : return self.plr_data[hypo].free_fit.fitpars[poi].value
-    if key in self.plr_data[hypo].pvs :
-      value = self.plr_data[hypo].pvs[key]
-      return value if not isinstance(value, tuple) else value[0]
-    if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
-    raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
-
-  def print(self, keys : list = None, verbosity : int = 0, print_limits : bool = True, other : 'Raster' = None) -> str :
+  def print(self, keys : list = None, verbosity : int = 0, other : 'Raster' = None) -> str :
     """Print a full description of the stored information
 
     Prints out the PLR information for all hypotheses. The fields
@@ -600,14 +486,6 @@ class Raster(Serializable) :
       for key in keys :
         s += '| %-15g ' % self.key_value(key, hypo)
         if not other is None and not key in self.pois().keys() : s += '| %-15g ' % other.key_value(key, hypo)
-    if print_limits and len(self.pois()) == 1 and 'cls' in plr_template.pvs :
-      limit = self.contour('cls', 0.05)
-      limit_str = '%g' % limit if limit != None else 'not computable'
-      s += '\n' + "Asymptotic 95%% CLs limit for raster '%s' = %s" % (self.name, limit_str)
-      if not other is None :
-        limit = other.contour('cls', 0.05)
-        limit_str = '%g' % limit if limit != None else 'not computable'
-        s += '\n' + "Asymptotic 95%% CLs limit for raster '%s' = %s" % (other.name, limit_str)
     if verbosity > 2 :
       for hypo, plr_data in self.plr_data.items() :
         s += '\nHypo :' + str(hypo.dict(pois_only=True))

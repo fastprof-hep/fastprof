@@ -164,7 +164,7 @@ class TestStatisticCalculator :
       if hypo in init_values :
         init_values[hypo].set_poi_values_and_ranges(self.minimizer)
       fast_plr_data[hypo] = self.compute_fast_q(hypo, data, '%s_%g' % (name, i))
-    fast = Raster(name, fast_plr_data)
+    fast = Raster(name, fast_plr_data, model=data.model)
     self.fill_all_pv(fast)
     return fast
 

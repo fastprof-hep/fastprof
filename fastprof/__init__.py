@@ -10,3 +10,4 @@ from .samplers        import ScanSampler, OptiSampler
 from .fit_data        import FitResult, Raster, PLRData
 from .calculators     import TMuCalculator, QMuCalculator, QMuTildaCalculator
 from .model_tools     import ModelMerger, ModelReparam, ParBound
+from .scans           import UpperLimitScan

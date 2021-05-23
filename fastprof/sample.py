@@ -264,14 +264,14 @@ class Sample(Serializable) :
     # Automatic typecasting: either NumberNorm or ParameterNorm,
     # depending if the 'norm' parameter represents a float
     if norm_type == '' :
-      norm = self.load_field('norm', sdict, None, str)
-      if norm == '' :
+      norm = self.load_field('norm', sdict, None, [int, float, str])
+      if isinstance(norm, (int, float)) :
         norm_type = NumberNorm.type_str
       else :
         try:
-          norm = self.load_field('norm', sdict, None, float)
+          float(norm)
           norm_type = NumberNorm.type_str
-        except:
+        except Exception as inst:
           norm_type = ParameterNorm.type_str
     if norm_type == NumberNorm.type_str :
       self.norm = NumberNorm()

@@ -5,9 +5,10 @@ Common functions for utils/ scripts
 
 import re
 from fastprof import Model
+import numpy as np
 
 
-def process_setvals(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True) -> dict :
+def process_setvals(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True, check_val : bool = True) -> dict :
   """Parse a set of model POI value assignments
 
   The input string is expected in the form
@@ -51,10 +52,63 @@ def process_setvals(setvals : str, model : Model, match_pois : bool = True, matc
     try :
       float_val = float(val)
     except ValueError as inst :
-      raise ValueError("Invalid numerical value '%s' in assignment to variable(s) '%s'." % (val, var))
-    for var in matching_all : par_dict[var] = float_val
+      if check_val : raise ValueError("Invalid numerical value '%s' in assignment to variable(s) '%s'." % (val, var))
+      float_val = None
+    for var in matching_all : par_dict[var] = float_val if float_val is not None else val
   return par_dict
 
+def process_values_spec(spec : str) :
+  values = []
+  try:
+    range_specs = spec.split('|')
+    for range_spec in range_specs :
+      range_fields = range_spec.split(':')
+      if len(range_fields) == 1 :
+        values.append(float(range_fields[0]))
+        continue
+      add_last = False
+      if range_fields[2][-1] == '+' :
+        add_last = True
+        range_fields[2] = range_fields[2][:-1]
+      nbins = int(range_fields[2])
+      if len(range_fields) == 4 and range_fields[3] == 'log' :
+        values.extend(np.logspace(1, math.log(float(range_fields[1]))/math.log(float(range_fields[0])), nbins, add_last, float(range_fields[0])))
+      else :
+        values.extend(np.linspace(float(range_fields[0]), float(range_fields[1]), nbins, add_last))
+  except Exception as inst :
+    print(inst)
+    raise ValueError('Invalid value range specification %s : the format should be xmin[:xmax:nbins[:log]]|...|...' % spec)
+  return values
+
+
+def process_setval_list(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True) -> dict :
+  return process_setval_dicts([ process_setvals(spec, model, check_val=False) for spec in setvals.split('#') ])
+  
+  
+def process_setval_dicts(setval_dicts : dict) -> dict :
+  new_svds = []
+  any_expanded = False
+  for svd in setval_dicts :
+    has_expanded = False
+    this_svds = []
+    this_new = {}
+    for var, val in svd.items() :
+      if not has_expanded :
+        if isinstance(val, float) :
+          this_new[var] = val
+        else :
+          newvals = process_values_spec(val)
+          this_svds = [ {**this_new, var : newval } for newval in newvals ]
+          has_expanded = True
+          any_expanded = True
+      else :
+        for d in this_svds : d[var] = val
+    if not has_expanded :
+      new_svds.append(this_new)
+    else :
+      new_svds.extend(this_svds)
+  if not any_expanded : return new_svds
+  return process_setval_dicts(new_svds)
 
 def process_setranges(setranges : str, model : Model) :
   """Parse a set of POI range assignments

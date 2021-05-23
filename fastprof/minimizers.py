@@ -223,7 +223,7 @@ class POIMinimizer :
       Returns:
          best-fit parameters
     """
-    if not isinstance(hypo, Parameters) : hypo = Parameters(hypo, model=model)
+    if not isinstance(hypo, Parameters) : hypo = Parameters(hypo, model=data.model)
     self.np_min = NPMinimizer(data)
     self.min_pars = hypo
     for i in range(0, self.niter) :

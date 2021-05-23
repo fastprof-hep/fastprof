@@ -119,7 +119,7 @@ class NumberNorm(Serializable) :
     self.norm_value = self.load_field('norm', sdict, '', [int, float, str])
     if self.norm_value == '' : self.norm_value = 1
     if isinstance(self.norm_value, str) :
-      raise ValueError("Normalization data for type '%s' is the string '%s', not supported for numerical norms." % (sdict['norm_type'], self.norm_value))
+      raise ValueError("Normalization data for type '%s' is the string '%s', not supported for numerical norms." % (NumberNorm.type_str, self.norm_value))
     return self
 
   def fill_dict(self, sdict) :

@@ -134,11 +134,11 @@ def run(argv = None) :
   if options.variations is not None :
     # First try the comma-separated format
     try:
-      var_val = float(options.variations)
+      float(options.variations)
       variations = 'all'
     except :
       pass
-    if variations == None :
+    if variations is None :
       variations = []
       try :
         for spec in options.variations.split(',') :
@@ -150,11 +150,11 @@ def run(argv = None) :
             val = float(val)
           except:
             raise ValueError('Invalid numerical value %s.' % val)
-        if not var in model.nps :
-          raise KeyError('Parameter %s is not defined in the model.' % var)
-        colors = colors_pos if val > 0 else colors_neg
-        if color is None : color = colors[len(variations) % len(colors)]
-        variations.append( (var, val, color,) )
+          if not var in model.nps :
+            raise KeyError('Parameter %s is not defined in the model.' % var)
+          colors = colors_pos if val > 0 else colors_neg
+          if color is None : color = colors[len(variations) % len(colors)]
+          variations.append( (var, val, color,) )
       except Exception as inst :
         print(inst)
         raise ValueError('Invalid variations specification %s : should be a comma-separated list of var=val[:color] items, or a single number' % options.variations)

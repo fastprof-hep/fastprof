@@ -51,7 +51,7 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound
+from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
 
 ####################################################################################################################################
 ###
@@ -195,57 +195,43 @@ def run(argv = None) :
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
       for plr_data, band_point in zip(raster.plr_data.values(), sampling_bands[band]) : plr_data.pvs['sampling_cls_%+d' % band] = band_point
 
-  def limit(rast, key, description, with_error=False) :
-    limit_result = rast.contour(key, 1 - options.cl, with_error=with_error)
-    limit_value = limit_result if not with_error else limit_result[0]
-    error_str = ''
-    if with_error :
-      limit_error = (limit_result[1] - limit_result[2])/2 if limit_result[1] is not None and limit_result[2] is not None else None
-      error_str = '+/- %g' % limit_error if not limit_error is None else ''
-    if not limit_value is None : print(description + ' : UL(%g%%) = %g %s (N = %s)' % (100*options.cl, limit_value, error_str, str(model.n_exp(model.expected_pars(limit_value)).sum(axis=1))) )
-    return limit_result
-
   raster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
 
-  limit_asy_full_clsb = limit(raster, 'pv'          , 'Asymptotics, full model, CLsb')
-  limit_asy_fast_clsb = limit(faster, 'pv'          , 'Asymptotics, fast model, CLsb')
-  limit_sampling_clsb = limit(raster, 'sampling_pv' , 'Sampling   , fast model, CLsb', with_error=True)
-  limit_asy_full_cls  = limit(raster, 'cls'         , 'Asymptotics, full model, CLs ')
-  limit_asy_fast_cls  = limit(faster, 'cls'         , 'Asymptotics, fast model, CLs ')
-  limit_sampling_cls  = limit(raster, 'sampling_cls', 'Sampling   , fast model, CLs ', with_error=True)
+  scan_asy_full_clsb = UpperLimitScan(raster, 'pv'          , name='Asymptotics, full model', cl=options.cl, cl_name='CL_{s+b}')
+  scan_asy_fast_clsb = UpperLimitScan(faster, 'pv'          , name='Asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
+  scan_sampling_clsb = UpperLimitScan(raster, 'sampling_pv' , name='Sampling   , fast model', cl=options.cl, cl_name='CL_{s+b}')
+  scan_asy_full_cls  = UpperLimitScan(raster, 'cls'         , name='Asymptotics, full model', cl=options.cl, cl_name='CL_s' )
+  scan_asy_fast_cls  = UpperLimitScan(faster, 'cls'         , name='Asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
+  scan_sampling_cls  = UpperLimitScan(raster, 'sampling_cls', name='Sampling   , fast model', cl=options.cl, cl_name='CL_s' )
+
+  limit_asy_full_clsb = scan_asy_full_clsb.limit(print_result=True)
+  limit_asy_fast_clsb = scan_asy_fast_clsb.limit(print_result=True)
+  limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_errors=True)
+  limit_asy_full_cls  = scan_asy_full_cls .limit(print_result=True)
+  limit_asy_fast_cls  = scan_asy_fast_cls .limit(print_result=True)
+  limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, with_errors=True)
 
   if options.bands :
+    scan_sampling_cls_bands = {}
     limit_sampling_cls_bands = {}
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-      limit_sampling_cls_bands[band] = limit(raster, 'sampling_cls_%+d' % band, 'Expected limit band, fast model, %+d sigma band' % band)
+      scan_sampling_cls_bands[band] = UpperLimitScan(raster, 'sampling_cls_%+d' % band, name='Expected limit band, fast model, %+d sigma band' % band)
+      limit_sampling_cls_bands[band] = scan_sampling_cls_bands[band].limit(print_result=True)
 
   # Plot results
   if not options.batch_mode :
     plt.ion()
     fig1 = plt.figure(1)
-    plt.suptitle('$CL_{s+b}$')
-    plt.xlabel(model.poi(0).name)
-    plt.ylabel('$CL_{s+b}$')
-    plt.fill_between([ hypo[poi.name] for hypo in raster.plr_data ],
-                     [ plr_data.pvs['sampling_pv'][0] + plr_data.pvs['sampling_pv'][1] for plr_data in raster.plr_data.values() ],
-                     [ plr_data.pvs['sampling_pv'][0] - plr_data.pvs['sampling_pv'][1] for plr_data in raster.plr_data.values() ], facecolor='b', alpha=0.5)
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['pv']             for plr_data in raster.plr_data.values() ], options.marker + 'r:' , label = 'Asymptotics')
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['sampling_pv'][0] for plr_data in raster.plr_data.values() ], options.marker + 'b-' , label = 'Sampling')
-
+    scan_sampling_clsb.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
+    scan_asy_fast_clsb.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
 
     fig2 = plt.figure(2)
-    plt.suptitle('$CL_s$')
-    plt.xlabel(model.poi(0).name)
-    plt.ylabel('$CL_s$')
     if options.bands :
       opti_samples.plot_bands(options.bands)
-    plt.fill_between([ hypo[poi.name] for hypo in raster.plr_data ],
-                     [ plr_data.pvs['sampling_cls'][0] + plr_data.pvs['sampling_cls'][1] for plr_data in raster.plr_data.values() ],
-                     [ plr_data.pvs['sampling_cls'][0] - plr_data.pvs['sampling_cls'][1] for plr_data in raster.plr_data.values() ], facecolor='b', alpha=0.5)
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['cls']          for plr_data in raster.plr_data.values() ], options.marker + 'r:' , label = 'Asymptotics')
-    plt.plot([ hypo[poi.name] for hypo in raster.plr_data ], [ plr_data.pvs['sampling_cls'][0] for plr_data in raster.plr_data.values() ], options.marker + 'b-' , label = 'Sampling')
+    scan_sampling_cls.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
+    scan_asy_fast_cls.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
     fig1.savefig(options.output_file + '_clsb.pdf')

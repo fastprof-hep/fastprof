@@ -1,4 +1,4 @@
-Setting and upper limit on the signal yield in a counting analysis
+Setting an upper limit on the signal yield in a counting analysis
 ------------------------------------------------------------------
 
 This tutorial covers the basic usage of the package to define a model, validate its behavior and use it to set toys-based limits on a model parameters.
