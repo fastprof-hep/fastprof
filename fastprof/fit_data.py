@@ -315,7 +315,7 @@ class Raster(Serializable) :
     if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
     raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
 
-  def is_filled(self, key : str, as_pv : bool = True, as_ts : bool = True) :
+  def is_filled(self, key : str, only_pv : bool = False, only_ts : bool = False) :
     """Utility function to check if all the data is available for a given key 
 
     Args:
@@ -327,7 +327,7 @@ class Raster(Serializable) :
       False otherwise.
     """
     for hypo in self.plr_data :
-      if (key not in self.plr_data[hypo].pvs and as_pv) or (key not in self.plr_data[hypo].test_statistics and as_ts) :
+      if (key not in self.plr_data[hypo].pvs and not only_ts) and (key not in self.plr_data[hypo].test_statistics and not only_pv) :
         return False
     return True
 
