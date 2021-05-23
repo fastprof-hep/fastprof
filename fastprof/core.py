@@ -76,7 +76,8 @@ class Parameters :
         nps   (optional) : float-array of NP values
         model (optional  : optional pointer to a :class:`Model` object
     """
-    if model is not None and isinstance(pois, dict) :
+    if isinstance(pois, dict) :
+      if model is None : raise ValueError('Must provide a model when initializing from a dict') 
       poi_array = np.array([ np.nan ]*model.npois)
       poi_list = list(model.pois)
       for poi, val in pois.items() :
