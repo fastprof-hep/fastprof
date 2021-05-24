@@ -1,0 +1,81 @@
+{
+   "model": {
+      "name": "single_bin",
+      "POIs": [
+         {
+            "name": "xs_BSM",
+            "min_value": 0.0,
+            "max_value": 20
+         }
+      ],
+      "NPs": [
+         {
+            "name": "np_lumi",
+            "nominal_value": 0.0,
+            "constraint": 1,
+            "aux_obs": "aux_lumi"
+         },
+         {
+            "name": "np_eff",
+            "nominal_value": 0.0,
+            "constraint": 1,
+            "aux_obs": "aux_eff"
+         },
+         {
+            "name": "np_bkg",
+            "nominal_value": 50,
+            "constraint": 5,
+            "aux_obs": "aux_bkg"
+         }
+      ],
+      "channels": [
+         {
+            "name": "SR",
+            "type": "bin",
+            "samples": [
+               {
+                  "name": "Signal",
+                  "norm": "xs_BSM",
+                  "nominal_norm": 1,
+                  "nominal_yields": [ 10 ],
+                  "impacts": {
+                     "np_lumi": [ { "+1":  0.02, "-1":  -0.02 } ],
+                     "np_eff" : [ { "+1":  0.10, "-1":  -0.10 } ]
+                  }
+               },
+               {
+                  "name": "Background",
+                  "norm": "np_bkg",
+                  "impacts": {
+                     "np_lumi": [ { "+1":  0, "-1":  0 } ],
+                     "np_eff" : [ { "+1":  0, "-1":  0 } ]
+                  }
+               }
+            ]
+         }
+      ]
+   },
+
+   "data": {
+      "channels": [
+         {
+            "name"  : "SR",
+            "counts": 150
+         }
+      ],
+      "aux_obs": [
+         {
+            "name": "aux_lumi",
+            "value": 0.0
+         },
+         {
+            "name": "aux_eff",
+            "value": 0.0
+         },
+         {
+            "name": "aux_bkg",
+            "value": 0.4
+         }
+      ]
+   }
+}
