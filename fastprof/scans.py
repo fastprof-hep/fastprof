@@ -9,6 +9,7 @@
 from abc import abstractmethod
 import math
 import scipy
+import numpy as np
 
 from .core import Model, Data, Parameters
 from .fit_data import PLRData, Raster
@@ -76,7 +77,7 @@ class Scan1D :
     if len(crossings_dn) != len(crossings_nom) : raise ValueError('Number of -1sigma crossings (%d) does not match the number of nominal crossings (%d).' % (len(crossings_dn), len(crossings_nom)))
     return [ (crossing_nom, crossing_up, crossing_dn) for crossing_nom, crossing_up, crossing_dn in zip(crossings_nom, crossings_up, crossings_dn) ]
 
-  def minima(order : int = 3) -> float :
+  def minima(self, order : int = 3) -> float :
     """Compute the minimum value of a test statistic
 
     Args:
@@ -87,7 +88,7 @@ class Scan1D :
     Returns:
     """
     hypos, values = self.points()
-    return interpolate_minima(hypos, values, order)
+    return self.interpolate_minima(hypos, values, order)
     
   def points(self, with_errors = False) -> tuple :
     """Collect the raster information into a set of points
@@ -102,7 +103,7 @@ class Scan1D :
     for hypo, plr_data in self.raster.plr_data.items() :
       hypos.append(hypo[self.poi.name])
       if not with_errors :
-        values.append(plr_data.pvs[self.key])
+        values.append(plr_data.pvs[self.key] if self.key in plr_data.pvs else plr_data.test_statistics[self.key])
       else :
         if not isinstance(plr_data.pvs[self.key], tuple) or len(plr_data.pvs[self.key]) < 2 :
           raise ValueError("Key '%s' in hypo %s does not contain error values." %  (self.key, str(hypo.dict(pois_only=True))))
@@ -110,6 +111,16 @@ class Scan1D :
         values_up.append(plr_data.pvs[self.key][0] + plr_data.pvs[self.key][1])
         values_dn.append(plr_data.pvs[self.key][0] - plr_data.pvs[self.key][1])
     return (hypos, (values, values_up, values_dn)) if with_errors else (hypos, values)
+
+  def spline(self, order : int = 3) :
+    pts = self.points()
+    return scipy.interpolate.InterpolatedUnivariateSpline(pts[0], pts[1], k=order)
+
+  def resample(self, n : int = 100, order : int = 3) :
+    pts = self.points()
+    grid = np.linspace(pts[0][0], pts[0][-1], n, endpoint=True)
+    spl = self.spline(order)
+    return (grid, spl(grid))
 
   def interpolate_crossings(self, xs : list, ys : list, target : float, order : int = 3, log_scale : bool = True) -> list :
     """Perform a one-dimensional interpolation between points to find crossing positions
@@ -241,7 +252,7 @@ class UpperLimitScan(Scan1D):
 
   def plot(self, plt, marker = 'b', with_errors : bool = False, label : str = None) :
     plt.suptitle('$%s$' % self.cl_name)
-    plt.xlabel('$%s$' % self.poi.name)
+    plt.xlabel('%s' % self.poi.name)
     plt.ylabel('$%s$' % self.cl_name)
     pts = self.points(with_errors)
     if with_errors :
@@ -263,7 +274,7 @@ class PLRScan(Scan1D):
     if cl is None and nsigmas is None : raise ValueError('Must provide either a CL value or a number of sigmas to specify the interval size')
     self.ts_level = scipy.stats.norm.isf((1-cl)/2)**2 if cl is not None else nsigmas**2
     self.cl = cls if cl is not None else 1 - 2*scipy.stats.norm.sf(nsigmas)
-    self.ts_name = ts_name if cl_name is not None else ts_key
+    self.ts_name = ts_name if ts_name is not None else ts_key
 
   def interval(self, order : int = 3, log_scale : bool = True, print_result : bool = False) -> float :
     """Perform a one-dimensional interpolation to compute a likelihood interval
@@ -278,7 +289,7 @@ class PLRScan(Scan1D):
     Returns:
       The interpolated limit
     """
-    found_crossings = self.crossings(1 - self.cl, order, log_scale, with_errors)
+    found_crossings = self.crossings(1 - self.cl, order, log_scale, with_errors=False)
     if len(found_crossings) == 0 :
       print("No crossings found for %s = %g vs. %s." % (self.ts_name, self.ts_level, self.poi.name))
       return None
@@ -300,11 +311,16 @@ class PLRScan(Scan1D):
     return minimum, value_hi - minimum, minimum - value_lo
 
   def description(self, minimum, err_hi, err_lo) :
-    return self.poi.name + ' = %g +%g -%g @ %.1g CL' % (minimum, err_hi, err_lo, 100*self.cl)
+    return '%s = %g +%g -%g @ %4.1f%% CL' % (self.poi.name, minimum, err_hi, err_lo, 100*self.cl)
 
-  def plot(self, plt, marker = 'b', label : str = None) :
+  def plot(self, plt, marker = 'b', label : str = None, smooth : int = None) :
     plt.suptitle('$%s$' % self.ts_name)
-    plt.xlabel('$%s$' % self.poi.name)
+    plt.xlabel('%s' % self.poi.name)
     plt.ylabel('$%s$' % self.ts_name)
-    pts = self.points(with_errors=False)
-    plt.plot(pts[0], pts[1], marker, label=label if label is not None else self.key)
+    if smooth is not None :
+      rsp = self.resample(smooth)
+      plt.plot(rsp[0], rsp[1], marker, label=label if label is not None else self.key)
+    else :
+      pts = self.points(with_errors=False)
+      plt.plot(pts[0], pts[1], marker, label=label if label is not None else self.key)
+    
