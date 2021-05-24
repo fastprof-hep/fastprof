@@ -130,6 +130,19 @@ class ParBound :
     self.par = par
     self.minval = minval
     self.maxval = maxval
+
+  def bounds(self) :
+    return (self.minval, self.maxval)
+
+  def is_fixed(self) :
+    return self.minval == self.maxval
+
+  def __and__(self, other) :
+    if self.par != other.par : return None
+    new_minval = self.minval if other.minval is None else other.minval if self.minval is None else max(self.minval, other.minval)
+    new_maxval = self.maxval if other.maxval is None else other.maxval if self.maxval is None else min(self.maxval, other.maxval)
+    return ParBound(self.par, new_minval, new_maxval)
+
   def test(self, pars : Parameters) -> bool :
     """Applies the selection to a :class:`Parameters` object
 
@@ -153,6 +166,7 @@ class ParBound :
     if smin == '' : return smax
     if smax == '' : return smin
     return smin + ' and ' + smax
+
   def __repr__(self) -> str:
     """Provides a description string for the object
 

@@ -35,9 +35,9 @@ import math
 from scipy.interpolate import InterpolatedUnivariateSpline
 import scipy.optimize
 from abc import abstractmethod
-import copy
 
 from .core import Model, Parameters, Data
+from .model_tools import ParBound
 
 # -------------------------------------------------------------------------
 class NPMinimizer :
@@ -385,7 +385,7 @@ class OptiMinimizer (POIMinimizer) :
     self.alt_method = alt_method
     self.debug = 0
 
-  def set_pois_from_model(self, model : Model) -> 'OptiMinimizer' :
+  def set_pois_from_model(self, model : Model, par_bounds : ParBound = None) -> 'OptiMinimizer' :
     """Copy POI information from model
 
       Initial value and range information is copied from the contents of
@@ -397,8 +397,14 @@ class OptiMinimizer (POIMinimizer) :
         self
     """
     self.init_pois = Parameters({ poi.name : poi.initial_value for poi in model.pois.values() }, model=model)
-    self.bounds = { poi.name : (poi.min_value, poi.max_value) for poi in model.pois.values() }
+    self.bounds = { poi.name : ParBound(poi.name, poi.min_value, poi.max_value) for poi in model.pois.values() }
+    for par_bound in par_bounds : 
+      self.bounds[par_bound.par] = self.bounds[par_bound.par] & par_bound if par in self.bounds else par_bound
     return self
+
+  def free_pois(self) :
+    if self.init_pois is None : return None
+    return [ poi for poi in self.init_pois.model.pois if poi not in self.bounds or not self.bounds[poi].is_fixed() ]
 
   def minimize(self, data : Data, init_hypo : Parameters = None) -> float :
     """Minimization over POIs
@@ -448,8 +454,9 @@ class OptiMinimizer (POIMinimizer) :
       if self.debug > 0 : print('== Optimizer: using scalar  ----------------')
       if self.bounds is None :
         self.set_pois_from_model(data.model)
+      poi_name = self.free_pois()[0]
       #print('njpb', self.bounds, list(self.bounds.values())[0])
-      result = scipy.optimize.minimize_scalar(objective, bounds=list(self.bounds.values())[0], method='bounded', options={'xatol': 1e-5 })
+      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds[poi_name].bounds(), method='bounded', options={'xatol': 1e-5 })
     elif self.method == 'L-BFGS-B':
       # TODO needs fixing
       result = scipy.optimize.minimize(objective, x0=self.init_pois.vals(), bounds=(self.bounds.values(),), method='L-BFGS-B', jac=jacobian, options={'gtol': 1e-5, 'ftol':1e-5 })
