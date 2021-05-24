@@ -38,7 +38,7 @@ def process_setconsts(setconsts, ws, const = True) :
 
 def process_setranges(setranges, ws) :
   try:
-    sets = [ v.replace(' ', '').split(':') for v in setranges.split(',') ]
+    sets = [ v.replace(' ', '').split('#') for v in setranges.split(',') ]
     for (var, minval, maxval) in sets :
       if not ws.var(var) :
         raise ValueError("Cannot find variable '%s' in workspace" % var)

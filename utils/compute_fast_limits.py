@@ -73,7 +73,7 @@ def make_parser() :
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
-  parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1:[min]:[max],name2:[min]:[max],...")
+  parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1=[min]#[max],name2=[min]#[max],...")
   parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use")
   parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
   parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
@@ -100,7 +100,7 @@ def run(argv = None) :
     hypos = [ Parameters(setval_dict, model=model) for setval_dict in process_setval_list(options.hypos, model) ]
   except Exception as inst :
     print(inst)
-    raise ValueError("Could not parse list of hypothesis values '%s' : expected #-separated list of variable assignments" % options.hypos)
+    raise ValueError("Could not parse list of hypothesis values '%s' : expected colon-separated list of variable assignments" % options.hypos)
 
   if options.data_file :
     data = Data(model).load(options.data_file)
@@ -124,11 +124,15 @@ def run(argv = None) :
     bound_specs = options.bounds.split(',')
     try :
       for spec in bound_specs :
-        fields = spec.split(':')
-        gen_bounds.append(ParBound(fields[0], float(fields[1]) if fields[1] != '' else None, float(fields[2]) if fields[2] != '' else None))
+        var_range = spec.split('=')
+        range_spec = var_range[1].split('#')
+        if len(range_spec) == 2 :
+          gen_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
+        elif len(range_spec) == 1 :
+          gen_bounds.append(ParBound(var_range[0], float(range_spec[0]), float(range_spec[0]))) # case of fixed parameter
     except Exception as inst:
-      print('ERROR: could not parse parameter bound specification "%s", expected in the form name1:[min]:[max],name2:[min]:[max],...' % options.bounds)
-      raise(inst)
+      print(inst)
+      raise ValueError('Could not parse parameter bound specification "%s", expected in the form name1=[min]#[max],name2=[min]#[max],...' % options.bounds)
 
   if options.test_statistic == 'q~mu' :
     if len(model.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')

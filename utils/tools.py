@@ -62,7 +62,7 @@ def process_values_spec(spec : str) :
   try:
     range_specs = spec.split('|')
     for range_spec in range_specs :
-      range_fields = range_spec.split(':')
+      range_fields = range_spec.split('#')
       if len(range_fields) == 1 :
         values.append(float(range_fields[0]))
         continue
@@ -82,7 +82,7 @@ def process_values_spec(spec : str) :
 
 
 def process_setval_list(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True) -> dict :
-  return process_setval_dicts([ process_setvals(spec, model, check_val=False) for spec in setvals.split('#') ])
+  return process_setval_dicts([ process_setvals(spec, model, check_val=False) for spec in setvals.split(':') ])
   
   
 def process_setval_dicts(setval_dicts : dict) -> dict :
@@ -115,9 +115,9 @@ def process_setranges(setranges : str, model : Model) :
 
   The input string is expected in the form
 
-  par1:[min1]:[max1],par2:[min2]:[max2],...
+  par1=[min1]#[max1],par2=[min2]#[max2],...
 
-  where either the `minX` or the `maxX` values can be omitted (but not the ':' separator!)
+  where either the `minX` or the `maxX` values can be omitted (but not the '#' separator!)
   to indicate open ranges. The
 
   The parameter ranges are applied directly on the model
@@ -131,7 +131,7 @@ def process_setranges(setranges : str, model : Model) :
     model   : model containing the parameters
   """
   try:
-    sets = [ v.replace(' ', '').split(':') for v in setranges.split(',') ]
+    sets = [ v.replace(' ', '').split('#') for v in setranges.split(',') ]
     for (var, minval, maxval) in sets :
       if not var in model.pois : raise ValueError("Parameter of interest '%s' not defined in model." % var)
       if minval != '' :
