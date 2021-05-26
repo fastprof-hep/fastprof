@@ -28,9 +28,11 @@ def process_setvals(setvals : str, model : Model, match_pois : bool = True, matc
   Args:
     setvals : a string specifying parameter assignements
     model   : model containing the parameters
+    match_pois : if `True`, check the parameters against the POIs of the model
+    match_nps  : if `True`, check the parameters against the NPs of the model
 
   Returns:
-    the parsed POI assignments, as a dict in the form { par_name : par_value }
+    the parsed POI assignments, as a dict in the form { par1 : val1, par2 : val2, ... }
   """
   par_dict = {}
   try:
@@ -58,11 +60,34 @@ def process_setvals(setvals : str, model : Model, match_pois : bool = True, matc
   return par_dict
 
 def process_values_spec(spec : str) :
+  """Parse a set of model POI values
+
+  The input string is expected in the form
+
+  min1:max1[:step1][:log1]+~min2:max2[:step2][:log2]+~...
+
+  The return value is then the dict
+
+  { "par1" : val1, "par2" : val2, ...}
+
+  The assignments are parsed, and not applied to the model
+  parameters (the values of which are not stored in the model)
+
+  Exception are raised if the `parX` are not POIs of the
+  model, or if the `valX` are not float values.
+
+  Args:
+    setvals : a string specifying parameter assignements
+    model   : model containing the parameters
+
+  Returns:
+    list of the parsed parameter values 
+  """
   values = []
   try:
-    range_specs = spec.split('|')
+    range_specs = spec.split('~')
     for range_spec in range_specs :
-      range_fields = range_spec.split('#')
+      range_fields = range_spec.split(':')
       if len(range_fields) == 1 :
         values.append(float(range_fields[0]))
         continue
@@ -77,12 +102,46 @@ def process_values_spec(spec : str) :
         values.extend(np.linspace(float(range_fields[0]), float(range_fields[1]), nbins, add_last))
   except Exception as inst :
     print(inst)
-    raise ValueError('Invalid value range specification %s : the format should be xmin[:xmax:nbins[:log]]|...|...' % spec)
+    raise ValueError('Invalid value range specification %s : the format should be xmin[:xmax:nbins[:log]]~...~...' % spec)
   return values
 
 
 def process_setval_list(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True) -> dict :
-  return process_setval_dicts([ process_setvals(spec, model, check_val=False) for spec in setvals.split(':') ])
+  """Parse a set of model POI value assignments, each including multiple parameters.
+
+  The input string is expected in the form
+
+  par1=val1A,par2=val2A,...|par1=val1B,par2=val2B,...|...
+
+  The return value is then the dict
+
+  [ { "par1" : val1A, "par2" : val2A, ...}, { "par1" : val1A, "par2" : val2A, ...} ... ]
+
+  The assignments are parsed, and not applied to the model
+  parameters (the values of which are not stored in the model)
+
+  Exception are raised if the `parX` are not POIs of the
+  model, or if the `valX` are not parsable.
+  
+  The 'valX` specs can be either a float value, or a range in the form
+  min1:max1[:step1][:log1]+~min2:max2[:step2][:log2]+~...
+  where each ~-separated block specifies the range [min,max] with the specified
+  `step` in linear or log scale. the `+` suffix specifies that the `max`
+  endpoint should be included.
+  
+  If a range is specified, it is recursively expanded so that a list of assignments is
+  returned.
+
+  Args:
+    setvals    : a string specifying parameter assignements
+    model      : model containing the parameters
+    match_pois : if `True`, check the parameters against the POIs of the model
+    match_nps  : if `True`, check the parameters against the NPs of the model
+
+  Returns:
+    the parsed POI assignments, as a list of dicts in the form { par1 : val1, ... }
+  """
+  return process_setval_dicts([ process_setvals(spec, model, match_pois, match_nps, check_val=False) for spec in setvals.split('|') ])
   
   
 def process_setval_dicts(setval_dicts : dict) -> dict :
@@ -115,9 +174,9 @@ def process_setranges(setranges : str, model : Model) :
 
   The input string is expected in the form
 
-  par1=[min1]#[max1],par2=[min2]#[max2],...
+  par1=[min1]:[max1],par2=[min2]:[max2],...
 
-  where either the `minX` or the `maxX` values can be omitted (but not the '#' separator!)
+  where either the `minX` or the `maxX` values can be omitted (but not the ':' separator!)
   to indicate open ranges. The
 
   The parameter ranges are applied directly on the model
@@ -131,9 +190,10 @@ def process_setranges(setranges : str, model : Model) :
     model   : model containing the parameters
   """
   try:
-    sets = [ v.replace(' ', '').split('#') for v in setranges.split(',') ]
-    for (var, minval, maxval) in sets :
+    sets = [ v.replace(' ', '').split('=') for v in setranges.split(',') ]
+    for (var, var_range) in sets :
       if not var in model.pois : raise ValueError("Parameter of interest '%s' not defined in model." % var)
+      minval, maxval = var_range.split(':')
       if minval != '' :
         try :
           float_minval = float(minval)

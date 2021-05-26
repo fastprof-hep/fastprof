@@ -70,12 +70,12 @@ def make_parser() :
   parser.add_argument("-c", "--channels"         , type=str  , default=None     , help="Names of the model channels, in the form c1,c2,..., in the same order as the RooSimPdf components")
   parser.add_argument("-s", "--samples"          , type=str  , default=None     , help="Names of the model samples, in the form c1:s1:p1,..., with c1 a channel name, s1 the sample name, and p1 its normpar name")
   parser.add_argument(      "--default-sample"   , type=str  , default=None     , help="Names of the model samples, in the form s1,s2,..., in the same order as the RooAddPdf components")
-  parser.add_argument("-b", "--binning"          , type=str  , required=True    , help="Binning used, in the form xmin#xmax#nbins[#log]|...")
+  parser.add_argument("-b", "--binning"          , type=str  , required=True    , help="Binning used, in the form xmin:xmax:nbins[:log]~...")
   parser.add_argument("-e", "--epsilon"          , type=float, default=1        , help="Scale factor applied to uncertainties for impact computations")
   parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="List of variable value changes, in the form var1=val1,var2=val2,...")
   parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="List of variables to set constant")
   parser.add_argument(      "--setfree"          , type=str  , default=''       , help="List of variables to set free")
-  parser.add_argument("-r", "--setrange"         , type=str  , default=''       , help="List of variable range changes, in the form var1:[min1]:[max1],var2:[min2]:[max2],...")
+  parser.add_argument("-r", "--setrange"         , type=str  , default=''       , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
   parser.add_argument("-d", "--data-name"        , type=str  , default=''       , help="Name of dataset object within the input workspace")
   parser.add_argument("-a", "--asimov"           , type=str  , default=None     , help="Perform an Asimov fit before conversion")
   parser.add_argument("-x", "--data-only"        , action="store_true"          , help="Only dump the specified dataset, not the model")
@@ -108,10 +108,10 @@ def run(argv = None) :
 
   bins = []
   try:
-    binspecs = options.binning.split('|')
+    binspecs = options.binning.split('~')
     for binspec in binspecs :
       add_last = False
-      binspec_fields = binspec.split('#')
+      binspec_fields = binspec.split(':')
       if binspec_fields[2][-1] == '+' :
         add_last = True
         binspec_fields[2] = binspec_fields[2][:-1]

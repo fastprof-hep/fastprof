@@ -38,10 +38,11 @@ def process_setconsts(setconsts, ws, const = True) :
 
 def process_setranges(setranges, ws) :
   try:
-    sets = [ v.replace(' ', '').split('#') for v in setranges.split(',') ]
-    for (var, minval, maxval) in sets :
+    sets = [ v.replace(' ', '').split('=') for v in setranges.split(',') ]
+    for (var, var_range) in sets :
       if not ws.var(var) :
         raise ValueError("Cannot find variable '%s' in workspace" % var)
+      minval, maxval = var_range.split(':')
       if minval == '' : 
         ws.var(var).setMax(float(maxval))
         print("INFO : setting upper bound of %s to %g" % (var, float(maxval)))

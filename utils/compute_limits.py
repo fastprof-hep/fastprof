@@ -134,7 +134,7 @@ def run(argv = None) :
     try :
       for spec in bound_specs :
         var_range = spec.split('=')
-        range_spec = var_range[1].split('#')
+        range_spec = var_range[1].split(':')
         if len(range_spec) == 2 :
           gen_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
         elif len(range_spec) == 1 :
