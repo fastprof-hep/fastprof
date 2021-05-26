@@ -413,10 +413,9 @@ class Model (Serializable) :
       self.channel_offsets[channel.name] = self.nbins
       self.nbins += channel.nbins()
       for sample in channel.samples.values() :
-        if not sample.name in self.samples :
-          self.samples[sample.name] = sample
-          self.sample_indices[sample.name] = len(self.sample_indices)
-    self.nominal_yields = np.zeros((len(self.sample_indices), self.nbins))
+        self.samples[(channel.name, sample.name)] = sample
+        self.sample_indices[(channel.name, sample.name)] = len(self.sample_indices)
+    self.nominal_yields = np.zeros((len(self.samples), self.nbins))
     if self.use_asym_impacts :    
       self.pos_impact_coeffs = np.zeros((len(self.samples), self.nbins, len(self.nps), self.nvariations))
       self.neg_impact_coeffs = np.zeros((len(self.samples), self.nbins, len(self.nps), self.nvariations))
@@ -427,7 +426,7 @@ class Model (Serializable) :
         sample.set_np_data(self.nps.values(), variation=1, verbosity=self.verbosity)
         start = self.channel_offsets[channel.name]
         stop  = start + channel.nbins()
-        self.nominal_yields[self.sample_indices[sample.name], start:stop] = sample.nominal_yields
+        self.nominal_yields[self.sample_indices[(channel.name, sample.name)], start:stop] = sample.nominal_yields
         for p, par in enumerate(self.nps) :
           if self.use_asym_impacts :
             pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=not self.use_linear_nps)
@@ -435,9 +434,9 @@ class Model (Serializable) :
               self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0])
               self.pos_impact_coeffs.resize(len(self.samples), self.nbins, len(self.nps), self.nvariations)
               self.neg_impact_coeffs.resize(len(self.samples), self.nbins, len(self.nps), self.nvariations)
-            self.pos_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
-            self.neg_impact_coeffs[self.sample_indices[sample.name], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
-          self.sym_impact_coeffs[self.sample_indices[sample.name], start:stop, p] = sample.sym_impact(par)
+            self.pos_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
+            self.neg_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
+          self.sym_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p] = sample.sym_impact(par)
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
