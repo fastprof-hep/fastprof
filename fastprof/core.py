@@ -727,11 +727,10 @@ class Model (Serializable) :
 
     #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
 
-  def grad_poi(self, pars : Parameters, data : 'Data') -> np.ndarray :
+  def gradient(self, pars : Parameters, data : 'Data') -> np.ndarray :
     """Returns the derivatives of the negative log-likelihood wrt the POIs
 
       Output format: 1D np.ndarray of size `npois`.
-      TODO : update to the new POI scheme, code below is obsolete
 
       Args:
          pars : parameter values at which to compute the likelihood
@@ -739,13 +738,14 @@ class Model (Serializable) :
       Returns:
          Values of the derivatives of the negative log-likelihood wrt the POIs.
     """
-    sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
-    nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
-    s = 0
-    for i in range(0, sexp.size) : s += sexp[i]*(1 - data.n[i]/nexp[i])
-    return s
+    try :
+      dtot = (self.nominal_yields.T*np.array([ sample.norm_gradient(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T.sum(axis=0)
+      ntot = self.tot_bin_exp(pars)
+      return np.sum(dtot - data.counts*dtot/ntot)
+    except:
+      return None
 
-  def hess_poi(self, pars : Parameters, data : 'Data') -> np.ndarray :
+  def hessian(self, pars : Parameters, data : 'Data') -> np.ndarray :
     """Returns the Hessian matrix of the negative log-likelihood wrt the POIs
 
       Output format: 2D np.ndarray of size `npois` x `npois`.

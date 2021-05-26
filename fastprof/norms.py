@@ -43,14 +43,14 @@ class Norm(Serializable) :
     pass
 
   
-  def gradients(self, pars_dict : dict) -> dict :
-    """Computes gradients of the normalization wrt parameters
+  def gradient(self, pars_dict : dict) -> dict :
+    """Computes gradient of the normalization wrt parameters
 
       Args:
          pars_dict : a dictionary of parameter name: value pairs
       Returns:
-         known gradients, in the form { par_name: dN/dpar },
-         or `None` if gradients are not defined
+         known gradient, in the form { par_name: dN/dpar },
+         or `None` if gradient are not defined
     """
     return None
 
@@ -92,16 +92,16 @@ class NumberNorm(Serializable) :
     """
     return self.norm_value
 
-  def gradients(self, pars_dict : dict) -> dict :
-    """Computes gradients of the normalization wrt parameters
+  def gradient(self, pars_dict : dict) -> dict :
+    """Computes gradient of the normalization wrt parameters
       
-      Here the norm is constant so the gradients are defined,
+      Here the norm is constant so the gradient are defined,
       but all are 0. In this case, return an empty dict
       
       Args:
          pars_dict : a dictionary of parameter name: value pairs
       Returns:
-         known gradients, in the form { par_name: dN/dpar }
+         known gradient, in the form { par_name: dN/dpar }
     """
     return {}
 
@@ -162,6 +162,11 @@ class ParameterNorm(Serializable) :
   def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
     """provides the NP variations that are implicit in the norm
 
+      This is called only for NPs. If the normalization parameter is an NP,
+      then this function will automatically provide the corresponding
+      impact value on the bin contents. Only +/- 1 sigma variations are
+      returned, since NP impacts are anyway always linear.
+
       Args:
          par       : the nuisance parameter for which to get variations
          variation : magnitude of the NP variation, in numbers of sigmas
@@ -188,15 +193,15 @@ class ParameterNorm(Serializable) :
       raise KeyError("Cannot to compute normalization as the value of an unknown parameter '%s'. Known parameters are as follows: %s" % (self.par_name, str(pars_dict)))
     return pars_dict[self.par_name]
 
-  def gradients(self, pars_dict : dict) -> dict :
-    """Computes gradients of the normalization wrt parameters
+  def gradient(self, pars_dict : dict) -> dict :
+    """Computes gradient of the normalization wrt parameters
 
      Only one gradient is non-zero, return this one
 
       Args:
          pars_dict : a dictionary of parameter name: value pairs
       Returns:
-         known gradients, in the form { par_name: dN/dpar }
+         known gradient, in the form { par_name: dN/dpar }
     """
     return { self.par_name : 1 }
 
@@ -285,15 +290,15 @@ class LinearCombNorm(Serializable) :
       val += self.pars_coeffs[par_name]*pars_dict[par_name]
     return val
 
-  def gradients(self, pars_dict : dict) -> dict :
-    """Computes gradients of the normalization wrt parameters
+  def gradient(self, pars_dict : dict) -> dict :
+    """Computes gradient of the normalization wrt parameters
 
-     Non-zero gradients are given by the linear coefficients
+     Non-zero gradient is given by the linear coefficients
 
       Args:
          pars_dict : a dictionary of parameter name: value pairs
       Returns:
-         known gradients, in the form { par_name: dN/dpar }
+         known gradient, in the form { par_name: dN/dpar }
     """
     return { par_name : self.pars_coeffs[par_name] for par_name in self.pars_coeffs }
 
@@ -352,7 +357,9 @@ class FormulaNorm(Serializable) :
   def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
     """Provides the NP variations that are implicit in the norm
     
-    This cannot be done by default for a generic formula, so return nothing
+    This cannot be done by default for a generic formula, so return nothing.
+    The NP impacts (if any) should be explicitly listed in the 'impacts' section
+    of the model definition.
     
     Args:
          par       : the nuisance parameter for which to get variations
@@ -369,9 +376,9 @@ class FormulaNorm(Serializable) :
          normalization factor value
     """
     try:
-      return eval(self.formula, pars_dict)/self.nominal_norm
+      return eval(self.formula, pars_dict)
     except Exception as inst:
-      print("Error while evaluating the normalization '%s' of sample '%s'." % (self.formula, self.name))
+      print("Error while evaluating normalization formula '%s'." % self.formula)
       raise(inst)
 
   def load_dict(self, sdict) -> 'FormulaNorm' :
