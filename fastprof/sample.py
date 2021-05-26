@@ -116,9 +116,9 @@ class Sample(Serializable) :
       self.nominal_yields = np.array([ self.nominal_norm ])
     for par in nps :
       if par.name in self.impacts : continue
-      impacts = [ self.norm.implicit_impact(par, +variation) ]
-      if impacts is None : continue
-      self.impacts[par.name] =  impacts * len(self.nominal_yields)
+      imp_impact = self.norm.implicit_impact(par, +variation)
+      if imp_impact is None : continue
+      self.impacts[par.name] =  imp_impact
 
   def available_variations(self, par : str = None) -> list :
     """provides the available variations of the per-bin event yields for a given NP
@@ -129,7 +129,8 @@ class Sample(Serializable) :
         list of available variations
     """
     if par is None and len(self.impacts) > 0 : par = list(self.impacts.keys())[0]
-    if not par in self.impacts : raise KeyError("No impact defined in sample '%s' for parameter '%s'." % (self.name, par))
+    if not par in self.impacts : return [+1, -1] # no registered impact: return dummy +/- sigma variations of 0 (see below)
+    #raise KeyError("No impact defined in sample '%s' for parameter '%s'." % (self.name, par))
     if len(self.impacts[par]) == 0 : return []
     prototype = self.impacts[par][0] if isinstance(self.impacts[par], list) else self.impacts[par]
     return [ +1 if var == 'pos' else -1 if var == 'neg' else float(var) for var in prototype.keys() ]
@@ -144,8 +145,8 @@ class Sample(Serializable) :
       Returns:
          per-bin relative variations (shape : nbins)
     """
-    if not par in self.impacts : 
-      raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
+    if not par in self.impacts : return np.zeros(len(self.nominal_yields)) # no registered impact: return [0...0]
+    #  raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
     imp = None
     if isinstance(self.impacts[par], list) :
       try:
