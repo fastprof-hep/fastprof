@@ -248,7 +248,7 @@ class UpperLimitScan(Scan1D):
     value = limit if not isinstance(limit, tuple) else limit[0]
     value_str = ('%g' % limit) if not isinstance(limit, tuple) else '%g +%g -%g' % (limit[0], limit[1] - limit[0], limit[0] - limit[2])
     return self.name + ' : UL(%g%%) = %s' % (100*self.cl, value_str) \
-      + ('  (N = %s)' % str(self.raster.model.n_exp(self.raster.model.expected_pars(value)).sum(axis=1))) if self.raster.model is not None else ''
+      + ('  (N = %s)' % str(self.raster.model.tot_bin_exp(self.raster.model.expected_pars(value)))) if self.raster.model is not None else ''
 
   def plot(self, plt, marker = 'b', with_errors : bool = False, label : str = None) :
     plt.suptitle('$%s$' % self.cl_name)
