@@ -361,7 +361,7 @@ class OptiMinimizer (POIMinimizer) :
      debug      (int)         : level of debug output
 
   """
-  def __init__(self, method : str = 'scalar', niter : int = 1, floor : float = 1E-7, rebound : int = 0, alt_method : str = None, init_pois : Parameters = None, bounds : dict = None) :
+  def __init__(self, method : str = 'scalar', niter : int = 1, floor : float = 1E-7, rebound : int = 0, alt_method : str = None, init_pois : Parameters = None, bounds : dict = None, debug : int = 0) :
     """Initialize the POIMinimizer object
 
       Args:
@@ -383,7 +383,7 @@ class OptiMinimizer (POIMinimizer) :
     self.method = method
     self.rebound = rebound
     self.alt_method = alt_method
-    self.debug = 0
+    self.debug = debug
 
   def set_pois_from_model(self, model : Model, par_bounds : ParBound = None) -> 'OptiMinimizer' :
     """Copy POI information from model
@@ -398,8 +398,9 @@ class OptiMinimizer (POIMinimizer) :
     """
     self.init_pois = Parameters({ poi.name : poi.initial_value for poi in model.pois.values() }, model=model)
     self.bounds = { poi.name : ParBound(poi.name, poi.min_value, poi.max_value) for poi in model.pois.values() }
-    for par_bound in par_bounds : 
-      self.bounds[par_bound.par] = self.bounds[par_bound.par] & par_bound if par in self.bounds else par_bound
+    if par_bounds is not None :
+      for par_bound in par_bounds : 
+        self.bounds[par_bound.par] = self.bounds[par_bound.par] & par_bound if par in self.bounds else par_bound
     return self
 
   def free_pois(self) :
@@ -433,35 +434,58 @@ class OptiMinimizer (POIMinimizer) :
       current_hypo = self.init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, NPMinimizer(data))
     else :
       current_hypo = init_hypo.clone()
+    if self.bounds is None :
+      self.set_pois_from_model(data.model)
+    free_indices = [ i for i, bound in enumerate(self.bounds.values()) if bound.is_free() ]
+    x0     = [ self.init_pois[bound.par] for bound in self.bounds.values() if bound.is_free() ]
+    bounds = [ bound.bounds()            for bound in self.bounds.values() if bound.is_free() ]
+    jac = jacobian if data.model.gradient(self.init_pois, data) is not None else None
+    if len(x0) == 0 and method != '' :
+      print("No free parameter of interest, will just minimize NPs.")
+      self.method = ''
+      self.profile_nps(current_hypo, data)
+      self.min_pois = []
+      self.nfev = 0
+      return self.min_nll
+    if len(x0) > 1 and self.method == 'scalar' :
+      print("Cannot use 'scalar' method for multiple POIs, switching to 'CG'.")
+      self.method = 'CG'
+
+    def update_current_hypo(pois) :
+      for i, poi in zip(free_indices, pois) : current_hypo.pois[i] = poi
     def objective(pois) :
       #print('njpb pois = ', pois, type(pois))
       if isinstance(pois, (int, float)) : pois = np.array([ pois ])
       #print('njpb pois = ', pois, type(pois))
-      self.profile_nps(current_hypo.set_pois(pois), data)
+      update_current_hypo(pois)
+      self.profile_nps(current_hypo, data)
       if self.debug > 0 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.min_nll))
       if self.debug > 1 : print(current_hypo)
       if self.debug > 1 : print(self.min_pars)
       return self.min_nll
     def jacobian(pois) :
-      self.profile_nps(current_hypo.set_pois(pois), data)
-      if self.debug > 0 : print('== Jacobian:', data.model.grad_pois(self.np_min.min_pars, data))
+      update_current_hypo(pois)
+      self.profile_nps(current_hypo, data)
+      if self.debug > 0 : print('== Jacobian:', data.model.gradient(self.np_min.min_pars, data))
       return data.model.grad_poi(self.np_min.min_pars, data)
-    def hess_p(poi, v) :
-      self.profile_nps(current_hypo.set_pois(pois), data)
-      if self.debug > 0 : print('== Hessian:', data.model.hess_poi(self.np_min.min_pars, data)*v[0])
-      return np.array(data.model.hess_poi(self.np_min.min_pars, data)*v[0])
+    #def hess_p(poi, v) :
+      #update_current_hypo(pois)
+      #self.profile_nps(current_hypo, data)
+      #if self.debug > 0 : print('== Hessian:', data.model.hess_poi(self.np_min.min_pars, data)*v[0])
+      #return np.array(data.model.hess_poi(self.np_min.min_pars, data)*v[0])
+
     if self.method == 'scalar' :
-      if self.debug > 0 : print('== Optimizer: using scalar  ----------------')
-      if self.bounds is None :
-        self.set_pois_from_model(data.model)
-      poi_name = self.free_pois()[0]
-      #print('njpb', self.bounds, list(self.bounds.values())[0])
-      result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds[poi_name].bounds(), method='bounded', options={'xatol': 1e-5 })
+      bound = bounds[0]
+      if self.debug > 0 : print("== OptiMinimizer: minimizing using scalar method 'bounded' in range %s" % str(bound))
+      result = scipy.optimize.minimize_scalar(objective, bounds=bound, method='bounded', options={'xatol': 1e-5 })
+    elif self.method == 'CG':
+      if self.debug > 0 : print("== Optimizer: using method 'scalar' in range %s" % str(bound))
+      result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='CG', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
     elif self.method == 'L-BFGS-B':
-      # TODO needs fixing
-      result = scipy.optimize.minimize(objective, x0=self.init_pois.vals(), bounds=(self.bounds.values(),), method='L-BFGS-B', jac=jacobian, options={'gtol': 1e-5, 'ftol':1e-5 })
-      if not result.success :
-        result = scipy.optimize.minimize_scalar(objective, bounds=self.bounds, method='bounded', options={'xtol': 1e-3 })
+      if self.debug > 0 :
+        print("== OptiMinimizer: minimizing the following parameters using method 'L-BFGS-B' :")
+        for bound in self.bounds.values() : print('%10s = %10g (%s)' % (bound.par, self.init_pois[bound.par], str(bound)))
+      result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='L-BFGS-B', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
     else :
       raise ValueError('Optiminimizer: unknown method %s.' % self.method)
     #print('Optimizer: done ----------------')
@@ -478,7 +502,9 @@ class OptiMinimizer (POIMinimizer) :
     self.min_nll = result.fun
     self.min_pois = result.x if isinstance(result.x, np.ndarray) else np.array([result.x])
     self.nfev = result.nfev
-    #print('njpb : ', self.min_pois)
+    if self.debug > 0 :
+      print(data.model.tot_bin_exp(self.min_pars))
+      print(data.counts)
     return self.min_nll
 
   def tmu(self, hypo : Parameters, data : Data, init_hypo : Parameters = None) -> float :
