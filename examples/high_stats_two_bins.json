@@ -1,9 +1,14 @@
 {
    "model": {
-      "name": "single_bin",
+      "name": "twin_bins",
       "POIs": [
          {
-            "name": "xs_BSM",
+            "name": "xs1",
+            "min_value": 0.0,
+            "max_value": 20
+         },
+         {
+            "name": "xs2",
             "min_value": 0.0,
             "max_value": 20
          }
@@ -22,20 +27,27 @@
             "aux_obs": "aux_eff"
          },
          {
-            "name": "np_bkg",
+            "name": "np_bkg1",
             "nominal_value": 50,
             "constraint": 5,
-            "aux_obs": "aux_bkg"
+            "aux_obs": "aux_bkg1"
+         },
+         {
+            "name": "np_bkg2",
+            "nominal_value": 50,
+            "constraint": 5,
+            "aux_obs": "aux_bkg2"
          }
       ],
       "channels": [
          {
-            "name": "SR",
+            "name": "SR1",
             "type": "bin",
             "samples": [
                {
                   "name": "Signal",
-                  "norm": "xs_BSM",
+                  "norm_type": "formula",
+                  "norm": "xs1 + xs2",
                   "nominal_norm": 1,
                   "nominal_yields": [ 10 ],
                   "impacts": {
@@ -45,21 +57,49 @@
                },
                {
                   "name": "Background",
-                  "norm": "np_bkg",
+                  "norm": "np_bkg1",
                   "impacts": {
                      "np_lumi": [ { "+1":  0, "-1":  0 } ],
                      "np_eff" : [ { "+1":  0, "-1":  0 } ]
                   }
                }
             ]
-         }
+         },
+         {
+            "name": "SR2",
+            "type": "bin",
+            "samples": [
+               {
+                  "name": "Signal",
+                  "norm": "xs2",
+                  "nominal_norm": 1,
+                  "nominal_yields": [ 10 ],
+                  "impacts": {
+                     "np_lumi": [ { "+1":  0.02, "-1":  -0.02 } ],
+                     "np_eff" : [ { "+1":  0.10, "-1":  -0.10 } ]
+                  }
+               },
+               {
+                  "name": "Background",
+                  "norm": "np_bkg2",
+                  "impacts": {
+                     "np_lumi": [ { "+1":  0, "-1":  0 } ],
+                     "np_eff" : [ { "+1":  0, "-1":  0 } ]
+                  }
+               }
+            ]
+        }
       ]
    },
 
    "data": {
       "channels": [
          {
-            "name"  : "SR",
+            "name"  : "SR1",
+            "counts": 250
+         },
+         {
+            "name"  : "SR2",
             "counts": 150
          }
       ],
@@ -73,7 +113,11 @@
             "value": 0.0
          },
          {
-            "name": "aux_bkg",
+            "name": "aux_bkg1",
+            "value": 50
+         },
+         {
+            "name": "aux_bkg2",
             "value": 50
          }
       ]
