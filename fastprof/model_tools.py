@@ -137,6 +137,9 @@ class ParBound :
   def is_fixed(self) :
     return self.minval == self.maxval
 
+  def is_free(self) :
+    return self.minval < self.maxval
+
   def __and__(self, other) :
     if self.par != other.par : return None
     new_minval = self.minval if other.minval is None else other.minval if self.minval is None else max(self.minval, other.minval)
@@ -155,12 +158,14 @@ class ParBound :
       return (pars[self.par] >= self.minval if self.minval != None else True) and (pars[self.par] <= self.maxval if self.maxval != None else True)
     except KeyError :
       return True
+
   def __str__(self) -> str :
     """Provides a description string for the object
 
     Returns:
       a description string
     """
+    if self.is_fixed() : return 'fixed at %g' % self.minval
     smin = '%s >= %g' % (self.par, self.minval) if self.minval != None else ''
     smax = '%s <= %g' % (self.par, self.maxval) if self.maxval != None else ''
     if smin == '' : return smax
