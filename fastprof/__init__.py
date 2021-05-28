@@ -9,5 +9,5 @@ from .sampling        import SamplingDistribution, Samples, CLsSamples
 from .samplers        import ScanSampler, OptiSampler
 from .fit_data        import FitResult, Raster, PLRData
 from .calculators     import TMuCalculator, QMuCalculator, QMuTildaCalculator
-from .model_tools     import ModelMerger, ModelReparam, ParBound
+from .model_tools     import ModelMerger, ModelReparam, ModelPruner, ParBound
 from .scans           import UpperLimitScan, PLRScan1D, PLRScan2D

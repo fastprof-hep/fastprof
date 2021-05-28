@@ -2,9 +2,11 @@
 Utility classes for model operations
 
 """
-
-from .core import Model, Data, Parameters, ModelPOI
 import re
+import numpy as np
+
+from .core  import Model, Data, Parameters, ModelPOI
+from .norms import ParameterNorm, FormulaNorm
   
 # -------------------------------------------------------------------------
 class ModelMerger :
@@ -91,14 +93,48 @@ class ModelReparam :
     for poi_name in poi_names :
       if poi_name not in self.model.pois : 
         raise KeyError("Cannot remove POI '%s' from model, no POI with that name is defined." % poi_name)
-      poi = model.pois.pop(poi_name)
-      for channel in model.channels.values() :
-        for sample in channel.sample.values() :
+      poi = self.model.pois.pop(poi_name)
+      for channel in self.model.channels.values() :
+        for sample in channel.samples.values() :
           if isinstance(sample.norm, ParameterNorm) and sample.norm.par_name == poi_name :
             if poi_name not in values :
               raise KeyError("Cannot remove POI '%s' as it is used to normalize sample '%s' of channel '%s'. Please provide a numerical value to use as a replacement." % (poi_name, sample.name, channel.name))
-            print("Using %s=%g replacement in normalization of  sample '%s' of channel '%s'." % (poi_name, values[poi_name], sample.name, channel.name))
+            print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (poi_name, values[poi_name], sample.name, channel.name))
             sample.norm = NumberNorm(values[poi_name])
+          if isinstance(sample.norm, FormulaNorm) and sample.norm.formula.find(poi_name) != -1 :
+            raise KeyError("Cannot remove POI '%s' as it is used to in a formula normalizing sample '%s' of channel '%s'." % (poi_name, sample.name, channel.name))
+
+
+# -------------------------------------------------------------------------
+class ModelPruner :
+  
+  def __init__(self, model) :
+    self.model = model
+
+  def prune(self, min_impact : float = 1E-3) :
+    pruned_nps = []
+    for i, par_name in enumerate(self.model.nps) :
+      if np.amax(self.model.sym_impact_coeffs[:,:,i]) < min_impact and np.amin(self.model.sym_impact_coeffs[:,:,i]) > -min_impact :
+        pruned_nps.append(par_name)
+        print("Pruning away nuisance parameter '%s'." % par_name)
+    for channel in self.model.channels.values() :
+      for sample in channel.samples.values() :
+        for pruned_np in pruned_nps : sample.impacts.pop(pruned_np)
+    self.remove_nps(pruned_nps)
+
+  def remove_nps(self, np_names : list) :
+    for np_name in np_names :
+      if np_name not in self.model.nps : 
+        raise KeyError("Cannot remove NP '%s' from model, no NP with that name is defined." % np_name)
+      par = self.model.nps.pop(np_name)
+      for channel in self.model.channels.values() :
+        for sample in channel.samples.values() :
+          if isinstance(sample.norm, ParameterNorm) and sample.norm.par_name == np_name :
+            print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (np_name, par.nominal_value, sample.name, channel.name))
+            sample.norm = NumberNorm(par.nominal_value)
+          if isinstance(sample.norm, FormulaNorm) and sample.norm.formula.find(np_name) != -1 :
+            raise KeyError("Cannot remove POI '%s' as it is used to in a formula normalizing sample '%s' of channel '%s'." % (np_name, sample.name, channel.name))
+    self.model.set_internal_vars()
 
 
 # -------------------------------------------------------------------------
