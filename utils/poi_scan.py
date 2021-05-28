@@ -20,7 +20,7 @@ from utils import process_setval_list
 ###
 
 def make_parser() :
-  parser = ArgumentParser("compute_limits_fast.py", formatter_class=ArgumentDefaultsHelpFormatter)
+  parser = ArgumentParser("poi_scan.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of markup file defining model")
   parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Use the dataset stored in the specified markup file")
@@ -33,7 +33,8 @@ def make_parser() :
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
   parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1=[min]#[max],name2=[min]#[max],...")
-  parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
+  parser.add_argument(      "--marker"        , type=str  , default='+'   , help="Marker type for plots")
+  parser.add_argument(      "--smoothing"     , type=int  , default=0     , help="Smoothing for contours (0=no smoothing)")
   parser.add_argument(      "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
   return parser
@@ -122,10 +123,11 @@ def run(argv = None) :
     poi1_name = calc.minimizer.free_pois()[0]
     poi2_name = calc.minimizer.free_pois()[1]
     poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=options.cl)
+    best_fit = poi_scan.best_fit(print_result=True)
     if not options.batch_mode :
       plt.ion()
       fig1 = plt.figure(1)
-      poi_scan.plot(plt, label='PRL')
+      poi_scan.plot(plt, label='PRL', best_fit=True, marker=options.marker, smoothing=options.smoothing)
       plt.show()
 
   with open(options.output_file + '_results.json', 'w') as fd:
