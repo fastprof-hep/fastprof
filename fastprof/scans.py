@@ -49,6 +49,13 @@ class Scan :
     else :
       return raw_value[0] + with_variation*raw_value[1]
 
+  def minimum(self) :
+    return min([ (hypo, self.value(plr_data)) for hypo, plr_data in self.raster.plr_data.items() ], key = lambda x : x[1])
+
+  def maximum(self) :
+    return max([ (hypo, self.value(plr_data)) for hypo, plr_data in self.raster.plr_data.items() ], key = lambda x : x[1])
+
+
 class Scan1D (Scan) :
   """Utility class for 1D scans over PLR data
 
@@ -177,8 +184,6 @@ class Scan1D (Scan) :
     if len(interp_xs) < 2 :
       print('Cannot interpolate using %d point(s) while computing %s, giving up.' % (len(interp_xs), self.name))
       return None
-    print('njpb1', xs, ys)
-    print('njpb2', interp_xs)
     if len(interp_xs) < order + 1 :
       order = len(interp_xs) - 1
       print('Reducing interpolation order to %d to match the number of available points while computing %s.' % (order, self.name))
@@ -386,23 +391,53 @@ class PLRScan2D (Scan) :
 
   def spline(self, order : int = 3) :
     pts = self.points()
-    return scipy.interpolate.SmoothBivariateSpline(pts[0], pts[1], pts[2], k=order)
+    return scipy.interpolate.SmoothBivariateSpline(pts[0], pts[1], pts[2], kx=order, ky=order)
 
-  def plot(self, plt, color='g', points : bool = False, label : str = None) :
+  def best_fit(self, print_result=False) :
+    spl = self.spline()
+    best_point = self.minimum()
+    init1 = best_point[0][self.poi1.name]
+    init2 = best_point[0][self.poi2.name]
+    result = scipy.optimize.minimize(lambda pois : spl(pois[0], pois[1])[0][0], x0=[init1, init2], method='L-BFGS-B', options={'gtol': 1e-5, 'ftol':1e-5 })
+    if not result.success :
+      print('Minimization failed while computing best-fit value in 2D scan starting from %s=%g, %s=%g returning these values.' % (self.poi1.name, init1, self.poi2.name, init2))
+      print(result.message)
+      return init1, init2
+    if print_result :
+      print('best-fit value @ %s=%g, %s=%g' % (self.poi1.name, result.x[0], self.poi2.name, result.x[0]))
+    return result.x
+
+  def plot(self, plt, best_fit : bool = False, points : bool = False, color : str = 'g', linestyle : str = 'solid', marker : str = '+', smoothing : int = 0, label : str = None) :
     plt.suptitle('$%s$' % self.ts_name)
     plt.xlabel('%s' % self.poi1.name)
     plt.ylabel('%s' % self.poi2.name)
     #plt.zlabel('$%s$' % self.ts_name)
-    pts = self.points()
-    plt.tricontour(pts[0], pts[1], pts[2], levels=[0, self.ts_level], colors = [ 'k', color ])
+    if smoothing == 0 :
+      pts = self.points()
+      plt.tricontour(pts[0], pts[1], pts[2], levels=[self.ts_level], colors=[color], linestyles=[linestyle])
+    else :
+      pts = self.points()
+      min1 = pts[0][0]
+      min2 = pts[1][0]
+      max1 = pts[0][-1]
+      max2 = pts[1][-1]
+      spl = self.spline()
+      x1 = np.linspace(min1, max1, smoothing)
+      x2 = np.linspace(min2, max2, smoothing)
+      mesh1, mesh2 = np.meshgrid(x1, x2)
+      z = spl(mesh1, mesh2, grid=False)
+      plt.contour(mesh1, mesh2, z, levels=[self.ts_level], colors=[color], linestyles=[linestyle])
+    if best_fit :
+      best1, best2 = self.best_fit()
+      plt.scatter(best1, best2, marker=marker, color='k')
     if points : 
-      x0 = pts[0][0]
-      y0 = pts[1][0]
-      x1 = pts[0][-1]
-      y1 = pts[1][-1]
-      for x,y,z in zip(*pts) :
-        if x == x0 or x == x1 or y == y0 or y == y1 : continue # remove edge points that overlap with axes
-        plt.annotate('%.1f' % z, (x,y))
+      min1 = pts[0][0]
+      min2 = pts[1][0]
+      max1 = pts[0][-1]
+      max2 = pts[1][-1]
+      for x1,x2,z in zip(*pts) :
+        if x1 == min1 or x1 == max1 or x2 == min2 or x2 == min1 : continue # remove edge points that overlap with axes
+        plt.annotate('%.1f' % z, (x1,x2))
 
       
     
