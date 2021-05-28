@@ -255,6 +255,18 @@ class Parameters :
     for par, val in zip(self.model.nps .keys(), self.unscaled_nps() if unscaled_nps else self.nps) : dic[par] = val
     return dic
 
+  def partial_dict(self, par_names : list, nominal_nps : bool = False, unscaled_nps : bool = True) :
+    if self.model is None : raise ValueError('Cannot perform operation without a model.')
+    dic = {}
+    for par_name in par_names :
+      if par_name in model.poi_indices : dic[par_name] = self.pois[model.poi_indices[par_name]]
+      if par_name in model.np_indices : 
+        if not nominal_nps :
+          dic[par_name] = self.nps[model.poi_indices[par_name]] if not unscaled_nps else self.unscaled()[model.poi_indices[par_name]]
+        else :
+          dic[par_name] = 0 if not unscaled_nps else self.model.np_nominal_values[model.poi_indices[par_name]]
+    return dic
+
   def set_from_dict(self, dic : dict, unscaled_nps : bool = False) -> 'Parameters' :
     """Set parameter values form a dictionary of parameter name : value pairs
 
@@ -437,13 +449,17 @@ class Model (Serializable) :
             self.pos_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
             self.neg_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
           self.sym_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p] = sample.sym_impact(par)
+    self.poi_indices = {}
+    self.np_indices = {}
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
     for p, par in enumerate(self.nps.values()) :
       if par.constraint is None : break # we've reached the end of the constrained NPs in the NP list
       self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
-
+      self.np_indices[par.name] = p
+    for p, par in enumerate(self.pois.values()) : self.poi_indices[par.name] = p
+    
   def poi(self, index : str) -> ModelPOI :
     """Returns a POI object by index
 
