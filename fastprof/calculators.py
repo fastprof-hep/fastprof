@@ -59,7 +59,21 @@ class TestStatisticCalculator :
     self.minimizer = minimizer
 
   @classmethod
-  def poi(self, plr_data : PLRData) -> str  :
+  def pois(self, plr_data : PLRData) -> str  :
+    """Return the name of the POIs in PLR data
+
+    Note that for now only the single-POI case is
+    supported.
+
+    Args:
+      plr_data : an object storing PLR information
+    Returns:
+      the POI name
+    """
+    return list(plr_data.pois)
+
+  @classmethod
+  def poi(self, plr_data : PLRData, index : int = 0) -> str  :
     """Return the name of the POI in PLR data
 
     Note that for now only the single-POI case is
@@ -70,8 +84,9 @@ class TestStatisticCalculator :
     Returns:
       the POI name
     """
-    if len(plr_data.pois) != 1 : raise ValueError('Can currently only compute test statistics for a single POI, here %s has %d.' % (plr_data.name, len(plr_data.pois)))
-    return list(plr_data.pois)[0]
+    pois = self.pois()
+    if index >= len(pois) : raise KeyError('Cannot access POI with index %d, only %d are defined' % (index, len(pois)))
+    return pois[index]
 
   @abstractmethod
   def fill_pv(self, plr_data : PLRData) :
@@ -212,7 +227,7 @@ class TMuCalculator(TestStatisticCalculator) :
     Returns:
       the test statistic
     """
-    return TMu(test_poi = plr_data.hypo[cls.poi(plr_data)], tmu = plr_data.test_statistics['tmu'])
+    return TMu([ plr_data.hypo[poi] for poi in cls.pois(plr_data) ], tmu=plr_data.test_statistics['tmu'])
 
   def fill_pv(self, plr_data : PLRData) -> 'TMuCalculator' :
     """Fills p-value information from PLR data

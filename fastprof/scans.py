@@ -16,26 +16,48 @@ from .fit_data import PLRData, Raster
 from .calculators import TestStatisticCalculator
 
 
-class Scan1D :
+class Scan :
   """Utility class for 1D scans over PLR data
 
   Attributes:
   """
-  def __init__(self, raster : Raster, key : str, poi_name : str = None, calculator : TestStatisticCalculator = None, name : str = '') :
-    """Initialize the `UpperLimitScan` object"""
+  def __init__(self, raster : Raster, key : str, calculator : TestStatisticCalculator = None, name : str = '') :
+    """Initialize the `Scan` object"""
     self.raster = raster
     self.name = name
     if calculator : calculator.fill_all_pv(raster)
     if not raster.is_filled(key) :
       raise KeyError("No p-value information with key '%s' found in raster '%s'." % (key, raster.name)) 
     self.key = key
+
+  def find_poi(self, poi_name : str, index : int = 0) :
     if poi_name is not None :
       if poi_name in self.raster.pois() :
-        self.poi = self.raster.pois()[poi_name]
+        return self.raster.pois()[poi_name]
       else :
         raise KeyError("POI '%s' is not defined in raster '%s'." % (poi_name, raster.name))
     else :
-      self.poi = self.raster.pois()[list(self.raster.pois().keys())[0]]
+      return self.raster.pois()[list(self.raster.pois().keys())[index]]
+
+  def value(self, plr_data, with_variation : int = 0) :
+    raw_value = plr_data.pvs[self.key] if self.key in plr_data.pvs else plr_data.test_statistics[self.key]
+    if not isinstance(raw_value, tuple) or len(raw_value) < 2 :
+      if with_variation == 0 :
+        return raw_value
+      else :
+        raise('Cannot return %+g sigma variation on %s since no error information is provided.' % (with_variation, self.key))
+    else :
+      return raw_value[0] + with_variation*raw_value[1]
+
+class Scan1D (Scan) :
+  """Utility class for 1D scans over PLR data
+
+  Attributes:
+  """
+  def __init__(self, raster : Raster, key : str, poi_name : str = None, calculator : TestStatisticCalculator = None, name : str = '') :
+    """Initialize the `Scan1D` object"""
+    super().__init__(raster, key, calculator, name)
+    poi = self.find_poi(poi_name)
 
   def crossings(self, pv_level : float = 0.05, order : int = 3, log_scale : bool = True, with_errors : bool = False) -> float :
     """Compute the crossing points at a predefined p-value level
@@ -95,22 +117,20 @@ class Scan1D :
 
     Returns:
     """
-    hypos = []
-    values = []
+    poi_values = []
+    result_values = []
     if with_errors :
-      values_up = []
-      values_dn = []
+      result_values_up = []
+      result_values_dn = []
     for hypo, plr_data in self.raster.plr_data.items() :
-      hypos.append(hypo[self.poi.name])
+      poi_values.append(hypo[self.poi.name])
       if not with_errors :
-        values.append(plr_data.pvs[self.key] if self.key in plr_data.pvs else plr_data.test_statistics[self.key])
+        result_values.append(self.value(plr_data))
       else :
-        if not isinstance(plr_data.pvs[self.key], tuple) or len(plr_data.pvs[self.key]) < 2 :
-          raise ValueError("Key '%s' in hypo %s does not contain error values." %  (self.key, str(hypo.dict(pois_only=True))))
-        values.append(plr_data.pvs[self.key][0])
-        values_up.append(plr_data.pvs[self.key][0] + plr_data.pvs[self.key][1])
-        values_dn.append(plr_data.pvs[self.key][0] - plr_data.pvs[self.key][1])
-    return (hypos, (values, values_up, values_dn)) if with_errors else (hypos, values)
+        result_values.append(self.value(plr_data))
+        result_values_up.append(self.value(plr_data), +1)
+        result_values_dn.append(self.value(plr_data), -1)
+    return (poi_values, (result_values, result_values_up, result_values_dn)) if with_errors else (poi_values, result_values)
 
   def spline(self, order : int = 3) :
     pts = self.points()
@@ -207,7 +227,7 @@ class Scan1D :
 
 
 
-class UpperLimitScan(Scan1D):
+class UpperLimitScan (Scan1D):
   """Utility class to compute upper limits from PLR scan information
 
   Attributes:
@@ -262,8 +282,8 @@ class UpperLimitScan(Scan1D):
       plt.plot(pts[0], pts[1], marker, label=label if label is not None else self.key)
 
 
-class PLRScan(Scan1D):
-  """Utility class to compute upper limits from PLR scan information
+class PLRScan1D (Scan1D) :
+  """Utility class to compute 1D confidence intervals from PLR scan information
 
   Attributes:
   """
@@ -272,9 +292,12 @@ class PLRScan(Scan1D):
     """Initialize the `PLRScan` object"""
     super().__init__(raster, ts_key, poi_name, calculator, name)
     if cl is None and nsigmas is None : raise ValueError('Must provide either a CL value or a number of sigmas to specify the interval size')
-    self.ts_level = scipy.stats.norm.isf((1-cl)/2)**2 if cl is not None else nsigmas**2
-    self.cl = cls if cl is not None else 1 - 2*scipy.stats.norm.sf(nsigmas)
+    self.ts_level = scipy.stats.chi2.isf(1 - cl, 1) if cl is not None else nsigmas**2
     self.ts_name = ts_name if ts_name is not None else ts_key
+
+  def cl(self) :
+    return 1 - scipy.stats.chi2.sf(self.ts_level, 1)
+
 
   def interval(self, order : int = 3, log_scale : bool = True, print_result : bool = False) -> float :
     """Perform a one-dimensional interpolation to compute a likelihood interval
@@ -289,7 +312,7 @@ class PLRScan(Scan1D):
     Returns:
       The interpolated limit
     """
-    found_crossings = self.crossings(1 - self.cl, order, log_scale, with_errors=False)
+    found_crossings = self.crossings(self.ts_level, order, log_scale, with_errors=False)
     if len(found_crossings) == 0 :
       print("No crossings found for %s = %g vs. %s." % (self.ts_name, self.ts_level, self.poi.name))
       return None
@@ -311,7 +334,7 @@ class PLRScan(Scan1D):
     return minimum, value_hi - minimum, minimum - value_lo
 
   def description(self, minimum, err_hi, err_lo) :
-    return '%s = %g +%g -%g @ %4.1f%% CL' % (self.poi.name, minimum, err_hi, err_lo, 100*self.cl)
+    return '%s = %g +%g -%g @ %4.1f%% CL' % (self.poi.name, minimum, err_hi, err_lo, 100*self.cl())
 
   def plot(self, plt, marker = 'b', label : str = None, smooth : int = None) :
     plt.suptitle('$%s$' % self.ts_name)
@@ -323,4 +346,61 @@ class PLRScan(Scan1D):
     else :
       pts = self.points(with_errors=False)
       plt.plot(pts[0], pts[1], marker, label=label if label is not None else self.key)
+
+
+class PLRScan2D (Scan) :
+  """Utility class to compute 2D confidence intervals from PLR scan information
+
+  Attributes:
+  """
+
+  def __init__(self, raster : Raster, ts_key : str = None, poi1_name : str = None, poi2_name : str = None,
+               calculator : TestStatisticCalculator = None, name = 'Profile likelihood', ts_name = None, cl = None, nsigmas = 1) :
+    """Initialize the `PLRScan` object"""
+    super().__init__(raster, ts_key, calculator, name)
+    self.ts_name = ts_name if ts_name is not None else ts_key
+    self.poi1 = self.find_poi(poi1_name, 0)
+    self.poi2 = self.find_poi(poi2_name, 1)
+    if cl is None and nsigmas is None : raise ValueError('Must provide either a CL value or a number of sigmas to specify the contour size')
+    cl_level = cl if cl is not None else 1 - 2*scipy.stats.norm.sf(nsigmas)
+    self.ts_level = scipy.stats.chi2.isf(1 - cl_level, 2)
+
+  def cl(self) :
+    return 1 - scipy.stats.chi2.sf(self.ts_level, 2)
+
+  def points(self) -> tuple :
+    """Collect the raster information into a set of points
+
+    Returns:
+    """
+    poi1_values = []
+    poi2_values = []
+    result_values = []
+    for hypo, plr_data in self.raster.plr_data.items() :
+      poi1_values.append(hypo[self.poi1.name])
+      poi2_values.append(hypo[self.poi2.name])
+      result_values.append(self.value(plr_data))
+    return (poi1_values, poi2_values, result_values)
+
+  def spline(self, order : int = 3) :
+    pts = self.points()
+    return scipy.interpolate.SmoothBivariateSpline(pts[0], pts[1], pts[2], k=order)
+
+  def plot(self, plt, color='g', points : bool = False, label : str = None) :
+    plt.suptitle('$%s$' % self.ts_name)
+    plt.xlabel('%s' % self.poi1.name)
+    plt.ylabel('%s' % self.poi2.name)
+    #plt.zlabel('$%s$' % self.ts_name)
+    pts = self.points()
+    plt.tricontour(pts[0], pts[1], pts[2], levels=[0, self.ts_level], colors = [ 'k', color ])
+    if points : 
+      x0 = pts[0][0]
+      y0 = pts[1][0]
+      x1 = pts[0][-1]
+      y1 = pts[1][-1]
+      for x,y,z in zip(*pts) :
+        if x == x0 or x == x1 or y == y0 or y == y1 : continue # remove edge points that overlap with axes
+        plt.annotate('%.1f' % z, (x,y))
+
+      
     

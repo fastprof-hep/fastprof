@@ -448,8 +448,8 @@ class OptiMinimizer (POIMinimizer) :
       self.nfev = 0
       return self.min_nll
     if len(x0) > 1 and self.method == 'scalar' :
-      print("Cannot use 'scalar' method for multiple POIs, switching to 'CG'.")
-      self.method = 'CG'
+      print("Cannot use 'scalar' method for multiple POIs, switching to 'L-BFGS-B'.")
+      self.method = 'L-BFGS-B'
 
     def update_current_hypo(pois) :
       for i, poi in zip(free_indices, pois) : current_hypo.pois[i] = poi

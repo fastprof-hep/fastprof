@@ -43,16 +43,17 @@ class TestStatistic :
   specified hypothesis.
 
   Attributes:
-    test_poi (float) : the POI value defining the tested
-                       hypothesis
+    test_poi_values (float) : the POI value defining the tested
+                              hypothesis
   """
-  def __init__(self, test_poi : float) :
+  def __init__(self, test_poi_values : list) :
     """Initialize the `TestStatistic` object
 
     Args:
-      test_poi : the POI value that defines the tested hypothesis
+      test_poi_values : the POI value that defines the tested hypothesis
     """
-    self.test_poi = test_poi
+    self.test_poi_values = test_poi_values
+
   def __float__(self) -> float :
     """Conversion method to `float` value
 
@@ -60,6 +61,7 @@ class TestStatistic :
       the test statistic value
     """
     return value()
+
   @abstractmethod
   def value(self) :
     """Value of the test statistic
@@ -68,6 +70,7 @@ class TestStatistic :
       the test statistic value
     """
     pass
+
   @abstractmethod
   def asymptotic_pv(self, ts : float = None) -> float :
     """Asymptotic p-value corresponding
@@ -82,6 +85,7 @@ class TestStatistic :
       the asymptotic p-value
     """
     pass
+
   @abstractmethod
   def asymptotic_pdf(self, ts : float = None) -> float :
     """Value of the PDF of the test statistic, under
@@ -96,6 +100,7 @@ class TestStatistic :
       the local value of the asymptotic PDF
     """
     pass
+
   @abstractmethod
   def asymptotic_ts(self, pv : float) -> float :
     """Test statistic value corresponding to a given
@@ -117,14 +122,14 @@ class TMu(TestStatistic) :
     tmu (float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
   """
 
-  def __init__(self, test_poi : float, tmu : float) :
+  def __init__(self, test_poi_values : list, tmu : float) :
     """Initialize the `TMu` object
 
     Args:
       test_poi : the POI value that defines the tested hypothesis
       tmu : the value of the profile likelihood ratio :math:`-2\Delta\log L`
     """
-    super().__init__(test_poi)
+    super().__init__(test_poi_values)
     self.tmu = tmu
 
   def value(self) -> float :
@@ -212,12 +217,23 @@ class QMu(TestStatistic) :
       sigma    : the Asimov uncertainty on the POI, an alternate way to
                  provide tmu_Amu
     """
-    super().__init__(test_poi)
+    super().__init__([ test_poi ])
     self.tmu = tmu
     self.best_poi = best_poi
-    self.comp_poi = comp_poi if comp_poi != None else self.test_poi
-    self.tmu_Amu = tmu_Amu # Should correspond to mu' = self.test_poi (when test_poi != comp_poi). In practice mu'=0 to compute CL_b
+    self.comp_poi = comp_poi if comp_poi != None else self.test_poi()
+    self.tmu_Amu = tmu_Amu # Should correspond to mu' = test_poi (when test_poi != comp_poi). In practice mu'=0 to compute CL_b
     self.sigma = sigma
+
+  def test_poi(self) :
+    """Tested values of the POI
+
+    Helper function to get the first (and here only) POI value, since `QMu` implements
+    a single POI, whereas the general `TestStatistic` class allows multiple.
+
+    Returns:
+      the test statistic value
+    """
+    return self.test_poi_values[0]
 
   def value(self) :
     """Value of the test statistic
@@ -259,14 +275,14 @@ class QMu(TestStatistic) :
     Returns:
       the value of :math:`t_{\mu, A(0)}`
     """
-    if self.comp_poi == self.test_poi : return 0
+    if self.comp_poi == self.test_poi() : return 0
     if self.tmu_Amu != None :
       if self.tmu_Amu < 0 :
         print('WARNING: tmu_Amu = % g < 0, returning 0' % self.tmu_Amu)
         return 0
       return self.tmu_Amu # Must be the right value for test_poi! (=> tmu_Amu and comp_poi should be set together consistently)
     elif self.sigma != None :
-      return ((self.comp_poi - self.test_poi)/self.sigma)**2
+      return ((self.comp_poi - self.test_poi())/self.sigma)**2
     else :
       raise ValueError('Should supply either tmu_Amu or sigma for the asymptotic CL_s computation')
 
