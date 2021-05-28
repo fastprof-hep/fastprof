@@ -305,7 +305,7 @@ class Sample(Serializable) :
     """
     sdict['name'] = self.name
     self.norm.fill_dict(sdict)
-    sdict['nominal_norm'] = self.nominal_norm
+    sdict['nominal_norm']   = self.unnumpy(self.nominal_norm)
     sdict['nominal_yields'] = self.unnumpy(self.nominal_yields)
-    sdict['impacts'] = self.unnumpy(self.impacts)
+    sdict['impacts']        = self.unnumpy(self.impacts)
 

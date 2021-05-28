@@ -82,7 +82,7 @@ class Parameters :
       poi_list = list(model.pois)
       for poi, val in pois.items() :
         if poi in poi_list : poi_array[poi_list.index(poi)] = val
-      if np.isnan(poi_array).any() : raise ValueError('Input POI dictionary did not contain a valid numerival value for each POI : %s' % str(pois))
+      if np.isnan(poi_array).any() : raise ValueError('Input POI dictionary did not contain a valid numerical value for each POI : %s' % str(pois))
       pois = poi_array
     if isinstance(pois, (float, int)) : 
       if model is not None :

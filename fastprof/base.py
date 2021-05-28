@@ -148,6 +148,7 @@ class Serializable :
     return val
 
   def unnumpy(self, obj) :
+    if isinstance(obj, np.int64) : return int(obj)
     if isinstance(obj, np.float64) : return float(obj)
     if isinstance(obj, np.ndarray) or isinstance(obj, list) : 
       return [ self.unnumpy(element) for element in obj ]
@@ -260,11 +261,11 @@ class ModelPOI(Serializable) :
     """
     sdict['name']      = self.name
     sdict['unit']      = self.unit
-    sdict['value']     = self.value
-    sdict['error']     = self.error
-    sdict['min_value'] = self.min_value
-    sdict['max_value'] = self.max_value
-    sdict['initial_value'] = self.max_value
+    sdict['value']     = self.unnumpy(self.value)
+    sdict['error']     = self.unnumpy(self.error)
+    sdict['min_value'] = self.unnumpy(self.min_value)
+    sdict['max_value'] = self.unnumpy(self.max_value)
+    sdict['initial_value'] = self.unnumpy(self.max_value)
 
 
 # -------------------------------------------------------------------------
@@ -322,8 +323,8 @@ class ModelAux(Serializable) :
     """
     sdict['name'] = self.name
     sdict['unit'] = self.unit
-    sdict['min_value'] = self.min_value
-    sdict['max_value'] = self.max_value
+    sdict['min_value'] = self.unnumpy(self.min_value)
+    sdict['max_value'] = self.unnumpy(self.max_value)
 
 
 # -------------------------------------------------------------------------
@@ -461,8 +462,8 @@ class ModelNP(Serializable) :
     """
     sdict['name'] = self.name
     sdict['unit'] = self.unit
-    sdict['nominal_value'] = self.nominal_value
-    sdict['variation'] = self.variation
-    sdict['constraint'] = self.constraint
+    sdict['nominal_value'] = self.unnumpy(self.nominal_value)
+    sdict['variation']     = self.unnumpy(self.variation)
+    sdict['constraint']    = self.unnumpy(self.constraint)
     sdict['aux_obs'] = self.aux_obs
 

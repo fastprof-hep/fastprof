@@ -129,7 +129,7 @@ class NumberNorm(Serializable) :
          sdict: A dictionary containing markup data
     """
     sdict['norm_type'] = NumberNorm.type_str
-    sdict['norm'] = self.norm_value
+    sdict['norm'] = self.unnumpy(self.norm_value)
 
   def __str__(self) -> str :
     """Provides a description string
