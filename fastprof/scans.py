@@ -57,7 +57,7 @@ class Scan1D (Scan) :
   def __init__(self, raster : Raster, key : str, poi_name : str = None, calculator : TestStatisticCalculator = None, name : str = '') :
     """Initialize the `Scan1D` object"""
     super().__init__(raster, key, calculator, name)
-    poi = self.find_poi(poi_name)
+    self.poi = self.find_poi(poi_name)
 
   def crossings(self, pv_level : float = 0.05, order : int = 3, log_scale : bool = True, with_errors : bool = False) -> float :
     """Compute the crossing points at a predefined p-value level
@@ -128,8 +128,8 @@ class Scan1D (Scan) :
         result_values.append(self.value(plr_data))
       else :
         result_values.append(self.value(plr_data))
-        result_values_up.append(self.value(plr_data), +1)
-        result_values_dn.append(self.value(plr_data), -1)
+        result_values_up.append(self.value(plr_data, +1))
+        result_values_dn.append(self.value(plr_data, -1))
     return (poi_values, (result_values, result_values_up, result_values_dn)) if with_errors else (poi_values, result_values)
 
   def spline(self, order : int = 3) :
@@ -177,6 +177,8 @@ class Scan1D (Scan) :
     if len(interp_xs) < 2 :
       print('Cannot interpolate using %d point(s) while computing %s, giving up.' % (len(interp_xs), self.name))
       return None
+    print('njpb1', xs, ys)
+    print('njpb2', interp_xs)
     if len(interp_xs) < order + 1 :
       order = len(interp_xs) - 1
       print('Reducing interpolation order to %d to match the number of available points while computing %s.' % (order, self.name))

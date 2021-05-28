@@ -84,7 +84,7 @@ class TestStatisticCalculator :
     Returns:
       the POI name
     """
-    pois = self.pois()
+    pois = self.pois(plr_data)
     if index >= len(pois) : raise KeyError('Cannot access POI with index %d, only %d are defined' % (index, len(pois)))
     return pois[index]
 
