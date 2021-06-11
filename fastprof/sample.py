@@ -148,6 +148,7 @@ class Sample(Serializable) :
     if not par in self.impacts : return np.zeros(len(self.nominal_yields)) # no registered impact: return [0...0]
     #  raise KeyError('No impact defined in sample %s for parameters %s.' % (self.name, par))
     imp = None
+    # Case 1 : the impacts are provided as a list, with one entry per bin. Each list entry is a dict with variation:impact pairs 
     if isinstance(self.impacts[par], list) :
       try:
         imp = np.array([ imp['%+g' % variation] for imp in self.impacts[par] ], dtype=float)
@@ -160,6 +161,7 @@ class Sample(Serializable) :
           except Exception as inst:
             print('Impact lookup failed for sample %s, parameter %s, variation %+g' % (self.name, par, variation))
             raise(inst)
+    # Case 2 : the impacts are provided as a single dict, which is common for all the bins
     if isinstance(self.impacts[par], dict) :
       imp = np.array([ self.impacts[par]['%+g' % variation] ] * len(self.nominal_yields), dtype=float)
     if imp is None : return imp
@@ -174,7 +176,7 @@ class Sample(Serializable) :
       cases with more interpolation points, a polynomial is used.
 
       The interpolation can be in linear scale (suitable for interpolating
-      yields as N0*(1 + pol(NP))) or log scale (as N0*exp(pol(NP))).
+      yields as N0*(1 + pol(NP))) or exponential scale (as N0*exp(pol(NP))).
 
       Args:
          par       : name of the NP
@@ -183,6 +185,7 @@ class Sample(Serializable) :
       Returns:
          Polynomial coefficients of the interpolation (pair of np.arrays of shape (nbins, len(variations))
     """
+    # First, determine the list of positive and negative variations for which we need to compute impacts:
     if variations is not None :
       self.pos_vars[par] = [+v for v in variations ]
       self.neg_vars[par] = [-v for v in variations ]
@@ -190,21 +193,30 @@ class Sample(Serializable) :
       available = self.available_variations(par)
       self.pos_vars[par] = sorted([ v for v in available if v > 0 ])
       self.neg_vars[par] = sorted([ v for v in available if v < 0 ])
+    # Compute the impacts for each reported variation. These are 2D arrays of size (nvariations, nbins).
     self.pos_imps[par] = np.array([ self.impact(par, var) for var in self.pos_vars[par] ])
     self.neg_imps[par] = np.array([ self.impact(par, var) for var in self.neg_vars[par] ])
+    max_impact = 100
+    # Shortcut for the case of only 1 variation
+    if len(self.pos_vars[par]) == 1 :
+      pos_coeffs = [ self.pos_imps[par][0]/self.pos_vars[par][0] if not is_log else np.log(np.maximum(np.minimum(1 + self.pos_imps[par][0], max_impact), 1/max_impact))/self.pos_vars[par][0] ]
+      neg_coeffs = [ self.neg_imps[par][0]/self.pos_vars[par][0] if not is_log else np.log(np.maximum(np.minimum(1 + self.pos_imps[par][0], max_impact), 1/max_impact))/self.pos_vars[par][0] ]
+      return np.array(pos_coeffs), np.array(neg_coeffs)
+    # Otherwise go the longer route of interpolation between multiple variations
     try:
-      max_impact = 100
+      # The impacts again -- unchanged for the linear case, log'ed for the exponential case
       pos_imp_vals = [ pos_imp if not is_log else np.log(np.maximum(np.minimum(1 + pos_imp, max_impact), 1/max_impact)) for pos_imp in self.pos_imps[par].T ]
       neg_imp_vals = [ neg_imp if not is_log else np.log(np.maximum(np.minimum(1 + neg_imp, max_impact), 1/max_impact)) for neg_imp in self.neg_imps[par].T ]
-      pos_params = np.array([ self.interpolate_impact(self.pos_vars[par], pos_imp) for pos_imp in pos_imp_vals ]).T
-      neg_params = np.array([ self.interpolate_impact(self.neg_vars[par], neg_imp) for neg_imp in neg_imp_vals ]).T
+      # Arrays of per-bin impact coefficients
+      pos_coeffs = np.array([ self.interpolate_impact(self.pos_vars[par], pos_imp) for pos_imp in pos_imp_vals ]).T
+      neg_coeffs = np.array([ self.interpolate_impact(self.neg_vars[par], neg_imp) for neg_imp in neg_imp_vals ]).T
     except Exception as inst:
       print("ERROR: impact computation failed for parameter '%s'" % par)
       raise(inst)
-    return pos_params, neg_params
+    return pos_coeffs, neg_coeffs
 
   def interpolate_impact(self, pos : list, impacts : np.array) -> np.array :
-    """Returns polynomial approximant to the impact valust
+    """Returns polynomial approximant to the impact values
       Args:
          pos : list of parameter variation values
          impacts : list of corresponding impacts
@@ -213,7 +225,6 @@ class Sample(Serializable) :
     """
     if len(pos) != len(impacts) : raise ValueError("Cannot interpolate, number of x values (%d) doesn't match y values (%d)." % (len(pos), len(impacts)))
     vdm = np.array( [ [ p**(n+1) for n in range(0, len(pos)) ] for p in pos ] )
-    #print(pos, impacts, vdm)
     return np.linalg.inv(vdm).dot(impacts)
 
   def sym_impact(self, par : str) -> np.array :
