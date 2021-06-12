@@ -140,6 +140,7 @@ class Serializable :
     """
     if not key in dic : return default
     val = dic[key]
+    if val is None : return val
     if not isinstance(types, list) : types = [ types ]
     if types != [] and not any([isinstance(val, t) for t in types]) :
       raise TypeError('Object at key %s in markup dictionary has type %s, not the expected %s' %
@@ -200,7 +201,7 @@ class ModelPOI(Serializable) :
   """
 
   def __init__(self, name : str = '', value : float = None, error : float = None, min_value : float = None, max_value : float = None,
-               initial_value : float = None, unit : str = None) :
+               initial_value : float = None, unit : str = '') :
     """Initialize object attributes
 
       Missing arguments are set to None.
