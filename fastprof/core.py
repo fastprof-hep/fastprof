@@ -328,8 +328,7 @@ class Model (Serializable) :
         (as a dict mapping aux. obs. name to :class:`fastprof.elements.ModelAux` object)
      npois (int): number of model pois
      nnps (int): number of model NPs
-     ncons (int): number of constrained NPs (=number of aux. obs)
-     nfree (int): number of free NPs (= nnps - ncons)
+     nauxs (int): number of model auxiliary observables
      channels (dict): the model channels (as a dict mapping channel name to :class:`fastprof.elements.Channel` object)
      samples (dict): the the model samples, compiled over all channels (as a dict mapping sample name
         to :class:`fastprof.elements.Sample` object)
@@ -385,14 +384,11 @@ class Model (Serializable) :
     super().__init__()
     self.pois = { poi.name : poi for poi in pois }
     self.nps = {}
-    for np in nps :
-      if not np.is_free() : self.nps[par.name] = par
-    ncons = len(self.nps)
-    for np in nps :
-      if np.is_free() : self.nps[par.name] = par
+    for par in nps :
+      if par.aux_obs is not None and par.aux_obs not in aux_obs :
+        raise ValueError("Auxiliary observable '%s' for NP '%s' is not defined." % (par.aux_obs, par.name))
+      self.nps[par.name] = par
     self.aux_obs = { par.name : par for par in aux_obs }
-    if len(self.aux_obs) != ncons :
-      raise ValueError('Number of auxiliary observables (%d) does not match the number of constrained NPs (%d)' % (len(self.aux_obs), self.ncons))
     self.channels = { channel.name : channel for channel in channels }
     self.use_asym_impacts = use_asym_impacts
     self.use_linear_nps = use_linear_nps
@@ -414,8 +410,7 @@ class Model (Serializable) :
     """
     self.npois = len(self.pois)
     self.nnps  = len(self.nps)
-    self.ncons = len(self.aux_obs)
-    self.nfree = self.nnps - self.ncons
+    self.nauxs = len(self.aux_obs)
     self.samples = {}
     self.sample_indices = {}
     self.channel_offsets = {}
@@ -455,8 +450,8 @@ class Model (Serializable) :
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
     for p, par in enumerate(self.nps.values()) :
-      if par.constraint is None : break # we've reached the end of the constrained NPs in the NP list
-      self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
+      if par.constraint is not None :
+        self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
       self.np_indices[par.name] = p
     for p, par in enumerate(self.pois.values()) : self.poi_indices[par.name] = p
     
@@ -1005,7 +1000,7 @@ class Data (Serializable) :
       self.counts = np.zeros(self.model.nbins)
     return self
 
-  def set_aux_obs(self, aux_obs) :
+  def set_aux_obs(self, aux_obs = []) :
     """Sets the aux. obs. to the specified values
 
       Args:
@@ -1014,18 +1009,22 @@ class Data (Serializable) :
          self
     """
     if isinstance(aux_obs, list) : aux_obs = np.array( aux_obs, dtype=float )
-    if not isinstance(aux_obs, np.ndarray) : aux_obs = np.array([ aux_obs ], dtype=float)
-    if aux_obs.size == 0 :
+    if not isinstance(aux_obs, np.ndarray) : aux_obs = np.array([ aux_obs ], dtype=float) # to ensure we have floats everywhere ?
+    if aux_obs.ndim != 1 :
+      raise ValueError('Input aux data should be a 1D vector, got ' + str(aux_obs))
+    if len(aux_obs) == 0 :
       self.aux_obs = np.array(self.model.np_nominal_values)
+    elif len(aux_obs) == self.model.nnps :
+      self.aux_obs = np.array(aux_obs)
+    elif len(aux_obs) == self.model.nauxs :
+      self.aux_obs = np.array(self.model.np_nominal_values)
+      a = 0
+      for p, par in enumerate(self.model.nps.values()) :
+        if par.is_free() : continue
+        self.aux_obs[p] = aux_obs[a]
+        a += 1
     else :
-      if aux_obs.ndim != 1 :
-        raise ValueError('Input aux data should be a 1D vector, got ' + str(aux_obs))
-      if aux_obs.size == self.model.nnps :
-        self.aux_obs = np.array(aux_obs)
-      elif aux_obs.size == self.model.ncons :
-        self.aux_obs = np.concatenate((aux_obs, self.model.np_nominal_values[self.model.ncons:]))
-      else :
-        raise ValueError('Input aux data should have a size equal to the number of model auxiliary observables (%d), got %d.' % (self.model.ncons, str(aux_obs)))
+      raise ValueError('Cannot set aux obs data from an array of size %d, expecting a size of either %d (aux obs only) or %d (all NPs)' % (len(aux_obs), self.model.nauxs, self.model.nnps))
     return self
 
   def set_data(self, counts, aux_obs) :
