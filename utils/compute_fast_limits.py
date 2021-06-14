@@ -96,6 +96,9 @@ def run(argv = None) :
   if not options.regularize is None : model.set_gamma_regularization(options.regularize)
   if not options.cutoff is None : model.cutoff = options.cutoff
 
+  results_file = options.output_file + '_results.json'
+  raster_file = options.output_file + '_raster.json'
+
   try :
     hypos = [ Parameters(setval_dict, model=model) for setval_dict in process_setval_list(options.hypos, model) ]
   except Exception as inst :
@@ -147,7 +150,12 @@ def run(argv = None) :
   # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
   if options.ntoys > 0 : 
     print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
-  faster = calc.compute_fast_results(hypos, data)
+  try :
+    faster = Raster('fast', model=model)
+    faster.load(raster_file)
+  except FileNotFoundError :
+    faster = calc.compute_fast_results(hypos, data)
+    faster.save(raster_file)
   faster.print(verbosity = options.verbosity)
   if options.ntoys == 0 : return
 
@@ -244,7 +252,7 @@ def run(argv = None) :
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
       jdict['limit_sampling_CLs_expected_band_%+d' % band] = limit_sampling_cls_bands[band]
 
-  with open(options.output_file + '_results.json', 'w') as fd:
+  with open(results_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
 
 if __name__ == '__main__' : run()
