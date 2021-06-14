@@ -253,6 +253,16 @@ class Sample(Serializable) :
     """
     return self.norm.value(pars_dict)/self.nominal_norm
 
+  def yields(self, pars_dict : dict) -> np.ndarray :
+    """Computes the scaled yields for a given value of the POIs
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         the array of normalized event yields
+    """
+    return self.normalization(pars_dict)*self.nominal_yields
+
   def norm_gradient(self, pars_dict : dict) -> float :
     """Computes the overall normalization factor
 

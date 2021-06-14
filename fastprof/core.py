@@ -28,7 +28,7 @@ The code is organized around the following classes:
 """
 
 import numpy as np
-import math
+import math, sys
 import matplotlib.pyplot as plt
 
 from .base import ModelPOI, ModelNP, ModelAux, Serializable
@@ -411,39 +411,6 @@ class Model (Serializable) :
     self.npois = len(self.pois)
     self.nnps  = len(self.nps)
     self.nauxs = len(self.aux_obs)
-    self.samples = {}
-    self.sample_indices = {}
-    self.channel_offsets = {}
-    self.nbins = 0
-    self.nvariations = 1
-    for channel in self.channels.values() :
-      self.channel_offsets[channel.name] = self.nbins
-      self.nbins += channel.nbins()
-      for sample in channel.samples.values() :
-        self.samples[(channel.name, sample.name)] = sample
-        self.sample_indices[(channel.name, sample.name)] = len(self.sample_indices)
-    self.nominal_yields = np.zeros((len(self.samples), self.nbins))
-    if self.use_asym_impacts :    
-      self.pos_impact_coeffs = np.zeros((len(self.samples), self.nbins, len(self.nps), self.nvariations))
-      self.neg_impact_coeffs = np.zeros((len(self.samples), self.nbins, len(self.nps), self.nvariations))
-    self.sym_impact_coeffs = np.zeros((len(self.samples), self.nbins, len(self.nps)))
-    for c, channel in enumerate(self.channels.values()) :
-      if self.verbosity > 0 : print('Initializing channel %s (%d of %d)' % (channel.name, c+1, len(self.channels)))
-      for sample in channel.samples.values() :
-        sample.set_np_data(self.nps.values(), variation=1, verbosity=self.verbosity)
-        start = self.channel_offsets[channel.name]
-        stop  = start + channel.nbins()
-        self.nominal_yields[self.sample_indices[(channel.name, sample.name)], start:stop] = sample.nominal_yields
-        for p, par in enumerate(self.nps) :
-          if self.use_asym_impacts :
-            pos_cs, neg_cs = sample.impact_coefficients(par, self.variations, is_log=not self.use_linear_nps)
-            if pos_cs.shape[0] > self.nvariations or neg_cs.shape[0] > self.nvariations :
-              self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0])
-              self.pos_impact_coeffs.resize(len(self.samples), self.nbins, len(self.nps), self.nvariations)
-              self.neg_impact_coeffs.resize(len(self.samples), self.nbins, len(self.nps), self.nvariations)
-            self.pos_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p, :pos_cs.shape[0]] = pos_cs.T
-            self.neg_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p, :neg_cs.shape[0]] = neg_cs.T
-          self.sym_impact_coeffs[self.sample_indices[(channel.name, sample.name)], start:stop, p] = sample.sym_impact(par)
     self.poi_indices = {}
     self.np_indices = {}
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
@@ -454,6 +421,44 @@ class Model (Serializable) :
         self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
       self.np_indices[par.name] = p
     for p, par in enumerate(self.pois.values()) : self.poi_indices[par.name] = p
+    self.samples = {}
+    self.nbins = 0
+    self.nvariations = 1
+    self.max_nsamples = 0
+    if len(self.channels) == 0 : return
+    for channel in self.channels.values() :
+      if len(channel.samples) > self.max_nsamples : self.max_nsamples = len(channel.samples)
+      self.nbins += channel.nbins()
+      for s, sample in enumerate(channel.samples.values()) :
+        sample.set_np_data(self.nps.values(), variation=1, verbosity=self.verbosity)
+        self.samples[(channel.name, s)] = sample
+    if self.verbosity > 0 : print('Initializing nominal event yields')
+    self.nominal_yields = np.stack([ np.concatenate([ self.samples[(channel, s)].nominal_yields for channel in self.channels]) for s in range(0, self.max_nsamples) ])      
+    if self.use_asym_impacts :    
+      self.pos_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
+      self.neg_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
+    self.sym_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps)))
+    for p, par in enumerate(self.nps) :
+      if self.verbosity > 0 : 
+        sys.stderr.write('\rInitializing impacts for nuisance parameter %d of %d %-80s' % (p+1, self.nnps, '[ ' + par + ' ]'))
+      for s in range(0, self.max_nsamples) :
+        sym_list = []
+        pos_list = []
+        neg_list = []
+        for channel in self.channels :
+          sym_list.append(self.samples[(channel, s)].sym_impact(par))
+          if self.use_asym_impacts :
+            pos_cs, neg_cs = self.samples[(channel, s)].impact_coefficients(par, self.variations, is_log=not self.use_linear_nps)
+            pos_list.append(pos_cs.T)
+            neg_list.append(neg_cs.T)
+            if pos_cs.shape[0] > self.nvariations or neg_cs.shape[0] > self.nvariations :
+              self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0])
+              self.pos_impact_coeffs.resize(self.max_nsamples, self.nbins, len(self.nps), self.nvariations)
+              self.neg_impact_coeffs.resize(self.max_nsamples, self.nbins, len(self.nps), self.nvariations)
+        if self.use_asym_impacts :
+          self.pos_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(pos_list)
+          self.neg_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(neg_list)
+        self.sym_impact_coeffs[s, :, p] = np.concatenate(sym_list)
     
   def poi(self, index : str) -> ModelPOI :
     """Returns a POI object by index
@@ -552,7 +557,7 @@ class Model (Serializable) :
       Returns:
          Expected event yields per sample per bin
     """
-    nnom = (self.nominal_yields.T*np.array([ sample.normalization(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T
+    nnom = np.stack([ np.concatenate([ self.samples[(channel, s)].yields(pars.dict(nominal_nps=True)) for channel in self.channels]) for s in range(0, self.max_nsamples) ]) 
     k = self.k_exp(pars)
     if self.cutoff == 0 : return nnom*k
     return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
