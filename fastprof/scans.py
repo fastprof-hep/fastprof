@@ -306,7 +306,7 @@ class PLRScan1D (Scan1D) :
     return 1 - scipy.stats.chi2.sf(self.ts_level, 1)
 
 
-  def interval(self, order : int = 3, log_scale : bool = True, print_result : bool = False) -> float :
+  def interval(self, order : int = 3, log_scale : bool = False, print_result : bool = False) -> float :
     """Perform a one-dimensional interpolation to compute a likelihood interval
 
     Args:
