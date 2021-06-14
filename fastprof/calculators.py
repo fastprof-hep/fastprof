@@ -13,6 +13,7 @@ Classes implementing the computation of test statistics.
 """
 
 from abc import abstractmethod
+from timeit import default_timer as timer
 
 from .core import Model, Data, Parameters, ModelPOI
 from .fit_data import FitResult, PLRData, Raster
@@ -160,7 +161,7 @@ class TestStatisticCalculator :
     """
     for plr_data in raster.plr_data.values() : self.fill_pv(plr_data)
 
-  def compute_fast_results(self, hypos : list, data : Data, init_values : dict = {}, name : str = 'fast') -> Raster :
+  def compute_fast_results(self, hypos : list, data : Data, init_values : dict = {}, name : str = 'fast', verbosity : int = 0) -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Builds a raster object with the same hypothesis points as the one
@@ -175,7 +176,11 @@ class TestStatisticCalculator :
       a raster object containing the fast PLR and p-value results
     """
     fast_plr_data = {}
+    start_time = timer()
     for i, hypo in enumerate(hypos) :
+      if verbosity > 1 :
+        print('Processing hypothesis point %d of %d %s:' % (i+1, len(hypos), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
+        print(hypo)
       if hypo in init_values :
         init_values[hypo].set_poi_values_and_ranges(self.minimizer)
       fast_plr_data[hypo] = self.compute_fast_q(hypo, data, '%s_%g' % (name, i))
