@@ -1056,14 +1056,15 @@ class Data (Serializable) :
     """
     if not 'data' in sdict : raise KeyError("No 'data' section in specified markup file")
     if not 'channels' in sdict['data'] : raise KeyError("No 'channels' section in specified markup file")
+    offset = 0
     for model_channel in self.model.channels.values() :
       name = model_channel.name
       try :
         channel = next(dict_channel for dict_channel in sdict['data']['channels'] if dict_channel['name'] == name)
       except:
         raise ValueError("Model channel '%s' not found in specified markup file." % name)
-      offset = self.model.channel_offsets[name]
       model_channel.load_data_dict(channel, self.counts[offset:offset + model_channel.nbins()])
+      offset += model_channel.nbins()
     if 'aux_obs' in sdict['data'] :
       data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in sdict['data']['aux_obs'] }
     else :
