@@ -13,7 +13,7 @@ import numpy as np
 import json
 
 from fastprof import Model, Data, Parameters, OptiMinimizer, Raster, TMuCalculator, ParBound, PLRScan1D, PLRScan2D
-from utils import process_setval_list
+from utils import process_setval_list, process_setvals
 
 
 ####################################################################################################################################
@@ -45,25 +45,30 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     sys.exit(0)
-
+  if options.verbosity > 1 : print('Initializing model from file %s.' % options.model_file)
   model = Model.create(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if not options.regularize is None : model.set_gamma_regularization(options.regularize)
   if not options.cutoff is None : model.cutoff = options.cutoff
 
+  results_file = options.output_file + '_results.json'
+  raster_file = options.output_file + '_raster.json'
+
   if options.data_file :
+    if options.verbosity > 1 : print('Initializing data from file %s.' % options.data_file)
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
     print('Using dataset stored in file %s.' % options.data_file)
   elif options.asimov != None :
-    try:
-      sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
-      data = model.generate_expected(sets)
+    try :
+      sets = process_setvals(options.asimov, model)
     except Exception as inst :
       print(inst)
-      raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
-    print('Using Asimov dataset with POIs %s.' % str(sets))
+      raise ValueError("ERROR : invalid POI specification string '%s'." % options.asimov)
+    data = model.generate_expected(sets)
+    if options.verbosity > 1 : print('Using Asimov dataset with parameters %s' % str(sets))
   else :
+    if options.verbosity > 1 : print('Initializing data from file %s.' % options.model_file)
     data = Data(model).load(options.model_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
     print('Using dataset stored in file %s.' % options.model_file)
@@ -72,7 +77,8 @@ def run(argv = None) :
     hypos = [ Parameters(setval_dict, model=model) for setval_dict in process_setval_list(options.hypos, model) ]
   except Exception as inst :
     print(inst)
-    raise ValueError("Could not parse list of hypothesis values '%s' : expected colon-separated list of variable assignments" % options.hypos)
+    raise ValueError("Could not parse list of hypothesis values '%s' : expected #-separated list of variable assignments" % options.hypos)
+  if options.verbosity > 1 : print('Will scan the following hypotheses : %s' % '\n- '.join([str(hypo) for hypo in process_setval_list(options.hypos, model)]))
 
   par_bounds = []
   if options.bounds :
@@ -94,9 +100,14 @@ def run(argv = None) :
   calc = TMuCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model, par_bounds))
   print('Producing PLR scan with POI(s) %s, bounds %s and niter=%d.' % (str(calc.minimizer.free_pois()), str(calc.minimizer.bounds), calc.minimizer.niter))
   if len(calc.minimizer.free_pois()) > 2 : raise ValueError('Currently not supporting more than 2 POIs for this operation')
-  raster = calc.compute_fast_results(hypos, data)
+  try :
+    raster = Raster('fast', model=model)
+    raster.load(raster_file)
+  except FileNotFoundError :
+    raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity)
+    raster.save(raster_file)
 
-  raster.print(keys=[ 'tmu' ], verbosity=1)
+  raster.print(keys=[ 'tmu' ], verbosity=options.verbosity)
   jdict = {}
 
   if len(model.pois) == 1 :
@@ -130,7 +141,7 @@ def run(argv = None) :
       poi_scan.plot(plt, label='PRL', best_fit=True, marker=options.marker, smoothing=options.smoothing)
       plt.show()
 
-  with open(options.output_file + '_results.json', 'w') as fd:
+  with open(results_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
 
 if __name__ == '__main__' : run()
