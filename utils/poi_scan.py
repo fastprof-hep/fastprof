@@ -114,12 +114,12 @@ def run(argv = None) :
     poi_name = calc.minimizer.free_pois()[0]
     poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=options.cl)
     interval = poi_scan.interval(print_result=True)
-    if interval is None : return
     # Plot results
     if not options.batch_mode :
       plt.ion()
       fig1 = plt.figure(1)
-      poi_scan.plot(plt, marker=options.marker + 'b-', label='PRL', smooth=100)
+      poi_scan.plot(plt, marker='b-', label='PRL_smooth', smooth=100)
+      poi_scan.plot(plt, marker=options.marker, label='PRL')
       plt.ylim(0, None)
       plt.axhline(y=poi_scan.ts_level, color='k', linestyle='dotted')
       plt.show()
@@ -127,9 +127,9 @@ def run(argv = None) :
     jdict['cl'] = poi_scan.cl()
     jdict['poi_name'] = poi_name
     jdict['poi_unit'] = model.pois[poi_name].unit
-    jdict['central_value']  = interval[0]
-    jdict['uncertainty_up'] = interval[1]
-    jdict['uncertainty_dn'] = interval[2]
+    jdict['central_value']  = interval[0] if interval is not None else None
+    jdict['uncertainty_up'] = interval[1] if interval is not None else None
+    jdict['uncertainty_dn'] = interval[2] if interval is not None else None
   else :
     poi1_name = calc.minimizer.free_pois()[0]
     poi2_name = calc.minimizer.free_pois()[1]
