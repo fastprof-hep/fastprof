@@ -99,7 +99,7 @@ class FitResult(Serializable) :
     Args:
       sdict : a dictionary of markup data in which to store the object information
     """
-    sdict['fit_pars'] = { par.name : par.dump_dict() for par in self.fitpars }
+    sdict['fit_pars'] = { par.name : par.dump_dict() for par in self.fitpars.values() }
     sdict['nll'] = self.nll
 
   def __str__(self) -> str :
@@ -224,6 +224,7 @@ class PLRData(Serializable) :
     Returns:
       self
     """
+    sdict['hypo'] = self.hypo.dict()
     sdict['free_fit'] = self.free_fit.dump_dict()
     sdict['hypo_fit'] = self.hypo_fit.dump_dict()
     sdict['test_statistics'] = self.test_statistics
