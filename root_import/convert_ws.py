@@ -599,10 +599,11 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
       channel.valid_data[par.name] = np.ndarray((len(channel.samples), nbins, len(validation_points)))
   save_nominal(channel)
   set_normpars(channel, 0)
+  unassigned_nevents = channel.pdf.expectedEvents(ROOT.RooArgSet(channel.obs))
   for sample in channel.samples :
     if sample.normpar is not None :
       sample.normpar.setVal(sample.nominal_norm)
-      print('=== Sample %s normalized to normalization parameter %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), channel.pdf.expectedEvents(ROOT.RooArgSet(channel.obs))))
+      print('=== Sample %s normalized to normalization parameter %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), channel.pdf.expectedEvents(ROOT.RooArgSet(channel.obs)) - unassigned_nevents))
       sample.normpar.setVal(0)
     else :
       print('=== Sample %s (unnormalized)' % sample.name)    
@@ -610,6 +611,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
     sample.yields = {}
     sample.impacts = {}
     for par in nuis_pars : sample.impacts[par.name] = []
+  print('=== Unassigned n_events = %g' % unassigned_nevents)    
   print('=== Nominal NP values :')
   for par in nuis_pars : par.obj.Print()
   for i in range(0, nbins) :
