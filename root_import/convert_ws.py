@@ -281,7 +281,7 @@ def run(argv = None) :
 
   if options.refit != None :
     saves = process_setvals(options.refit, ws)
-    print('=== Refitting PDF to specified dataset with under the hypothesis :')
+    print('=== Refitting PDF to specified dataset under the hypothesis :')
     for (var, val, save_val) in saves :
       print("INFO :   %s=%g" % (var.GetName(), val))
       var.setConstant()
@@ -416,7 +416,7 @@ def run(argv = None) :
           sample_spec['norm'] = sample.normpar.GetName()
           sample_spec['nominal_norm'] = sample.nominal_norm
         else :
-          sample_spec['norm'] = ''
+          sample_spec['norm'] = 1
         sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
         sample_spec['impacts'] = sample.impacts
         sample_specs.append(sample_spec)
