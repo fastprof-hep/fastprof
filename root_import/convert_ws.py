@@ -615,7 +615,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
   print('=== Nominal NP values :')
   for par in nuis_pars : par.obj.Print()
   for i in range(0, nbins) :
-    print('=== Bin [%g, %g] (%d of %d)' % (bins[i], bins[i+1], i, nbins))
+    print('=== Bin [%g, %g] (%d of %d)' % (bins[i], bins[i+1], i+1, nbins))
     #sys.stderr.write("\rProcessing bin %d of %d in channel '%s' (%d of %d)" % (i+1, nbins, channel.name, channel_index + 1, nchannels))
     #sys.stderr.flush()
     xmin = bins[i]
@@ -637,7 +637,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
       else :
         print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
     for p, par in enumerate(nuis_pars) :
-      sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d [%30s]" % (channel.name, channel_index + 1, nchannels, i+1, nbins, p, len(nuis_pars), par.name[:30]))
+      sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d [%30s]" % (channel.name, channel_index+1, nchannels, i+1, nbins, p+1, len(nuis_pars), par.name[:30]))
       sys.stderr.flush()
       delta = par.error*options.epsilon
       for sample in channel.samples : sample.impacts[par.name].append({})
