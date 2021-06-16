@@ -459,7 +459,7 @@ class Model (Serializable) :
           self.pos_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(pos_list)
           self.neg_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(neg_list)
         self.sym_impact_coeffs[s, :, p] = np.concatenate(sym_list)
-    
+    if self.verbosity > 0 : sys.stderr.write('\n')
   def poi(self, index : str) -> ModelPOI :
     """Returns a POI object by index
 
