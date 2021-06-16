@@ -115,6 +115,8 @@ class NPMinimizer :
     d = np.linalg.det(self.p)
     if abs(d) < (1E-3)**self.q.size :
       print('Linear system has an ill-conditioned coefficient matrix (det=%g), returning null result' % d)
+      print('Profiling at hypothesis', hypo)
+      print(self.p)
       deltas = np.zeros(self.data.model.nnps)
     else :
       deltas = np.linalg.inv(self.p).dot(self.q)
