@@ -100,10 +100,15 @@ def run(argv = None) :
   calc = TMuCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model, par_bounds))
   print('Producing PLR scan with POI(s) %s, bounds %s and niter=%d.' % (str(calc.minimizer.free_pois()), str(calc.minimizer.bounds), calc.minimizer.niter))
   if len(calc.minimizer.free_pois()) > 2 : raise ValueError('Currently not supporting more than 2 POIs for this operation')
+  do_computation = True
   try :
     raster = Raster('fast', model=model)
     raster.load(raster_file)
+    do_computation = False
   except FileNotFoundError :
+    pass
+  
+  if do_computation :
     raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity)
     raster.save(raster_file)
 
