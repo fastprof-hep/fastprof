@@ -29,6 +29,7 @@ def make_parser() :
   parser.add_argument("-n", "--nsigmas"       , type=float, default=1     , help="Confidence level at which to compute the limit")
   parser.add_argument("-c", "--cl"            , type=float, default=None  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
+  parser.add_argument("-b", "--best-fit-mode" , type=str  , default='all' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
@@ -109,7 +110,7 @@ def run(argv = None) :
     pass
   
   if do_computation :
-    raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity)
+    raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity, free_fit=options.best_fit_mode)
     raster.save(raster_file)
 
   raster.print(keys=[ 'tmu' ], verbosity=options.verbosity)
