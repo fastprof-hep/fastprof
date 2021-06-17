@@ -172,6 +172,7 @@ class TestStatisticCalculator :
       raster : a raster object
       data   : the input dataset
       name   : name of the output :class:`PLRData` objects
+      verbosity : the levelf of verbosity of the output (0 or 1 currently)
     Returns:
       a raster object containing the fast PLR and p-value results
     """
@@ -181,8 +182,7 @@ class TestStatisticCalculator :
       if verbosity > 1 :
         print('Processing hypothesis point %d of %d %s:' % (i+1, len(hypos), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
         print(hypo)
-      if hypo in init_values :
-        init_values[hypo].set_poi_values_and_ranges(self.minimizer)
+      if hypo in init_values : init_values[hypo].set_poi_values_and_ranges(self.minimizer)
       fast_plr_data[hypo] = self.compute_fast_q(hypo, data, '%s_%g' % (name, i))
     fast = Raster(name, fast_plr_data, model=data.model)
     self.fill_all_pv(fast)
@@ -255,6 +255,53 @@ class TMuCalculator(TestStatisticCalculator) :
       print("t_mu computation failed for PLR '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo.dict(pois_only=True)))
       raise(inst)
     return self
+
+  def compute_fast_results(self, hypos : list, data : Data, init_values : dict = {}, name : str = 'fast', free_fit : str = 'all', verbosity : int = 0) -> Raster :
+    """Compute fast PLR and p-values for a set of hypotheses
+
+    Reimplements the general method since it can be done more simply for t_mu
+    
+    Args:
+      raster    : a raster object
+      data      : the input dataset
+      name      : name of the output :class:`PLRData` objects
+      verbosity : the levelf of verbosity of the output (0 or 1 currently)
+      free_fit  : can be 'all' (default, same as general method), 'single' (do a single
+                  fit near the best fixed fit) of 'best_fixed_fit' (just take the best fixed fit) 
+    Returns:
+      a raster object containing the fast PLR and p-value results
+    """
+    fast_plr_data = {}
+    fixed_pars = {}
+    start_time = timer()
+    for i, hypo in enumerate(hypos) :
+      if verbosity > 1 :
+        print('Processing hypothesis point %d of %d %s:' % (i+1, len(hypos), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
+        print(hypo)
+      if hypo in init_values : init_values[hypo].set_poi_values_and_ranges(self.minimizer)
+      plr_data = PLRData(name, hypo, model=data.model)
+      self.minimizer.profile_nps(hypo, data)
+      fixed_pars[hypo] = self.minimizer.min_pars
+      plr_data.hypo_fit = FitResult('hypo_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
+      if free_fit == 'all' :
+        if self.minimizer.minimize(data, fixed_pars[hypo]) is None : return None
+        plr_data.free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
+      fast_plr_data[hypo] = plr_data
+    if free_fit == 'single' or free_fit == 'best_fixed_fit' :
+      best_fixed = min(fast_plr_data.items(), key=lambda plr_data : plr_data[1].hypo_fit.nll)
+      print('njpb', best_fixed[0])
+      if free_fit == 'best_fixed_fit' :
+        common_free_fit = FitResult('free_fit', fixed_pars[best_fixed[0]], best_fixed[1].hypo_fit.nll, model=data.model)
+      else :
+        if self.minimizer.minimize(data, fixed_pars[best_fixed[0]]) is None : return None
+        common_free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
+      for hypo in hypos :
+        fast_plr_data[hypo].free_fit = common_free_fit
+    for hypo in hypos :
+      fast_plr_data[hypo].update() # includes `tmu` computation
+    fast = Raster(name, fast_plr_data, model=data.model)
+    self.fill_all_pv(fast)
+    return fast
 
 
 class QMuCalculator(TestStatisticCalculator) :
