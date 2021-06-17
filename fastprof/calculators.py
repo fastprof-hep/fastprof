@@ -271,13 +271,15 @@ class TMuCalculator(TestStatisticCalculator) :
     Returns:
       a raster object containing the fast PLR and p-value results
     """
+    if free_fit not in [ 'all', 'single', 'best_fixed_fit' ] :
+      raise ValueError("'free_fit' argument to compute_fast_results should be one of 'all', 'single', 'best_fixed_fit', got '%s'" % free_fit)
     fast_plr_data = {}
     fixed_pars = {}
     start_time = timer()
     for i, hypo in enumerate(hypos) :
       if verbosity > 1 :
-        print('Processing hypothesis point %d of %d %s:' % (i+1, len(hypos), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
-        print(hypo)
+        print('Processing hypothesis point %d of %d %s:' % (i+1, len(hypos), ('(so far %g s/point)' % ((timer() - start_time)/i)) if i > 0 else ''))
+        print(hypo.dict(pois_only=True))
       if hypo in init_values : init_values[hypo].set_poi_values_and_ranges(self.minimizer)
       plr_data = PLRData(name, hypo, model=data.model)
       self.minimizer.profile_nps(hypo, data)
@@ -287,13 +289,16 @@ class TMuCalculator(TestStatisticCalculator) :
         if self.minimizer.minimize(data, fixed_pars[hypo]) is None : return None
         plr_data.free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
       fast_plr_data[hypo] = plr_data
+    stop_time = timer()
+    if verbosity > 1 : print('Processed %d hypothesis points in %g s (%g s/point)' % (len(hypos), (stop_time - start_time), (stop_time - start_time)/len(hypos)))
     if free_fit == 'single' or free_fit == 'best_fixed_fit' :
       best_fixed = min(fast_plr_data.items(), key=lambda plr_data : plr_data[1].hypo_fit.nll)
-      print('njpb', best_fixed[0])
       if free_fit == 'best_fixed_fit' :
         common_free_fit = FitResult('free_fit', fixed_pars[best_fixed[0]], best_fixed[1].hypo_fit.nll, model=data.model)
       else :
+        start_time = timer()
         if self.minimizer.minimize(data, fixed_pars[best_fixed[0]]) is None : return None
+        if verbosity > 1 : print('Performed free-POI fit in %g s' % (timer() - start_time))
         common_free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
       for hypo in hypos :
         fast_plr_data[hypo].free_fit = common_free_fit
