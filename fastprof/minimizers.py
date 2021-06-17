@@ -256,6 +256,7 @@ class POIMinimizer :
     """
     if isinstance(hypo, (int, float)) :
       hypo = data.model.expected_pars(hypo, NPMinimizer(data))
+    if init_hypo is None : init_hypo = hypo
     if isinstance(init_hypo, (int, float)) :
       init_hypo = data.model.expected_pars(init_hypo, NPMinimizer(data))
     #print('tmu @ %g' % hypo.poi)
@@ -432,7 +433,7 @@ class OptiMinimizer (POIMinimizer) :
       Returns:
          best-fit parameters
     """
-    if init_hypo == None :
+    if init_hypo is None :
       current_hypo = self.init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, NPMinimizer(data))
     else :
       current_hypo = init_hypo.clone()
