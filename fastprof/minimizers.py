@@ -87,10 +87,10 @@ class NPMinimizer :
     # k,l : sample indices
     # a,b,c : NP indices
     impacts = model.linear_impacts(hypo)
-    ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts)
-    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
-    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts)
-    if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts)
+    ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts, optimize=True)
+    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=True) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts, optimize=True)
+    if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=True)
     p += model.constraint_hessian
     return (p,q)
 
