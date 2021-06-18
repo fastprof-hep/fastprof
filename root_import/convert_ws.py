@@ -249,20 +249,19 @@ def run(argv = None) :
       sample_specs = options.samples.replace(' ', '').replace('\n', '').split(',')
       normpar_names = {}
       for spec in sample_specs :
+        if spec == '' : continue
         spec_names = spec.split(':')
         if len(spec_names) == 1 : spec_names = [ '' ] + spec_names
         if len(spec_names) == 2 : spec_names = [ '' ] + spec_names
-        if not spec_names[0] in normpar_names : normpar_names[spec_names[0]] = {}
-        normpar_names[spec_names[0]][spec_names[1]] = spec_names[2]
+        normpar_names[(spec_names[0], spec_names[1])] = spec_names[2]
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid sample normpar name specification %s : should be of the form chan1:samp1:par1,chan2:samp2:par2,...' % options.samples)
-    for channel_name, channel_normpar_names in normpar_names.items() :
-      for sample_name, normpar_name in channel_normpar_names.items() :
-        normpar = ws.var(normpar_name)
-        if normpar == None : raise ValueError("Normalization parameter '%s' not found in workspace." % normpar_name)
-        if not channel_name in normpars : normpars[channel_name] = {} 
-        normpars[channel_name][sample_name] = normpar
+    for (channel_name, sample_name), normpar_name in normpar_names.items() :
+      normpar = ws.var(normpar_name)
+      if normpar == None : raise ValueError("Normalization parameter '%s' not found in workspace (was for sample '%s' of channel '%s')." % (normpar_name, sample_name, channel_name))
+      if not channel_name in normpars : normpars[channel_name] = {}
+      normpars[channel_name][sample_name] = normpar
   
   for channel in channels :
     fill_channel(channel, pois, aux_obs, mconfig, normpars, options)
@@ -281,7 +280,7 @@ def run(argv = None) :
 
   if options.refit != None :
     saves = process_setvals(options.refit, ws)
-    print('=== Refitting PDF to specified dataset under the hypothesis :')
+    print('=== Refitting PDF to specified dataset with under the hypothesis :')
     for (var, val, save_val) in saves :
       print("INFO :   %s=%g" % (var.GetName(), val))
       var.setConstant()
@@ -615,7 +614,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
   print('=== Nominal NP values :')
   for par in nuis_pars : par.obj.Print()
   for i in range(0, nbins) :
-    print('=== Bin [%g, %g] (%d of %d)' % (bins[i], bins[i+1], i+1, nbins))
+    print('=== Bin [%g, %g] (%d of %d)' % (bins[i], bins[i+1], i, nbins))
     #sys.stderr.write("\rProcessing bin %d of %d in channel '%s' (%d of %d)" % (i+1, nbins, channel.name, channel_index + 1, nchannels))
     #sys.stderr.flush()
     xmin = bins[i]
@@ -637,7 +636,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
       else :
         print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
     for p, par in enumerate(nuis_pars) :
-      sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d [%30s]" % (channel.name, channel_index+1, nchannels, i+1, nbins, p+1, len(nuis_pars), par.name[:30]))
+      sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d [%30s]" % (channel.name, channel_index + 1, nchannels, i+1, nbins, p, len(nuis_pars), par.name[:30]))
       sys.stderr.flush()
       delta = par.error*options.epsilon
       for sample in channel.samples : sample.impacts[par.name].append({})
