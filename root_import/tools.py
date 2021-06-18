@@ -40,18 +40,26 @@ def process_setranges(setranges, ws) :
   try:
     sets = [ v.replace(' ', '').split('=') for v in setranges.split(',') ]
     for (var, var_range) in sets :
-      if not ws.var(var) :
-        raise ValueError("Cannot find variable '%s' in workspace" % var)
-      minval, maxval = var_range.split(':')
-      if minval == '' : 
-        ws.var(var).setMax(float(maxval))
-        print("INFO : setting upper bound of %s to %g" % (var, float(maxval)))
-      elif maxval == '' :
-        ws.var(var).setMin(float(minval))
-        print("INFO : setting lower bound of %s to %g" % (var, float(minval)))
+      if var.find('*') >= 0 :
+        matching_vars = ROOT.RooArgList(ws.allVars().selectByName(var))
+        if matching_vars.getSize() == 0 :
+          raise ValueError("ERROR : no variables matching '%s' in model" % var)
       else :
-        ws.var(var).setRange(float(minval), float(maxval))
-        print("INFO : setting range of %s to [%g, %g]" % (var, float(minval), float(maxval)))
+        var_obj = ws.var(var)
+        if not var_obj : raise ValueError("Cannot find variable '%s' in workspace" % var)
+        matching_vars = ROOT.RooArgList(var_obj)
+      minval, maxval = var_range.split(':')
+      for i in range(0, matching_vars.getSize()) :
+        thisvar =  matching_vars.at(i)
+        if minval == '' : 
+          thisvar.setMax(float(maxval))
+          print("INFO : setting upper bound of %s to %g" % (thisvar.GetName(), float(maxval)))
+        elif maxval == '' :
+          thisvar.setMin(float(minval))
+          print("INFO : setting lower bound of %s to %g" % (thisvar.GetName(), float(minval)))
+        else :
+          thisvar.setRange(float(minval), float(maxval))
+          print("INFO : setting range of %s to [%g, %g]" % (thisvar.GetName(), float(minval), float(maxval)))
   except Exception as inst :
     print(inst)
     raise ValueError("ERROR : invalid variable range specification '%s'." % setranges)
