@@ -249,20 +249,19 @@ def run(argv = None) :
       sample_specs = options.samples.replace(' ', '').replace('\n', '').split(',')
       normpar_names = {}
       for spec in sample_specs :
+        if spec == '' : continue
         spec_names = spec.split(':')
         if len(spec_names) == 1 : spec_names = [ '' ] + spec_names
         if len(spec_names) == 2 : spec_names = [ '' ] + spec_names
-        if not spec_names[0] in normpar_names : normpar_names[spec_names[0]] = {}
-        normpar_names[spec_names[0]][spec_names[1]] = spec_names[2]
+        normpar_names[(spec_names[0], spec_names[1])] = spec_names[2]
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid sample normpar name specification %s : should be of the form chan1:samp1:par1,chan2:samp2:par2,...' % options.samples)
-    for channel_name, channel_normpar_names in normpar_names.items() :
-      for sample_name, normpar_name in channel_normpar_names.items() :
-        normpar = ws.var(normpar_name)
-        if normpar == None : raise ValueError("Normalization parameter '%s' not found in workspace." % normpar_name)
-        if not channel_name in normpars : normpars[channel_name] = {} 
-        normpars[channel_name][sample_name] = normpar
+    for (channel_name, sample_name), normpar_name in normpar_names.items() :
+      normpar = ws.var(normpar_name)
+      if normpar == None : raise ValueError("Normalization parameter '%s' not found in workspace (was for sample '%s' of channel '%s')." % (normpar_name, sample_name, channel_name))
+      if not channel_name in normpars : normpars[channel_name] = {}
+      normpars[channel_name][sample_name] = normpar
   
   for channel in channels :
     fill_channel(channel, pois, aux_obs, mconfig, normpars, options)
