@@ -119,7 +119,10 @@ class NPMinimizer :
       print(self.p)
       deltas = np.zeros(self.data.model.nnps)
     else :
-      deltas = np.linalg.inv(self.p).dot(self.q)
+      # all of the lines below should give the same results
+      deltas = scipy.linalg.solve(self.p, self.q, assume_a='sym')
+      # deltas = scipy.sparse.linalg.cg(self.p, self.q)[0]
+      # deltas = np.linalg.inv(self.p).dot(self.q)
     nps = hypo.nps - deltas
     self.min_deltas = Parameters(hypo.pois, deltas, self.data.model)
     self.min_pars   = Parameters(hypo.pois, nps   , self.data.model)
