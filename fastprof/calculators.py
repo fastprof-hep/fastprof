@@ -297,6 +297,7 @@ class TMuCalculator(TestStatisticCalculator) :
         common_free_fit = FitResult('free_fit', fixed_pars[best_fixed[0]], best_fixed[1].hypo_fit.nll, model=data.model)
       else :
         start_time = timer()
+        if verbosity > 1 : print('Performing global free-POI fit at hypothesis %s' % best_fixed[0].dict(pois_only=True))
         if self.minimizer.minimize(data, fixed_pars[best_fixed[0]]) is None : return None
         if verbosity > 1 : print('Performed free-POI fit in %g s' % (timer() - start_time))
         common_free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
