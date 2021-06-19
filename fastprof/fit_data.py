@@ -26,7 +26,7 @@ class FitResult(Serializable) :
 
   Attributes:
     name    (str)   : a name for the object
-    fitpars (dict)  : the best-fit parameters in { name: value } format
+    fitpars (dict)  : the best-fit parameters in { name: ModelPOI } format
     nll     (float) : the best-fit NLL value
     model   (Model) : the statistical model
   """
