@@ -200,7 +200,7 @@ class POIMinimizer :
 
       This method needs to be implemented in derived classes. It performs
       the POI minimization starting at the provided hypothesis and returns
-      the best-fit parameters.
+      the best-fit NLL.
 
       Args:
          data : dataset for which to compute the NLL
@@ -436,12 +436,12 @@ class OptiMinimizer (POIMinimizer) :
       Returns:
          best-fit parameters
     """
+    if self.bounds is None :
+      self.set_pois_from_model(data.model)
     if init_hypo is None :
       current_hypo = self.init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, NPMinimizer(data))
     else :
       current_hypo = init_hypo.clone()
-    if self.bounds is None :
-      self.set_pois_from_model(data.model)
     free_indices = [ i for i, bound in enumerate(self.bounds.values()) if bound.is_free() ]
     x0     = [ self.init_pois[bound.par] for bound in self.bounds.values() if bound.is_free() ]
     bounds = [ bound.bounds()            for bound in self.bounds.values() if bound.is_free() ]
@@ -483,31 +483,31 @@ class OptiMinimizer (POIMinimizer) :
     if self.method == 'scalar' :
       bound = bounds[0]
       if self.debug > 0 : print("== OptiMinimizer: minimizing using scalar method 'bounded' in range %s" % str(bound))
-      result = scipy.optimize.minimize_scalar(objective, bounds=bound, method='bounded', options={'xatol': 1e-5 })
+      self.result = scipy.optimize.minimize_scalar(objective, bounds=bound, method='bounded', options={'xatol': 1e-5 })
     elif self.method == 'CG':
       if self.debug > 0 : print("== Optimizer: using method 'scalar' in range %s" % str(bound))
-      result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='CG', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
+      self.result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='CG', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
     elif self.method == 'L-BFGS-B':
       if self.debug > 0 :
         print("== OptiMinimizer: minimizing the following parameters using method 'L-BFGS-B' :")
         for bound in self.bounds.values() : print('%10s = %10g (%s)' % (bound.par, self.init_pois[bound.par], str(bound)))
-      result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='L-BFGS-B', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
+      self.result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='L-BFGS-B', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
     else :
       raise ValueError('Optiminimizer: unknown method %s.' % self.method)
     #print('Optimizer: done ----------------')
-    if not result.success :
+    if not self.result.success :
       print('Minimization failed, details below')
-      print(dir(result))
+      print(dir(self.result))
       print('Current NPs:')
       print(self.min_pars)
-      if hasattr(result, 'x')       : print('x       =', result.x)
-      if hasattr(result, 'fun')     : print('fun     =', result.fun)
-      if hasattr(result, 'status')  : print('status  =', result.status)
-      if hasattr(result, 'message') : print('message =', result.message)
+      if hasattr(self.result, 'x')       : print('x       =', self.result.x)
+      if hasattr(self.result, 'fun')     : print('fun     =', self.result.fun)
+      if hasattr(self.result, 'status')  : print('status  =', self.result.status)
+      if hasattr(self.result, 'message') : print('message =', self.result.message)
       return None, None
-    self.min_nll = result.fun
-    self.min_pois = result.x if isinstance(result.x, np.ndarray) else np.array([result.x])
-    self.nfev = result.nfev
+    self.min_nll = self.result.fun
+    self.min_pois = self.result.x if isinstance(self.result.x, np.ndarray) else np.array([self.result.x])
+    self.nfev = self.result.nfev
     if self.debug > 0 :
       print(data.model.tot_bin_exp(self.min_pars))
       print(data.counts)
