@@ -105,7 +105,7 @@ def run(argv = None) :
         output_data[p]['uncertainty'] = errors[i]
     print('\n== Correlation matrix [%s]:' % ' '.join(model.pois.keys()))
     print(correlation)
-    output_data['correlation_matrix'] = correlation.tolist()
+    if options.output_file is not None : output_data['correlation_matrix'] = correlation.tolist()
   except Exception as inst :
     print('(No covariance information available in optimizer result)')
     print(opti.result)
