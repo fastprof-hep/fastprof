@@ -75,11 +75,10 @@ def run(argv = None) :
 
   if options.hypo is not None :
     try :
-      sets = process_setvals(options.hypo, model)
+      hypo_pars = process_setvals(options.hypo, model)
     except Exception as inst :
       print(inst)
       raise ValueError("ERROR : invalid POI specification string '%s'." % options.hypo)
-    hypo_pars = model.expected_pars(sets)
 
   opti = OptiMinimizer(method=options.method)
   min_nll = opti.minimize(data)
@@ -111,7 +110,7 @@ def run(argv = None) :
     print(opti.result)
     print(inst)
   if options.hypo is not None :
-    tmu = opti.tmu(hypo_pars, data, hypo_pars)
+    tmu = opti.tmu(hypo_pars, data)
     print('\n== Profile-likelihood ratio tmu = %g for hypothesis' % tmu, hypo_pars.dict(pois_only=True))
     print('-- Profiled NP values :\n' + str(opti.hypo_pars))
     if len(model.pois) == 1 :
