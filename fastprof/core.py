@@ -124,7 +124,7 @@ class Parameters :
       s += 'POIs = ' + str(self.pois) + '\n'
       s += 'NPs  = ' + str(self.nps)  + '\n'
     else :
-      s += 'POIs : ' + '\n        '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
+      s += 'POIs : ' + '\n       '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
       s += 'NPs  : ' + '\n       ' .join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name)) for p, v in zip(self.model.nps .values(), self.nps ) ] )
     return s
 
