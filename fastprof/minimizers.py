@@ -60,6 +60,8 @@ class NPMinimizer :
         and the hypothesis NP values used as reference point (stored by the
         minimization routine).
   """
+  optimize_einsum = True
+
   def __init__(self, data : Data) :
     """Initialize the NPMinimizer object
 
@@ -88,10 +90,10 @@ class NPMinimizer :
     # k,l : sample indices
     # a,b,c : NP indices
     impacts = model.linear_impacts(hypo)
-    ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts, optimize=True)
-    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=True) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
-    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts, optimize=True)
-    if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=True)
+    ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts, optimize=self.optimize_einsum)
+    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=self.optimize_einsum) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts, optimize=self.optimize_einsum)
+    if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
     p += model.constraint_hessian
     return (p,q)
 
