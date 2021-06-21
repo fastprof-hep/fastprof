@@ -31,13 +31,14 @@ class Scan :
     self.key = key
 
   def find_poi(self, poi_name : str, index : int = 0) :
+    raster_pois = self.raster.pois()
     if poi_name is not None :
-      if poi_name in self.raster.pois() :
-        return self.raster.pois()[poi_name]
+      if poi_name in raster_pois :
+        return raster_pois[poi_name]
       else :
         raise KeyError("POI '%s' is not defined in raster '%s'." % (poi_name, raster.name))
     else :
-      return self.raster.pois()[list(self.raster.pois().keys())[index]]
+      return raster_pois[list(raster_pois.keys())[index]]
 
   def value(self, plr_data, with_variation : int = 0) :
     raw_value = plr_data.pvs[self.key] if self.key in plr_data.pvs else plr_data.test_statistics[self.key]
