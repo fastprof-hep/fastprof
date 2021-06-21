@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-from fastprof import Model, Data, Parameters, POIHypo, OptiMinimizer, Raster, TMuCalculator, ParBound, PLRScan1D, PLRScan2D
+from fastprof import Model, Data, Parameters, POIHypo, OptiMinimizer, Raster, TMuCalculator, PLRScan1D, PLRScan2D
 from utils import process_setval_list, process_setvals, process_setranges
 
 
@@ -30,10 +30,10 @@ def make_parser() :
   parser.add_argument("-c", "--cl"            , type=float, default=None  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
   parser.add_argument("-b", "--best-fit-mode" , type=str  , default='all' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
+  parser.add_argument("-r", "--setrange"      , type=str  , default=None  , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
-  parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1=[min]#[max],name2=[min]#[max],...")
   parser.add_argument(      "--marker"        , type=str  , default='+'   , help="Marker type for plots")
   parser.add_argument(      "--smoothing"     , type=int  , default=0     , help="Smoothing for contours (0=no smoothing)")
   parser.add_argument(      "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
@@ -51,6 +51,7 @@ def run(argv = None) :
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if options.regularize is not None : model.set_gamma_regularization(options.regularize)
   if options.cutoff is not None : model.cutoff = options.cutoff
+  if options.setrange is not None : process_setranges(options.setrange, model)
 
   results_file = options.output_file + '_results.json'
   raster_file = options.output_file + '_raster.json'
@@ -81,23 +82,9 @@ def run(argv = None) :
   if pois is None : raise ValueError("Hypotheses '%s' are not compatible (different POIs or different POI ordering)." % options.hypos)
   if options.verbosity > 1 : 
     print('Will scan the following hypotheses : \n- %s' % '\n- '.join([str(hypo) for hypo in process_setval_list(options.hypos, model)]))
-  par_bounds = []
-  if options.bounds :
-    bound_specs = options.bounds.split(',')
-    try :
-      for spec in bound_specs :
-        var_range = spec.split('=')
-        range_spec = var_range[1].split(':')
-        if len(range_spec) == 2 :
-          par_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
-        elif len(range_spec) == 1 :
-          par_bounds.append(ParBound(var_range[0], float(range_spec[0]), float(range_spec[0]))) # case of fixed parameter
-    except Exception as inst:
-      print(inst)
-      raise ValueError('Could not parse parameter bound specification "%s", expected in the form name1=[min]#[max],name2=[min]#[max],...' % options.bounds)
 
   # Compute the tmu values
-  calc = TMuCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model, par_bounds))
+  calc = TMuCalculator(OptiMinimizer(niter=options.iterations))
   if options.verbosity > 1 : 
     prof_pois = set(calc.minimizer.free_pois()) - set(pois)
     if len(prof_pois) > 0 : print('Will profile over POI(s) %s.' % ','.join(prof_pois)) 
