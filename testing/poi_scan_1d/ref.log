@@ -1,41 +1,4 @@
-Initializing model from file examples/high_stats_one_bin.json
-Initializing data from file examples/high_stats_one_bin.json.
 Producing PLR scan with POI(s) ['xs_BSM'], bounds {'xs_BSM': xs_BSM >= 0 and xs_BSM <= 20}.
-Processing hypothesis point 1 of 17 : xs_BSM = 6 
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 2 of 17 : xs_BSM = 6.5 [so far 0.00664532 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 3 of 17 : xs_BSM = 7 [so far 0.00652058 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 4 of 17 : xs_BSM = 7.5 [so far 0.00648832 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 5 of 17 : xs_BSM = 8 [so far 0.00652333 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 6 of 17 : xs_BSM = 8.5 [so far 0.0065099 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 7 of 17 : xs_BSM = 9 [so far 0.00653219 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 8 of 17 : xs_BSM = 9.5 [so far 0.00650521 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 9 of 17 : xs_BSM = 10 [so far 0.00650014 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 10 of 17 : xs_BSM = 10.5 [so far 0.00650839 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 11 of 17 : xs_BSM = 11 [so far 0.00650817 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 12 of 17 : xs_BSM = 11.5 [so far 0.0065131 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 13 of 17 : xs_BSM = 12 [so far 0.00651211 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 14 of 17 : xs_BSM = 12.5 [so far 0.00651449 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 15 of 17 : xs_BSM = 13 [so far 0.0065114 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 16 of 17 : xs_BSM = 13.5 [so far 0.00650628 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 17 of 17 : xs_BSM = 14 [so far 0.00651616 s/point]
-No free parameter of interest, will just minimize NPs.
-Processed 17 hypothesis points in 0.110606 s (0.00650624 s/point)
 | xs_BSM          | tmu             | pv              
 | 6               | 8.19309         | 0.00210251      
 | 6.5             | 6.01358         | 0.00709809      

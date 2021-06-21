@@ -1,1163 +1,319 @@
-Initializing model from file examples/high_stats_two_bins.json
-Initializing data from file examples/high_stats_two_bins.json.
 Producing PLR scan with POI(s) ['xs1', 'xs2'], bounds {'xs1': xs1 >= 0 and xs1 <= 20, 'xs2': xs2 >= 0 and xs2 <= 20}.
-Processing hypothesis point 1 of 289 : xs1 = 6
-xs2 = 6 
-No free parameter of interest, will just minimize NPs.
 Cannot use 'scalar' method for multiple POIs, switching to 'L-BFGS-B'.
-Processing hypothesis point 2 of 289 : xs1 = 6
-xs2 = 6.5 [so far 0.0127808 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 3 of 289 : xs1 = 6
-xs2 = 7 [so far 0.00844539 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 4 of 289 : xs1 = 6
-xs2 = 7.5 [so far 0.00696651 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 5 of 289 : xs1 = 6
-xs2 = 8 [so far 0.00624112 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 6 of 289 : xs1 = 6
-xs2 = 8.5 [so far 0.00580677 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 7 of 289 : xs1 = 6
-xs2 = 9 [so far 0.00550963 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 8 of 289 : xs1 = 6
-xs2 = 9.5 [so far 0.00529644 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 9 of 289 : xs1 = 6
-xs2 = 10 [so far 0.00513511 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 10 of 289 : xs1 = 6
-xs2 = 10.5 [so far 0.0050177 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 11 of 289 : xs1 = 6
-xs2 = 11 [so far 0.00491381 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 12 of 289 : xs1 = 6
-xs2 = 11.5 [so far 0.00483486 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 13 of 289 : xs1 = 6
-xs2 = 12 [so far 0.00476658 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 14 of 289 : xs1 = 6
-xs2 = 12.5 [so far 0.00471767 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 15 of 289 : xs1 = 6
-xs2 = 13 [so far 0.00466618 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 16 of 289 : xs1 = 6
-xs2 = 13.5 [so far 0.00461962 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 17 of 289 : xs1 = 6
-xs2 = 14 [so far 0.00457875 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 18 of 289 : xs1 = 6.5
-xs2 = 6 [so far 0.00455579 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 19 of 289 : xs1 = 6.5
-xs2 = 6.5 [so far 0.00453226 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 20 of 289 : xs1 = 6.5
-xs2 = 7 [so far 0.00450504 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 21 of 289 : xs1 = 6.5
-xs2 = 7.5 [so far 0.00448066 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 22 of 289 : xs1 = 6.5
-xs2 = 8 [so far 0.00446433 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 23 of 289 : xs1 = 6.5
-xs2 = 8.5 [so far 0.00447661 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 24 of 289 : xs1 = 6.5
-xs2 = 9 [so far 0.00445812 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 25 of 289 : xs1 = 6.5
-xs2 = 9.5 [so far 0.00443887 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 26 of 289 : xs1 = 6.5
-xs2 = 10 [so far 0.0044248 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 27 of 289 : xs1 = 6.5
-xs2 = 10.5 [so far 0.00443506 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 28 of 289 : xs1 = 6.5
-xs2 = 11 [so far 0.00441924 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 29 of 289 : xs1 = 6.5
-xs2 = 11.5 [so far 0.00440414 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 30 of 289 : xs1 = 6.5
-xs2 = 12 [so far 0.00439433 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 31 of 289 : xs1 = 6.5
-xs2 = 12.5 [so far 0.0043823 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 32 of 289 : xs1 = 6.5
-xs2 = 13 [so far 0.00437127 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 33 of 289 : xs1 = 6.5
-xs2 = 13.5 [so far 0.00436085 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 34 of 289 : xs1 = 6.5
-xs2 = 14 [so far 0.00430381 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 35 of 289 : xs1 = 7
-xs2 = 6 [so far 0.00429893 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 36 of 289 : xs1 = 7
-xs2 = 6.5 [so far 0.00424362 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 37 of 289 : xs1 = 7
-xs2 = 7 [so far 0.0041917 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 38 of 289 : xs1 = 7
-xs2 = 7.5 [so far 0.00418975 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 39 of 289 : xs1 = 7
-xs2 = 8 [so far 0.00414142 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 40 of 289 : xs1 = 7
-xs2 = 8.5 [so far 0.0041418 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 41 of 289 : xs1 = 7
-xs2 = 9 [so far 0.00409739 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 42 of 289 : xs1 = 7
-xs2 = 9.5 [so far 0.00405494 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 43 of 289 : xs1 = 7
-xs2 = 10 [so far 0.00405383 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 44 of 289 : xs1 = 7
-xs2 = 10.5 [so far 0.00401424 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 45 of 289 : xs1 = 7
-xs2 = 11 [so far 0.00397996 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 46 of 289 : xs1 = 7
-xs2 = 11.5 [so far 0.00394605 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 47 of 289 : xs1 = 7
-xs2 = 12 [so far 0.00391183 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 48 of 289 : xs1 = 7
-xs2 = 12.5 [so far 0.00387925 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 49 of 289 : xs1 = 7
-xs2 = 13 [so far 0.00384804 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 50 of 289 : xs1 = 7
-xs2 = 13.5 [so far 0.00381802 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 51 of 289 : xs1 = 7
-xs2 = 14 [so far 0.00378881 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 52 of 289 : xs1 = 7.5
-xs2 = 6 [so far 0.00376245 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 53 of 289 : xs1 = 7.5
-xs2 = 6.5 [so far 0.00373623 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 54 of 289 : xs1 = 7.5
-xs2 = 7 [so far 0.00371035 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 55 of 289 : xs1 = 7.5
-xs2 = 7.5 [so far 0.00368569 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 56 of 289 : xs1 = 7.5
-xs2 = 8 [so far 0.00366361 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 57 of 289 : xs1 = 7.5
-xs2 = 8.5 [so far 0.00364113 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 58 of 289 : xs1 = 7.5
-xs2 = 9 [so far 0.00361916 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 59 of 289 : xs1 = 7.5
-xs2 = 9.5 [so far 0.00359948 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 60 of 289 : xs1 = 7.5
-xs2 = 10 [so far 0.00357854 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 61 of 289 : xs1 = 7.5
-xs2 = 10.5 [so far 0.00355877 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 62 of 289 : xs1 = 7.5
-xs2 = 11 [so far 0.00353912 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 63 of 289 : xs1 = 7.5
-xs2 = 11.5 [so far 0.00352027 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 64 of 289 : xs1 = 7.5
-xs2 = 12 [so far 0.00350165 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 65 of 289 : xs1 = 7.5
-xs2 = 12.5 [so far 0.00348413 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 66 of 289 : xs1 = 7.5
-xs2 = 13 [so far 0.00346839 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 67 of 289 : xs1 = 7.5
-xs2 = 13.5 [so far 0.00345194 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 68 of 289 : xs1 = 7.5
-xs2 = 14 [so far 0.00343624 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 69 of 289 : xs1 = 8
-xs2 = 6 [so far 0.0034203 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 70 of 289 : xs1 = 8
-xs2 = 6.5 [so far 0.00340563 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 71 of 289 : xs1 = 8
-xs2 = 7 [so far 0.00351007 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 72 of 289 : xs1 = 8
-xs2 = 7.5 [so far 0.00349391 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 73 of 289 : xs1 = 8
-xs2 = 8 [so far 0.00347815 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 74 of 289 : xs1 = 8
-xs2 = 8.5 [so far 0.00346345 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 75 of 289 : xs1 = 8
-xs2 = 9 [so far 0.00344955 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 76 of 289 : xs1 = 8
-xs2 = 9.5 [so far 0.00343532 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 77 of 289 : xs1 = 8
-xs2 = 10 [so far 0.0034226 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 78 of 289 : xs1 = 8
-xs2 = 10.5 [so far 0.00340873 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 79 of 289 : xs1 = 8
-xs2 = 11 [so far 0.00339584 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 80 of 289 : xs1 = 8
-xs2 = 11.5 [so far 0.00338271 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 81 of 289 : xs1 = 8
-xs2 = 12 [so far 0.00337003 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 82 of 289 : xs1 = 8
-xs2 = 12.5 [so far 0.00335763 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 83 of 289 : xs1 = 8
-xs2 = 13 [so far 0.00338738 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 84 of 289 : xs1 = 8
-xs2 = 13.5 [so far 0.0033744 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 85 of 289 : xs1 = 8
-xs2 = 14 [so far 0.00336174 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 86 of 289 : xs1 = 8.5
-xs2 = 6 [so far 0.00334938 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 87 of 289 : xs1 = 8.5
-xs2 = 6.5 [so far 0.00333809 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 88 of 289 : xs1 = 8.5
-xs2 = 7 [so far 0.00332663 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 89 of 289 : xs1 = 8.5
-xs2 = 7.5 [so far 0.00335266 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 90 of 289 : xs1 = 8.5
-xs2 = 8 [so far 0.00334153 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 91 of 289 : xs1 = 8.5
-xs2 = 8.5 [so far 0.00333012 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 92 of 289 : xs1 = 8.5
-xs2 = 9 [so far 0.00331957 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 93 of 289 : xs1 = 8.5
-xs2 = 9.5 [so far 0.00330907 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 94 of 289 : xs1 = 8.5
-xs2 = 10 [so far 0.00329852 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 95 of 289 : xs1 = 8.5
-xs2 = 10.5 [so far 0.0032888 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 96 of 289 : xs1 = 8.5
-xs2 = 11 [so far 0.00327841 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 97 of 289 : xs1 = 8.5
-xs2 = 11.5 [so far 0.00326854 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 98 of 289 : xs1 = 8.5
-xs2 = 12 [so far 0.00325921 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 99 of 289 : xs1 = 8.5
-xs2 = 12.5 [so far 0.00324959 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 100 of 289 : xs1 = 8.5
-xs2 = 13 [so far 0.00324141 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 101 of 289 : xs1 = 8.5
-xs2 = 13.5 [so far 0.00323345 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 102 of 289 : xs1 = 8.5
-xs2 = 14 [so far 0.00322552 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 103 of 289 : xs1 = 9
-xs2 = 6 [so far 0.00321675 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 104 of 289 : xs1 = 9
-xs2 = 6.5 [so far 0.00320805 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 105 of 289 : xs1 = 9
-xs2 = 7 [so far 0.00319938 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 106 of 289 : xs1 = 9
-xs2 = 7.5 [so far 0.00319151 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 107 of 289 : xs1 = 9
-xs2 = 8 [so far 0.00318344 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 108 of 289 : xs1 = 9
-xs2 = 8.5 [so far 0.00317521 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 109 of 289 : xs1 = 9
-xs2 = 9 [so far 0.00324313 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 110 of 289 : xs1 = 9
-xs2 = 9.5 [so far 0.00323545 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 111 of 289 : xs1 = 9
-xs2 = 10 [so far 0.00322767 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 112 of 289 : xs1 = 9
-xs2 = 10.5 [so far 0.00322103 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 113 of 289 : xs1 = 9
-xs2 = 11 [so far 0.00321405 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 114 of 289 : xs1 = 9
-xs2 = 11.5 [so far 0.00320617 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 115 of 289 : xs1 = 9
-xs2 = 12 [so far 0.00319835 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 116 of 289 : xs1 = 9
-xs2 = 12.5 [so far 0.00319086 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 117 of 289 : xs1 = 9
-xs2 = 13 [so far 0.00318372 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 118 of 289 : xs1 = 9
-xs2 = 13.5 [so far 0.00317645 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 119 of 289 : xs1 = 9
-xs2 = 14 [so far 0.00316979 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 120 of 289 : xs1 = 9.5
-xs2 = 6 [so far 0.00316338 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 121 of 289 : xs1 = 9.5
-xs2 = 6.5 [so far 0.00315637 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 122 of 289 : xs1 = 9.5
-xs2 = 7 [so far 0.00314998 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 123 of 289 : xs1 = 9.5
-xs2 = 7.5 [so far 0.00314376 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 124 of 289 : xs1 = 9.5
-xs2 = 8 [so far 0.00313745 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 125 of 289 : xs1 = 9.5
-xs2 = 8.5 [so far 0.00313091 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 126 of 289 : xs1 = 9.5
-xs2 = 9 [so far 0.00312515 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 127 of 289 : xs1 = 9.5
-xs2 = 9.5 [so far 0.00311938 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 128 of 289 : xs1 = 9.5
-xs2 = 10 [so far 0.00311331 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 129 of 289 : xs1 = 9.5
-xs2 = 10.5 [so far 0.00315701 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 130 of 289 : xs1 = 9.5
-xs2 = 11 [so far 0.00315039 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 131 of 289 : xs1 = 9.5
-xs2 = 11.5 [so far 0.0031445 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 132 of 289 : xs1 = 9.5
-xs2 = 12 [so far 0.00313811 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 133 of 289 : xs1 = 9.5
-xs2 = 12.5 [so far 0.00313169 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 134 of 289 : xs1 = 9.5
-xs2 = 13 [so far 0.00312615 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 135 of 289 : xs1 = 9.5
-xs2 = 13.5 [so far 0.00312051 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 136 of 289 : xs1 = 9.5
-xs2 = 14 [so far 0.00311501 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 137 of 289 : xs1 = 10
-xs2 = 6 [so far 0.00310921 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 138 of 289 : xs1 = 10
-xs2 = 6.5 [so far 0.00310402 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 139 of 289 : xs1 = 10
-xs2 = 7 [so far 0.00309831 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 140 of 289 : xs1 = 10
-xs2 = 7.5 [so far 0.00309267 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 141 of 289 : xs1 = 10
-xs2 = 8 [so far 0.0030873 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 142 of 289 : xs1 = 10
-xs2 = 8.5 [so far 0.00308231 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 143 of 289 : xs1 = 10
-xs2 = 9 [so far 0.00307685 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 144 of 289 : xs1 = 10
-xs2 = 9.5 [so far 0.00307144 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 145 of 289 : xs1 = 10
-xs2 = 10 [so far 0.00306798 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 146 of 289 : xs1 = 10
-xs2 = 10.5 [so far 0.00306286 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 147 of 289 : xs1 = 10
-xs2 = 11 [so far 0.00305787 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 148 of 289 : xs1 = 10
-xs2 = 11.5 [so far 0.00305307 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 149 of 289 : xs1 = 10
-xs2 = 12 [so far 0.00304806 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 150 of 289 : xs1 = 10
-xs2 = 12.5 [so far 0.00304372 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 151 of 289 : xs1 = 10
-xs2 = 13 [so far 0.00303928 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 152 of 289 : xs1 = 10
-xs2 = 13.5 [so far 0.00303563 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 153 of 289 : xs1 = 10
-xs2 = 14 [so far 0.00303084 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 154 of 289 : xs1 = 10.5
-xs2 = 6 [so far 0.00302626 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 155 of 289 : xs1 = 10.5
-xs2 = 6.5 [so far 0.00302173 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 156 of 289 : xs1 = 10.5
-xs2 = 7 [so far 0.0030803 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 157 of 289 : xs1 = 10.5
-xs2 = 7.5 [so far 0.00308636 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 158 of 289 : xs1 = 10.5
-xs2 = 8 [so far 0.00308153 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 159 of 289 : xs1 = 10.5
-xs2 = 8.5 [so far 0.00307666 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 160 of 289 : xs1 = 10.5
-xs2 = 9 [so far 0.00307207 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 161 of 289 : xs1 = 10.5
-xs2 = 9.5 [so far 0.00307778 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 162 of 289 : xs1 = 10.5
-xs2 = 10 [so far 0.00307326 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 163 of 289 : xs1 = 10.5
-xs2 = 10.5 [so far 0.00306872 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 164 of 289 : xs1 = 10.5
-xs2 = 11 [so far 0.00306404 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 165 of 289 : xs1 = 10.5
-xs2 = 11.5 [so far 0.00305942 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 166 of 289 : xs1 = 10.5
-xs2 = 12 [so far 0.00305483 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 167 of 289 : xs1 = 10.5
-xs2 = 12.5 [so far 0.00305071 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 168 of 289 : xs1 = 10.5
-xs2 = 13 [so far 0.00304681 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 169 of 289 : xs1 = 10.5
-xs2 = 13.5 [so far 0.00304257 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 170 of 289 : xs1 = 10.5
-xs2 = 14 [so far 0.00303872 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 171 of 289 : xs1 = 11
-xs2 = 6 [so far 0.00303589 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 172 of 289 : xs1 = 11
-xs2 = 6.5 [so far 0.00303262 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 173 of 289 : xs1 = 11
-xs2 = 7 [so far 0.00302843 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 174 of 289 : xs1 = 11
-xs2 = 7.5 [so far 0.00302434 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 175 of 289 : xs1 = 11
-xs2 = 8 [so far 0.00303906 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 176 of 289 : xs1 = 11
-xs2 = 8.5 [so far 0.00303486 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 177 of 289 : xs1 = 11
-xs2 = 9 [so far 0.00303067 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 178 of 289 : xs1 = 11
-xs2 = 9.5 [so far 0.00302729 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 179 of 289 : xs1 = 11
-xs2 = 10 [so far 0.00302353 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 180 of 289 : xs1 = 11
-xs2 = 10.5 [so far 0.00302137 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 181 of 289 : xs1 = 11
-xs2 = 11 [so far 0.00302018 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 182 of 289 : xs1 = 11
-xs2 = 11.5 [so far 0.00301779 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 183 of 289 : xs1 = 11
-xs2 = 12 [so far 0.00301422 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 184 of 289 : xs1 = 11
-xs2 = 12.5 [so far 0.00301064 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 185 of 289 : xs1 = 11
-xs2 = 13 [so far 0.00300724 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 186 of 289 : xs1 = 11
-xs2 = 13.5 [so far 0.00300401 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 187 of 289 : xs1 = 11
-xs2 = 14 [so far 0.0030011 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 188 of 289 : xs1 = 11.5
-xs2 = 6 [so far 0.00299851 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 189 of 289 : xs1 = 11.5
-xs2 = 6.5 [so far 0.00303782 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 190 of 289 : xs1 = 11.5
-xs2 = 7 [so far 0.00303589 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 191 of 289 : xs1 = 11.5
-xs2 = 7.5 [so far 0.00303555 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 192 of 289 : xs1 = 11.5
-xs2 = 8 [so far 0.00306823 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 193 of 289 : xs1 = 11.5
-xs2 = 8.5 [so far 0.00306467 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 194 of 289 : xs1 = 11.5
-xs2 = 9 [so far 0.00306157 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 195 of 289 : xs1 = 11.5
-xs2 = 9.5 [so far 0.00305806 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 196 of 289 : xs1 = 11.5
-xs2 = 10 [so far 0.00305486 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 197 of 289 : xs1 = 11.5
-xs2 = 10.5 [so far 0.00305147 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 198 of 289 : xs1 = 11.5
-xs2 = 11 [so far 0.00304809 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 199 of 289 : xs1 = 11.5
-xs2 = 11.5 [so far 0.00304498 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 200 of 289 : xs1 = 11.5
-xs2 = 12 [so far 0.00304191 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 201 of 289 : xs1 = 11.5
-xs2 = 12.5 [so far 0.00303859 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 202 of 289 : xs1 = 11.5
-xs2 = 13 [so far 0.00303533 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 203 of 289 : xs1 = 11.5
-xs2 = 13.5 [so far 0.00303205 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 204 of 289 : xs1 = 11.5
-xs2 = 14 [so far 0.00302876 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 205 of 289 : xs1 = 12
-xs2 = 6 [so far 0.00305773 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 206 of 289 : xs1 = 12
-xs2 = 6.5 [so far 0.00305437 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 207 of 289 : xs1 = 12
-xs2 = 7 [so far 0.00305106 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 208 of 289 : xs1 = 12
-xs2 = 7.5 [so far 0.00304783 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 209 of 289 : xs1 = 12
-xs2 = 8 [so far 0.0030445 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 210 of 289 : xs1 = 12
-xs2 = 8.5 [so far 0.00304126 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 211 of 289 : xs1 = 12
-xs2 = 9 [so far 0.00303826 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 212 of 289 : xs1 = 12
-xs2 = 9.5 [so far 0.00303507 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 213 of 289 : xs1 = 12
-xs2 = 10 [so far 0.00303201 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 214 of 289 : xs1 = 12
-xs2 = 10.5 [so far 0.00302897 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 215 of 289 : xs1 = 12
-xs2 = 11 [so far 0.003026 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 216 of 289 : xs1 = 12
-xs2 = 11.5 [so far 0.003023 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 217 of 289 : xs1 = 12
-xs2 = 12 [so far 0.00301992 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 218 of 289 : xs1 = 12
-xs2 = 12.5 [so far 0.00301693 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 219 of 289 : xs1 = 12
-xs2 = 13 [so far 0.00301389 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 220 of 289 : xs1 = 12
-xs2 = 13.5 [so far 0.00301233 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 221 of 289 : xs1 = 12
-xs2 = 14 [so far 0.00300941 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 222 of 289 : xs1 = 12.5
-xs2 = 6 [so far 0.00300673 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 223 of 289 : xs1 = 12.5
-xs2 = 6.5 [so far 0.00300383 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 224 of 289 : xs1 = 12.5
-xs2 = 7 [so far 0.00300103 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 225 of 289 : xs1 = 12.5
-xs2 = 7.5 [so far 0.0029983 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 226 of 289 : xs1 = 12.5
-xs2 = 8 [so far 0.00299553 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 227 of 289 : xs1 = 12.5
-xs2 = 8.5 [so far 0.00299269 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 228 of 289 : xs1 = 12.5
-xs2 = 9 [so far 0.00298978 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 229 of 289 : xs1 = 12.5
-xs2 = 9.5 [so far 0.00298668 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 230 of 289 : xs1 = 12.5
-xs2 = 10 [so far 0.00298438 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 231 of 289 : xs1 = 12.5
-xs2 = 10.5 [so far 0.00298142 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 232 of 289 : xs1 = 12.5
-xs2 = 11 [so far 0.00297878 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 233 of 289 : xs1 = 12.5
-xs2 = 11.5 [so far 0.00297609 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 234 of 289 : xs1 = 12.5
-xs2 = 12 [so far 0.00297349 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 235 of 289 : xs1 = 12.5
-xs2 = 12.5 [so far 0.00297078 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 236 of 289 : xs1 = 12.5
-xs2 = 13 [so far 0.00296796 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 237 of 289 : xs1 = 12.5
-xs2 = 13.5 [so far 0.0029656 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 238 of 289 : xs1 = 12.5
-xs2 = 14 [so far 0.00296279 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 239 of 289 : xs1 = 13
-xs2 = 6 [so far 0.00296015 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 240 of 289 : xs1 = 13
-xs2 = 6.5 [so far 0.00295735 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 241 of 289 : xs1 = 13
-xs2 = 7 [so far 0.00295495 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 242 of 289 : xs1 = 13
-xs2 = 7.5 [so far 0.0029522 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 243 of 289 : xs1 = 13
-xs2 = 8 [so far 0.00294963 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 244 of 289 : xs1 = 13
-xs2 = 8.5 [so far 0.00294784 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 245 of 289 : xs1 = 13
-xs2 = 9 [so far 0.00294518 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 246 of 289 : xs1 = 13
-xs2 = 9.5 [so far 0.00294271 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 247 of 289 : xs1 = 13
-xs2 = 10 [so far 0.00294014 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 248 of 289 : xs1 = 13
-xs2 = 10.5 [so far 0.0029379 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 249 of 289 : xs1 = 13
-xs2 = 11 [so far 0.00293533 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 250 of 289 : xs1 = 13
-xs2 = 11.5 [so far 0.00293279 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 251 of 289 : xs1 = 13
-xs2 = 12 [so far 0.0029303 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 252 of 289 : xs1 = 13
-xs2 = 12.5 [so far 0.00292809 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 253 of 289 : xs1 = 13
-xs2 = 13 [so far 0.00292569 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 254 of 289 : xs1 = 13
-xs2 = 13.5 [so far 0.00292328 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 255 of 289 : xs1 = 13
-xs2 = 14 [so far 0.00292119 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 256 of 289 : xs1 = 13.5
-xs2 = 6 [so far 0.00291901 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 257 of 289 : xs1 = 13.5
-xs2 = 6.5 [so far 0.00291678 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 258 of 289 : xs1 = 13.5
-xs2 = 7 [so far 0.00291441 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 259 of 289 : xs1 = 13.5
-xs2 = 7.5 [so far 0.00291206 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 260 of 289 : xs1 = 13.5
-xs2 = 8 [so far 0.00291025 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 261 of 289 : xs1 = 13.5
-xs2 = 8.5 [so far 0.00290806 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 262 of 289 : xs1 = 13.5
-xs2 = 9 [so far 0.00290617 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 263 of 289 : xs1 = 13.5
-xs2 = 9.5 [so far 0.00290383 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 264 of 289 : xs1 = 13.5
-xs2 = 10 [so far 0.00290152 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 265 of 289 : xs1 = 13.5
-xs2 = 10.5 [so far 0.00289922 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 266 of 289 : xs1 = 13.5
-xs2 = 11 [so far 0.00289722 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 267 of 289 : xs1 = 13.5
-xs2 = 11.5 [so far 0.00289544 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 268 of 289 : xs1 = 13.5
-xs2 = 12 [so far 0.00289322 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 269 of 289 : xs1 = 13.5
-xs2 = 12.5 [so far 0.00289157 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 270 of 289 : xs1 = 13.5
-xs2 = 13 [so far 0.00288953 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 271 of 289 : xs1 = 13.5
-xs2 = 13.5 [so far 0.0028875 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 272 of 289 : xs1 = 13.5
-xs2 = 14 [so far 0.00288545 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 273 of 289 : xs1 = 14
-xs2 = 6 [so far 0.00288343 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 274 of 289 : xs1 = 14
-xs2 = 6.5 [so far 0.00288129 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 275 of 289 : xs1 = 14
-xs2 = 7 [so far 0.00287924 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 276 of 289 : xs1 = 14
-xs2 = 7.5 [so far 0.00287724 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 277 of 289 : xs1 = 14
-xs2 = 8 [so far 0.00287556 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 278 of 289 : xs1 = 14
-xs2 = 8.5 [so far 0.00287373 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 279 of 289 : xs1 = 14
-xs2 = 9 [so far 0.00287211 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 280 of 289 : xs1 = 14
-xs2 = 9.5 [so far 0.00287027 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 281 of 289 : xs1 = 14
-xs2 = 10 [so far 0.00286873 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 282 of 289 : xs1 = 14
-xs2 = 10.5 [so far 0.00286672 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 283 of 289 : xs1 = 14
-xs2 = 11 [so far 0.00286484 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 284 of 289 : xs1 = 14
-xs2 = 11.5 [so far 0.00286314 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 285 of 289 : xs1 = 14
-xs2 = 12 [so far 0.0028611 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 286 of 289 : xs1 = 14
-xs2 = 12.5 [so far 0.00285935 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 287 of 289 : xs1 = 14
-xs2 = 13 [so far 0.00285765 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 288 of 289 : xs1 = 14
-xs2 = 13.5 [so far 0.00285575 s/point]
-No free parameter of interest, will just minimize NPs.
-Processing hypothesis point 289 of 289 : xs1 = 14
-xs2 = 14 [so far 0.00285401 s/point]
-No free parameter of interest, will just minimize NPs.
-Processed 289 hypothesis points in 0.824287 s (0.0028522 s/point)
+Minimization failed, details below
+['fun', 'hess_inv', 'jac', 'message', 'nfev', 'nit', 'njev', 'status', 'success', 'x']
+Current NPs:
+POIs : xs1          =  10.0000
+       xs2          =  10.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg1      =   0.0000 (unscaled :      50.0000)
+       np_bkg2      =  -0.0000 (unscaled :      50.0000)
+x       = [ 9.99996728 10.00002171]
+fun     = -181.56278898553288
+status  = 2
+message = ABNORMAL_TERMINATION_IN_LNSRCH
+Minimization failed, details below
+['fun', 'hess_inv', 'jac', 'message', 'nfev', 'nit', 'njev', 'status', 'success', 'x']
+Current NPs:
+POIs : xs1          =  10.0000
+       xs2          =  10.0000
+NPs  : np_lumi      =   0.0000 (unscaled :       0.0000)
+       np_eff       =   0.0000 (unscaled :       0.0000)
+       np_bkg1      =   0.0000 (unscaled :      50.0000)
+       np_bkg2      =  -0.0000 (unscaled :      50.0000)
+x       = [ 9.99998987 10.00000742]
+fun     = -181.56278898559185
+status  = 2
+message = ABNORMAL_TERMINATION_IN_LNSRCH
 | xs1             | xs2             | tmu             | pv              
-| 6               | 6               | 18.206          | 9.91276e-06     
-| 6               | 6.5             | 14.7472         | 6.14655e-05     
-| 6               | 7               | 11.8948         | 0.00028146      
-| 6               | 7.5             | 9.5688          | 0.000989561     
-| 6               | 8               | 7.70084         | 0.00275976      
-| 6               | 8.5             | 6.23234         | 0.0062719       
-| 6               | 9               | 5.11135         | 0.0118849       
-| 6               | 9.5             | 4.29342         | 0.01913         
-| 6               | 10              | 3.74262         | 0.0265207       
-| 6               | 10.5            | 3.42801         | 0.0320497       
-| 6               | 11              | 3.32299         | 0.0341587       
-| 6               | 11.5            | 3.40469         | 0.0325057       
-| 6               | 12              | 3.65341         | 0.0279772       
-| 6               | 12.5            | 4.0472          | 0.0221224       
-| 6               | 13              | 4.56019         | 0.0163617       
-| 6               | 13.5            | 5.18165         | 0.0114133       
-| 6               | 14              | 5.90314         | 0.00755698      
-| 6.5             | 6               | 16.2024         | 2.84604e-05     
-| 6.5             | 6.5             | 12.9395         | 0.00016086      
-| 6.5             | 7               | 10.2583         | 0.000680371     
-| 6.5             | 7.5             | 8.08256         | 0.00223467      
-| 6.5             | 8               | 6.34713         | 0.00587857      
-| 6.5             | 8.5             | 4.99604         | 0.0127027       
-| 6.5             | 9               | 3.98069         | 0.0230123       
-| 6.5             | 9.5             | 3.25755         | 0.0355475       
-| 6.5             | 10              | 2.79201         | 0.0473677       
-| 6.5             | 10.5            | 2.55451         | 0.05499         
-| 6.5             | 11              | 2.51963         | 0.0562185       
-| 6.5             | 11.5            | 2.6655          | 0.0512729       
-| 6.5             | 12              | 2.97272         | 0.0423397       
-| 6.5             | 12.5            | 3.41305         | 0.0323414       
-| 6.5             | 13              | 3.96954         | 0.0231652       
-| 6.5             | 13.5            | 4.63256         | 0.0156853       
-| 6.5             | 14              | 5.39413         | 0.0101023       
-| 7               | 6               | 14.4794         | 7.08488e-05     
-| 7               | 6.5             | 11.3906         | 0.000369085     
-| 7               | 7               | 8.86109         | 0.00145657      
-| 7               | 7.5             | 6.81831         | 0.00451138      
-| 7               | 8               | 5.1999          | 0.0112941       
-| 7               | 8.5             | 3.95235         | 0.023403        
-| 7               | 9               | 3.02965         | 0.0408778       
-| 7               | 9.5             | 2.39005         | 0.0610548       
-| 7               | 10              | 1.99961         | 0.0786696       
-| 7               | 10.5            | 1.83004         | 0.0880611       
-| 7               | 11              | 1.85699         | 0.0864865       
-| 7               | 11.5            | 2.05948         | 0.0756307       
-| 7               | 12              | 2.41429         | 0.0601161       
-| 7               | 12.5            | 2.89491         | 0.0444298       
-| 7               | 13              | 3.48979         | 0.0308741       
-| 7               | 13.5            | 4.18975         | 0.0203346       
-| 7               | 14              | 4.98719         | 0.0127678       
-| 7.5             | 6               | 13.0125         | 0.000154707     
-| 7.5             | 6.5             | 10.0784         | 0.000750084     
-| 7.5             | 7               | 7.6834          | 0.00278655      
-| 7.5             | 7.5             | 5.75813         | 0.00820627      
-| 7.5             | 8               | 4.24291         | 0.0197073       
-| 7.5             | 8.5             | 3.08647         | 0.0394729       
-| 7.5             | 9               | 2.2448          | 0.0670322       
-| 7.5             | 9.5             | 1.67868         | 0.0975502       
-| 7.5             | 10              | 1.35426         | 0.122267        
-| 7.5             | 10.5            | 1.24439         | 0.132313        
-| 7.5             | 11              | 1.3257          | 0.124786        
-| 7.5             | 11.5            | 1.57734         | 0.104572        
-| 7.5             | 12              | 1.96985         | 0.0802321       
-| 7.5             | 12.5            | 2.48574         | 0.0574412       
-| 7.5             | 13              | 3.11446         | 0.0388001       
-| 7.5             | 13.5            | 3.84724         | 0.024914        
-| 7.5             | 14              | 4.67682         | 0.0152862       
-| 8               | 6               | 11.7794         | 0.000299443     
-| 8               | 6.5             | 8.98289         | 0.0013626       
-| 8               | 7               | 6.70707         | 0.00480157      
-| 8               | 7.5             | 4.88559         | 0.0135409       
-| 8               | 8               | 3.46126         | 0.0314113       
-| 8               | 8.5             | 2.38487         | 0.0612574       
-| 8               | 9               | 1.61413         | 0.101956        
-| 8               | 9.5             | 1.11217         | 0.145805        
-| 8               | 10              | 0.845654        | 0.178892        
-| 8               | 10.5            | 0.788135        | 0.187332        
-| 8               | 11              | 0.917131        | 0.169115        
-| 8               | 11.5            | 1.20751         | 0.135913        
-| 8               | 12              | 1.63228         | 0.100694        
-| 8               | 12.5            | 2.17901         | 0.0699524       
-| 8               | 13              | 2.83755         | 0.0460424       
-| 8               | 13.5            | 3.59949         | 0.0288986       
-| 8               | 14              | 4.45791         | 0.01737         
-| 8.5             | 6               | 10.76           | 0.000518601     
-| 8.5             | 6.5             | 8.08578         | 0.00223069      
-| 8.5             | 7               | 5.91557         | 0.00750383      
-| 8.5             | 7.5             | 4.18571         | 0.020383        
-| 8.5             | 8               | 2.84134         | 0.0459339       
-| 8.5             | 8.5             | 1.83516         | 0.0877598       
-| 8.5             | 9               | 1.12646         | 0.144265        
-| 8.5             | 9.5             | 0.680188        | 0.204761        
-| 8.5             | 10              | 0.464319        | 0.247806        
-| 8.5             | 10.5            | 0.452571        | 0.250558        
-| 8.5             | 11              | 0.622229        | 0.21511         
-| 8.5             | 11.5            | 0.942354        | 0.165837        
-| 8.5             | 12              | 1.39506         | 0.118776        
-| 8.5             | 12.5            | 1.96869         | 0.0802933       
-| 8.5             | 13              | 2.6535          | 0.0516611       
-| 8.5             | 13.5            | 3.44139         | 0.031791        
-| 8.5             | 14              | 4.32572         | 0.0187703       
-| 9               | 6               | 9.93573         | 0.000810506     
-| 9               | 6.5             | 7.37049         | 0.00331514      
-| 9               | 7               | 5.29385         | 0.0107005       
-| 9               | 7.5             | 3.64482         | 0.028122        
-| 9               | 8               | 2.37069         | 0.0618162       
-| 9               | 8.5             | 1.42596         | 0.116212        
-| 9               | 9               | 0.771412        | 0.18989         
-| 9               | 9.5             | 0.373261        | 0.270616        
-| 9               | 10              | 0.201522        | 0.326748        
-| 9               | 10.5            | 0.229683        | 0.31588         
-| 9               | 11              | 0.429986        | 0.255998        
-| 9               | 11.5            | 0.775317        | 0.189289        
-| 9               | 12              | 1.25215         | 0.131571        
-| 9               | 12.5            | 1.84924         | 0.0869359       
-| 9               | 13              | 2.55719         | 0.0548969       
-| 9               | 13.5            | 3.3682          | 0.0332331       
-| 9               | 14              | 4.27587         | 0.0193285       
-| 9.5             | 6               | 9.29013         | 0.00115196      
-| 9.5             | 6.5             | 6.82191         | 0.00450232      
-| 9.5             | 7               | 4.82818         | 0.0139991       
-| 9.5             | 7.5             | 3.25041         | 0.0357027       
-| 9.5             | 8               | 2.03792         | 0.0767098       
-| 9.5             | 8.5             | 1.14687         | 0.142103        
-| 9.5             | 9               | 0.539432        | 0.231334        
-| 9.5             | 9.5             | 0.182995        | 0.334406        
-| 9.5             | 10              | 0.0492192       | 0.412214        
-| 9.5             | 10.5            | 0.110391        | 0.36985         
-| 9.5             | 11              | 0.333508        | 0.2818          
-| 9.5             | 11.5            | 0.700358        | 0.201332        
-| 9.5             | 12              | 1.19798         | 0.136863        
-| 9.5             | 12.5            | 1.81553         | 0.0889234       
-| 9.5             | 13              | 2.54393         | 0.0553595       
-| 9.5             | 13.5            | 3.37565         | 0.0330833       
-| 9.5             | 14              | 4.30449         | 0.0190059       
-| 10              | 6               | 8.80803         | 0.00149954      
-| 10              | 6.5             | 6.4263          | 0.00562213      
-| 10              | 7               | 4.50606         | 0.0168875       
-| 10              | 7.5             | 2.99108         | 0.0418621       
-| 10              | 8               | 1.83258         | 0.0879114       
-| 10              | 8.5             | 0.988318        | 0.160077        
-| 10              | 9               | 0.421764        | 0.258029        
-| 10              | 9.5             | 0.101391        | 0.375083        
-| 10              | 10              | -4.10978e-11    | 0.5             
-| 10              | 10.5            | 0.0844827       | 0.385656        
-| 10              | 11              | 0.326717        | 0.283799        
-| 10              | 11.5            | 0.711847        | 0.199416        
-| 10              | 12              | 1.22735         | 0.133962        
-| 10              | 12.5            | 1.8627          | 0.0861569       
-| 10              | 13              | 2.60912         | 0.0531253       
-| 10              | 13.5            | 3.45934         | 0.0314478       
-| 10              | 14              | 4.40736         | 0.0178921       
-| 10.5            | 6               | 8.4757          | 0.00179961      
-| 10.5            | 6.5             | 6.17116         | 0.00649248      
-| 10.5            | 7               | 4.31606         | 0.0188771       
-| 10.5            | 7.5             | 2.85639         | 0.0455059       
-| 10.5            | 8               | 1.74514         | 0.0932447       
-| 10.5            | 8.5             | 0.941565        | 0.165938        
-| 10.5            | 9               | 0.410302        | 0.260908        
-| 10.5            | 9.5             | 0.120825        | 0.364071        
-| 10.5            | 10              | 0.0441624       | 0.416776        
-| 10.5            | 10.5            | 0.145336        | 0.351516        
-| 10.5            | 11              | 0.403551        | 0.26263         
-| 10.5            | 11.5            | 0.804155        | 0.184927        
-| 10.5            | 12              | 1.335           | 0.123958        
-| 10.5            | 12.5            | 1.9859          | 0.0793851       
-| 10.5            | 13              | 2.74832         | 0.0486782       
-| 10.5            | 13.5            | 3.61521         | 0.0286267       
-| 10.5            | 14              | 4.58076         | 0.0161664       
-| 11              | 6               | 8.28068         | 0.00200346      
-| 11              | 6.5             | 6.0451          | 0.00697248      
-| 11              | 7               | 4.24779         | 0.0196507       
-| 11              | 7.5             | 2.8368          | 0.0460637       
-| 11              | 8               | 1.76666         | 0.0918981       
-| 11              | 8.5             | 0.998074        | 0.158889        
-| 11              | 9               | 0.496988        | 0.240413        
-| 11              | 9.5             | 0.233764        | 0.314373        
-| 11              | 10              | 0.172827        | 0.338806        
-| 11              | 10.5            | 0.287273        | 0.295987        
-| 11              | 11              | 0.558861        | 0.22736         
-| 11              | 11.5            | 0.972586        | 0.162018        
-| 11              | 12              | 1.51666         | 0.109063        
-| 11              | 12.5            | 2.18118         | 0.0698536       
-| 11              | 13              | 2.95787         | 0.0427302       
-| 11              | 13.5            | 3.83986         | 0.0250238       
-| 11              | 14              | 4.82152         | 0.0140533       
-| 11.5            | 6               | 8.21161         | 0.00208116      
-| 11.5            | 6.5             | 6.03778         | 0.00700143      
-| 11.5            | 7               | 4.29151         | 0.0191515       
-| 11.5            | 7.5             | 2.92292         | 0.0436648       
-| 11.5            | 8               | 1.88843         | 0.0846893       
-| 11.5            | 8.5             | 1.15011         | 0.141763        
-| 11.5            | 9               | 0.674975        | 0.205661        
-| 11.5            | 9.5             | 0.430321        | 0.255916        
-| 11.5            | 10              | 0.380614        | 0.268637        
-| 11.5            | 10.5            | 0.505508        | 0.238545        
-| 11.5            | 11              | 0.788049        | 0.187345        
-| 11.5            | 11.5            | 1.21288         | 0.135381        
-| 11.5            | 12              | 1.76837         | 0.0917919       
-| 11.5            | 12.5            | 2.44488         | 0.0589544       
-| 11.5            | 13              | 3.23436         | 0.0360541       
-| 11.5            | 13.5            | 4.13014         | 0.021063        
-| 11.5            | 14              | 5.1267          | 0.0117802       
-| 12              | 6               | 8.25806         | 0.00202857      
-| 12              | 6.5             | 6.13898         | 0.00661167      
-| 12              | 7               | 4.43782         | 0.0175755       
-| 12              | 7.5             | 3.10658         | 0.0389883       
-| 12              | 8               | 2.10321         | 0.0734951       
-| 12              | 8.5             | 1.39104         | 0.119115        
-| 12              | 9               | 0.937411        | 0.166472        
-| 12              | 9.5             | 0.703433        | 0.200816        
-| 12              | 10              | 0.662587        | 0.207824        
-| 12              | 10.5            | 0.7958          | 0.186176        
-| 12              | 11              | 1.08688         | 0.148581        
-| 12              | 11.5            | 1.52113         | 0.108724        
-| 12              | 12              | 2.0865          | 0.0743031       
-| 12              | 12.5            | 2.77363         | 0.0479144       
-| 12              | 13              | 3.57466         | 0.0293337       
-| 12              | 13.5            | 4.4831          | 0.0171158       
-| 12              | 14              | 5.49358         | 0.00954323      
-| 12.5            | 6               | 8.40979         | 0.00186603      
-| 12.5            | 6.5             | 6.33992         | 0.0059025       
-| 12.5            | 7               | 4.67895         | 0.0152672       
-| 12.5            | 7.5             | 3.38063         | 0.0329835       
-| 12.5            | 8               | 2.40439         | 0.0604975       
-| 12.5            | 8.5             | 1.71478         | 0.0951834       
-| 12.5            | 9               | 1.27445         | 0.129467        
-| 12.5            | 9.5             | 1.0482          | 0.152961        
-| 12.5            | 10              | 1.01422         | 0.156948        
-| 12.5            | 10.5            | 1.15395         | 0.141362        
-| 12.5            | 11              | 1.45164         | 0.114133        
-| 12.5            | 11.5            | 1.8937          | 0.0843923       
-| 12.5            | 12              | 2.46769         | 0.0581044       
-| 12.5            | 12.5            | 3.16429         | 0.0376326       
-| 12.5            | 13              | 3.97586         | 0.0230784       
-| 12.5            | 13.5            | 4.89605         | 0.0134591       
-| 12.5            | 14              | 5.91962         | 0.0074866       
-| 13              | 6               | 8.6584          | 0.00162778      
-| 13              | 6.5             | 6.63291         | 0.00500559      
-| 13              | 7               | 5.00779         | 0.0126168       
-| 13              | 7.5             | 3.73851         | 0.0265858       
-| 13              | 8               | 2.78593         | 0.0475478       
-| 13              | 8.5             | 2.11363         | 0.0729964       
-| 13              | 9               | 1.68052         | 0.0974275       
-| 13              | 9.5             | 1.46013         | 0.113455        
-| 13              | 10              | 1.43134         | 0.115773        
-| 13              | 10.5            | 1.57612         | 0.10466         
-| 13              | 11              | 1.87909         | 0.0852187       
-| 13              | 11.5            | 2.32729         | 0.0635617       
-| 13              | 12              | 2.90884         | 0.0440476       
-| 13              | 12.5            | 3.61399         | 0.0286477       
-| 13              | 13              | 4.43527         | 0.0176018       
-| 13              | 13.5            | 5.36648         | 0.0102637       
-| 13              | 14              | 6.40248         | 0.00569804      
-| 13.5            | 6               | 8.99628         | 0.00135265      
-| 13.5            | 6.5             | 7.0109          | 0.00405076      
-| 13.5            | 7               | 5.41785         | 0.00996595      
-| 13.5            | 7.5             | 4.17424         | 0.0205215       
-| 13.5            | 8               | 3.2421          | 0.0358844       
-| 13.5            | 8.5             | 2.57888         | 0.0541491       
-| 13.5            | 9               | 2.15119         | 0.0712298       
-| 13.5            | 9.5             | 1.93512         | 0.0820998       
-| 13.5            | 10              | 1.91016         | 0.083473        
-| 13.5            | 10.5            | 2.05875         | 0.075667        
-| 13.5            | 11              | 2.36594         | 0.0620046       
-| 13.5            | 11.5            | 2.81899         | 0.0465776       
-| 13.5            | 12              | 3.40711         | 0.0324581       
-| 13.5            | 12.5            | 4.12007         | 0.0211887       
-| 13.5            | 13              | 4.95041         | 0.0130422       
-| 13.5            | 13.5            | 5.89206         | 0.00760466      
-| 13.5            | 14              | 6.94            | 0.00421445      
-| 14              | 6               | 9.41645         | 0.00107524      
-| 14              | 6.5             | 7.46747         | 0.00314119      
-| 14              | 7               | 5.90319         | 0.00755674      
-| 14              | 7.5             | 4.6823          | 0.0152375       
-| 14              | 8               | 3.76366         | 0.026189        
-| 14              | 8.5             | 3.10608         | 0.0390002       
-| 14              | 9               | 2.68239         | 0.0507317       
-| 14              | 9.5             | 2.46939         | 0.0580413       
-| 14              | 10              | 2.44716         | 0.0588687       
-| 14              | 10.5            | 2.59861         | 0.0534786       
-| 14              | 11              | 2.90916         | 0.0440389       
-| 14              | 11.5            | 3.36637         | 0.0332701       
-| 14              | 12              | 3.95985         | 0.023299        
-| 14              | 12.5            | 4.68007         | 0.0152573       
-| 14              | 13              | 5.51898         | 0.00940561      
-| 14              | 13.5            | 6.47065         | 0.00548353      
-| 14              | 14              | 7.53016         | 0.00303372      
-best-fit value @ xs1=10.0152, xs2=10.0152
+| 6               | 6               | 16.5207         | 2.40609e-05     
+| 6               | 6.5             | 13.7658         | 0.000103537     
+| 6               | 7               | 11.3961         | 0.000367993     
+| 6               | 7.5             | 9.37186         | 0.00110171      
+| 6               | 8               | 7.65762         | 0.00282665      
+| 6               | 8.5             | 6.22184         | 0.00630919      
+| 6               | 9               | 5.03551         | 0.0124164       
+| 6               | 9.5             | 4.07261         | 0.021792        
+| 6               | 10              | 3.31159         | 0.0343964       
+| 6               | 10.5            | 2.73332         | 0.0491374       
+| 6               | 11              | 2.3208          | 0.0638272       
+| 6               | 11.5            | 2.05896         | 0.0756568       
+| 6               | 12              | 1.93442         | 0.0821379       
+| 6               | 12.5            | 1.93533         | 0.0820884       
+| 6               | 13              | 2.05117         | 0.0760444       
+| 6               | 13.5            | 2.26696         | 0.0660793       
+| 6               | 14              | 2.56877         | 0.0544963       
+| 6.5             | 6               | 14.3069         | 7.76478e-05     
+| 6.5             | 6.5             | 11.7925         | 0.000297347     
+| 6.5             | 7               | 9.63839         | 0.000952761     
+| 6.5             | 7.5             | 7.80764         | 0.00260129      
+| 6.5             | 8               | 6.2674          | 0.00614896      
+| 6.5             | 8.5             | 4.98844         | 0.0127586       
+| 6.5             | 9               | 3.94437         | 0.0235142       
+| 6.5             | 9.5             | 3.11051         | 0.0388942       
+| 6.5             | 10              | 2.46666         | 0.0581424       
+| 6.5             | 10.5            | 1.99505         | 0.0789067       
+| 6.5             | 11              | 1.67992         | 0.0974673       
+| 6.5             | 11.5            | 1.50727         | 0.109778        
+| 6.5             | 12              | 1.46467         | 0.113094        
+| 6.5             | 12.5            | 1.54111         | 0.107226        
+| 6.5             | 13              | 1.72389         | 0.0945968       
+| 6.5             | 13.5            | 1.99623         | 0.0788454       
+| 6.5             | 14              | 2.35106         | 0.0625988       
+| 7               | 6               | 12.3615         | 0.000219141     
+| 7               | 6.5             | 10.0652         | 0.000755469     
+| 7               | 7               | 8.10661         | 0.0022052       
+| 7               | 7.5             | 6.45142         | 0.00554317      
+| 7               | 8               | 5.06915         | 0.0121777       
+| 7               | 8.5             | 3.93263         | 0.0236789       
+| 7               | 9               | 3.01765         | 0.0411813       
+| 7               | 9.5             | 2.30125         | 0.0646348       
+| 7               | 10              | 1.76415         | 0.0920539       
+| 7               | 10.5            | 1.38983         | 0.119217        
+| 7               | 11              | 1.16364         | 0.140356        
+| 7               | 11.5            | 1.07255         | 0.150186        
+| 7               | 12              | 1.10499         | 0.146586        
+| 7               | 12.5            | 1.24962         | 0.131813        
+| 7               | 13              | 1.48861         | 0.111216        
+| 7               | 13.5            | 1.81303         | 0.0890728       
+| 7               | 14              | 2.21685         | 0.0682555       
+| 7.5             | 6               | 10.6608         | 0.000547138     
+| 7.5             | 6.5             | 8.56258         | 0.00171571      
+| 7.5             | 7               | 6.7815          | 0.00460538      
+| 7.5             | 7.5             | 5.28579         | 0.0107501       
+| 7.5             | 8               | 4.04708         | 0.0221239       
+| 7.5             | 8.5             | 3.0401          | 0.0406154       
+| 7.5             | 9               | 2.24237         | 0.0671375       
+| 7.5             | 9.5             | 1.63302         | 0.100643        
+| 7.5             | 10              | 1.1933          | 0.137332        
+| 7.5             | 10.5            | 0.907848        | 0.170343        
+| 7.5             | 11              | 0.762991        | 0.191197        
+| 7.5             | 11.5            | 0.746599        | 0.193778        
+| 7.5             | 12              | 0.847727        | 0.178598        
+| 7.5             | 12.5            | 1.04923         | 0.152842        
+| 7.5             | 13              | 1.33943         | 0.123567        
+| 7.5             | 13.5            | 1.71193         | 0.0953679       
+| 7.5             | 14              | 2.16118         | 0.0707679       
+| 8               | 6               | 9.18355         | 0.001221        
+| 8               | 6.5             | 7.26526         | 0.00351505      
+| 8               | 7               | 5.64559         | 0.00874964      
+| 8               | 7.5             | 4.29495         | 0.0191129       
+| 8               | 8               | 3.18689         | 0.0371155       
+| 8               | 8.5             | 2.29788         | 0.0647755       
+| 8               | 9               | 1.60692         | 0.102462        
+| 8               | 9.5             | 1.09506         | 0.147676        
+| 8               | 10              | 0.744327        | 0.194139        
+| 8               | 10.5            | 0.540156        | 0.231184        
+| 8               | 11              | 0.469805        | 0.246538        
+| 8               | 11.5            | 0.52195         | 0.235005        
+| 8               | 12              | 0.681527        | 0.204531        
+| 8               | 12.5            | 0.933479        | 0.16698         
+| 8               | 13              | 1.27094         | 0.129795        
+| 8               | 13.5            | 1.68802         | 0.0969312       
+| 8               | 14              | 2.17952         | 0.0699288       
+| 8.5             | 6               | 7.91029         | 0.00245772      
+| 8.5             | 6.5             | 6.15581         | 0.00654906      
+| 8.5             | 7               | 4.68311         | 0.0152303       
+| 8.5             | 7.5             | 3.46459         | 0.031348        
+| 8.5             | 8               | 2.4756          | 0.0578125       
+| 8.5             | 8.5             | 1.69416         | 0.096527        
+| 8.5             | 9               | 1.10065         | 0.147062        
+| 8.5             | 9.5             | 0.677601        | 0.205207        
+| 8.5             | 10              | 0.408291        | 0.261419        
+| 8.5             | 10.5            | 0.2786          | 0.29881         
+| 8.5             | 11              | 0.276618        | 0.299463        
+| 8.5             | 11.5            | 0.389052        | 0.266399        
+| 8.5             | 12              | 0.598486        | 0.219578        
+| 8.5             | 12.5            | 0.897001        | 0.171794        
+| 8.5             | 13              | 1.27822         | 0.129116        
+| 8.5             | 13.5            | 1.73657         | 0.0937868       
+| 8.5             | 14              | 2.26738         | 0.0660617       
+| 9               | 6               | 6.82359         | 0.00449808      
+| 9               | 6.5             | 5.21842         | 0.0111744       
+| 9               | 7               | 3.87973         | 0.0244363       
+| 9               | 7.5             | 2.78174         | 0.0476722       
+| 9               | 8               | 1.90143         | 0.0839592       
+| 9               | 8.5             | 1.21822         | 0.134855        
+| 9               | 9               | 0.713777        | 0.199096        
+| 9               | 9.5             | 0.371762        | 0.271023        
+| 9               | 10              | 0.177059        | 0.336957        
+| 9               | 10.5            | 0.115738        | 0.366852        
+| 9               | 11              | 0.175465        | 0.33765         
+| 9               | 11.5            | 0.337868        | 0.280531        
+| 9               | 12              | 0.593247        | 0.220583        
+| 9               | 12.5            | 0.934715        | 0.16682         
+| 9               | 13              | 1.35642         | 0.12208         
+| 9               | 13.5            | 1.8533          | 0.0866998       
+| 9               | 14              | 2.42102         | 0.0598586       
+| 9.5             | 6               | 5.90766         | 0.0075376       
+| 9.5             | 6.5             | 4.43881         | 0.0175654       
+| 9.5             | 7               | 3.2225          | 0.0363164       
+| 9.5             | 7.5             | 2.23464         | 0.0674741       
+| 9.5             | 8               | 1.45367         | 0.11397         
+| 9.5             | 8.5             | 0.860334        | 0.176823        
+| 9.5             | 9               | 0.437435        | 0.254182        
+| 9.5             | 9.5             | 0.169656        | 0.340209        
+| 9.5             | 10              | 0.0432144       | 0.417661        
+| 9.5             | 10.5            | 0.0445088       | 0.416455        
+| 9.5             | 11              | 0.15512         | 0.346845        
+| 9.5             | 11.5            | 0.3629          | 0.27345         
+| 9.5             | 12              | 0.6606          | 0.208174        
+| 9.5             | 12.5            | 1.04195         | 0.153684        
+| 9.5             | 13              | 1.50151         | 0.11022         
+| 9.5             | 13.5            | 2.03458         | 0.0768784       
+| 9.5             | 14              | 2.63711         | 0.0521967       
+| 10              | 6               | 5.14823         | 0.0116351       
+| 10              | 6.5             | 3.80403         | 0.0255646       
+| 10              | 7               | 2.69968         | 0.0501843       
+| 10              | 7.5             | 1.81261         | 0.0890979       
+| 10              | 8               | 1.12262         | 0.144678        
+| 10              | 8.5             | 0.611637        | 0.217086        
+| 10              | 9               | 0.263537        | 0.30385         
+| 10              | 9.5             | 0.0639293       | 0.400195        
+| 10              | 10              | -2.06342e-11    | 0.5             
+| 10              | 10.5            | 0.0537534       | 0.408328        
+| 10              | 11              | 0.209337        | 0.323644        
+| 10              | 11.5            | 0.459041        | 0.249036        
+| 10              | 12              | 0.796138        | 0.186125        
+| 10              | 12.5            | 1.21478         | 0.135194        
+| 10              | 13              | 1.70989         | 0.0955          
+| 10              | 13.5            | 2.27709         | 0.0656491       
+| 10              | 14              | 2.91262         | 0.0439445       
+| 10.5            | 6               | 4.53238         | 0.0166296       
+| 10.5            | 6.5             | 3.30238         | 0.0345897       
+| 10.5            | 7               | 2.30062         | 0.064661        
+| 10.5            | 7.5             | 1.50596         | 0.109878        
+| 10.5            | 8               | 0.899439        | 0.171466        
+| 10.5            | 8.5             | 0.464082        | 0.247861        
+| 10.5            | 9               | 0.184731        | 0.333669        
+| 10.5            | 9.5             | 0.0478221       | 0.413449        
+| 10.5            | 10              | 0.0375833       | 0.423141        
+| 10.5            | 10.5            | 0.136001        | 0.356145        
+| 10.5            | 11              | 0.333274        | 0.281869        
+| 10.5            | 11.5            | 0.622024        | 0.215148        
+| 10.5            | 12              | 0.995965        | 0.159144        
+| 10.5            | 12.5            | 1.44963         | 0.114294        
+| 10.5            | 13              | 1.97828         | 0.0797861       
+| 10.5            | 13.5            | 2.57783         | 0.054185        
+| 10.5            | 14              | 3.2448          | 0.0358253       
+| 11              | 6               | 4.04845         | 0.022106        
+| 11              | 6.5             | 2.92325         | 0.043656        
+| 11              | 7               | 2.01569         | 0.0778402       
+| 11              | 7.5             | 1.30592         | 0.126567        
+| 11              | 8               | 0.776127        | 0.189164        
+| 11              | 8.5             | 0.410351        | 0.260896        
+| 11              | 9               | 0.194198        | 0.329723        
+| 11              | 9.5             | 0.112853        | 0.36846         
+| 11              | 10              | 0.147049        | 0.350686        
+| 11              | 10.5            | 0.286594        | 0.296206        
+| 11              | 11              | 0.522714        | 0.234843        
+| 11              | 11.5            | 0.847994        | 0.17856         
+| 11              | 12              | 1.25655         | 0.131153        
+| 11              | 12.5            | 1.74326         | 0.093363        
+| 11              | 13              | 2.30371         | 0.0645326       
+| 11              | 13.5            | 2.93409         | 0.0433637       
+| 11              | 14              | 3.63114         | 0.028354        
+| 11.5            | 6               | 3.68585         | 0.0274379       
+| 11.5            | 6.5             | 2.65702         | 0.0515468       
+| 11.5            | 7               | 1.83613         | 0.0877029       
+| 11.5            | 7.5             | 1.2045          | 0.136212        
+| 11.5            | 8               | 0.745394        | 0.193969        
+| 11.5            | 8.5             | 0.443521        | 0.252714        
+| 11.5            | 9               | 0.284553        | 0.296866        
+| 11.5            | 9.5             | 0.24864         | 0.309017        
+| 11.5            | 10              | 0.323828        | 0.284658        
+| 11.5            | 10.5            | 0.501482        | 0.239425        
+| 11.5            | 11              | 0.773843        | 0.189515        
+| 11.5            | 11.5            | 1.13346         | 0.143519        
+| 11.5            | 12              | 1.57469         | 0.104763        
+| 11.5            | 12.5            | 2.09276         | 0.0739994       
+| 11.5            | 13              | 2.68351         | 0.050696        
+| 11.5            | 13.5            | 3.3434          | 0.0337376       
+| 11.5            | 14              | 4.06937         | 0.0218337       
+| 12              | 6               | 3.43503         | 0.0319137       
+| 12              | 6.5             | 2.495           | 0.0571043       
+| 12              | 7               | 1.754           | 0.0926875       
+| 12              | 7.5             | 1.19443         | 0.137219        
+| 12              | 8               | 0.800204        | 0.185516        
+| 12              | 8.5             | 0.556965        | 0.227743        
+| 12              | 9               | 0.445032        | 0.252352        
+| 12              | 9.5             | 0.450393        | 0.251074        
+| 12              | 10              | 0.563793        | 0.226368        
+| 12              | 10.5            | 0.777102        | 0.189014        
+| 12              | 11              | 1.08321         | 0.14899         
+| 12              | 11.5            | 1.47526         | 0.112258        
+| 12              | 12              | 1.94751         | 0.0814277       
+| 12              | 12.5            | 2.49546         | 0.0570875       
+| 12              | 13              | 3.11524         | 0.0387816       
+| 12              | 13.5            | 3.80352         | 0.0255725       
+| 12              | 14              | 4.55746         | 0.0163878       
+| 12.5            | 6               | 3.28732         | 0.0349084       
+| 12.5            | 6.5             | 2.42928         | 0.0595437       
+| 12.5            | 7               | 1.762           | 0.0921877       
+| 12.5            | 7.5             | 1.26863         | 0.130012        
+| 12.5            | 8               | 0.934377        | 0.166864        
+| 12.5            | 8.5             | 0.740302        | 0.194782        
+| 12.5            | 9               | 0.670155        | 0.206499        
+| 12.5            | 9.5             | 0.714034        | 0.199054        
+| 12.5            | 10              | 0.863219        | 0.17642         
+| 12.5            | 10.5            | 1.11005         | 0.146035        
+| 12.5            | 11              | 1.44783         | 0.114438        
+| 12.5            | 11.5            | 1.87056         | 0.0857055       
+| 12.5            | 12              | 2.37239         | 0.0617491       
+| 12.5            | 12.5            | 2.94898         | 0.042966        
+| 12.5            | 13              | 3.5967          | 0.0289472       
+| 12.5            | 13.5            | 4.31244         | 0.0189173       
+| 12.5            | 14              | 5.09355         | 0.0120075       
+| 13              | 6               | 3.23487         | 0.0360429       
+| 13              | 6.5             | 2.45254         | 0.0586673       
+| 13              | 7               | 1.85312         | 0.0867108       
+| 13              | 7.5             | 1.42111         | 0.11661         
+| 13              | 8               | 1.13852         | 0.142982        
+| 13              | 8.5             | 0.986995        | 0.160239        
+| 13              | 9               | 0.955894        | 0.164112        
+| 13              | 9.5             | 1.03589         | 0.15439         
+| 13              | 10              | 1.21875         | 0.134803        
+| 13              | 10.5            | 1.49726         | 0.110546        
+| 13              | 11              | 1.86511         | 0.0860183       
+| 13              | 11.5            | 2.31678         | 0.0639925       
+| 13              | 12              | 2.84697         | 0.0457732       
+| 13              | 12.5            | 3.45115         | 0.0316038       
+| 13              | 13              | 4.12592         | 0.0211156       
+| 13              | 13.5            | 4.86835         | 0.0136768       
+| 13              | 14              | 5.67596         | 0.00859945      
+| 13.5            | 6               | 3.27033         | 0.0352718       
+| 13.5            | 6.5             | 2.55786         | 0.0548736       
+| 13.5            | 7               | 2.02147         | 0.0775442       
+| 13.5            | 7.5             | 1.64373         | 0.0999073       
+| 13.5            | 8               | 1.40478         | 0.117962        
+| 13.5            | 8.5             | 1.29307         | 0.127742        
+| 13.5            | 9               | 1.29862         | 0.127232        
+| 13.5            | 9.5             | 1.41264         | 0.117309        
+| 13.5            | 10              | 1.62736         | 0.101034        
+| 13.5            | 10.5            | 1.93598         | 0.082053        
+| 13.5            | 11              | 2.33251         | 0.0633487       
+| 13.5            | 11.5            | 2.81176         | 0.0467879       
+| 13.5            | 12              | 3.36914         | 0.0332142       
+| 13.5            | 12.5            | 4.00004         | 0.0227496       
+| 13.5            | 13              | 4.70111         | 0.0150716       
+| 13.5            | 13.5            | 5.4696          | 0.00967501      
+| 13.5            | 14              | 6.30321         | 0.00602599      
+| 14              | 6               | 3.38688         | 0.0328586       
+| 14              | 6.5             | 2.73944         | 0.0489494       
+| 14              | 7               | 2.25987         | 0.0663826       
+| 14              | 7.5             | 1.92734         | 0.0825251       
+| 14              | 8               | 1.72923         | 0.0942546       
+| 14              | 8.5             | 1.65495         | 0.0991434       
+| 14              | 9               | 1.69508         | 0.0964661       
+| 14              | 9.5             | 1.84133         | 0.0873978       
+| 14              | 10              | 2.08635         | 0.0743106       
+| 14              | 10.5            | 2.42371         | 0.0597559       
+| 14              | 11              | 2.84777         | 0.0457503       
+| 14              | 11.5            | 3.35362         | 0.0335287       
+| 14              | 12              | 3.937           | 0.0236175       
+| 14              | 12.5            | 4.59391         | 0.0160429       
+| 14              | 13              | 5.32068         | 0.0105369       
+| 14              | 13.5            | 6.11474         | 0.00670295      
+| 14              | 14              | 6.97393         | 0.00413527      
+best-fit value @ xs1=10.0162, xs2=10.0162
