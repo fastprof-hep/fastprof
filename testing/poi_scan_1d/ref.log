@@ -1,24 +1,57 @@
-Using dataset stored in file examples/high_stats_one_bin.json.
-Producing PLR scan with POI(s) ['xs_BSM'], bounds {'xs_BSM': xs_BSM >= 0 and xs_BSM <= 20} and niter=1.
+Initializing model from file examples/high_stats_one_bin.json
+Initializing data from file examples/high_stats_one_bin.json.
+Producing PLR scan with POI(s) ['xs_BSM'], bounds {'xs_BSM': xs_BSM >= 0 and xs_BSM <= 20}.
+Processing hypothesis point 1 of 17 : xs_BSM = 6 
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 2 of 17 : xs_BSM = 6.5 [so far 0.00664532 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 3 of 17 : xs_BSM = 7 [so far 0.00652058 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 4 of 17 : xs_BSM = 7.5 [so far 0.00648832 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 5 of 17 : xs_BSM = 8 [so far 0.00652333 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 6 of 17 : xs_BSM = 8.5 [so far 0.0065099 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 7 of 17 : xs_BSM = 9 [so far 0.00653219 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 8 of 17 : xs_BSM = 9.5 [so far 0.00650521 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 9 of 17 : xs_BSM = 10 [so far 0.00650014 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 10 of 17 : xs_BSM = 10.5 [so far 0.00650839 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 11 of 17 : xs_BSM = 11 [so far 0.00650817 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 12 of 17 : xs_BSM = 11.5 [so far 0.0065131 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 13 of 17 : xs_BSM = 12 [so far 0.00651211 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 14 of 17 : xs_BSM = 12.5 [so far 0.00651449 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 15 of 17 : xs_BSM = 13 [so far 0.0065114 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 16 of 17 : xs_BSM = 13.5 [so far 0.00650628 s/point]
+No free parameter of interest, will just minimize NPs.
+Processing hypothesis point 17 of 17 : xs_BSM = 14 [so far 0.00651616 s/point]
+No free parameter of interest, will just minimize NPs.
+Processed 17 hypothesis points in 0.110606 s (0.00650624 s/point)
 | xs_BSM          | tmu             | pv              
-| 6               | 8.19298         | 0.00210263      
-| 6.42105         | 6.32974         | 0.00593648      
-| 6.84211         | 4.75767         | 0.014584        
-| 7.26316         | 3.45174         | 0.0315927       
-| 7.68421         | 2.3885          | 0.0611156       
-| 8.10526         | 1.54628         | 0.106843        
-| 8.52632         | 0.905227        | 0.170692        
-| 8.94737         | 0.447268        | 0.251818        
-| 9.36842         | 0.156047        | 0.346411        
-| 9.78947         | 0.0168159       | 0.448411        
-| 10.2105         | 0.014899        | 0.451425        
-| 10.6316         | 0.130153        | 0.359137        
-| 11.0526         | 0.351222        | 0.276711        
-| 11.4737         | 0.66934         | 0.206641        
-| 11.8947         | 1.07676         | 0.149712        
-| 12.3158         | 1.56666         | 0.105347        
-| 12.7368         | 2.13303         | 0.0720779       
-| 13.1579         | 2.77061         | 0.0480048       
-| 13.5789         | 3.4748          | 0.0311552       
+| 6               | 8.19309         | 0.00210251      
+| 6.5             | 6.01358         | 0.00709809      
+| 7               | 4.23806         | 0.0197636       
+| 7.5             | 2.82528         | 0.0463953       
+| 8               | 1.73732         | 0.0937396       
+| 8.5             | 0.939843        | 0.166159        
+| 9               | 0.402131        | 0.262995        
+| 9.5             | 0.0968857       | 0.3778          
+| 10              | 0               | 0.5             
+| 10.5            | 0.0823585       | 0.387063        
+| 11              | 0.318198        | 0.286346        
+| 11.5            | 0.692389        | 0.202676        
+| 12              | 1.19188         | 0.137475        
+| 12.5            | 1.80547         | 0.0895265       
+| 13              | 2.52353         | 0.0560795       
+| 13.5            | 3.33789         | 0.0338506       
 | 14              | 4.24158         | 0.0197227       
-xs_BSM = 10.0028 +3.86806 -2.92652 @ 95.4% CL
+xs_BSM = 10.0062 +3.86466 -2.9299 @ 95.4% CL
