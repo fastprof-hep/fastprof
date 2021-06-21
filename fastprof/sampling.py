@@ -204,7 +204,7 @@ class SamplesBase :
       canvas : the matplotlib figure on which to draw (default: plt)
     """
     colors = [ 'k', 'g', 'y', 'c', 'b' ]
-    hypos = [ hypo[hypo.model.poi(0).name] for hypo in self.hypos ]
+    hypos = [ hypo.pars[list(hypo.pars.keys())[0]] for hypo in self.hypos ]
     bands = self.bands(max_sigma)
     for i in reversed(range(1, max_sigma + 1)) :
       canvas.fill_between(hypos, bands[+i], bands[-i], color=colors[i])
@@ -266,7 +266,7 @@ class Samples (SamplesBase) :
     Returns :
       a normalized file name, without extension
     """
-    poi_vals = hypo.dict(pois_only=True)
+    poi_vals = hypo.pars
     fields = [ self.file_root ] + [ '%g' % val for val in poi_vals.values() ]
     return '_'.join(fields) + suffix
 
@@ -292,14 +292,14 @@ class Samples (SamplesBase) :
       raise ValueError('Cannot generate as no samplers were specified.')
     for i, hypo, sampler in zip(range(0, len(self.hypos)), self.hypos, self.samplers) :
       if os.path.exists(self.file_name(hypo, '.npy')) :
-        print('Samples for hypo = %s already produced, just loading (%d samples from %s)' % (str(hypo.dict(pois_only=True)), ntoys, self.file_name(hypo, '.npy')))
+        print('Samples for hypo = %s already produced, just loading (%d samples from %s)' % (str(hypo), ntoys, self.file_name(hypo, '.npy')))
         self.dists[hypo] = SamplingDistribution(ntoys)
         self.dists[hypo].load(self.file_name(hypo, '.npy'))
         continue
       if os.path.exists(self.file_name(hypo, '.lock')) and not break_locks :
-        print('Samples for hypo = %s already being produced, skipping' % str(hypo.dict(pois_only=True)))
+        print('Samples for hypo = %s already being produced, skipping' % str(hypo))
         continue
-      print('Processing sampling distribution for hypo %s' % str(hypo.dict(pois_only=True)))
+      print('Processing sampling distribution for hypo %s' % str(hypo))
       with open(self.file_name(hypo, '.lock'), 'w') as f :
         f.write(str(os.getpid()))
       self.dists[hypo] = sampler.generate(ntoys, '(%d of %d)' % (i+1, len(self.hypos)))
@@ -320,7 +320,7 @@ class Samples (SamplesBase) :
         self.dists[hypo] = SamplingDistribution()
         self.dists[hypo].load(self.file_name(hypo, '.npy'))
       except Exception as inst :
-        print('Cannot load from file %s, for samples at hypo = %s, exception below:' % (fname, str(hypo.dict(pois_only=True))))
+        print('Cannot load from file %s, for samples at hypo = %s, exception below:' % (fname, str(hypo)))
         raise(inst)
     return self
 
@@ -340,7 +340,7 @@ class Samples (SamplesBase) :
     if not self.samplers :
       raise ValueError('Cannot generate as no samplers were specified.')
     for hypo, sampler in zip(self.hypos, self.samplers) :
-      print('Creating sampling distribution for %s' % str(hypo.dict(pois_only=True)))
+      print('Creating sampling distribution for %s' % str(hypo))
       self.dists[hypo] = self.sampler.generate(ntoys)
       self.dists[hypo].sort()
       print('Done')
@@ -367,7 +367,7 @@ class Samples (SamplesBase) :
     try:
       samples = self.dists[hypo]
     except Exception as inst :
-      print('No sample available for hypo = %s, available samples are %s' % (str(hypo.dict(pois_only=True)), self.dists.keys()))
+      print('No sample available for hypo = %s, available samples are %s' % (str(hypo), self.dists.keys()))
       raise(inst)
     return samples.pv(apv, with_error)
 
@@ -387,7 +387,7 @@ class Samples (SamplesBase) :
     try:
       samples = self.dists[hypo]
     except Exception as inst :
-      print('No sample available for hypo = %s' % str(hypo.dict(pois_only=True)))
+      print('No sample available for hypo = %s' % str(hypo))
       raise(inst)
     return samples.quantile(fraction, nsigmas)
 
@@ -465,10 +465,10 @@ class CLsSamples (SamplesBase) :
       self
     """
     print('Processing CL_{s+b} sampling distributions for hypos: ')
-    for hypo in self.hypos : print(str(hypo.dict(pois_only=True)))
+    for hypo in self.hypos : print(str(hypo))
     self.clsb.generate_and_save(ntoys, break_locks, sort_before_saving)
     print('Processing CL_b sampling distributions for hypos: ')
-    for hypo in self.hypos : print(str(hypo.dict(pois_only=True)))
+    for hypo in self.hypos : print(str(hypo))
     self.cl_b.generate_and_save(ntoys, break_locks, sort_before_saving)
     return self
 

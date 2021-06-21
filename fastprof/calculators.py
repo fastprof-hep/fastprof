@@ -101,7 +101,7 @@ class TestStatisticCalculator :
     """
     pass
 
-  def compute_fast_plr(self, hypo : POIHypo, data : Data, name : str = 'fast') -> PLRData :
+  def compute_fast_plr(self, hypo : POIHypo, data : Data, full_hypo : Parameters = None, name : str = 'fast') -> PLRData :
     """Compute `tmu` from a dataset
 
     The computation is performed in the linear approximation
@@ -119,15 +119,15 @@ class TestStatisticCalculator :
     Returns:
       an object containing the PLR information
     """
-    plr_data = PLRData(name, hypo, model=data.model)
-    tmu = self.minimizer.tmu(hypo.pars, data)
+    plr_data = PLRData(name, hypo, full_hypo=full_hypo, model=data.model)
+    tmu = self.minimizer.tmu(hypo.pars, data, full_hypo)
     plr_data.test_statistics['tmu'] = tmu
     plr_data.free_fit = FitResult('free_fit', self.minimizer.free_pars, self.minimizer.free_nll, model=data.model)
     plr_data.hypo_fit = FitResult('hypo_fit', self.minimizer.hypo_pars, self.minimizer.hypo_nll, model=data.model)
     plr_data.update() # includes `tmu` computation
     return plr_data
 
-  def compute_fast_q(self, hypo : POIHypo, data : Data, name : str = 'fast') -> PLRData :
+  def compute_fast_q(self, hypo : POIHypo, data : Data, full_hypo : Parameters = None, name : str = 'fast') -> PLRData :
     """Compute `tmu` and the associated p-value from a dataset
 
     Computes `tmu` using the :meth:`compute_fast_plr`
@@ -141,9 +141,9 @@ class TestStatisticCalculator :
     Returns:
       an object containing the PLR information
     """
-    fast_plr_data = self.compute_fast_plr(hypo, data, name)
+    fast_plr_data = self.compute_fast_plr(hypo, data, full_hypo, name)
     asimov = data.model.generate_expected(0, NPMinimizer(data))
-    asimov_plr_data = self.compute_fast_plr(hypo, asimov, 'fast_asimov')
+    asimov_plr_data = self.compute_fast_plr(hypo, asimov, full_hypo, 'fast_asimov')
     fast_plr_data.set_asimov(asimov_plr_data)
     self.fill_pv(fast_plr_data)
     return fast_plr_data
@@ -161,7 +161,7 @@ class TestStatisticCalculator :
     """
     for plr_data in raster.plr_data.values() : self.fill_pv(plr_data)
 
-  def compute_fast_results(self, hypos : list, data : Data, init_values : dict = {}, name : str = 'fast', verbosity : int = 0) -> Raster :
+  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast', verbosity : int = 0) -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Builds a raster object with the same hypothesis points as the one
@@ -181,8 +181,7 @@ class TestStatisticCalculator :
     for i, hypo in enumerate(hypos) :
       if verbosity > 1 :
         print('Processing hypothesis point %d of %d : %s %s' % (i+1, len(hypos), str(hypo), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
-      if hypo in init_values : init_values[hypo].set_poi_values_and_ranges(self.minimizer)
-      fast_plr_data[hypo] = self.compute_fast_q(hypo, data, '%s_%g' % (name, i))
+      fast_plr_data[hypo] = self.compute_fast_q(hypo, data, full_hypos[hypo] if hypo in full_hypos else None, '%s_%g' % (name, i))
     fast = Raster(name, fast_plr_data, model=data.model)
     self.fill_all_pv(fast)
     return fast
@@ -201,7 +200,7 @@ class TestStatisticCalculator :
     Returns:
       a raster object containing the fast PLR and p-value results
     """
-    return self.compute_fast_results(raster.plr_data.keys(), data, { hypo : plr_data.free_fit for hypo, plr_data in raster.plr_data.items() }, name)
+    return self.compute_fast_results(raster.plr_data.keys(), data, { hypo : plr_data.full_hypo for hypo, plr_data in raster.plr_data.items() if plr_data.full_hypo is not None }, name)
 
 
 class TMuCalculator(TestStatisticCalculator) :
@@ -254,7 +253,7 @@ class TMuCalculator(TestStatisticCalculator) :
       raise(inst)
     return self
 
-  def compute_fast_results(self, hypos : list, data : Data, init_values : dict = {}, name : str = 'fast', free_fit : str = 'all', verbosity : int = 0) -> Raster :
+  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast', free_fit : str = 'all', verbosity : int = 0) -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Reimplements the general method since it can be done more simply for t_mu
@@ -277,12 +276,12 @@ class TMuCalculator(TestStatisticCalculator) :
     for i, hypo in enumerate(hypos) :
       if verbosity >= 1 :
         print('Processing hypothesis point %d of %d : %s %s' % (i+1, len(hypos), str(hypo), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
-      if hypo in init_values : init_values[hypo].set_poi_values_and_ranges(self.minimizer)
-      plr_data = PLRData(name, hypo, model=data.model)
-      if self.minimizer.bounds is None : self.minimizer.set_pois_from_model(data.model)
+      full_hypo = full_hypos[hypo] if hypo in full_hypos else None
+      plr_data = PLRData(name, hypo, full_hypo=full_hypo, model=data.model)
       hypo_minimizer = self.minimizer.clone()
+      self.minimizer.set_pois(data.model, init_pars=full_hypo, hypo=hypo.pars, fix_hypo=False)
+      hypo_minimizer.set_pois(data.model, init_pars=full_hypo, hypo=hypo.pars, fix_hypo=True)
       # Hypo fit
-      hypo_minimizer.set_hypo(hypo.pars)
       if hypo_minimizer.minimize(data) is None : return None
       fixed_pars[hypo] = hypo_minimizer.min_pars
       plr_data.hypo_fit = FitResult('hypo_fit', hypo_minimizer.min_pars, hypo_minimizer.min_nll, model=data.model)
@@ -300,8 +299,7 @@ class TMuCalculator(TestStatisticCalculator) :
       else :
         start_time = timer()
         if verbosity >= 1 : print('Performing global free-POI fit at hypothesis %s' % best_fixed[0].dict(pois_only=True))
-        self.minimizer.bounds = init_bounds
-        if self.minimizer.minimize(data, fixed_pars[best_fixed[0]]) is None : return None
+        if self.minimizer.minimize(data) is None : return None
         if verbosity >= 1 : print('Performed free-POI fit in %g s' % (timer() - start_time))
         common_free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
       for hypo in hypos :
