@@ -30,7 +30,6 @@ def make_parser() :
   parser.add_argument("-c", "--cl"            , type=float, default=None  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
   parser.add_argument("-b", "--best-fit-mode" , type=str  , default='all' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
-  parser.add_argument("-r", "--setrange"      , type=str  , default=None    , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
@@ -38,7 +37,7 @@ def make_parser() :
   parser.add_argument(      "--marker"        , type=str  , default='+'   , help="Marker type for plots")
   parser.add_argument(      "--smoothing"     , type=int  , default=0     , help="Smoothing for contours (0=no smoothing)")
   parser.add_argument(      "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
-  parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
+  parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
   return parser
 
 def run(argv = None) :
@@ -50,7 +49,6 @@ def run(argv = None) :
   if options.verbosity >= 1 : print('Initializing model from file %s' % options.model_file)
   model = Model.create(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  if options.setrange is not None : process_setranges(options.setrange, model)
   if options.regularize is not None : model.set_gamma_regularization(options.regularize)
   if options.cutoff is not None : model.cutoff = options.cutoff
 
@@ -89,7 +87,7 @@ def run(argv = None) :
     try :
       for spec in bound_specs :
         var_range = spec.split('=')
-        range_spec = var_range[1].split('#')
+        range_spec = var_range[1].split(':')
         if len(range_spec) == 2 :
           par_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
         elif len(range_spec) == 1 :
@@ -117,7 +115,7 @@ def run(argv = None) :
     raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity, free_fit=options.best_fit_mode)
     raster.save(raster_file)
 
-  raster.print(keys=[ 'tmu' ], verbosity=options.verbosity)
+  raster.print(keys=[ 'tmu' ], verbosity=options.verbosity + 1)
   jdict = {}
 
   if len(pois) == 1 :
