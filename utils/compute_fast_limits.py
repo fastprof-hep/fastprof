@@ -51,7 +51,7 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
+from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
 from utils import process_setval_list
 
 
@@ -100,7 +100,7 @@ def run(argv = None) :
   raster_file = options.output_file + '_raster.json'
 
   try :
-    hypos = [ Parameters(setval_dict, model=model) for setval_dict in process_setval_list(options.hypos, model) ]
+    hypos = [ POIHypo(setval_dict, model=model) for setval_dict in process_setval_list(options.hypos, model) ]
   except Exception as inst :
     print(inst)
     raise ValueError("Could not parse list of hypothesis values '%s' : expected colon-separated list of variable assignments" % options.hypos)
