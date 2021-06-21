@@ -239,7 +239,8 @@ class POIMinimizer :
       for poi in hypo : self.bounds[poi] = ParBound(poi, hypo[poi], hypo[poi])
     for bound in self.bounds.values() :
       if not bound.test_value(self.init_pois[bound.par]) :
-        print("Warning: resetting value of POI '%s' to %g to ensure it verifies bound %s." % (bound.par, (bound.min_value + bound.max_value)/2, str(bound)))
+        if self.debug > 1 :
+          print("Warning: resetting value of POI '%s' to %g (from %g) to ensure it verifies bound %s." % (bound.par, (bound.min_value + bound.max_value)/2, self.init_pois[bound.par], str(bound)))
         self.init_pois[bound.par] = (bound.min_value + bound.max_value)/2
     return self
 
