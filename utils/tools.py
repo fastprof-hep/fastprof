@@ -200,14 +200,17 @@ def process_setranges(setranges : str, model : Model) :
         except ValueError as inst :
           raise ValueError("Invalid numerical value '%s' for the lower bound of variable '%s'." % (minval, var))
         model.pois[var].min_value = float_minval
-        print("INFO : setting lower bound of %s to %g" % (var, float_minval))
       if maxval != '' :
         try :
           float_maxval = float(maxval)
         except ValueError as inst :
           raise ValueError("Invalid numerical value '%s' for the upper bound of variable '%s'." % (maxval, var))
         model.pois[var].max_value = float_maxval
-        print("INFO : setting upper bound of %s to %g" % (var, float_maxval))
+    if minval != '' and maxval != '' and float_minval == float_maxval :
+      print("INFO : fixing %s to %g" % (var, float_maxval))
+    else :
+      if minval != '' : print("INFO : setting lower bound of %s to %g" % (var, float_minval))
+      if maxval != '' : print("INFO : setting upper bound of %s to %g" % (var, float_maxval))
   except Exception as inst :
     print(inst)
     raise ValueError("ERROR : invalid parameter range specification '%s'." % setranges)
