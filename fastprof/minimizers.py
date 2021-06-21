@@ -233,7 +233,9 @@ class POIMinimizer :
     self.bounds = { poi.name : ParBound(poi.name, poi.min_value, poi.max_value) for poi in model.pois.values() }
     if par_bounds is not None :
       for par_bound in par_bounds : 
-        self.bounds[par_bound.par] = self.bounds[par_bound.par] & par_bound if par in self.bounds else par_bound
+        self.bounds[par_bound.par] = self.bounds[par_bound.par] & par_bound if par_bound.par in self.bounds else par_bound
+    for bound in self.bounds.values() :
+      if not bound.test_value(self.init_pois[bound.par]) : self.init_pois[bound.par] = (bound.min_value + bound.max_value)/2
     return self
 
   def set_hypo(self, hypo : dict) :
@@ -479,7 +481,7 @@ class OptiMinimizer (POIMinimizer) :
     bounds = [ bound.bounds()            for bound in self.bounds.values() if bound.is_free() ]
     jac = jacobian if data.model.gradient(self.init_pois, data) is not None else None
     if len(x0) == 0 and self.method != '' :
-      print("No free parameter of interest, will just minimize NPs.")
+      if self.debug > 0 : print("No free parameter of interest, will just minimize NPs.")
       self.method = ''
       self.profile_nps(current_hypo, data)
       self.min_pois = []

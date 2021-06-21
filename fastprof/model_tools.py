@@ -159,40 +159,43 @@ class ParBound :
 
   Atttributes:
     par    (str)   : parameter name
-    minval (float) : parameter lower bound (`None` if no bound)
-    maxval (float) : parameter upper bound (`None` if no bound)
+    min_value (float) : parameter lower bound (`None` if no bound)
+    max_value (float) : parameter upper bound (`None` if no bound)
   """
 
-  def __init__(self, par : str, minval : float = None, maxval : float = None) :
+  def __init__(self, par : str, min_value : float = None, max_value : float = None) :
     """Initialize the `QMuTildaCalculator` object
 
-    Defines a selection minval <= par <= maxval.
+    Defines a selection min_value <= par <= max_value.
     Both bounds are optional and can be omitted by passing `None` as
     the corresponding argument (also default).
 
     Args:
       par    : parameter name
-      minval : parameter lower bound (`None` for no bound, default)
-      maxval : parameter upper bound (`None` for no bound, default)
+      min_value : parameter lower bound (`None` for no bound, default)
+      max_value : parameter upper bound (`None` for no bound, default)
     """
     self.par = par
-    self.minval = minval
-    self.maxval = maxval
+    self.min_value = min_value
+    self.max_value = max_value
 
   def bounds(self) :
-    return (self.minval, self.maxval)
+    return (self.min_value, self.max_value)
 
   def is_fixed(self) :
-    return self.minval == self.maxval
+    return self.min_value == self.max_value
 
   def is_free(self) :
-    return self.minval < self.maxval
+    return self.min_value < self.max_value
 
   def __and__(self, other) :
     if self.par != other.par : return None
-    new_minval = self.minval if other.minval is None else other.minval if self.minval is None else max(self.minval, other.minval)
-    new_maxval = self.maxval if other.maxval is None else other.maxval if self.maxval is None else min(self.maxval, other.maxval)
-    return ParBound(self.par, new_minval, new_maxval)
+    new_min_value = self.min_value if other.min_value is None else other.min_value if self.min_value is None else max(self.min_value, other.min_value)
+    new_max_value = self.max_value if other.max_value is None else other.max_value if self.max_value is None else min(self.max_value, other.max_value)
+    return ParBound(self.par, new_min_value, new_max_value)
+
+  def test_value(self, value) -> bool :
+    return (value >= self.min_value if self.min_value is not None else True) and (value <= self.max_value if self.max_value is not None else True)
 
   def test(self, pars : Parameters) -> bool :
     """Applies the selection to a :class:`Parameters` object
@@ -203,7 +206,7 @@ class ParBound :
      `True` if the parameters pass the selection, `False` if they fail.
     """
     try :
-      return (pars[self.par] >= self.minval if self.minval != None else True) and (pars[self.par] <= self.maxval if self.maxval != None else True)
+      return self.test_value(pars[self.par])
     except KeyError :
       return True
 
@@ -213,9 +216,9 @@ class ParBound :
     Returns:
       a description string
     """
-    if self.is_fixed() : return 'fixed at %g' % self.minval
-    smin = '%s >= %g' % (self.par, self.minval) if self.minval != None else ''
-    smax = '%s <= %g' % (self.par, self.maxval) if self.maxval != None else ''
+    if self.is_fixed() : return 'fixed at %g' % self.min_value
+    smin = '%s >= %g' % (self.par, self.min_value) if self.min_value != None else ''
+    smax = '%s <= %g' % (self.par, self.max_value) if self.max_value != None else ''
     if smin == '' : return smax
     if smax == '' : return smin
     return smin + ' and ' + smax
