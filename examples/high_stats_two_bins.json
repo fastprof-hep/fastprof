@@ -73,7 +73,7 @@
                   "name": "Signal",
                   "norm": "xs2",
                   "nominal_norm": 1,
-                  "nominal_yields": [ 10 ],
+                  "nominal_yields": [ 5 ],
                   "impacts": {
                      "np_lumi": [ { "+1":  0.02, "-1":  -0.02 } ],
                      "np_eff" : [ { "+1":  0.10, "-1":  -0.10 } ]
@@ -100,7 +100,7 @@
          },
          {
             "name"  : "SR2",
-            "counts": 150
+            "counts": 100
          }
       ],
       "aux_obs": [
