@@ -193,7 +193,10 @@ def process_setranges(setranges : str, model : Model) :
     sets = [ v.replace(' ', '').split('=') for v in setranges.split(',') ]
     for (var, var_range) in sets :
       if not var in model.pois : raise ValueError("Parameter of interest '%s' not defined in model." % var)
-      minval, maxval = var_range.split(':')
+      splits = var_range.split(':')
+      if len(splits) == 1 : splits = splits*2
+      if len(splits) != 2 : raise ValueError("Invalid range specification '%s' for parameters '%s', expecting 'min:max'." % (var_range, var))
+      minval, maxval = splits
       if minval != '' :
         try :
           float_minval = float(minval)
