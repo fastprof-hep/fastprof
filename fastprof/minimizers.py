@@ -61,7 +61,7 @@ class NPMinimizer :
         minimization routine).
   """
   optimize_einsum = True
-
+  
   def __init__(self, data : Data) :
     """Initialize the NPMinimizer object
 
