@@ -16,7 +16,7 @@ from abc import abstractmethod
 from timeit import default_timer as timer
 
 from .core import Model, Data, Parameters, ModelPOI
-from .fit_data import FitResult, PLRData, Raster
+from .fit_data import POIHypo, FitResult, PLRData, Raster
 from .minimizers import NPMinimizer, POIMinimizer, OptiMinimizer
 from .test_statistics import TMu, QMu, QMuTilda
 
@@ -60,7 +60,7 @@ class TestStatisticCalculator :
     self.minimizer = minimizer
 
   @classmethod
-  def pois(self, plr_data : PLRData) -> str  :
+  def pois(cls, plr_data : PLRData) -> str  :
     """Return the name of the POIs in PLR data
 
     Note that for now only the single-POI case is
@@ -74,7 +74,7 @@ class TestStatisticCalculator :
     return list(plr_data.pois)
 
   @classmethod
-  def poi(self, plr_data : PLRData, index : int = 0) -> str  :
+  def poi(cls, plr_data : PLRData, index : int = 0) -> str  :
     """Return the name of the POI in PLR data
 
     Note that for now only the single-POI case is
@@ -85,7 +85,7 @@ class TestStatisticCalculator :
     Returns:
       the POI name
     """
-    pois = self.pois(plr_data)
+    pois = cls.pois(plr_data)
     if index >= len(pois) : raise KeyError('Cannot access POI with index %d, only %d are defined' % (index, len(pois)))
     return pois[index]
 
@@ -101,7 +101,7 @@ class TestStatisticCalculator :
     """
     pass
 
-  def compute_fast_plr(self, hypo : Parameters, data : Data, name : str = 'fast') -> PLRData :
+  def compute_fast_plr(self, hypo : POIHypo, data : Data, name : str = 'fast') -> PLRData :
     """Compute `tmu` from a dataset
 
     The computation is performed in the linear approximation
@@ -120,14 +120,14 @@ class TestStatisticCalculator :
       an object containing the PLR information
     """
     plr_data = PLRData(name, hypo, model=data.model)
-    tmu = self.minimizer.tmu(hypo, data, hypo)
+    tmu = self.minimizer.tmu(hypo.pars, data)
     plr_data.test_statistics['tmu'] = tmu
     plr_data.free_fit = FitResult('free_fit', self.minimizer.free_pars, self.minimizer.free_nll, model=data.model)
     plr_data.hypo_fit = FitResult('hypo_fit', self.minimizer.hypo_pars, self.minimizer.hypo_nll, model=data.model)
     plr_data.update() # includes `tmu` computation
     return plr_data
 
-  def compute_fast_q(self, hypo : Parameters, data : Data, name : str = 'fast') -> PLRData :
+  def compute_fast_q(self, hypo : POIHypo, data : Data, name : str = 'fast') -> PLRData :
     """Compute `tmu` and the associated p-value from a dataset
 
     Computes `tmu` using the :meth:`compute_fast_plr`
@@ -169,7 +169,7 @@ class TestStatisticCalculator :
     using a linear model.
 
     Args:
-      raster : a raster object
+      hypos  : a list of POIHypo objects
       data   : the input dataset
       name   : name of the output :class:`PLRData` objects
       verbosity : the levelf of verbosity of the output (0 or 1 currently)
@@ -180,8 +180,7 @@ class TestStatisticCalculator :
     start_time = timer()
     for i, hypo in enumerate(hypos) :
       if verbosity > 1 :
-        print('Processing hypothesis point %d of %d %s:' % (i+1, len(hypos), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
-        print(hypo)
+        print('Processing hypothesis point %d of %d : %s %s' % (i+1, len(hypos), str(hypo), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
       if hypo in init_values : init_values[hypo].set_poi_values_and_ranges(self.minimizer)
       fast_plr_data[hypo] = self.compute_fast_q(hypo, data, '%s_%g' % (name, i))
     fast = Raster(name, fast_plr_data, model=data.model)
@@ -249,10 +248,9 @@ class TMuCalculator(TestStatisticCalculator) :
     """
     try :
       q = self.make_q(plr_data)
-      plr_data.test_statistics['q_mu'] = q.value()
       plr_data.pvs['pv' ] = q.asymptotic_pv()
     except Exception as inst:
-      print("t_mu computation failed for PLR '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo.dict(pois_only=True)))
+      print("t_mu computation failed for PLR '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo))
       raise(inst)
     return self
 
@@ -277,29 +275,34 @@ class TMuCalculator(TestStatisticCalculator) :
     fixed_pars = {}
     start_time = timer()
     for i, hypo in enumerate(hypos) :
-      if verbosity > 1 :
-        print('Processing hypothesis point %d of %d %s:' % (i+1, len(hypos), ('(so far %g s/point)' % ((timer() - start_time)/i)) if i > 0 else ''))
-        print(hypo.dict(pois_only=True))
+      if verbosity >= 1 :
+        print('Processing hypothesis point %d of %d : %s %s' % (i+1, len(hypos), str(hypo), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
       if hypo in init_values : init_values[hypo].set_poi_values_and_ranges(self.minimizer)
       plr_data = PLRData(name, hypo, model=data.model)
-      self.minimizer.profile_nps(hypo, data)
-      fixed_pars[hypo] = self.minimizer.min_pars
-      plr_data.hypo_fit = FitResult('hypo_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
+      if self.minimizer.bounds is None : self.minimizer.set_pois_from_model(data.model)
+      hypo_minimizer = self.minimizer.clone()
+      # Hypo fit
+      hypo_minimizer.set_hypo(hypo.pars)
+      if hypo_minimizer.minimize(data) is None : return None
+      fixed_pars[hypo] = hypo_minimizer.min_pars
+      plr_data.hypo_fit = FitResult('hypo_fit', hypo_minimizer.min_pars, hypo_minimizer.min_nll, model=data.model)
+      # Free fit
       if free_fit == 'all' :
-        if self.minimizer.minimize(data, fixed_pars[hypo]) is None : return None
+        if self.minimizer.minimize(data) is None : return None
         plr_data.free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
       fast_plr_data[hypo] = plr_data
     stop_time = timer()
-    if verbosity > 1 : print('Processed %d hypothesis points in %g s (%g s/point)' % (len(hypos), (stop_time - start_time), (stop_time - start_time)/len(hypos)))
+    if verbosity >= 1 : print('Processed %d hypothesis points in %g s (%g s/point)' % (len(hypos), (stop_time - start_time), (stop_time - start_time)/len(hypos)))
     if free_fit == 'single' or free_fit == 'best_fixed_fit' :
       best_fixed = min(fast_plr_data.items(), key=lambda plr_data : plr_data[1].hypo_fit.nll)
       if free_fit == 'best_fixed_fit' :
         common_free_fit = FitResult('free_fit', fixed_pars[best_fixed[0]], best_fixed[1].hypo_fit.nll, model=data.model)
       else :
         start_time = timer()
-        if verbosity > 1 : print('Performing global free-POI fit at hypothesis %s' % best_fixed[0].dict(pois_only=True))
+        if verbosity >= 1 : print('Performing global free-POI fit at hypothesis %s' % best_fixed[0].dict(pois_only=True))
+        self.minimizer.bounds = init_bounds
         if self.minimizer.minimize(data, fixed_pars[best_fixed[0]]) is None : return None
-        if verbosity > 1 : print('Performed free-POI fit in %g s' % (timer() - start_time))
+        if verbosity >= 1 : print('Performed free-POI fit in %g s' % (timer() - start_time))
         common_free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
       for hypo in hypos :
         fast_plr_data[hypo].free_fit = common_free_fit
@@ -361,7 +364,7 @@ class QMuCalculator(TestStatisticCalculator) :
       plr_data.pvs['cls'] = q.asymptotic_cls()
       plr_data.pvs['clb'] = q.asymptotic_clb()
     except Exception as inst:
-      print("q_mu computation failed for PLR '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo.dict(pois_only=True)))
+      print("q_mu computation failed for PLR '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo))
       raise(inst)
     return self
 
@@ -418,6 +421,6 @@ class QMuTildaCalculator(TestStatisticCalculator) :
       plr_data.pvs['cls'] = q.asymptotic_cls()
       plr_data.pvs['clb'] = q.asymptotic_clb()
     except Exception as inst:
-      print("q~mu computation failed for computation '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo.dict(pois_only=True)))
+      print("q~mu computation failed for computation '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo))
       raise(inst)
     return self
