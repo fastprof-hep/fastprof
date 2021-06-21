@@ -200,7 +200,7 @@ class PLRData(Serializable) :
     model   (Model) : the statistical model
   """
 
-  def __init__(self, name = '', hypo : POIHypo = None, free_fit = None, hypo_fit = None, test_statistics = None, pvs = None, asimov = None, model = None) :
+  def __init__(self, name = '', hypo : POIHypo = None, free_fit = None, hypo_fit = None, test_statistics = None, pvs = None, asimov = None, model = None, full_hypo = None) :
     """Initialize the `FitResult` object
 
     Args:
@@ -223,6 +223,7 @@ class PLRData(Serializable) :
     self.pvs = pvs if pvs != None else {}
     self.asimov = asimov
     self.model = model
+    self.full_hypo = full_hypo
     self.pois = {}
     self.update()
 
@@ -270,6 +271,7 @@ class PLRData(Serializable) :
       self
     """
     self.hypo = POIHypo().load_dict(sdict['hypo'])
+    self.full_hypo = Parameters(sdict['full_hypo'], model=self.model) if 'full_hypo' in sdict else None
     self.free_fit = FitResult('free_fit', model=self.model).load_dict(sdict['free_fit'])
     self.hypo_fit = FitResult('hypo_fit', model=self.model, hypo=self.hypo).load_dict(sdict['hypo_fit'])
     self.test_statistics = sdict['test_statistics'] if 'test_statistics' in sdict else {}
@@ -286,6 +288,7 @@ class PLRData(Serializable) :
       self
     """
     sdict['hypo'] = self.hypo.dump_dict()
+    if self.full_hypo is not None : sdict['full_hypo'] = self.full_hypo.dict()
     sdict['free_fit'] = self.free_fit.dump_dict()
     sdict['hypo_fit'] = self.hypo_fit.dump_dict()
     sdict['test_statistics'] = self.test_statistics
