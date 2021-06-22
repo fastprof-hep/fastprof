@@ -47,7 +47,7 @@ def run(argv = None) :
     parser.print_help()
     sys.exit(0)
   if options.verbosity >= 1 : print('Initializing model from file %s' % options.model_file)
-  model = Model.create(options.model_file)
+  model = Model.create(options.model_file, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if options.regularize is not None : model.set_gamma_regularization(options.regularize)
   if options.cutoff is not None : model.cutoff = options.cutoff
