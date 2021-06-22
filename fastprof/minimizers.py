@@ -32,6 +32,7 @@
 
 import numpy as np
 import math
+import copy
 from scipy.interpolate import InterpolatedUnivariateSpline
 import scipy.optimize
 from abc import abstractmethod
@@ -59,6 +60,8 @@ class NPMinimizer :
         and the hypothesis NP values used as reference point (stored by the
         minimization routine).
   """
+  optimize_einsum = True
+  
   def __init__(self, data : Data) :
     """Initialize the NPMinimizer object
 
@@ -87,10 +90,10 @@ class NPMinimizer :
     # k,l : sample indices
     # a,b,c : NP indices
     impacts = model.linear_impacts(hypo)
-    ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts)
-    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
-    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts)
-    if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts)
+    ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts, optimize=self.optimize_einsum)
+    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=self.optimize_einsum) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts, optimize=self.optimize_einsum)
+    if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
     p += model.constraint_hessian
     return (p,q)
 
@@ -115,9 +118,14 @@ class NPMinimizer :
     d = np.linalg.det(self.p)
     if abs(d) < (1E-3)**self.q.size :
       print('Linear system has an ill-conditioned coefficient matrix (det=%g), returning null result' % d)
+      print('Profiling at hypothesis', hypo)
+      print(self.p)
       deltas = np.zeros(self.data.model.nnps)
     else :
-      deltas = np.linalg.inv(self.p).dot(self.q)
+      # all of the lines below should give the same results
+      deltas = scipy.linalg.solve(self.p, self.q, assume_a='sym')
+      # deltas = scipy.sparse.linalg.cg(self.p, self.q)[0]
+      # deltas = np.linalg.inv(self.p).dot(self.q)
     nps = hypo.nps - deltas
     self.min_deltas = Parameters(hypo.pois, deltas, self.data.model)
     self.min_pars   = Parameters(hypo.pois, nps   , self.data.model)
@@ -149,6 +157,8 @@ class POIMinimizer :
   over POIs.
 
   Attributes:
+     init_pois (Parameters) : initial values of the POI minimization
+     bounds    (dict) : Bounds on the POIs, as dict of POI name -> ParBound object
      niter (int) : number of iterations to perform when profiling NPs
      floor (float) : minimal event yield to use in the NLL computation (see
          :meth:`.Model.nll` for details).
@@ -168,7 +178,7 @@ class POIMinimizer :
      tmu_debug (float) : stores the raw value o `tmu` for debugging purposes
 
   """
-  def __init__(self, niter : int = 1, floor : float = None) :
+  def __init__(self, init_pois : Parameters = None, bounds : dict = None, niter : int = 1, floor : float = None) :
     """Initialize the POIMinimizer object
 
       Args:
@@ -176,6 +186,8 @@ class POIMinimizer :
          floor :  minimal event yield to use in the NLL computation (see
             :meth:`.Model.nll` for details).
     """
+    self.init_pois = init_pois
+    self.bounds = bounds
     self.niter = niter
     self.floor = floor
     self.np_min = None
@@ -189,13 +201,16 @@ class POIMinimizer :
     self.free_deltas = None
     self.tmu_debug = 0
 
+  def clone(self) :
+    pass
+
   @abstractmethod
   def minimize(self, data : Data, init_hypo : Parameters = None) -> float :
     """Abstract method to perform POI minimization
 
       This method needs to be implemented in derived classes. It performs
       the POI minimization starting at the provided hypothesis and returns
-      the best-fit parameters.
+      the best-fit NLL.
 
       Args:
          data : dataset for which to compute the NLL
@@ -204,6 +219,36 @@ class POIMinimizer :
          best-fit NLL
     """
     pass
+
+  def set_pois(self, model : Model, init_pars : Parameters = None, hypo : dict = None, fix_hypo : bool = False) -> 'OptiMinimizer' :
+    """Copy POI information from model
+
+      Initial value and range information is copied from the contents of
+      the ModelPOI objects in the model.
+
+      Args:
+        model : the model to copy from
+      Returns:
+        self
+    """
+    self.init_pois = Parameters({ poi.name : poi.initial_value for poi in model.pois.values() }, model=model) if init_pars is None else init_pars.clone()
+    if hypo is not None :
+      for par, val in hypo.items() : self.init_pois[par] = val
+    self.bounds = { poi.name : ParBound(poi.name, poi.min_value, poi.max_value) for poi in model.pois.values() }
+    if fix_hypo :
+      for poi in hypo : self.bounds[poi] = ParBound(poi, hypo[poi], hypo[poi])
+    for bound in self.bounds.values() :
+      if not bound.test_value(self.init_pois[bound.par]) :
+        if self.debug > 1 :
+          print("Warning: resetting value of POI '%s' to %g (from %g) to ensure it verifies bound %s." % (bound.par, (bound.min_value + bound.max_value)/2, self.init_pois[bound.par], str(bound)))
+        self.init_pois[bound.par] = (bound.min_value + bound.max_value)/2
+    return self
+
+
+  def free_pois(self) :
+    if self.init_pois is None : return None
+    return [ poi for poi in self.init_pois.model.pois if poi not in self.bounds or not self.bounds[poi].is_fixed() ]
+
 
   def profile_nps(self, hypo : Parameters, data : Data) -> Parameters :
     """Compute best-fit NP values for given POI values
@@ -218,12 +263,11 @@ class POIMinimizer :
       are included in the model but cannot be used in the linear NP minimization.
 
       Args:
+         hypo : Value of POIs and NPs for which to profile
          data : dataset for which to compute the NLL
-         init_hypo : initial value (of POIs and NPs) for the minimization
       Returns:
          best-fit parameters
     """
-    if not isinstance(hypo, Parameters) : hypo = Parameters(hypo, model=data.model)
     self.np_min = NPMinimizer(data)
     self.min_pars = hypo
     for i in range(0, self.niter) :
@@ -232,7 +276,7 @@ class POIMinimizer :
     self.min_nll = data.model.nll(self.min_pars, data, floor=self.floor)
     return self.min_pars
 
-  def tmu(self, hypo : Parameters, data : Data, init_hypo : Parameters = None) -> float :
+  def tmu(self, hypo : dict, data : Data, init_hypo : Parameters = None) -> float :
     """Computes the :math:`t_{\mu}` profile-likelihood ratio (PLR) test statistic
 
       The computation requires two minimizations:
@@ -246,22 +290,23 @@ class POIMinimizer :
       in the best-fit NLL values of the two minimizations listed above.
 
       Args:
-         hypo      : POI hypothesis used for the fixed-POI minimization
-         data      : dataset for which to compute the NLL
+         hypo      : A set of POI and NP values defining the hypothesis
+         data      : the dataset for which to compute the NLL
          init_hypo : initial value (of POIs and NPs) for the minimization
       Returns:
          best-fit parameters
     """
-    if isinstance(hypo, (int, float)) :
-      hypo = data.model.expected_pars(hypo, NPMinimizer(data))
-    if isinstance(init_hypo, (int, float)) :
-      init_hypo = data.model.expected_pars(init_hypo, NPMinimizer(data))
-    #print('tmu @ %g' % hypo.poi)
-    self.profile_nps(hypo, data)
-    self.hypo_nll = self.min_nll
-    self.hypo_pars = self.min_pars
-    self.hypo_deltas = self.np_min.min_deltas
-    if self.minimize(data, init_hypo) is None : return None
+    if isinstance(init_hypo, (int, float)) : init_hypo = Parameters(init_hypo, model=data.model)
+    hypo_minimizer = self.clone()
+    hypo_minimizer.set_pois(data.model, init_pars=init_hypo, hypo=hypo, fix_hypo=True)
+    self.set_pois(data.model, init_pars=init_hypo, hypo=hypo, fix_hypo=False)
+    # Hypo fit
+    if hypo_minimizer.minimize(data) is None : return None
+    self.hypo_nll = hypo_minimizer.min_nll
+    self.hypo_pars = hypo_minimizer.min_pars
+    self.hypo_deltas = hypo_minimizer.np_min.min_deltas
+    # Free fit
+    if self.minimize(data) is None : return None
     self.free_nll = self.min_nll
     self.free_pars = self.min_pars
     self.free_deltas = self.np_min.min_deltas
@@ -308,7 +353,10 @@ class ScanMinimizer (POIMinimizer) :
     for poi in scan_pois :
       self.pars.append(Parameters(poi, model.aux_obs, model)) # FIXME
 
-  def minimize(self, data : Data, init_hypo : Parameters = None) -> float :
+  def clone(self) :
+    return ScanMinimizer(self.model, copy.copy(scan_pois), niter)
+
+  def minimize(self, data : Data) -> float :
     """Minimization over POIs
 
       The method scans over the POI values in `scan_pois`, computes
@@ -317,7 +365,6 @@ class ScanMinimizer (POIMinimizer) :
 
       Args:
          data : dataset for which to compute the NLL
-         init_hypo : initial value (of POIs and NPs) for the minimization
       Returns:
          best-fit parameters
     """
@@ -361,11 +408,13 @@ class OptiMinimizer (POIMinimizer) :
      debug      (int)         : level of debug output
 
   """
-  def __init__(self, method : str = 'scalar', niter : int = 1, floor : float = 1E-7, rebound : int = 0, alt_method : str = None, init_pois : Parameters = None, bounds : dict = None, debug : int = 0) :
+  def __init__(self, method : str = 'scalar', init_pois : Parameters = None, bounds : dict = None, niter : int = 1, floor : float = 1E-7, rebound : int = 0, alt_method : str = None, debug : int = 0) :
     """Initialize the POIMinimizer object
 
       Args:
          method     : optimization algorithm to apply
+         init_pois  : initial values of the POI minimization
+         bounds     : Bounds on the POIs, as list of (min, max) pairs
          niter      : number of iterations to perform when minimizing over NPs
          floor      : minimal event yield to use in the NLL computation (see
                       :meth:`.Model.nll` for details).
@@ -373,41 +422,18 @@ class OptiMinimizer (POIMinimizer) :
                       by a factor 2 each time
          alt_method : alternate optimization algorithm to apply if the
                       primary one (given by the `method` attribute) fails.
-         init_pois  : initial values of the POI minimization
-         bounds     : Bounds on the POIs, as list of (min, max) pairs
     """
-    super().__init__(niter, floor)
-    self.np_min = None
-    self.init_pois = init_pois
-    self.bounds = bounds
+    super().__init__(init_pois, bounds, niter, floor)
     self.method = method
     self.rebound = rebound
     self.alt_method = alt_method
     self.debug = debug
+    self.np_min = None
 
-  def set_pois_from_model(self, model : Model, par_bounds : ParBound = None) -> 'OptiMinimizer' :
-    """Copy POI information from model
+  def clone(self) :
+    return OptiMinimizer(self.method, self.init_pois.clone() if self.init_pois is not None else None, copy.deepcopy(self.bounds), self.niter, self.floor, self.rebound, self.alt_method, self.debug)
 
-      Initial value and range information is copied from the contents of
-      the ModelPOI objects in the model.
-
-      Args:
-        model : the model to copy from
-      Returns:
-        self
-    """
-    self.init_pois = Parameters({ poi.name : poi.initial_value for poi in model.pois.values() }, model=model)
-    self.bounds = { poi.name : ParBound(poi.name, poi.min_value, poi.max_value) for poi in model.pois.values() }
-    if par_bounds is not None :
-      for par_bound in par_bounds : 
-        self.bounds[par_bound.par] = self.bounds[par_bound.par] & par_bound if par in self.bounds else par_bound
-    return self
-
-  def free_pois(self) :
-    if self.init_pois is None : return None
-    return [ poi for poi in self.init_pois.model.pois if poi not in self.bounds or not self.bounds[poi].is_fixed() ]
-
-  def minimize(self, data : Data, init_hypo : Parameters = None) -> float :
+  def minimize(self, data : Data) -> float :
     """Minimization over POIs
 
       The method implements two algorithms by default:
@@ -430,18 +456,13 @@ class OptiMinimizer (POIMinimizer) :
       Returns:
          best-fit parameters
     """
-    if init_hypo == None :
-      current_hypo = self.init_pois if isinstance(self.init_pois, Parameters) else data.model.expected_pars(self.init_pois, NPMinimizer(data))
-    else :
-      current_hypo = init_hypo.clone()
-    if self.bounds is None :
-      self.set_pois_from_model(data.model)
+    current_hypo = self.init_pois.clone()
     free_indices = [ i for i, bound in enumerate(self.bounds.values()) if bound.is_free() ]
     x0     = [ self.init_pois[bound.par] for bound in self.bounds.values() if bound.is_free() ]
     bounds = [ bound.bounds()            for bound in self.bounds.values() if bound.is_free() ]
     jac = jacobian if data.model.gradient(self.init_pois, data) is not None else None
-    if len(x0) == 0 and method != '' :
-      print("No free parameter of interest, will just minimize NPs.")
+    if len(x0) == 0 and self.method != '' :
+      if self.debug > 0 : print("No free parameter of interest, will just minimize NPs.")
       self.method = ''
       self.profile_nps(current_hypo, data)
       self.min_pois = []
@@ -477,31 +498,31 @@ class OptiMinimizer (POIMinimizer) :
     if self.method == 'scalar' :
       bound = bounds[0]
       if self.debug > 0 : print("== OptiMinimizer: minimizing using scalar method 'bounded' in range %s" % str(bound))
-      result = scipy.optimize.minimize_scalar(objective, bounds=bound, method='bounded', options={'xatol': 1e-5 })
+      self.result = scipy.optimize.minimize_scalar(objective, bounds=bound, method='bounded', options={'xatol': 1e-5 })
     elif self.method == 'CG':
       if self.debug > 0 : print("== Optimizer: using method 'scalar' in range %s" % str(bound))
-      result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='CG', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
+      self.result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='CG', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
     elif self.method == 'L-BFGS-B':
       if self.debug > 0 :
         print("== OptiMinimizer: minimizing the following parameters using method 'L-BFGS-B' :")
         for bound in self.bounds.values() : print('%10s = %10g (%s)' % (bound.par, self.init_pois[bound.par], str(bound)))
-      result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='L-BFGS-B', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
+      self.result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='L-BFGS-B', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
     else :
       raise ValueError('Optiminimizer: unknown method %s.' % self.method)
     #print('Optimizer: done ----------------')
-    if not result.success :
+    if not self.result.success :
       print('Minimization failed, details below')
-      print(dir(result))
+      print(dir(self.result))
       print('Current NPs:')
       print(self.min_pars)
-      if hasattr(result, 'x')       : print('x       =', result.x)
-      if hasattr(result, 'fun')     : print('fun     =', result.fun)
-      if hasattr(result, 'status')  : print('status  =', result.status)
-      if hasattr(result, 'message') : print('message =', result.message)
+      if hasattr(self.result, 'x')       : print('x       =', self.result.x)
+      if hasattr(self.result, 'fun')     : print('fun     =', self.result.fun)
+      if hasattr(self.result, 'status')  : print('status  =', self.result.status)
+      if hasattr(self.result, 'message') : print('message =', self.result.message)
       return None, None
-    self.min_nll = result.fun
-    self.min_pois = result.x if isinstance(result.x, np.ndarray) else np.array([result.x])
-    self.nfev = result.nfev
+    self.min_nll = self.result.fun
+    self.min_pois = self.result.x if isinstance(self.result.x, np.ndarray) else np.array([self.result.x])
+    self.nfev = self.result.nfev
     if self.debug > 0 :
       print(data.model.tot_bin_exp(self.min_pars))
       print(data.counts)

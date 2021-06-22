@@ -84,12 +84,13 @@ class Parameters :
         if poi in poi_list : poi_array[poi_list.index(poi)] = val
       if np.isnan(poi_array).any() : raise ValueError('Input POI dictionary did not contain a valid numerical value for each POI : %s' % str(pois))
       pois = poi_array
-    if isinstance(pois, (float, int)) : 
+    elif isinstance(pois, (float, int)) : 
       if model is not None :
         pois = np.array([pois]*model.npois, dtype=float)
       else :
         pois = np.array([pois], dtype=float)        
-    if isinstance(pois, list) : pois = np.array(pois)
+    elif isinstance(pois, list) :
+      pois = np.array(pois)
     if not isinstance(pois, np.ndarray) or pois.ndim != 1 : raise ValueError('Input POIs should be a 1D np.array, got ' + str(pois))
     if model is not None and pois.size != model.npois :
       raise ValueError('Cannot initialize Parameters with %d POIs, when %d are defined in the model.\nModel POIs:\n%s' % (pois.size, model.npois,'\n'.join(model.pois.keys())))
@@ -124,7 +125,7 @@ class Parameters :
       s += 'POIs = ' + str(self.pois) + '\n'
       s += 'NPs  = ' + str(self.nps)  + '\n'
     else :
-      s += 'POIs : ' + '\n        '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
+      s += 'POIs : ' + '\n       '.join( [ '%-12s = %8.4f' % (p.name,v) for p, v in zip(self.model.pois.values(), self.pois) ] ) + '\n'
       s += 'NPs  : ' + '\n       ' .join( [ '%-12s = %8.4f (unscaled : %12.4f)' % (p.name,v, self.unscaled(p.name)) for p, v in zip(self.model.nps .values(), self.nps ) ] )
     return s
 
@@ -425,9 +426,11 @@ class Model (Serializable) :
     self.nbins = 0
     self.nvariations = 1
     self.max_nsamples = 0
+    self.channel_offsets = {}
     if len(self.channels) == 0 : return
     for channel in self.channels.values() :
       if len(channel.samples) > self.max_nsamples : self.max_nsamples = len(channel.samples)
+      self.channel_offsets[channel.name] = self.nbins
       self.nbins += channel.nbins()
       for s, sample in enumerate(channel.samples.values()) :
         sample.set_np_data(self.nps.values(), variation=1, verbosity=self.verbosity)
@@ -712,11 +715,15 @@ class Model (Serializable) :
       line_style = '-'
       title = 'Model'
     yvals = tot_exp - subtract if not residuals or data is None else tot_exp - subtract - counts
+    if isinstance(channel, BinnedRangeChannel) :
+      bin_widths = np.array([ b['hi_edge'] - b['lo_edge'] for b in channel.bins ])
+      yvals /= bin_widths
     canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title if labels else None)
     if data is not None :
       counts = data.counts[start:stop]
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in counts ]
       yvals = counts if not residuals else np.zeros(channel.nbins())
+      if isinstance(channel, BinnedRangeChannel) : yvals /= bin_widths
       canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data' if labels else None)
     canvas.set_xlim(grid[0], grid[-1])
     if variations is not None :
@@ -731,11 +738,12 @@ class Model (Serializable) :
           subtract = nexp[samples,:].sum(axis=0)
           if only is not None : subtract = nexp.sum(axis=0) - subtract
         tot_exp = nexp.sum(axis=0) - subtract
+        if isinstance(channel, BinnedRangeChannel) : tot_exp /= bin_widths
         canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=line_style, label='%s=%+g' %(v[0], v[1]) if labels else None)
     if labels : canvas.legend()
     canvas.set_title(self.name)
     if isinstance(channel, BinnedRangeChannel) :
-      canvas.set_xlabel('$' + channel.obs_name + '$' + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
+      canvas.set_xlabel(channel.obs_name + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
       canvas.set_ylabel('Events / bin')
     elif isinstance(channel, SingleBinChannel) :
       canvas.set_xlabel(channel.name)

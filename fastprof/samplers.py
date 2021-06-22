@@ -236,7 +236,7 @@ class OptiSampler (Sampler) :
     self.use_qtilda = True if tmu_Amu != None and tmu_A0 != None else False
     self.debug = debug
     self.debug_data = pd.DataFrame()
-    self.minimizer = OptiMinimizer(self.method, self.niter, self.floor).set_pois_from_model(self.model)
+    self.minimizer = OptiMinimizer(self.method, niter=self.niter, floor=self.floor)
     if self.debug : self.minimizer.debug = 2
 
   def compute(self, data, toy_iter) :
@@ -260,7 +260,7 @@ class OptiSampler (Sampler) :
     Returns:
       the computed p-value, or `None` if the computation fails
     """
-    tmu = self.minimizer.tmu(self.test_hypo, data, self.test_hypo)
+    tmu = self.minimizer.tmu(self.test_hypo.pars, data, self.gen_hypo)
     if tmu < 0 :
       print('Warning: tmu <= 0 at toy iteration %d' % toy_iter)
       if self.debug and self.minimizer.tmu_debug < -10 :
@@ -280,10 +280,11 @@ class OptiSampler (Sampler) :
       print('DEBUG: fitting data with mu0 = %g and range = %g, %g -> t = %g, mu_hat = %g.' % (self.mu0, *self.poi_bounds, tmu, self.minimizer.min_poi))
       print(self.minimizer.free_pars)
       print(self.minimizer.hypo_pars)
+    poi = self.test_hypo.pars[list(self.test_hypo.pars.keys())[0]]
     if self.use_qtilda :
-      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = self.minimizer.min_pois[0], tmu_Amu = self.tmu_Amu, tmu_A0 = self.tmu_A0)
+      q = QMuTilda(test_poi = poi, tmu = tmu, best_poi = self.minimizer.min_pois[0], tmu_Amu = self.tmu_Amu, tmu_A0 = self.tmu_A0)
     else :
-      q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = self.minimizer.min_pois[0])
+      q = QMu(test_poi = poi, tmu = tmu, best_poi = self.minimizer.min_pois[0])
     if self.debug :
       if self.debug_data.shape[0] == 0 :
         columns = [ 'pv', 'tmu', 'mu_hat', 'free_nll', 'hypo_nll', 'nfev', 'ntries' ]

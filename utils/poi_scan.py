@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-from fastprof import Model, Data, Parameters, OptiMinimizer, Raster, TMuCalculator, ParBound, PLRScan1D, PLRScan2D
-from utils import process_setval_list, process_setvals
+from fastprof import Model, Data, Parameters, POIHypo, OptiMinimizer, Raster, TMuCalculator, PLRScan1D, PLRScan2D
+from utils import process_setval_list, process_setvals, process_setranges
 
 
 ####################################################################################################################################
@@ -29,14 +29,15 @@ def make_parser() :
   parser.add_argument("-n", "--nsigmas"       , type=float, default=1     , help="Confidence level at which to compute the limit")
   parser.add_argument("-c", "--cl"            , type=float, default=None  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
+  parser.add_argument("-b", "--best-fit-mode" , type=str  , default='all' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
+  parser.add_argument("-r", "--setrange"      , type=str  , default=None  , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
-  parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1=[min]#[max],name2=[min]#[max],...")
   parser.add_argument(      "--marker"        , type=str  , default='+'   , help="Marker type for plots")
   parser.add_argument(      "--smoothing"     , type=int  , default=0     , help="Smoothing for contours (0=no smoothing)")
   parser.add_argument(      "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
-  parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
+  parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
   return parser
 
 def run(argv = None) :
@@ -45,20 +46,20 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     sys.exit(0)
-  if options.verbosity > 1 : print('Initializing model from file %s' % options.model_file)
-  model = Model.create(options.model_file)
+  if options.verbosity >= 1 : print('Initializing model from file %s' % options.model_file)
+  model = Model.create(options.model_file, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  if not options.regularize is None : model.set_gamma_regularization(options.regularize)
-  if not options.cutoff is None : model.cutoff = options.cutoff
+  if options.regularize is not None : model.set_gamma_regularization(options.regularize)
+  if options.cutoff is not None : model.cutoff = options.cutoff
+  if options.setrange is not None : process_setranges(options.setrange, model)
 
   results_file = options.output_file + '_results.json'
   raster_file = options.output_file + '_raster.json'
 
   if options.data_file :
-    if options.verbosity > 1 : print('Initializing data from file %s.' % options.data_file)
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    print('Using dataset stored in file %s.' % options.data_file)
+    if options.verbosity >= 1 : print('Using dataset stored in file %s.' % options.data_file)
   elif options.asimov != None :
     try :
       sets = process_setvals(options.asimov, model)
@@ -66,52 +67,46 @@ def run(argv = None) :
       print(inst)
       raise ValueError("ERROR : invalid POI specification string '%s'." % options.asimov)
     data = model.generate_expected(sets)
-    if options.verbosity > 1 : print('Using Asimov dataset with parameters %s' % str(sets))
+    if options.verbosity >= 1 : print('Using Asimov dataset with parameters %s' % str(sets))
   else :
-    if options.verbosity > 1 : print('Initializing data from file %s.' % options.model_file)
+    if options.verbosity >= 1 : print('Initializing data from file %s.' % options.model_file)
     data = Data(model).load(options.model_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    print('Using dataset stored in file %s.' % options.model_file)
 
   try :
-    hypos = [ Parameters(setval_dict, model=model) for setval_dict in process_setval_list(options.hypos, model) ]
+    hypos = [ POIHypo(setval_dict) for setval_dict in process_setval_list(options.hypos, model) ]
   except Exception as inst :
     print(inst)
     raise ValueError("Could not parse list of hypothesis values '%s' : expected #-separated list of variable assignments" % options.hypos)
-  if options.verbosity > 1 : print('Will scan the following hypotheses : %s' % '\n- '.join([str(hypo) for hypo in process_setval_list(options.hypos, model)]))
-
-  par_bounds = []
-  if options.bounds :
-    bound_specs = options.bounds.split(',')
-    try :
-      for spec in bound_specs :
-        var_range = spec.split('=')
-        range_spec = var_range[1].split('#')
-        if len(range_spec) == 2 :
-          par_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
-        elif len(range_spec) == 1 :
-          par_bounds.append(ParBound(var_range[0], float(range_spec[0]), float(range_spec[0]))) # case of fixed parameter
-    except Exception as inst:
-      print(inst)
-      raise ValueError('Could not parse parameter bound specification "%s", expected in the form name1=[min]#[max],name2=[min]#[max],...' % options.bounds)
+  pois = Raster.have_compatible_pois(hypos)
+  if pois is None : raise ValueError("Hypotheses '%s' are not compatible (different POIs or different POI ordering)." % options.hypos)
+  if options.verbosity > 1 : 
+    print('Will scan the following hypotheses : \n- %s' % '\n- '.join([str(hypo) for hypo in process_setval_list(options.hypos, model)]))
 
   # Compute the tmu values
-  if len(model.pois) > 2 : raise ValueError('Currently not supporting more than 2 POIs for this operation')
-  calc = TMuCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model, par_bounds))
-  print('Producing PLR scan with POI(s) %s, bounds %s and niter=%d.' % (str(calc.minimizer.free_pois()), str(calc.minimizer.bounds), calc.minimizer.niter))
-  if len(calc.minimizer.free_pois()) > 2 : raise ValueError('Currently not supporting more than 2 POIs for this operation')
+  calc = TMuCalculator(OptiMinimizer(niter=options.iterations).set_pois(model))
+  if options.verbosity > 1 : 
+    prof_pois = set(calc.minimizer.free_pois()) - set(pois)
+    if len(prof_pois) > 0 : print('Will profile over POI(s) %s.' % ','.join(prof_pois)) 
+  if len(pois) > 2 : raise ValueError('Currently not supporting more than 2 POIs for this operation')
+  print('Producing PLR scan with POI(s) %s, bounds %s.' % (str(pois), str(calc.minimizer.bounds)))
+  do_computation = True
   try :
     raster = Raster('fast', model=model)
     raster.load(raster_file)
+    do_computation = False
   except FileNotFoundError :
-    raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity)
+    pass
+  
+  if do_computation :
+    raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity, free_fit=options.best_fit_mode)
     raster.save(raster_file)
 
-  raster.print(keys=[ 'tmu' ], verbosity=options.verbosity)
+  raster.print(keys=[ 'tmu' ], verbosity=options.verbosity + 1)
   jdict = {}
 
-  if len(model.pois) == 1 :
-    poi_name = calc.minimizer.free_pois()[0]
+  if len(pois) == 1 :
+    poi_name = pois[0]
     poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=options.cl)
     interval = poi_scan.interval(print_result=True)
     # Plot results
@@ -131,8 +126,8 @@ def run(argv = None) :
     jdict['uncertainty_up'] = interval[1] if interval is not None else None
     jdict['uncertainty_dn'] = interval[2] if interval is not None else None
   else :
-    poi1_name = calc.minimizer.free_pois()[0]
-    poi2_name = calc.minimizer.free_pois()[1]
+    poi1_name = pois[0]
+    poi2_name = pois[1]
     poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=options.cl)
     best_fit = poi_scan.best_fit(print_result=True)
     if not options.batch_mode :

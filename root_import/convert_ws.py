@@ -590,7 +590,7 @@ def fill_yields(channel, key) :
   #for sample in channel.samples : print('yield', key, sample.name, sample.yields[key], n_unassigned)
 
 def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, variations, options, validation_points) :
-  print('=== Processing channel %s (%d of %d)' % (channel.name, channel_index, nchannels))
+  if options.verbosity > 0 : print('=== Processing channel %s (%d of %d)' % (channel.name, channel_index, nchannels))
   nbins = len(bins) - 1
   if options.validation_output is not None :
     channel.valid_data = {}
@@ -602,16 +602,16 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
   for sample in channel.samples :
     if sample.normpar is not None :
       sample.normpar.setVal(sample.nominal_norm)
-      print('=== Sample %s normalized to normalization parameter %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), channel.pdf.expectedEvents(ROOT.RooArgSet(channel.obs)) - unassigned_nevents))
+      if options.verbosity > 0 : print('=== Sample %s normalized to normalization parameter %s = %g -> n_events = %g' % (sample.name, sample.normpar.GetName(), sample.normpar.getVal(), channel.pdf.expectedEvents(ROOT.RooArgSet(channel.obs)) - unassigned_nevents))
       sample.normpar.setVal(0)
     else :
-      print('=== Sample %s (unnormalized)' % sample.name)    
+      if options.verbosity > 0 : print('=== Sample %s (unnormalized)' % sample.name)    
     sample.nominal_yields = np.zeros(nbins) 
     sample.yields = {}
     sample.impacts = {}
     for par in nuis_pars : sample.impacts[par.name] = []
-  print('=== Unassigned n_events = %g' % unassigned_nevents)    
-  print('=== Nominal NP values :')
+  if options.verbosity > 0 : print('=== Unassigned n_events = %g' % unassigned_nevents)    
+  if options.verbosity > 0 : print('=== Nominal NP values :')
   for par in nuis_pars : par.obj.Print()
   for i in range(0, nbins) :
     print('=== Bin [%g, %g] (%d of %d)' % (bins[i], bins[i+1], i, nbins))
@@ -632,9 +632,9 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
     for sample in channel.samples :
       sample.nominal_yields[i] = trim_float(sample.yields['nominal'], options.digits)
       if sample.normpar is not None :
-        print('-- Nominal %s = %g (%s = %g)' % (sample.name, sample.nominal_yields[i], sample.normpar.GetName(), sample.nominal_norm))
+        if options.verbosity > 0 : print('-- Nominal %s = %g (%s = %g)' % (sample.name, sample.nominal_yields[i], sample.normpar.GetName(), sample.nominal_norm))
       else :
-        print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
+        if options.verbosity > 0 : print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
     for p, par in enumerate(nuis_pars) :
       sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d [%30s]" % (channel.name, channel_index + 1, nchannels, i+1, nbins, p, len(nuis_pars), par.name[:30]))
       sys.stderr.flush()
@@ -653,7 +653,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
         for sample in channel.samples : 
           sample.impact = (sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1 if sample.yields['nominal'] != 0 else 0
           sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
-          print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
+          if options.verbosity > 1 : print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
       if options.validation_output is not None :
         par_data = channel.valid_data[par.name]
         for k, val in enumerate(validation_points) :

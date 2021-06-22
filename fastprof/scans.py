@@ -31,13 +31,14 @@ class Scan :
     self.key = key
 
   def find_poi(self, poi_name : str, index : int = 0) :
+    raster_pois = self.raster.pois()
     if poi_name is not None :
-      if poi_name in self.raster.pois() :
-        return self.raster.pois()[poi_name]
+      if poi_name in raster_pois :
+        return raster_pois[poi_name]
       else :
         raise KeyError("POI '%s' is not defined in raster '%s'." % (poi_name, raster.name))
     else :
-      return self.raster.pois()[list(self.raster.pois().keys())[index]]
+      return raster_pois[list(raster_pois.keys())[index]]
 
   def value(self, plr_data, with_variation : int = 0) :
     raw_value = plr_data.pvs[self.key] if self.key in plr_data.pvs else plr_data.test_statistics[self.key]
@@ -322,9 +323,10 @@ class PLRScan1D (Scan1D) :
     found_crossings = self.crossings(self.ts_level, order, log_scale, with_errors=False)
     if len(found_crossings) == 0 :
       print("No crossings found for %s = %g vs. %s." % (self.ts_name, self.ts_level, self.poi.name))
-      return None
+      found_crossings = np.array([ None, None])
     if len(found_crossings) == 1 :
       print('Only one %s = %g crossing found vs. %s.' % (self.ts_name, self.ts_level, self.poi.name))
+      found_crossings = np.array([ found_crossings[0], None])
     if len(found_crossings) > 2 :
       print('More than 2 crossings found at the %s = %g level vs. %s, returning the first two' % (self.ts_name, self.ts_level, self.poi.name))
     value_lo = found_crossings[0]
@@ -337,11 +339,16 @@ class PLRScan1D (Scan1D) :
     if len(found_minima) > 1 :
       print('Multiple minima found for %s vs. %s, returning the first one' % (self.ts_name, self.poi.name))
     minimum = found_minima[0]
-    if print_result : print(self.description(minimum, value_hi - minimum, minimum - value_lo))
-    return minimum, value_hi - minimum, minimum - value_lo
+    if value_hi is None and value_lo > minimum :
+      value_hi = value_lo
+      value_lo = None
+    error_hi = value_hi - minimum if value_hi is not None else None
+    error_lo = minimum - value_lo if value_lo is not None else None
+    if print_result : print(self.description(minimum, error_hi, error_lo))
+    return minimum, error_hi, error_lo
 
   def description(self, minimum, err_hi, err_lo) :
-    return '%s = %g +%g -%g @ %4.1f%% CL' % (self.poi.name, minimum, err_hi, err_lo, 100*self.cl())
+    return '%s = %g' % (self.poi.name, minimum) + ((' +%g' % err_hi) if err_hi is not None else '') + ((' -%g' % err_lo) if err_lo is not None else '') + ' @ %4.1f%% CL' % (100*self.cl())
 
   def plot(self, plt, marker = 'b', label : str = None, smooth : int = None) :
     plt.suptitle('$%s$' % self.ts_name)

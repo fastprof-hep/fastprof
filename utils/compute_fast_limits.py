@@ -51,7 +51,7 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
+from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
 from utils import process_setval_list
 
 
@@ -100,7 +100,7 @@ def run(argv = None) :
   raster_file = options.output_file + '_raster.json'
 
   try :
-    hypos = [ Parameters(setval_dict, model=model) for setval_dict in process_setval_list(options.hypos, model) ]
+    hypos = [ POIHypo(setval_dict) for setval_dict in process_setval_list(options.hypos, model) ]
   except Exception as inst :
     print(inst)
     raise ValueError("Could not parse list of hypothesis values '%s' : expected colon-separated list of variable assignments" % options.hypos)
@@ -139,10 +139,10 @@ def run(argv = None) :
 
   if options.test_statistic == 'q~mu' :
     if len(model.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-    calc = QMuTildaCalculator(OptiMinimizer().set_pois_from_model(model))
+    calc = QMuTildaCalculator(OptiMinimizer())
   elif options.test_statistic == 'q_mu' :
     if len(model.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-    calc = QMuCalculator(OptiMinimizer().set_pois_from_model(model))
+    calc = QMuCalculator(OptiMinimizer())
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
 
@@ -150,11 +150,16 @@ def run(argv = None) :
   # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
   if options.ntoys > 0 : 
     print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
+  do_computation = True
   try :
     faster = Raster('fast', model=model)
     faster.load(raster_file)
+    do_computation = False
   except FileNotFoundError :
-    faster = calc.compute_fast_results(hypos, data)
+    pass
+  if do_computation :
+    full_hypos = { hypo : model.expected_pars(hypo.pars) for hypo in hypos }
+    faster = calc.compute_fast_results(hypos, data, full_hypos)
     faster.save(raster_file)
   faster.print(verbosity = options.verbosity)
   if options.ntoys == 0 : return
@@ -163,18 +168,20 @@ def run(argv = None) :
   niter = options.iterations
   samplers_clsb = []
   samplers_cl_b = []
-
+  
+  # Disabling optimization actually speeds up processing in some cases (small matrices ?)
+  # NPMinimizer.optimize_einsum = False
+  
+  calc.minimizer.set_pois(model)
   print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(calc.minimizer.init_pois.dict(pois_only=True)), str(calc.minimizer.bounds), niter))
 
   for fast_plr_data in faster.plr_data.values() :
     test_hypo = fast_plr_data.hypo
-    gen_hypo = test_hypo
+    gen_hypo = fast_plr_data.full_hypo
     tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
     gen0_hypo = gen_hypo.clone().set(model.poi(0).name, 0)
     clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
     cl_b = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo)
-    clsb.minimizer.set_pois_from_model(model)
-    cl_b.minimizer.set_pois_from_model(model)
     samplers_clsb.append(clsb)
     samplers_cl_b.append(cl_b)
 

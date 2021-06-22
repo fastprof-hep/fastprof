@@ -20,18 +20,87 @@ from .base import Serializable
 from .core import Model, Parameters, ModelPOI
 from .minimizers import OptiMinimizer
 
+class POIHypo(Serializable) :
+  """Class describing an hypothesis on some or all of the model POIs
+
+  Attributes:
+    pars (dict)  : the hypothesis parameter values, in { name: value } format
+  """
+
+  def __init__(self, hypo : dict = {}) :
+    """Initialize the `POIHypo` object
+
+    Args:
+      hypo : the hypothesis parameters, in { name: value } format
+    """
+    super().__init__()
+    self.pars = { par: val for par, val in hypo.items() }
+
+  def __contains__(self, par : str) -> bool :
+    """Tests if a parameter is present
+
+      Args:
+        par : name of a parameter (either POI or NP)
+
+      Returns:
+        True if a parameter of this name is present, False otherwise
+    """
+    return par in self.pars
+
+  def __getitem__(self, par : str) -> float :
+    """Implement [] lookup of POI and NP names
+
+      Args:
+        par : name of a parameter (either POI or NP)
+
+      Returns:
+        The value of the parameter
+    """
+    return self.pars[par]
+
+  def keys(self)   : return self.pars.keys()
+  def values(self) : return self.pars.values()
+  def items(self)  : return self.pars.items()
+
+  def load_dict(self, sdict : dict) -> 'FitResult' :
+    """Loads the object data
+
+    Args:
+      sdict : a dictionary of markup data from which to load the object information
+    Returns:
+      self
+    """
+    for par_name, par_value in sdict.items() : self.pars[par_name] = float(par_value)
+    return self
+
+  def fill_dict(self, sdict : dict) :
+    """Saves the object data
+
+    Args:
+      sdict : a dictionary of markup data in which to store the object information
+    """
+    for par_name, par_value in self.pars.items() : sdict[par_name] = par_value
+
+  def __str__(self) -> str :
+    """A description string
+
+    Returns:
+      A description string for the object
+    """
+    return '\n'.join([ '%s = %g' % (par_name, par_value) for par_name, par_value in self.pars.items() ])
+
 
 class FitResult(Serializable) :
   """Class describing the result of a ML fit
 
   Attributes:
     name    (str)   : a name for the object
-    fitpars (dict)  : the best-fit parameters in { name: value } format
+    fitpars (dict)  : the best-fit parameters in { name: ModelPOI } format
     nll     (float) : the best-fit NLL value
     model   (Model) : the statistical model
   """
 
-  def __init__(self, name : str = '', fitpars : Parameters = None, nll : float = None, model : Model = None, hypo : Parameters = None) :
+  def __init__(self, name : str = '', fitpars : Parameters = None, nll : float = None, model : Model = None, hypo : POIHypo = None) :
     """Initialize the `FitResult` object
 
     Args:
@@ -49,8 +118,8 @@ class FitResult(Serializable) :
     if not fitpars is None and not model is None :
       for name in model.pois : self.fitpars[name] = ModelPOI(name, value=fitpars[name])
       for name in model.nps  : self.fitpars[name] = ModelPOI(name, value=model.nps[name].unscaled_value(fitpars[name]))
-    if not hypo is None :
-      for name, value in hypo.dict(pois_only = True).items() : self.fitpars[name] = ModelPOI(name, value=value)
+    if hypo is not None :
+      for name, value in hypo.items() : self.fitpars[name] = ModelPOI(name, value=value)
     self.nll = nll
     self.model = model
 
@@ -131,7 +200,7 @@ class PLRData(Serializable) :
     model   (Model) : the statistical model
   """
 
-  def __init__(self, name = '', hypo = None, free_fit = None, hypo_fit = None, test_statistics = None, pvs = None, asimov = None, model = None) :
+  def __init__(self, name = '', hypo : POIHypo = None, free_fit = None, hypo_fit = None, test_statistics = None, pvs = None, asimov = None, model = None, full_hypo = None) :
     """Initialize the `FitResult` object
 
     Args:
@@ -154,6 +223,7 @@ class PLRData(Serializable) :
     self.pvs = pvs if pvs != None else {}
     self.asimov = asimov
     self.model = model
+    self.full_hypo = full_hypo
     self.pois = {}
     self.update()
 
@@ -165,16 +235,8 @@ class PLRData(Serializable) :
     value, which is computed from the fit results and stored in the
     `test_statistics` array under the `tmu` key.
     """
-    if self.hypo and self.free_fit : self.pois = { name : self.free_fit.fitpars[name] for name in self.hypo.model.pois.keys() }
+    if self.hypo is not None and self.model is not None : self.pois = { name : self.model.pois[name] for name in self.hypo.keys() }
     if self.free_fit is not None and self.hypo_fit is not None and not 'tmu' in self.test_statistics : self.compute_tmu()
-
-  def hypo_pars(self) -> Parameters :
-    """Provides the hypothesis as a :class:`Parameters` object
-
-    Returns:
-      The hypothesis definition as a :class:`Parameters` object
-    """
-    return Parameters(model=self.model).set_from_dict(self.hypo)
 
   def compute_tmu(self) :
     """Computes the basic PLR test statistic `tmu`.
@@ -208,7 +270,8 @@ class PLRData(Serializable) :
     Returns:
       self
     """
-    self.hypo = Parameters(sdict['hypo'], model=self.model)
+    self.hypo = POIHypo().load_dict(sdict['hypo'])
+    self.full_hypo = Parameters(sdict['full_hypo'], model=self.model) if 'full_hypo' in sdict else None
     self.free_fit = FitResult('free_fit', model=self.model).load_dict(sdict['free_fit'])
     self.hypo_fit = FitResult('hypo_fit', model=self.model, hypo=self.hypo).load_dict(sdict['hypo_fit'])
     self.test_statistics = sdict['test_statistics'] if 'test_statistics' in sdict else {}
@@ -224,7 +287,8 @@ class PLRData(Serializable) :
     Returns:
       self
     """
-    sdict['hypo'] = self.hypo.dict()
+    sdict['hypo'] = self.hypo.dump_dict()
+    if self.full_hypo is not None : sdict['full_hypo'] = self.full_hypo.dict()
     sdict['free_fit'] = self.free_fit.dump_dict()
     sdict['hypo_fit'] = self.hypo_fit.dump_dict()
     sdict['test_statistics'] = self.test_statistics
@@ -236,7 +300,7 @@ class PLRData(Serializable) :
     Returns:
       A string describing the object contents
     """
-    s = "Profile-likelihood ratio data '%s' for hypothesis:" % self.name + str(self.hypo.dict(pois_only=True))
+    s = "Profile-likelihood ratio data '%s' for hypothesis : %s" % (self.name, str(self.hypo))
     s += '\n  test statistics : %s' % str(self.test_statistics)
     s += '\n  p-values : %s' % str(self.pvs)
     s += '\n  Unconditional fit:' + str(self.free_fit)
@@ -267,7 +331,7 @@ class Raster(Serializable) :
     Args:
       name  : a name for the object
       plr_data : the PLR information for each hypothesis
-          in the form { hypo : PLRData }, mapping
+          in the form { POIHypo : PLRData }, mapping
           :class:`Parameters` objects to :class:`PLRData`.
       use_global_best_fit : if `True`, update the free_fit field
           of all the stored :class:`PLRData` with the one providing the
@@ -291,6 +355,27 @@ class Raster(Serializable) :
     if self.use_global_best_fit : self.set_global_best_fit()
     if self.fill_missing : self.compute_tmu()
 
+  @classmethod
+  def have_compatible_pois(cls, hypos : list) -> list :
+    """Utility function to check the compatilibity of a list
+       of hypotheses.
+
+    If the hypotheses are compatible for the purpose of building
+    a raster -- i.e. are defined in terms of the same POIs, in the
+    same order -- then returns the list of these POIs.
+    Otherwise, returns None.
+    
+    Args:
+      cls : class object input (not actually needed here)
+      hypos : list of hypotheses to test
+    Returns:
+      the list of POIs, or None
+    """
+    if len(hypos) <= 1 : return True
+    pois = list(hypos[0].keys())
+    if any([ list(hypo.keys()) != pois for hypo in hypos[1:] ]) : return None
+    return pois
+      
   def key_value(self, key : str, hypo : Parameters) -> float :
     """Utility function to retrieve numerical values from the PLR data
 
@@ -306,15 +391,15 @@ class Raster(Serializable) :
     Returns:
       the numerical value
     """
-    if not hypo in self.plr_data : raise KeyError('While trying to access key %s, hypo %s was not found in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
+    if not hypo in self.plr_data : raise KeyError('While trying to access key %s, hypo %s was not found in raster %s.' % (key, str(hypo), self.name))
     for poi in self.pois() :
-      if key == poi : return hypo[poi]
+      if key == poi and poi in hypo : return hypo[poi]
       if key == 'best_' + poi : return self.plr_data[hypo].free_fit.fitpars[poi].value
     if key in self.plr_data[hypo].pvs :
       value = self.plr_data[hypo].pvs[key]
       return value if not isinstance(value, tuple) else value[0]
     if key in self.plr_data[hypo].test_statistics : return self.plr_data[hypo].test_statistics[key]
-    raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo.dict(pois_only=True)), self.name))
+    raise KeyError('No data found for key %s in hypo %s in raster %s.' % (key, str(hypo), self.name))
 
   def is_filled(self, key : str, only_pv : bool = False, only_ts : bool = False) :
     """Utility function to check if all the data is available for a given key 
@@ -341,7 +426,8 @@ class Raster(Serializable) :
     Returns:
       POIs as a { par_name : par_value } dictionary.
     """
-    return list(self.plr_data.values())[0].pois if len(self.plr_data) > 0 else None
+    hypo_pois = self.have_compatible_pois(list(self.plr_data.keys()))
+    return { poi_name : self.model.pois[poi_name] for poi_name in hypo_pois }
 
   def set_global_best_fit(self) :
     """Set the same best-fit results across all points
@@ -436,7 +522,7 @@ class Raster(Serializable) :
     s = ''
     s += 'PLR data : '
     for hypo, plr_data in self.plr_data.items() :
-      s += '\nHypo :' + str(hypo.dict(pois_only=True))
+      s += '\nHypo :' + str(hypo)
       s += '\n' + str(plr_data)
     return s
 
@@ -489,7 +575,8 @@ class Raster(Serializable) :
         if not other is None and not key in self.pois().keys() : s += '| %-15g ' % other.key_value(key, hypo)
     if verbosity > 2 :
       for hypo, plr_data in self.plr_data.items() :
-        s += '\nHypo :' + str(hypo.dict(pois_only=True))
+        s += '\n------------------------------------------------'
+        s += '\nHypo :' + str(hypo)
         s += '\n' + str(plr_data)
     print(s)
     return s
