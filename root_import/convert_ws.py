@@ -653,7 +653,7 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
         for sample in channel.samples : 
           sample.impact = (sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1 if sample.yields['nominal'] != 0 else 0
           sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
-          print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
+          # print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
       if options.validation_output is not None :
         par_data = channel.valid_data[par.name]
         for k, val in enumerate(validation_points) :
