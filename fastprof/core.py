@@ -435,7 +435,7 @@ class Model (Serializable) :
       for s, sample in enumerate(channel.samples.values()) :
         sample.set_np_data(self.nps.values(), variation=1, verbosity=self.verbosity)
         self.samples[(channel.name, s)] = sample
-    if self.verbosity > 0 : print('Initializing nominal event yields')
+    if self.verbosity > 1 : print('Initializing nominal event yields')
     self.nominal_yields = np.stack([ np.concatenate([ self.samples[(channel, s)].nominal_yields for channel in self.channels]) for s in range(0, self.max_nsamples) ])      
     if self.use_asym_impacts :    
       self.pos_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
@@ -887,7 +887,7 @@ class Model (Serializable) :
     if not 'model'    in sdict : raise KeyError("No 'model' section in specified markup file")
     if not 'POIs'     in sdict['model'] : raise KeyError("No 'POIs' section in specified markup file")
     if not 'channels' in sdict['model'] : raise KeyError("No 'channels' section in specified markup file")
-    if self.verbosity > 0 : print('Loading parameters')
+    if self.verbosity > 1 : print('Loading parameters')
     self.pois = {}
     for dict_poi in sdict['model']['POIs'] :
       poi = ModelPOI()
@@ -914,7 +914,7 @@ class Model (Serializable) :
           raise ValueError('ERROR: multiple NPs defined with the same name (%s)' % par.name)
         self.nps[par.name] = par
     self.channels = {}
-    if self.verbosity > 0 : print('Loading channels')
+    if self.verbosity > 1 : print('Loading channels')
     for dict_channel in sdict['model']['channels'] :
       if not 'type' in dict_channel or dict_channel['type'] == SingleBinChannel.type_str :
         channel = SingleBinChannel()
