@@ -73,38 +73,42 @@ class ModelReparam :
   def __init__(self, model) :
     self.model = model
 
-  def add_pois(self, new_pois : list) :
+  def add_pois(self, new_pois : list, verbosity : int = 0) :
     for poi in new_pois :
       if poi.name in self.model.pois : 
         raise KeyError("Cannot add POI '%s' to model, a POI with that name is already defined." % poi.name)
+      if verbosity > 0 : print("Adding POI '%s'." % str(poi))
       self.model.pois[poi.name] = poi
 
-  def update_norms(self, new_norms : dict) :
+  def update_norms(self, new_norms : dict, verbosity : int = 0) :
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :
         matching_norms = [ norm for (channel_spec, sample_spec), norm in new_norms.items() if re.match(channel_spec, channel.name) and re.match(sample_spec, sample.name) ]
         if len(matching_norms) == 0 : continue
         if len(matching_norms) > 1 :
           raise KeyError("Sample '%s' of channel '%s' matches multiple new normalization entries : \n %s" % (sample.name, channel.name, '\n'.join([str(norm) for norm in matching_norms])))
-        print("Replacing normalization '%s' -> '%s' in sample '%s' of channel '%s'." % (str(sample.norm), str(matching_norms[0]), sample.name, channel.name))
+        if verbosity > 0 : print("Replacing normalization '%s' -> '%s' in sample '%s' of channel '%s'." % (str(sample.norm), str(matching_norms[0]), sample.name, channel.name))
         sample.norm = matching_norms[0]
 
-  def remove_pois(self, poi_names : list, values : dict = {}) :
+  def remove_pois(self, poi_names : list, values : dict = {}, verbosity : int = 0) :
+    selected_names = []
     for poi_name in poi_names :
       if poi_name in self.model.pois :
-        selected_names = [ poi_name ]
+        selected_names.append(poi_name)
       else :
-        selected_names = [ par_name for par_name in self.model.pois if re.match(poi_name, par_name) ]
-        if len(selected_names) == 0 :
+        new_names = [ par_name for par_name in self.model.pois if re.match(poi_name, par_name) ]
+        if len(new_names) == 0 :
           raise KeyError("Cannot remove POI '%s' from model, no matching POI is defined." % poi_name)
+        selected_names.extend(new_names)
     for selected_name in selected_names :
+      if verbosity > 0 : print("Removing POI '%s'." % selected_name)
       poi = self.model.pois.pop(selected_name)
       for channel in self.model.channels.values() :
         for sample in channel.samples.values() :
           if isinstance(sample.norm, ParameterNorm) and sample.norm.par_name == selected_name :
             if selected_name not in values :
               raise KeyError("Cannot remove POI '%s' as it is used to normalize sample '%s' of channel '%s'. Please provide a numerical value to use as a replacement." % (selected_name, sample.name, channel.name))
-            print("Using %s=%g replacement in the normalization of sample '%s' of channel '%s'." % (selected_name, values[selected_name], sample.name, channel.name))
+            if verbosity > 0 : print("Using %s=%g replacement in the normalization of sample '%s' of channel '%s'." % (selected_name, values[selected_name], sample.name, channel.name))
             sample.norm = NumberNorm(values[selected_name])
           if isinstance(sample.norm, FormulaNorm) and sample.norm.formula.find(selected_name) != -1 :
             raise KeyError("Cannot remove POI '%s' as it is used to in formula '%s' normalizing sample '%s' of channel '%s'." % (selected_name, sample.norm.formula, sample.name, channel.name))
