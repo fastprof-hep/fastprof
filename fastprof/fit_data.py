@@ -90,12 +90,85 @@ class POIHypo(Serializable) :
     return '\n'.join([ '%s = %g' % (par_name, par_value) for par_name, par_value in self.pars.items() ])
 
 
+# -------------------------------------------------------------------------
+class FitParameter(ModelPOI) :
+  """Class representing a fit parameter
+
+  Attributes:
+     name          (str)   : the name of the parameter
+     value         (float) : the value of the parameter (either a best-fit value or a fixed hypothesis value)
+     error         (float) : the uncertainty on the parameter value
+     min_value     (float) : the lower bound of the allowed range of the parameter
+     max_value     (float) : the upper bound of the allowed range of the parameter
+     initial_value (float) : the initial value of the parameter when performing fits to data
+     unit          (str)   : the unit in which the parameter is expressed
+  """
+
+  def __init__(self, name : str = '', value : float = None, error : float = None,
+               min_value : float = None, max_value : float = None,
+               initial_value : float = None, unit : str = '') :
+    """Initialize object attributes
+
+      Missing arguments are set to None.
+
+      Args:
+        name          : the name of the parameter
+        value         : the value of the parameter (either a best-fit value or a fixed hypothesis value)
+        error         : the uncertainty on the parameter value
+        min_value     : the lower bound of the allowed range of the parameter
+        max_value     : the upper bound of the allowed range of the parameter
+        initial_value : the initial value of the parameter when performing fits to data
+        unit          : the unit in which the parameter is expressed
+    """
+    super().__init__(name, min_value, max_value, initial_value)
+    self.value = value
+    self.error = error
+
+  def __str__(self) :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    s = "'%s' :" % self.name
+    if self.min_value is not None and self.max_value is not None : s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
+    if self.initial_value is not None : s += ' init = %g' % self.initial_value
+    if self.value is not None : s += ' %g' % self.value
+    if self.error is not None : s += ' +/- %g'  % self.error
+    if self.unit is not None : s += ' %s' % self.unit
+    return s
+
+  def load_dict(self, sdict) :
+    """load object information from a dictionary of markup data
+
+      Args:
+        sdict: A dictionary containing markup data
+
+      Returns:
+        FitParameter: self
+    """
+    super().load_dict(sdict)
+    self.value     = self.load_field('value'    , sdict,  None, [int, float])
+    self.error     = self.load_field('error'    , sdict,  None, [int, float])
+    return self
+
+  def fill_dict(self, sdict) :
+    """Save information to a dictionary of markup data
+
+      Args:
+         sdict: A dictionary containing markup data
+    """
+    super().fill_dict(sdict)
+    if self.value is not None : sdict['value'] = self.unnumpy(self.value)
+    if self.error is not None : sdict['error'] = self.unnumpy(self.error)
+
+
 class FitResult(Serializable) :
   """Class describing the result of a ML fit
 
   Attributes:
     name    (str)   : a name for the object
-    fitpars (dict)  : the best-fit parameters in { name: ModelPOI } format
+    fitpars (dict)  : the best-fit parameters in { name: FitParameter } format
     nll     (float) : the best-fit NLL value
     model   (Model) : the statistical model
   """
@@ -116,10 +189,10 @@ class FitResult(Serializable) :
     self.name = name
     self.fitpars = {}
     if not fitpars is None and not model is None :
-      for name in model.pois : self.fitpars[name] = ModelPOI(name, value=fitpars[name])
-      for name in model.nps  : self.fitpars[name] = ModelPOI(name, value=model.nps[name].unscaled_value(fitpars[name]))
+      for name in model.pois : self.fitpars[name] = FitParameter(name, value=fitpars[name])
+      for name in model.nps  : self.fitpars[name] = FitParameter(name, value=model.nps[name].unscaled_value(fitpars[name]))
     if hypo is not None :
-      for name, value in hypo.items() : self.fitpars[name] = ModelPOI(name, value=value)
+      for name, value in hypo.items() : self.fitpars[name] = FitParameter(name, value=value)
     self.nll = nll
     self.model = model
 
@@ -157,7 +230,7 @@ class FitResult(Serializable) :
       self
     """
     for par_name, par_dict in sdict['fit_pars'].items() :
-      fitpar = ModelPOI(par_name).load_dict(par_dict)
+      fitpar = FitParameter(par_name).load_dict(par_dict)
       self.fitpars[fitpar.name] = fitpar
     self.nll = sdict['nll']
     return self
