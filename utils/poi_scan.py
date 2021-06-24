@@ -84,7 +84,7 @@ def run(argv = None) :
     print('Will scan the following hypotheses : \n- %s' % '\n- '.join([str(hypo) for hypo in process_setval_list(options.hypos, model)]))
 
   # Compute the tmu values
-  calc = TMuCalculator(OptiMinimizer(niter=options.iterations).set_pois(model))
+  calc = TMuCalculator(OptiMinimizer(niter=options.iterations, debug=options.verbosity).set_pois(model))
   if options.verbosity > 1 : 
     prof_pois = set(calc.minimizer.free_pois()) - set(pois)
     if len(prof_pois) > 0 : print('Will profile over POI(s) %s.' % ','.join(prof_pois)) 
