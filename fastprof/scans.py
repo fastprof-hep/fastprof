@@ -337,9 +337,11 @@ class PLRScan1D (Scan1D) :
       print("No minima found for %s vs. %s." % (self.ts_name, self.poi.name))
       return None
     if len(found_minima) > 1 :
-      print('Multiple minima found for %s vs. %s, returning the first one' % (self.ts_name, self.poi.name))
-    minimum = found_minima[0]
-    if value_hi is None and value_lo > minimum :
+      spl = self.spline(order)
+      minimum = min([ (found_minimum, float(spl(found_minimum))) for found_minimum in found_minima ], key=lambda x: x[1])[0]
+    else :
+      minimum = found_minima[0]
+    if value_hi is None and value_lo is not None and value_lo > minimum :
       value_hi = value_lo
       value_lo = None
     error_hi = value_hi - minimum if value_hi is not None else None
