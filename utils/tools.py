@@ -4,7 +4,7 @@ Common functions for utils/ scripts
 """
 
 import re
-from fastprof import Model
+from fastprof import Model, ModelPOI
 import numpy as np
 
 
@@ -106,7 +106,7 @@ def process_values_spec(spec : str) :
   return values
 
 
-def process_setval_list(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True) -> dict :
+def process_setval_list(spec : str, model : Model, match_pois : bool = True, match_nps : bool = True) -> dict :
   """Parse a set of model POI value assignments, each including multiple parameters.
 
   The input string is expected in the form
@@ -133,7 +133,7 @@ def process_setval_list(setvals : str, model : Model, match_pois : bool = True, 
   returned.
 
   Args:
-    setvals    : a string specifying parameter assignements
+    spec       : a string specifying parameter assignements
     model      : model containing the parameters
     match_pois : if `True`, check the parameters against the POIs of the model
     match_nps  : if `True`, check the parameters against the NPs of the model
@@ -141,7 +141,7 @@ def process_setval_list(setvals : str, model : Model, match_pois : bool = True, 
   Returns:
     the parsed POI assignments, as a list of dicts in the form { par1 : val1, ... }
   """
-  return process_setval_dicts([ process_setvals(spec, model, match_pois, match_nps, check_val=False) for spec in setvals.split('|') ])
+  return process_setval_dicts([ process_setvals(spec, model, match_pois, match_nps, check_val=False) for spec in spec.split('|') ])
   
   
 def process_setval_dicts(setval_dicts : dict) -> dict :
@@ -169,7 +169,7 @@ def process_setval_dicts(setval_dicts : dict) -> dict :
   if not any_expanded : return new_svds
   return process_setval_dicts(new_svds)
 
-def process_setranges(setranges : str, model : Model) :
+def process_setranges(spec : str, model : Model) :
   """Parse a set of POI range assignments
 
   The input string is expected in the form
@@ -186,11 +186,11 @@ def process_setranges(setranges : str, model : Model) :
   in the model, or if the `minX` or `maxX` are not float values.
 
   Args:
-    setvals : a string specifying the parameter ranges
-    model   : model containing the parameters
+    spec  : a string specifying the parameter ranges
+    model : model containing the parameters
   """
   try:
-    sets = [ v.replace(' ', '').split('=') for v in setranges.split(',') ]
+    sets = [ v.replace(' ', '').split('=') for v in spec.split(',') ]
     for (var, var_range) in sets :
       if not var in model.pois : raise ValueError("Parameter of interest '%s' not defined in model." % var)
       splits = var_range.split(':')
@@ -216,4 +216,50 @@ def process_setranges(setranges : str, model : Model) :
       if maxval != '' : print("INFO : setting upper bound of %s to %g" % (var, float_maxval))
   except Exception as inst :
     print(inst)
-    raise ValueError("ERROR : invalid parameter range specification '%s'." % setranges)
+    raise ValueError("ERROR : invalid parameter range specification '%s'." % spec)
+
+def process_pois(spec : str, model : Model, check_pars=True) :
+  """Parse a set of POI value+range assignments
+
+  The input string is expected in the form
+
+  par1=value1[:min1][:max1],par2=value2[:min2][:max2],...
+
+  where either the `minX` or the `maxX` values can be omitted 
+  to indicate open ranges. (the ':' separator should be kept
+  if the min value is omitted and max kept)
+
+  Args:
+    spec  : a string specifying the parameter ranges
+    model : model containing the parameters
+    check_pars : if True, check the parameters exist in model.
+  """
+  pois = []
+  try:
+    sets = [ v.replace(' ', '').split('=') for v in spec.split(',') ]
+    for (var, var_range) in sets :
+      if check_pars and not var in model.pois : raise ValueError("Parameter of interest '%s' not defined in model." % var)
+      splits = var_range.split(':')
+      if len(splits) == 0 or len(splits) > 3 : raise ValueError("Invalid range specification '%s' for parameters '%s', expecting 'value[:min][:max]'." % (var_range, var))
+      if len(splits) < 3 : splits.append([''] * (3 - len(splits)))
+      value, minval, maxval = splits
+      try :
+        float_val = float(value)
+      except ValueError as inst :
+        raise ValueError("Invalid numerical value '%s' for the value of variable '%s'." % (value, var))
+      if minval != '' :
+        try :
+          float_minval = float(minval)
+        except ValueError as inst :
+          raise ValueError("Invalid numerical value '%s' for the lower bound of variable '%s'." % (minval, var))
+      if maxval != '' :
+        try :
+          float_maxval = float(maxval)
+        except ValueError as inst :
+          raise ValueError("Invalid numerical value '%s' for the upper bound of variable '%s'." % (maxval, var))
+    pois.append(ModelPOI(var, min_value=float_minval, max_value=float_maxval, initial_value=float_val)
+  except Exception as inst :
+    print(inst)
+    raise ValueError("ERROR : invalid parameter range specification '%s'." % spec)
+  return pois
+
