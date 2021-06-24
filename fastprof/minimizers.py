@@ -463,14 +463,14 @@ class OptiMinimizer (POIMinimizer) :
     bounds = [ bound.bounds()            for bound in self.bounds.values() if bound.is_free() ]
     jac = jacobian if data.model.gradient(self.init_pois, data) is not None else None
     if len(x0) == 0 and self.method != '' :
-      if self.debug > 0 : print("No free parameter of interest, will just minimize NPs.")
+      if self.debug > 0 : print("== OptiMinimizer: No free parameter of interest, will just minimize NPs.")
       self.method = ''
       self.profile_nps(current_hypo, data)
       self.min_pois = []
       self.nfev = 0
       return self.min_nll
     if len(x0) > 1 and self.method == 'scalar' :
-      print("Cannot use 'scalar' method for multiple POIs, switching to 'L-BFGS-B'.")
+      print("== OptiMinimizer: Cannot use method 'scalar' for multiple POIs, switching to 'L-BFGS-B'.")
       self.method = 'L-BFGS-B'
 
     def update_current_hypo(pois) :
@@ -481,9 +481,9 @@ class OptiMinimizer (POIMinimizer) :
       #print('njpb pois = ', pois, type(pois))
       update_current_hypo(pois)
       self.profile_nps(current_hypo, data)
-      if self.debug > 0 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.min_nll))
-      if self.debug > 1 : print(current_hypo)
-      if self.debug > 1 : print(self.min_pars)
+      if self.debug > 2 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.min_nll))
+      if self.debug > 3 : print(current_hypo)
+      if self.debug > 4 : print(self.min_pars)
       return self.min_nll
     def jacobian(pois) :
       update_current_hypo(pois)
@@ -524,9 +524,6 @@ class OptiMinimizer (POIMinimizer) :
     self.min_nll = self.result.fun
     self.min_pois = self.result.x if isinstance(self.result.x, np.ndarray) else np.array([self.result.x])
     self.nfev = self.result.nfev
-    if self.debug > 0 :
-      print(data.model.tot_bin_exp(self.min_pars))
-      print(data.counts)
     return self.min_nll
 
   def tmu(self, hypo : Parameters, data : Data, init_hypo : Parameters = None) -> float :
