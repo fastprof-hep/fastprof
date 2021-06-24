@@ -456,6 +456,7 @@ class OptiMinimizer (POIMinimizer) :
       Returns:
          best-fit parameters
     """
+    if self.init_pois is None or self.bounds is None : self.set_pois(data.model)
     current_hypo = self.init_pois.clone()
     free_indices = [ i for i, bound in enumerate(self.bounds.values()) if bound.is_free() ]
     x0     = [ self.init_pois[bound.par] for bound in self.bounds.values() if bound.is_free() ]
