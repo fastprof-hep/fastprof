@@ -200,8 +200,8 @@ class ModelPOI(Serializable) :
      unit          (str)   : the unit in which the parameter is expressed
   """
 
-  def __init__(self, name : str = '', value : float = None, error : float = None, min_value : float = None, max_value : float = None,
-               initial_value : float = None, unit : str = '') :
+  def __init__(self, name : str = '', min_value : float = None, max_value : float = None,
+               initial_value : float = None, unit : str = '', value : float = None, error : float = None) :
     """Initialize object attributes
 
       Missing arguments are set to None.
@@ -216,12 +216,12 @@ class ModelPOI(Serializable) :
         unit          : the unit in which the parameter is expressed
     """
     self.name = name
-    self.unit = unit
-    self.value = value
-    self.error = error
     self.min_value = min_value
     self.max_value = max_value
     self.initial_value = initial_value
+    self.unit = unit
+    self.value = value
+    self.error = error
 
   def __str__(self) :
     """Provides a description string
@@ -230,10 +230,11 @@ class ModelPOI(Serializable) :
         The object description
     """
     s = "parameter '%s' :" % self.name
-    if self.value is not None : s += ' %g' % self.value
-    if self.error is not None : s += ' +/- %g'  % self.error
     s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
     if self.initial_value is not None : s += ' init = %g' % self.initial_value
+    if self.value is not None : s += ' %g' % self.value
+    if self.error is not None : s += ' +/- %g'  % self.error
+    if self.unit is not None : s += ' %s' % self.unit
     return s
 
   def load_dict(self, sdict) :
@@ -246,12 +247,12 @@ class ModelPOI(Serializable) :
         ModelPOI: self
     """
     self.name      = self.load_field('name'     , sdict,  self.name, str)
-    self.unit      = self.load_field('unit'     , sdict,  '', str)
-    self.value     = self.load_field('value'    , sdict,  0, [int, float])
-    self.error     = self.load_field('error'    , sdict,  0, [int, float])
     self.min_value = self.load_field('min_value', sdict,  0, [int, float])
     self.max_value = self.load_field('max_value', sdict,  0, [int, float])
     self.initial_value = self.load_field('initial_value', sdict, 0, [int, float])
+    self.unit      = self.load_field('unit'     , sdict,  '', str)
+    self.value     = self.load_field('value'    , sdict,  None, [int, float])
+    self.error     = self.load_field('error'    , sdict,  None, [int, float])
     return self
 
   def fill_dict(self, sdict) :
@@ -261,12 +262,12 @@ class ModelPOI(Serializable) :
          sdict: A dictionary containing markup data
     """
     sdict['name']      = self.name
-    sdict['unit']      = self.unit
-    sdict['value']     = self.unnumpy(self.value)
-    sdict['error']     = self.unnumpy(self.error)
     sdict['min_value'] = self.unnumpy(self.min_value)
     sdict['max_value'] = self.unnumpy(self.max_value)
-    sdict['initial_value'] = self.unnumpy(self.max_value)
+    sdict['initial_value'] = self.unnumpy(self.initial_value)
+    if self.unit != '' : sdict['unit']  = self.unit
+    if self.value is not None : sdict['value'] = self.unnumpy(self.value)
+    if self.error is not None : sdict['error'] = self.unnumpy(self.error)
 
 
 # -------------------------------------------------------------------------
@@ -445,12 +446,12 @@ class ModelNP(Serializable) :
     """
     self.name = self.load_field('name', sdict, '', str)
     self.unit = self.load_field('unit', sdict, '', str)
-    self.nominal_value = self.load_field('nominal_value', sdict, None, [int, float])
-    self.variation = self.load_field('variation', sdict, None, [int, float])
+    self.nominal_value = self.load_field('nominal_value', sdict, 0, [int, float])
+    self.variation = self.load_field('variation', sdict, 1, [int, float])
     self.constraint = self.load_field('constraint', sdict, None)
     if self.constraint is not None :
       if self.variation is None : self.variation = float(self.constraint)
-      self.aux_obs = self.load_field('aux_obs', sdict, '', str)
+      self.aux_obs = self.load_field('aux_obs', sdict, None, str)
     else :
       self.aux_obs = None
     return self
@@ -462,9 +463,9 @@ class ModelNP(Serializable) :
          sdict: A dictionary containing markup data
     """
     sdict['name'] = self.name
-    sdict['unit'] = self.unit
+    if self.unit != '' : sdict['unit'] = self.unit
     sdict['nominal_value'] = self.unnumpy(self.nominal_value)
     sdict['variation']     = self.unnumpy(self.variation)
-    sdict['constraint']    = self.unnumpy(self.constraint)
-    sdict['aux_obs'] = self.aux_obs
+    if self.constraint is not None : sdict['constraint']    = self.unnumpy(self.constraint)
+    if self.aux_obs is not None : sdict['aux_obs'] = self.aux_obs
 

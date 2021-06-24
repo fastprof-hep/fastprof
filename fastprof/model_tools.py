@@ -107,7 +107,7 @@ class ModelReparam :
             print("Using %s=%g replacement in the normalization of sample '%s' of channel '%s'." % (selected_name, values[selected_name], sample.name, channel.name))
             sample.norm = NumberNorm(values[selected_name])
           if isinstance(sample.norm, FormulaNorm) and sample.norm.formula.find(selected_name) != -1 :
-            raise KeyError("Cannot remove POI '%s' as it is used to in a formula normalizing sample '%s' of channel '%s'." % (selected_name, sample.name, channel.name))
+            raise KeyError("Cannot remove POI '%s' as it is used to in formula '%s' normalizing sample '%s' of channel '%s'." % (selected_name, sample.norm.formula, sample.name, channel.name))
 
 
 # -------------------------------------------------------------------------

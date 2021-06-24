@@ -240,13 +240,17 @@ def process_pois(spec : str, model : Model, check_pars=True) :
     for (var, var_range) in sets :
       if check_pars and not var in model.pois : raise ValueError("Parameter of interest '%s' not defined in model." % var)
       splits = var_range.split(':')
-      if len(splits) == 0 or len(splits) > 3 : raise ValueError("Invalid range specification '%s' for parameters '%s', expecting 'value[:min][:max]'." % (var_range, var))
-      if len(splits) < 3 : splits.append([''] * (3 - len(splits)))
+      if len(splits) < 2 or len(splits) > 3 : raise ValueError("Invalid range specification '%s' for parameters '%s', expecting 'value[:min][:max]'." % (var_range, var))
+      if len(splits) == 2 : splits = [''] + splits
       value, minval, maxval = splits
-      try :
-        float_val = float(value)
-      except ValueError as inst :
-        raise ValueError("Invalid numerical value '%s' for the value of variable '%s'." % (value, var))
+      float_val = None
+      float_minval = None
+      float_maxval = None
+      if value != '' :
+        try :
+          float_val = float(value)
+        except ValueError as inst :
+          raise ValueError("Invalid numerical value '%s' for the value of variable '%s'." % (value, var))
       if minval != '' :
         try :
           float_minval = float(minval)
