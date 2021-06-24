@@ -192,6 +192,8 @@ class ModelPOI(Serializable) :
 
   Attributes:
      name          (str)   : the name of the parameter
+     value         (float) : the value of the parameter (either a best-fit value or a fixed hypothesis value)
+     error         (float) : the uncertainty on the parameter value
      min_value     (float) : the lower bound of the allowed range of the parameter
      max_value     (float) : the upper bound of the allowed range of the parameter
      initial_value (float) : the initial value of the parameter when performing fits to data
@@ -206,6 +208,8 @@ class ModelPOI(Serializable) :
 
       Args:
         name          : the name of the parameter
+        value         : the value of the parameter (either a best-fit value or a fixed hypothesis value)
+        error         : the uncertainty on the parameter value
         min_value     : the lower bound of the allowed range of the parameter
         max_value     : the upper bound of the allowed range of the parameter
         initial_value : the initial value of the parameter when performing fits to data
@@ -213,6 +217,8 @@ class ModelPOI(Serializable) :
     """
     self.name = name
     self.unit = unit
+    self.value = value
+    self.error = error
     self.min_value = min_value
     self.max_value = max_value
     self.initial_value = initial_value
@@ -224,6 +230,8 @@ class ModelPOI(Serializable) :
         The object description
     """
     s = "parameter '%s' :" % self.name
+    if self.value is not None : s += ' %g' % self.value
+    if self.error is not None : s += ' +/- %g'  % self.error
     s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
     if self.initial_value is not None : s += ' init = %g' % self.initial_value
     return s
@@ -239,6 +247,8 @@ class ModelPOI(Serializable) :
     """
     self.name      = self.load_field('name'     , sdict,  self.name, str)
     self.unit      = self.load_field('unit'     , sdict,  '', str)
+    self.value     = self.load_field('value'    , sdict,  0, [int, float])
+    self.error     = self.load_field('error'    , sdict,  0, [int, float])
     self.min_value = self.load_field('min_value', sdict,  0, [int, float])
     self.max_value = self.load_field('max_value', sdict,  0, [int, float])
     self.initial_value = self.load_field('initial_value', sdict, 0, [int, float])
@@ -252,6 +262,8 @@ class ModelPOI(Serializable) :
     """
     sdict['name']      = self.name
     sdict['unit']      = self.unit
+    sdict['value']     = self.unnumpy(self.value)
+    sdict['error']     = self.unnumpy(self.error)
     sdict['min_value'] = self.unnumpy(self.min_value)
     sdict['max_value'] = self.unnumpy(self.max_value)
     sdict['initial_value'] = self.unnumpy(self.max_value)
