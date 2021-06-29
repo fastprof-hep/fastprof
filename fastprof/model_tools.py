@@ -3,6 +3,7 @@ Utility classes for model operations
 
 """
 import re
+import math
 import numpy as np
 
 from .core  import Model, Data, Parameters, ModelPOI
@@ -11,12 +12,13 @@ from .norms import ParameterNorm, FormulaNorm
 # -------------------------------------------------------------------------
 class ModelMerger :
   
-  def __init__(self, models) :
+  def __init__(self, models, verbosity : int = 0) :
     self.models = models
     if len(models) == 0 :
       raise ValueError('Merging not possible: no models specified')
     self.target = models[0]
     self.models = models[1:]
+    self.verbosity = verbosity
 
   def check(self) :
     for i, model in enumerate(self.models) :
@@ -57,14 +59,16 @@ class ModelMerger :
         self.target.channel_offsets[channel] = model.channel_offsets[channel] + self.target.nbins
         self.target.nbins += model.nbins
     all_models = [ self.target ] + self.models 
-    self.target.nominal_yields = np.concatenate(tuple(model.nominal_yields for model in all_models), axis=1)
-    self.target.sym_impact_coeffs = np.concatenate(tuple(model.sym_impact_coeffs for model in all_models), axis=1)
-    self.target.pos_impact_coeffs = np.concatenate(tuple(model.pos_impact_coeffs for model in all_models), axis=1)
-    self.target.neg_impact_coeffs = np.concatenate(tuple(model.neg_impact_coeffs for model in all_models), axis=1)
+    max_nsamples = max([ model.max_nsamples for model in all_models ])
+    if self.verbosity > 1 : print('Will resize all models to %d samples' % max_nsamples)
+    self.target.sym_impact_coeffs = np.concatenate(tuple(np.pad(model.sym_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0))) for model in all_models), axis=1)
+    self.target.pos_impact_coeffs = np.concatenate(tuple(np.pad(model.pos_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0),(0,0))) for model in all_models), axis=1)
+    self.target.neg_impact_coeffs = np.concatenate(tuple(np.pad(model.neg_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0),(0,0))) for model in all_models), axis=1)
     if self.target.use_lognormal_terms :
-      self.target.log_sym_impact_coeffs = np.concatenate(tuple(model.log_sym_impact_coeffs for model in all_models), axis=1)
-      self.target.log_pos_impact_coeffs = np.concatenate(tuple(model.log_pos_impact_coeffs for model in all_models), axis=1)
-      self.target.log_neg_impact_coeffs = np.concatenate(tuple(model.log_neg_impact_coeffs for model in all_models), axis=1)
+      self.target.log_sym_impact_coeffs = np.concatenate(tuple(np.pad(model.log_sym_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0))) for model in all_models), axis=1)
+      self.target.log_pos_impact_coeffs = np.concatenate(tuple(np.pad(model.log_pos_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0),(0,0))) for model in all_models), axis=1)
+      self.target.log_neg_impact_coeffs = np.concatenate(tuple(np.pad(model.log_neg_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0),(0,0))) for model in all_models), axis=1)
+    self.target.nominal_yields = np.concatenate(tuple(np.pad(model.nominal_yields, ((0, max_nsamples - model.max_nsamples),(0,0))) for model in all_models), axis=1)
     return self.target
 
 # -------------------------------------------------------------------------
@@ -115,17 +119,18 @@ class ModelReparam :
 
 
 # -------------------------------------------------------------------------
-class ModelPruner :
+class NPPruner :
   
-  def __init__(self, model) :
+  def __init__(self, model, verbosity : int = 0) :
     self.model = model
+    self.verbosity = verbosity
 
   def prune(self, min_impact : float = 1E-3) :
     pruned_nps = []
     for i, par_name in enumerate(self.model.nps) :
       if np.amax(self.model.sym_impact_coeffs[:,:,i]) < min_impact and np.amin(self.model.sym_impact_coeffs[:,:,i]) > -min_impact :
         pruned_nps.append(par_name)
-        print("Pruning away nuisance parameter '%s'." % par_name)
+        if self.verbosity > 0 : print("Pruning away nuisance parameter '%s'." % par_name)
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :
         for pruned_np in pruned_nps : sample.impacts.pop(pruned_np)
@@ -145,13 +150,45 @@ class ModelPruner :
         for channel in self.model.channels.values() :
           for sample in channel.samples.values() :
             if isinstance(sample.norm, ParameterNorm) and sample.norm.par_name == selected_name :
-              print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, par.nominal_value, sample.name, channel.name))
+              if self.verbosity > 0 : print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, par.nominal_value, sample.name, channel.name))
               sample.norm = NumberNorm(par.nominal_value)
             if isinstance(sample.norm, FormulaNorm) and sample.norm.formula.find(selected_name) != -1 :
               raise KeyError("Cannot remove POI '%s' as it is used to in a formula normalizing sample '%s' of channel '%s'." % (selected_name, sample.name, channel.name))
             if selected_name in sample.impacts : sample.impacts.pop(selected_name)
     self.model.set_internal_vars()
 
+
+# -------------------------------------------------------------------------
+class SamplePruner :
+  
+  def __init__(self, model, verbosity : int = 0) :
+    self.model = model
+    self.verbosity = verbosity
+
+  def prune(self, min_signif : float = 1E-3) :
+    changed = False
+    for channel in self.model.channels.values() :
+      total_nominal_yields = np.zeros(channel.nbins())
+      for sample in channel.samples.values() : total_nominal_yields += sample.nominal_yields
+      to_remove = []
+      for sample in channel.samples.values() :
+        z = self.total_significance(sample.nominal_yields, total_nominal_yields)
+        if z < min_signif :
+          to_remove.append(sample.name)
+          if self.verbosity > 0 :
+            print("Pruning away sample '%s' in channel '%s', significance = %g < %g." % (sample.name, channel.name, z, min_signif))
+          changed = True
+        elif self.verbosity > 1 :
+          print("Keeping sample '%s' in channel '%s', significance = %g >= %g." % (sample.name, channel.name, z, min_signif))
+      for sample_name in to_remove : channel.samples.pop(sample_name)
+    if changed : self.model.set_internal_vars()
+    return self.model
+      
+  def total_significance(self, nexp_sample, nexp_total) :
+    try :
+      return math.sqrt(np.sum(2*(nexp_total*np.log(nexp_total/(nexp_total - nexp_sample)) - nexp_sample)))
+    except :
+      return 0
 
 # -------------------------------------------------------------------------
 class ParBound :
