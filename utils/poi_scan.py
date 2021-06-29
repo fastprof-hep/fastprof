@@ -27,7 +27,7 @@ def make_parser() :
   parser.add_argument("-a", "--asimov"        , type=str  , default=None     , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
   parser.add_argument("-y", "--hypos"         , type=str  , required=True    , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
   parser.add_argument("-n", "--nsigmas"       , type=float, default=1        , help="Confidence level at which to compute the limit")
-  parser.add_argument("-c", "--cl"            , type=str  , default=None     , help="Confidence level at which to compute the limit")
+  parser.add_argument("-c", "--cl"            , type=str  , default="0.683"  , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True    , help="Name of output file")
   parser.add_argument("-b", "--best-fit-mode" , type=str  , default='single' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
   parser.add_argument("-r", "--setrange"      , type=str  , default=None     , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
@@ -108,7 +108,7 @@ def run(argv = None) :
 
   try :
     cl_values = [ float(cl) for cl in options.cl.split(',') ]
-  except :
+  except Exception as inst :
     print(inst)
     print("'Could not parse CL specification, expected comma-separated list of float values, got '%s'." % options.cl)
     return
@@ -129,9 +129,9 @@ def run(argv = None) :
       interval = poi_scan.interval(print_result=True)
       # Plot results
       if not options.batch_mode :
-        poi_scan.plot(plt, marker='b-', linestyle=linestyle, label='PRL_smooth', smooth=100)
+        poi_scan.plot(plt, marker='b', linestyle=linestyle, label='PRL_smooth', smooth=100)
         poi_scan.plot(plt, marker=options.marker, linestyle=linestyle, label='PRL')
-        fig1.set_ylim(0, None)
+        plt.ylim(0, None)
         plt.axhline(y=poi_scan.ts_level, color='k', linestyle='dotted')
         plt.show()
         plt.legend()

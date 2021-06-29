@@ -352,16 +352,16 @@ class PLRScan1D (Scan1D) :
   def description(self, minimum, err_hi, err_lo) :
     return '%s = %g' % (self.poi.name, minimum) + ((' +%g' % err_hi) if err_hi is not None else '') + ((' -%g' % err_lo) if err_lo is not None else '') + ' @ %4.1f%% CL' % (100*self.cl())
 
-  def plot(self, plt, marker = 'b', label : str = None, smooth : int = None) :
+  def plot(self, plt, linestyle : str = '-', marker = 'b', label : str = None, smooth : int = None) :
     plt.suptitle('$%s$' % self.ts_name)
     plt.xlabel('%s' % self.poi.name)
     plt.ylabel('$%s$' % self.ts_name)
     if smooth is not None :
       rsp = self.resample(smooth)
-      plt.plot(rsp[0], rsp[1], marker, label=label if label is not None else self.key)
+      plt.plot(rsp[0], rsp[1], marker, linestyle=linestyle, label=label if label is not None else self.key)
     else :
       pts = self.points(with_errors=False)
-      plt.plot(pts[0], pts[1], marker, label=label if label is not None else self.key)
+      plt.plot(pts[0], pts[1], marker, linestyle=linestyle, label=label if label is not None else self.key)
 
 
 class PLRScan2D (Scan) :
