@@ -8,7 +8,7 @@ __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
 import os, sys, re
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from fastprof import Model, ModelMerger
+from fastprof import Model, ModelMerger, SamplePruner
 import glob
 
 
@@ -22,6 +22,7 @@ def make_parser() :
   parser.add_argument("input_files"           , type=str  , nargs='+'     , help="List of input files, either comma-separated or specified using wildcards.")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
   parser.add_argument("-n", "--numeric-sort"  , action='store_true'       , help="Sort input files numerically")
+  parser.add_argument("-z", "--min-signif"    , type=float, default=None  , help="Prune away samples with significance below the specified threshold")  
   parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
   return parser
 
@@ -55,7 +56,9 @@ def run(argv = None) :
   for i, f in enumerate(files) :
     if not os.access(f, os.R_OK) : raise FileNotFoundError("Could not access input file '%s'." % f) 
     print("Loading model file '%s' [%g/%g]." % (f, i+1, len(files)))
-    models.append(Model.create(f, verbosity=options.verbosity))
+    model = Model.create(f, verbosity=options.verbosity)
+    if options.min_signif is not None : SamplePruner(model, options.verbosity).prune(options.min_signif)
+    models.append(model)
 
   if options.verbosity > 0 : print('Merging models')
   big_model = ModelMerger(models).merge()
