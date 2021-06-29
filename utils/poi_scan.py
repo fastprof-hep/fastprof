@@ -26,8 +26,7 @@ def make_parser() :
   parser.add_argument("-d", "--data-file"     , type=str  , default=None     , help="Use the dataset stored in the specified markup file")
   parser.add_argument("-a", "--asimov"        , type=str  , default=None     , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
   parser.add_argument("-y", "--hypos"         , type=str  , required=True    , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
-  parser.add_argument("-n", "--nsigmas"       , type=float, default=1        , help="Confidence level at which to compute the limit")
-  parser.add_argument("-c", "--cl"            , type=str  , default="0.683"  , help="Confidence level at which to compute the limit")
+  parser.add_argument("-c", "--cl"            , type=str  , default="1"      , help="Confidence levels at which to compute the limit, either integers (nsigmas) or floats (CL)")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True    , help="Name of output file")
   parser.add_argument("-b", "--best-fit-mode" , type=str  , default='single' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
   parser.add_argument("-r", "--setrange"      , type=str  , default=None     , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
@@ -110,7 +109,7 @@ def run(argv = None) :
     cl_values = [ float(cl) for cl in options.cl.split(',') ]
   except Exception as inst :
     print(inst)
-    print("'Could not parse CL specification, expected comma-separated list of float values, got '%s'." % options.cl)
+    print("'Could not parse CL/nsigmas specification, expected comma-separated list of float values, got '%s'." % options.cl)
     return
   
   linestyles = options.linestyle.split(',')
@@ -125,7 +124,7 @@ def run(argv = None) :
       plt.ion()
       fig1 = plt.figure(1)
     for cl, linestyle in zip(cl_values, linestyles) :
-      poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=cl)
+      poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
       interval = poi_scan.interval(print_result=True)
       # Plot results
       if not options.batch_mode :
@@ -151,7 +150,7 @@ def run(argv = None) :
       plt.ion()
       fig1 = plt.figure(1)
     for cl, linestyle in zip(cl_values, linestyles) :
-      poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=cl)
+      poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
       if first : best_fit = poi_scan.best_fit(print_result=True)
       if not options.batch_mode :
         poi_scan.plot(plt, label='%3.1f%% CL' % (cl*100), best_fit=first, marker=options.marker, linestyle=linestyle, smoothing=options.smoothing)
