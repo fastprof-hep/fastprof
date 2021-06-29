@@ -436,7 +436,7 @@ class Model (Serializable) :
         sample.set_np_data(self.nps.values(), variation=1, verbosity=self.verbosity)
         self.samples[(channel.name, s)] = sample
     if self.verbosity > 1 : print('Initializing nominal event yields')
-    self.nominal_yields = np.stack([ np.concatenate([ self.samples[(channel, s)].nominal_yields for channel in self.channels]) for s in range(0, self.max_nsamples) ])      
+    self.nominal_yields = np.stack([ np.concatenate([ self.samples[(channel.name, s)].nominal_yields if s < len(channel.samples) else np.zeros(channel.nbins()) for channel in self.channels.values()]) for s in range(0, self.max_nsamples) ])      
     if self.use_asym_impacts :    
       self.pos_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
       self.neg_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
@@ -448,10 +448,11 @@ class Model (Serializable) :
         sym_list = []
         pos_list = []
         neg_list = []
-        for channel in self.channels :
-          sym_list.append(self.samples[(channel, s)].sym_impact(par))
+        for channel in self.channels.values() :
+          default_cs = np.zeros((len(self.variations) if self.variations is not None else 1, channel.nbins()))
+          sym_list.append(self.samples[(channel.name, s)].sym_impact(par) if s < len(channel.samples) else np.zeros(channel.nbins()))
           if self.use_asym_impacts :
-            pos_cs, neg_cs = self.samples[(channel, s)].impact_coefficients(par, self.variations, is_log=not self.use_linear_nps)
+            pos_cs, neg_cs = self.samples[(channel.name, s)].impact_coefficients(par, self.variations, is_log=not self.use_linear_nps) if s < len(channel.samples) else (default_cs, default_cs)
             pos_list.append(pos_cs.T)
             neg_list.append(neg_cs.T)
             if pos_cs.shape[0] > self.nvariations or neg_cs.shape[0] > self.nvariations :
