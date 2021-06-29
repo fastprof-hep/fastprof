@@ -62,6 +62,9 @@ class TestStatistic :
     """
     return value()
 
+  def npois(self) :
+    return len(self.test_poi_values)
+
   @abstractmethod
   def value(self) :
     """Value of the test statistic
@@ -155,7 +158,7 @@ class TMu(TestStatistic) :
       the asymptotic p-value
     """
     if ts == None : ts = self.value()
-    return scipy.stats.norm.sf(math.sqrt(ts) if ts > 0 else 0)
+    return scipy.stats.chi2.sf(ts, self.npois())
 
   def asymptotic_pdf(self, ts) :
     """Value of the PDF of the test statistic, under
