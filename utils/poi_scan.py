@@ -27,7 +27,7 @@ def make_parser() :
   parser.add_argument("-a", "--asimov"        , type=str  , default=None     , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
   parser.add_argument("-y", "--hypos"         , type=str  , required=True    , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
   parser.add_argument("-n", "--nsigmas"       , type=float, default=1        , help="Confidence level at which to compute the limit")
-  parser.add_argument("-c", "--cl"            , type=float, default=None     , help="Confidence level at which to compute the limit")
+  parser.add_argument("-c", "--cl"            , type=str  , default=None     , help="Confidence level at which to compute the limit")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True    , help="Name of output file")
   parser.add_argument("-b", "--best-fit-mode" , type=str  , default='single' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
   parser.add_argument("-r", "--setrange"      , type=str  , default=None     , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
@@ -35,6 +35,7 @@ def make_parser() :
   parser.add_argument(      "--regularize"    , type=float, default=None     , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None     , help="Cutoff to regularize the impact of NPs")
   parser.add_argument(      "--marker"        , type=str  , default='+'      , help="Marker type for plots")
+  parser.add_argument("-l",  "--linestyle"    , type=str  , default='-,--,:' , help="Line style for plots")
   parser.add_argument(      "--smoothing"     , type=int  , default=0        , help="Smoothing for contours (0=no smoothing)")
   parser.add_argument(      "--batch-mode"    , action='store_true'          , help="Batch mode: no plots shown")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=0        , help="Verbosity level")
@@ -103,40 +104,62 @@ def run(argv = None) :
     raster.save(raster_file)
 
   raster.print(keys=[ 'tmu' ], verbosity=options.verbosity + 1)
-  jdict = {}
+  sdict = {}
 
+  try :
+    cl_values = [ float(cl) for cl in options.cl.split(',') ]
+  except :
+    print(inst)
+    print("'Could not parse CL specification, expected comma-separated list of float values, got '%s'." % options.cl)
+    return
+  
+  linestyles = options.linestyle.split(',')
+  if len(linestyles) == 0 : linestyles = [ 'solid' ]
+  if len(linestyles) < len(cl_values) : linestyles.extend([linestyles[-1]]*(len(cl_values) - len(linestyles)))
+  if len(linestyles) > len(cl_values) : linestyles = linestyles[:len(cl_values)]
+  first = True
+  
   if len(pois) == 1 :
     poi_name = pois[0]
-    poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=options.cl)
-    interval = poi_scan.interval(print_result=True)
-    # Plot results
     if not options.batch_mode :
       plt.ion()
       fig1 = plt.figure(1)
-      poi_scan.plot(plt, marker='b-', label='PRL_smooth', smooth=100)
-      poi_scan.plot(plt, marker=options.marker, label='PRL')
-      plt.ylim(0, None)
-      plt.axhline(y=poi_scan.ts_level, color='k', linestyle='dotted')
-      plt.show()
-    jdict = {}
-    jdict['cl'] = poi_scan.cl()
-    jdict['poi_name'] = poi_name
-    jdict['poi_unit'] = model.pois[poi_name].unit
-    jdict['central_value']  = interval[0] if interval is not None else None
-    jdict['uncertainty_up'] = interval[1] if interval is not None else None
-    jdict['uncertainty_dn'] = interval[2] if interval is not None else None
+    for cl, linestyle in zip(cl_values, linestyles) :
+      poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=cl)
+      interval = poi_scan.interval(print_result=True)
+      # Plot results
+      if not options.batch_mode :
+        poi_scan.plot(plt, marker='b-', linestyle=linestyle, label='PRL_smooth', smooth=100)
+        poi_scan.plot(plt, marker=options.marker, linestyle=linestyle, label='PRL')
+        fig1.set_ylim(0, None)
+        plt.axhline(y=poi_scan.ts_level, color='k', linestyle='dotted')
+        plt.show()
+        plt.legend()
+      cl_dict = {}
+      cl_dict['cl'] = poi_scan.cl()
+      cl_dict['poi_name'] = poi_name
+      cl_dict['poi_unit'] = model.pois[poi_name].unit
+      cl_dict['central_value']  = interval[0] if interval is not None else None
+      cl_dict['uncertainty_up'] = interval[1] if interval is not None else None
+      cl_dict['uncertainty_dn'] = interval[2] if interval is not None else None
+      sdict[cl] = cl_dict
+      first = False
   else :
     poi1_name = pois[0]
     poi2_name = pois[1]
-    poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=options.cl)
-    best_fit = poi_scan.best_fit(print_result=True)
     if not options.batch_mode :
       plt.ion()
       fig1 = plt.figure(1)
-      poi_scan.plot(plt, label='PRL', best_fit=True, marker=options.marker, smoothing=options.smoothing)
-      plt.show()
+    for cl, linestyle in zip(cl_values, linestyles) :
+      poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=options.nsigmas, cl=cl)
+      if first : best_fit = poi_scan.best_fit(print_result=True)
+      if not options.batch_mode :
+        poi_scan.plot(plt, label='%3.1f%% CL' % (cl*100), best_fit=first, marker=options.marker, linestyle=linestyle, smoothing=options.smoothing)
+        plt.show()
+        plt.legend()
+      first = False
 
   with open(results_file, 'w') as fd:
-    json.dump(jdict, fd, ensure_ascii=True, indent=3)
+    json.dump(sdict, fd, ensure_ascii=True, indent=3)
 
 if __name__ == '__main__' : run()
