@@ -423,7 +423,8 @@ class PLRScan2D (Scan) :
     #plt.zlabel('$%s$' % self.ts_name)
     if smoothing == 0 :
       pts = self.points()
-      plt.tricontour(pts[0], pts[1], pts[2], levels=[self.ts_level], colors=[color], linestyles=[linestyle])
+      cs = plt.tricontour(pts[0], pts[1], pts[2], levels=[self.ts_level], colors=[color], linestyles=[linestyle])
+      if label is not None : cs.collections[0].set_label(label)
     else :
       pts = self.points()
       min1 = pts[0][0]
@@ -435,10 +436,11 @@ class PLRScan2D (Scan) :
       x2 = np.linspace(min2, max2, smoothing)
       mesh1, mesh2 = np.meshgrid(x1, x2)
       z = spl(mesh1, mesh2, grid=False)
-      plt.contour(mesh1, mesh2, z, levels=[self.ts_level], colors=[color], linestyles=[linestyle])
+      cs = plt.contour(mesh1, mesh2, z, levels=[self.ts_level], colors=[color], linestyles=[linestyle], label=label)
+      if label is not None : cs.collections[0].set_label(label)
     if best_fit :
       best1, best2 = self.best_fit()
-      plt.scatter(best1, best2, marker=marker, color='k')
+      plt.scatter(best1, best2, marker=marker, color='k', label='Best fit')
     if points : 
       min1 = pts[0][0]
       min2 = pts[1][0]
