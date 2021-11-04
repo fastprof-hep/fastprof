@@ -1,4 +1,4 @@
-python3 -m venv env
+python3 -m venv env --prompt fastprof
 source env/bin/activate
 if [ ! -e build ]; then 
   pip install .; 
