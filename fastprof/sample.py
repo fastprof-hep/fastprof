@@ -5,7 +5,7 @@
 """
 
 from .base import Serializable
-from .norms import Norm, NumberNorm, ParameterNorm, FormulaNorm
+from .norms import Norm, NumberNorm, ParameterNorm, FormulaNorm, LinearCombNorm
 import numpy as np
 from abc import abstractmethod
 
@@ -54,7 +54,7 @@ class Sample(Serializable) :
   """
 
   def __init__(self, name : str = '', norm : Norm = None, nominal_norm : float = None,
-               nominal_yields : np.ndarray = None, impacts : dict = {}) :
+               nominal_yields : np.ndarray = None, impacts : dict = None) :
     """Create a new Sample object
 
       Args:
@@ -68,7 +68,7 @@ class Sample(Serializable) :
     self.norm = norm
     self.nominal_norm = nominal_norm
     self.nominal_yields = nominal_yields
-    self.impacts = impacts
+    self.impacts = impacts if impacts is not None else {}
     self.pos_vars = {}
     self.neg_vars = {}
     self.pos_imps = {}
@@ -239,7 +239,7 @@ class Sample(Serializable) :
       #return np.sqrt((1 + self.impact(par, +1))*(1 + self.impact(par, -1, normalize=True))) - 1
       return 0.5*(self.impact(par, +1) - self.impact(par, -1))
     except Exception as inst:
-      print('Symmetric impact computation failed, returning the positive impacts instead')
+      print("Symmetric impact computation failed for NP '%s' in sample '%s', returning the positive impacts instead." % (par, self.name))
       print(inst)
       return self.impact(par, +1)
 
@@ -312,6 +312,12 @@ class Sample(Serializable) :
       self.norm = ParameterNorm()
     elif norm_type == FormulaNorm.type_str :
       self.norm = FormulaNorm()
+    elif norm_type == LinearCombNorm.type_str :
+      self.norm = LinearCombNorm()
+    elif norm_type == '' :
+      raise KeyError("Could not guess normalization type for sample '%s', please specify it explicitly." % self.name)
+    else :
+      raise KeyError("Unknown normalisation type '%s' in sample '%s'." % (self.norm_type, self.name))
     self.norm.load_dict(sdict)
     self.nominal_norm = self.load_field('nominal_norm', sdict, None, [float, int])
     self.nominal_yields = self.load_field('nominal_yields', sdict, None, list)
