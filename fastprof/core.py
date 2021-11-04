@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 
 from .base import ModelPOI, ModelNP, ModelAux, Serializable
 from .sample import Sample
-from .channels import Channel, SingleBinChannel, BinnedRangeChannel
+from .channels import Channel, SingleBinChannel, MultiBinChannel, BinnedRangeChannel
 
 # -------------------------------------------------------------------------
 class Parameters :
@@ -366,7 +366,7 @@ class Model (Serializable) :
      cutoff (float): regularization term that caps the relative variations in event yields
   """
 
-  def __init__(self, pois : dict = {}, nps : dict = {}, aux_obs : dict = {}, channels : dict = {},
+  def __init__(self, name : str = '', pois : dict = None, nps : dict = None, aux_obs : dict = None, channels : dict = None,
                use_asym_impacts : bool = True, use_linear_nps : bool = False, use_simple_sym_impacts : bool = True,
                use_lognormal_terms : bool = False, variations : list = None, verbosity : int = 0) :
     """Initialize Model object
@@ -383,14 +383,16 @@ class Model (Serializable) :
         variations : list of NP variations to consider (default: None -- use 1 and the largest available other one)
     """
     super().__init__()
-    self.pois = { poi.name : poi for poi in pois }
+    self.name = name
+    self.pois = { poi.name : poi for poi in pois.values() } if pois is not None else {}
     self.nps = {}
-    for par in nps :
-      if par.aux_obs is not None and par.aux_obs not in aux_obs :
-        raise ValueError("Auxiliary observable '%s' for NP '%s' is not defined." % (par.aux_obs, par.name))
-      self.nps[par.name] = par
-    self.aux_obs = { par.name : par for par in aux_obs }
-    self.channels = { channel.name : channel for channel in channels }
+    if nps is not None :
+      for par in nps.values() :
+        if par.aux_obs is not None and par.aux_obs not in aux_obs :
+          raise ValueError("Auxiliary observable '%s' for NP '%s' is not defined." % (par.aux_obs, par.name))
+        self.nps[par.name] = par
+    self.aux_obs = { par.name : par for par in aux_obs.values() } if aux_obs is not None else {}
+    self.channels = { channel.name : channel for channel in channels.values() } if channels is not None else {}
     self.use_asym_impacts = use_asym_impacts
     self.use_linear_nps = use_linear_nps
     self.use_simple_sym_impacts = use_simple_sym_impacts
@@ -561,7 +563,8 @@ class Model (Serializable) :
       Returns:
          Expected event yields per sample per bin
     """
-    nnom = np.stack([ np.concatenate([ self.samples[(channel, s)].yields(pars.dict(nominal_nps=True)) for channel in self.channels]) for s in range(0, self.max_nsamples) ]) 
+    nnom = np.stack([ np.concatenate([ self.samples[(channel_name, s)].yields(pars.dict(nominal_nps=True)) if s < len(channel.samples) else np.zeros(channel.nbins()) \
+                      for channel_name, channel in self.channels.items()]) for s in range(0, self.max_nsamples) ]) 
     k = self.k_exp(pars)
     if self.cutoff == 0 : return nnom*k
     return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
@@ -651,8 +654,9 @@ class Model (Serializable) :
       # automatically "broadcasts" only leading dimensions.
       return (impact.T*self.k_exp(pars).T).T
 
-  def plot(self, pars : Parameters, data : 'Data' = None, channel : Channel = None, only : list = None, exclude : list = None,
-           variations : list = None, residuals : bool = False, canvas : plt.Figure = None, labels : bool = True) :
+  def plot(self, pars : Parameters, data : 'Data' = None, channel_name : str = None, only : list = None, exclude : list = None,
+           variations : list = None, residuals : bool = False, canvas : plt.Figure = None, labels : bool = True, stack : bool = False, figsize=(8,6),
+           bin_width : float = None, logy : bool = False) :
     """Plot the expected event yields and optionally data as well
 
       The plot is performed for a single model, which must be of `binned_range` type.
@@ -673,22 +677,34 @@ class Model (Serializable) :
          canvas     : a matplotlib Figure on which to plot (if None, plt.gca() is used)
          labels     : if True (default), add labels to the legend 
     """
-    if canvas is None : canvas = plt.gca()
     if not isinstance(only, list)    and only    is not None : only = [ only ]
     if not isinstance(exclude, list) and exclude is not None : exclude = [ exclude ]
-    if channel is None :
-      channel = list(self.channels.values())[0]
-      print("Plotting channel '%s'" % channel.name)
-    else :
-      if not channel in self.channels : raise KeyError('ERROR: Channel %s is not defined.' % channel)
-      channel = self.channels[channel]
+    if channel_name is None : channel_name = list(self.channels.keys())
+    if isinstance(channel_name, list) :
+      nchan = len(channel_name)
+      nrows = int(math.sqrt(nchan))
+      ncols = int(nchan/nrows + 0.5)
+      fig, axs = plt.subplots(nrows, ncols, figsize=figsize)
+      fig.tight_layout()
+      for ax in axs.flatten()[nchan:] : ax.set_visible(False)
+      for channel, ax in zip(channel_name, axs.flatten()[:nchan]) :
+        if logy: ax.set_yscale('log')
+        self.plot(pars=pars, data=data, channel_name=channel, only=only, exclude=exclude, variations=variations, residuals=residuals, canvas=ax, labels=labels, stack=stack, bin_width=bin_width)
+      return
+      #channel = list(self.channels.values())[0]
+      #print("Plotting channel '%s'" % channel.name)
+    if not channel_name in self.channels : raise KeyError('ERROR: Channel %s is not defined.' % channel_name)
+    channel = self.channels[channel_name]
     if isinstance(channel, BinnedRangeChannel) :
       grid = [ b['lo_edge'] for b in channel.bins ]
       grid.append(channel.bins[-1]['hi_edge'])
     elif isinstance(channel, SingleBinChannel) :
       grid = [0,1]
+    elif isinstance(channel, MultiBinChannel) :
+      grid = [0, channel.nbins()]
     else :
-      raise ValueError("Channel '%s' is o an unsupported type" % channel.name)
+      raise ValueError("Channel '%s' is of an unsupported type" % channel.name)
+    if canvas is None : canvas = plt.figure(figsize=figsize)
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     start = self.channel_offsets[channel.name]
     stop  = start + channel.nbins()
@@ -715,17 +731,26 @@ class Model (Serializable) :
       subtract = np.zeros(nexp.shape[1])
       line_style = '-'
       title = 'Model'
+      samples = range(0, len(channel.samples))
     yvals = tot_exp - subtract if not residuals or data is None else tot_exp - subtract - counts
-    if isinstance(channel, BinnedRangeChannel) :
-      bin_widths = np.array([ b['hi_edge'] - b['lo_edge'] for b in channel.bins ])
-      yvals /= bin_widths
+    if isinstance(channel, BinnedRangeChannel) and bin_width is not None :
+      bin_corrs = np.array([ bin_width/(b['hi_edge'] - b['lo_edge']) for b in channel.bins ])
+      yvals *= bin_corrs
     canvas.hist(xvals, weights=yvals, bins=grid, histtype='step',color='b', linestyle=line_style, label=title if labels else None)
+    if stack :
+      for sample in samples :
+        stack_exp = nexp[sample:,:].sum(axis=0)
+        yvals = stack_exp - subtract if not residuals or data is None else stack_exp - subtract - counts
+        if isinstance(channel, BinnedRangeChannel)  and bin_width is not None : yvals *= bin_corrs
+        canvas.hist(xvals, weights=yvals, bins=grid, histtype='step', linestyle=line_style, fill=True, label=list(channel.samples)[sample])
     if data is not None :
-      counts = data.counts[start:stop]
+      counts = np.array(data.counts[start:stop])
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in counts ]
       yvals = counts if not residuals else np.zeros(channel.nbins())
-      if isinstance(channel, BinnedRangeChannel) : yvals /= bin_widths
-      canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data' if labels else None)
+      if isinstance(channel, BinnedRangeChannel) and bin_width is not None : 
+        yvals *= bin_corrs
+        yerrs *= bin_corrs
+      canvas.errorbar(xvals, yvals, xerr=[0]*channel.nbins(), yerr=yerrs, fmt='ko', label='Data' if labels else None, zorder=99)
     canvas.set_xlim(grid[0], grid[-1])
     if variations is not None :
       for v in variations :
@@ -739,13 +764,13 @@ class Model (Serializable) :
           subtract = nexp[samples,:].sum(axis=0)
           if only is not None : subtract = nexp.sum(axis=0) - subtract
         tot_exp = nexp.sum(axis=0) - subtract
-        if isinstance(channel, BinnedRangeChannel) : tot_exp /= bin_widths
+        if isinstance(channel, BinnedRangeChannel) and bin_width is not None : tot_exp *= bin_corrs
         canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=line_style, label='%s=%+g' %(v[0], v[1]) if labels else None)
-    if labels : canvas.legend()
+    if labels : canvas.legend().set_zorder(100)
     canvas.set_title(self.name)
     if isinstance(channel, BinnedRangeChannel) :
       canvas.set_xlabel(channel.obs_name + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
-      canvas.set_ylabel('Events / bin')
+      canvas.set_ylabel('Events / %g %s ' % (bin_width, channel.obs_unit) if bin_width is not None else 'Events')
     elif isinstance(channel, SingleBinChannel) :
       canvas.set_xlabel(channel.name)
       canvas.set_ylabel('Events')
