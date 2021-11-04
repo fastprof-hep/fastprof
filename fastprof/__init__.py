@@ -9,5 +9,12 @@ from .sampling        import SamplingDistribution, Samples, CLsSamples
 from .samplers        import ScanSampler, OptiSampler
 from .fit_data        import POIHypo, FitParameter, FitResult, Raster, PLRData
 from .calculators     import TMuCalculator, QMuCalculator, QMuTildaCalculator
-from .model_tools     import ModelMerger, ModelReparam, NPPruner, SamplePruner, ParBound
+from .model_tools     import ModelMerger, ModelReparam, NPPruner, SamplePruner, ChannelMerger, ParBound
 from .scans           import UpperLimitScan, PLRScan1D, PLRScan2D
+
+import numpy as np
+np.set_printoptions(linewidth=200, precision=4, suppress=True, floatmode='maxprec')
+
+import matplotlib.pyplot as plt
+plt.ion()
+plt.show()

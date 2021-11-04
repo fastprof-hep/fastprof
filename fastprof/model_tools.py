@@ -5,9 +5,12 @@ Utility classes for model operations
 import re
 import math
 import numpy as np
+import itertools
 
 from .core  import Model, Data, Parameters, ModelPOI
 from .norms import ParameterNorm, FormulaNorm
+from .sample import Sample
+from .channels  import SingleBinChannel, MultiBinChannel, BinnedRangeChannel
   
 # -------------------------------------------------------------------------
 class ModelMerger :
@@ -158,6 +161,109 @@ class NPPruner :
     self.model.set_internal_vars()
 
 
+# -------------------------------------------------------------------------
+class ChannelMerger :
+  
+  def __init__(self, model : Model, channels_to_merge : list, merged_name : str, obs_bins : list = None, obs_name : str = None, obs_unit : str = '', verbosity : int = 0) :
+    self.model = model
+    self.channels_to_merge = channels_to_merge
+    self.merged_name = merged_name
+    self.obs_bins = obs_bins
+    self.obs_name = obs_name
+    self.obs_unit = obs_unit
+    self.verbosity = verbosity
+    self.merged_samples = {}
+
+  def add_sample(self, sample) :
+    self.merged_samples[sample.name] = Sample(sample.name, sample.norm, sample.nominal_norm, sample.nominal_yields, sample.impacts)
+
+  def check(self) :
+    if len(self.channels_to_merge) == 0 : 
+      print('ERROR: cannot merge an empty list of channels')
+      return False
+    for channel in self.channels_to_merge[1:] :
+      if channel not in self.model.channels :
+        print("ERROR: unknown channel '%s'." % channel)
+        return False   
+    self.merged_samples = {}
+    for channel in self.channels_to_merge :
+      chan = self.model.channels[channel]
+      if isinstance(chan, BinnedRangeChannel) :
+        print("ERROR: cannot cannot merge channel '%s' of binned range type." % chan.name)
+        return False
+      if len(chan.samples) > len(self.merged_samples) :
+        self.merged_samples = {}
+        for sample in chan.samples.values() : self.add_sample(sample)
+    for channel in self.channels_to_merge :
+      chan = self.model.channels[channel]
+      for sample in chan.samples : 
+        if sample not in self.merged_samples : self.add_sample(chan.samples[sample])
+    return True
+
+  def merge(self) :
+    if not self.check() : return None
+    first_channel = self.model.channels[self.channels_to_merge[0]]
+    for merged_sample in self.merged_samples.values() :
+      all_yields = []
+      for channel in self.channels_to_merge :
+        chan = self.model.channels[channel]
+        if merged_sample.name in chan.samples :
+          sample = chan.samples[merged_sample.name]
+          all_yields.append(sample.nominal_yields/sample.nominal_norm*merged_sample.nominal_norm)
+        else :
+          all_yields.append(np.zeros(chan.nbins()))
+      merged_sample.nominal_yields = np.concatenate(all_yields)
+      for par in merged_sample.impacts :
+        all_impacts = []
+        for channel in self.channels_to_merge :
+          chan = self.model.channels[channel]
+          impact = {"+1" : 0, "-1" : 0}
+          if merged_sample.name in chan.samples :
+            sample = self.model.channels[channel].samples[merged_sample.name]
+            if par in sample.impacts : impact = sample.impacts[par] 
+          all_impacts.append(impact)
+        merged_sample.impacts[par] = list(itertools.chain(all_impacts))
+    if self.obs_bins is None :
+      merged_bins = []
+      for channel in self.channels_to_merge :
+        chan = self.model.channels[channel]
+        if isinstance(chan, SingleBinChannel) :
+          merged_bins.append(channel)
+        elif isinstance(chan, MultiBinChannel) :
+          merged_bins.extend(chan.bins)
+    else :
+      if len(self.obs_bins) != len(self.channels_to_merge) + 1 :
+        print("ERROR: expecting '%d' bin boundaries, got '%d'." % (len(self.channels_to_merge) + 1, self.obs_bins))
+        return None
+      merged_bins = [ { 'lo_edge' : self.obs_bins[i], 'hi_edge' : self.obs_bins[i+1] } for i in range(0, len(self.channels_to_merge)) ]
+    merged_channels = {}
+    merged_added = False
+    for channel in self.model.channels.values() :
+      if channel.name not in self.channels_to_merge :
+        merged_channels[channel.name] = channel
+      elif not merged_added :
+        if self.obs_bins is None :
+          merged_channels[self.merged_name] = MultiBinChannel(self.merged_name, merged_bins, merged_samples)
+        else :
+          merged_channels[self.merged_name] = BinnedRangeChannel(self.merged_name, merged_bins, self.obs_name, self.obs_unit, self.merged_samples)    
+        merged_added = True
+    return Model(self.model.name, self.model.pois, self.model.nps, self.model.aux_obs, merged_channels,
+                 self.model.use_asym_impacts, self.model.use_linear_nps, self.model.use_simple_sym_impacts,
+                 self.model.use_lognormal_terms, self.model.variations, self.model.verbosity)
+  
+  def merge_data(self, data, merged_model) :
+    if not self.check() : return None
+    merged_counts = []
+    merged_added = False
+    for channel in self.model.channels :
+      if channel not in self.channels_to_merge :
+        merged_counts.extend(data.counts[self.model.channel_offsets[channel]:self.model.channel_offsets[channel] + self.model.channels[channel].nbins()])
+      elif not merged_added :
+        for merged_channel in self.channels_to_merge : 
+          merged_counts.extend(data.counts[self.model.channel_offsets[merged_channel]:self.model.channel_offsets[merged_channel] + self.model.channels[merged_channel].nbins()])
+        merged_added = True
+    return Data(merged_model, merged_counts, data.aux_obs)
+      
 # -------------------------------------------------------------------------
 class SamplePruner :
   
