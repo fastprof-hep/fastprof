@@ -41,14 +41,14 @@ class Channel(Serializable) :
         to the sample objects (see :class:`Sample`).
   """
 
-  def __init__(self, name : str = '') :
+  def __init__(self, name : str = '', samples : dict = None) :
     """Initializes the Channel class
 
       Args:
          name : channel name
     """
     self.name = name
-    self.samples = {}
+    self.samples = samples if samples is not None else {}
 
   @abstractmethod
   def nbins(self) -> int :
@@ -154,7 +154,7 @@ class BinnedRangeChannel(Channel) :
   """
   type_str = 'binned_range'
 
-  def __init__(self, name : str = '', bins : list = []) :
+  def __init__(self, name : str = '', bins : list = None, obs_name : str = '', obs_unit : str = '', samples : dict = None) :
     """Initializes the BinnedRangeChannel class
 
       Args:
@@ -162,8 +162,10 @@ class BinnedRangeChannel(Channel) :
          bins : list of bin definitions, each in the form of a dict
                 with format { 'lo_edge' : <float value>, 'hi_edge': <float value> }
     """
-    super().__init__(name)
-    self.bins = bins
+    super().__init__(name, samples)
+    self.bins = bins if bins is not None else []
+    self.obs_name = obs_name
+    self.obs_unit = obs_unit
 
   def nbins(self) -> int :
     """Returns the number of bins in the channel
@@ -264,13 +266,13 @@ class SingleBinChannel(Channel) :
 
   type_str = 'bin'
 
-  def __init__(self, name : str = '') :
+  def __init__(self, name : str = '', samples : dict = None) :
     """Initializes the BinnedRangeChannel class
 
       Args:
          name : channel name (and bin name)
     """
-    super().__init__(name)
+    super().__init__(name, samples)
 
   def nbins(self) -> int :
     """Returns the number of bins in the channel
@@ -337,3 +339,103 @@ class SingleBinChannel(Channel) :
     super().save_data_dict(sdict, counts)
     sdict['type'] = SingleBinChannel.type_str
     sdict['counts'] = int(counts[0])
+
+
+# -------------------------------------------------------------------------
+class MultiBinChannel(Channel) :
+  """Class representing a model channel consisting of a set of discrete bins
+
+  Class derived from :class:`Channel` to handle a bin channel consisting
+  of a set of discrete, names bins.
+ 
+  Each bin is specified by a bin name.
+  """
+  type_str = 'multi_bin'
+
+  def __init__(self, name : str = '', bins : list = None, samples : dict = None) :
+    """Initializes the MultiBinChannel class
+
+      Args:
+         name : channel name
+         bins : list of bin names
+    """
+    super().__init__(name, samples)
+    self.bins = bins if bins is not None else {}
+
+  def nbins(self) -> int :
+    """Returns the number of bins in the channel
+
+      Returns:
+        the number of bins
+    """
+    return len(self.bins)
+
+  def load_dict(self, sdict : dict) :
+    """Load object information from a dictionary of markup data
+
+      Args:
+        sdict: A dictionary containing markup data
+
+      Returns:
+        Channel: self
+    """
+    super().load_dict(sdict)
+    if sdict['type'] != MultiBinChannel.type_str :
+      raise ValueError("Trying to load a MultiBinChannel from channel data of type '%s'" % sdict['type'])
+    self.bins = sdict['bins']
+    return self
+
+  def fill_dict(self, sdict) :
+    """Save information to a dictionary of markup data
+
+      Args:
+         sdict: A dictionary containing markup data
+    """
+    super().fill_dict(sdict)
+    sdict['type'] = MultiBinChannel.type_str
+    sdict['bins'] = self.bins
+    sdict['samples'] = sdict.pop('samples') # reorder to have samples at end
+
+  def load_data_dict(self, sdict : dict, counts : np.array) :
+    """Load observed data information from markup
+    
+    Utility function called from :class:`fastprof.Data` to parse
+    an observed data specification for this channel and fill an
+    array of event counts
+
+      Args:
+        sdict: A dictionary containing markup data
+        counts : the array of data counts to fill
+    """
+    super().load_data_dict(sdict, counts)
+    if not 'name' in sdict :
+      raise KeyError("Data channel definition must contain a 'name' field")
+    if not 'bins' in sdict :
+      raise KeyError("No 'bins' section defined for data channel '%s' in specified markup file." % self.name)
+    if len(sdict['bins']) != self.nbins() :
+      raise ValueError("Binned range channel '%s' in specified markup file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), self.nbins()))
+    for b, bin_data in sdict['bins'] :
+      if bin_data['name'] != self.bins[b] :
+        raise ValueError("Bin %d in data channel '%s' has name '%s', but the model specifies name '%s'." % (b, self.name, bin_data['name'], self.bins[b]))
+      counts[b] = bin_data['counts']
+
+  def save_data_dict(self, sdict : dict, counts : np.array) :
+    """Save observed data information from markup
+    
+    Utility function called from :class:`fastprof.Data` to write
+    out an observed data specification for this channel into the
+    appropriate format
+
+    Args:
+      sdict  : A dictionary to fill with markup data
+      counts : an array of data counts to read from
+    """
+    super().save_data_dict(sdict, counts)
+    sdict['type'] = MultiBinChannel.type_str
+    sdict['bins'] = []
+    for b, bin_name in enumerate(self.bins) :
+      bin_data = {}
+      bin_data['name'] = bin_name
+      bin_data['counts'] = int(counts[b])
+      sdict['bins'].append(bin_data)
+
