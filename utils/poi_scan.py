@@ -153,7 +153,7 @@ def run(argv = None) :
       poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
       if first : best_fit = poi_scan.best_fit(print_result=True)
       if not options.batch_mode :
-        poi_scan.plot(plt, label='%3.1f%% CL' % (cl*100), best_fit=first, marker=options.marker, linestyle=linestyle, smoothing=options.smoothing)
+        poi_scan.plot(plt, label='%3.1f%% CL' % (poi_scan.cl()*100), best_fit=first, marker=options.marker, linestyle=linestyle, smoothing=options.smoothing)
         plt.show()
         plt.legend()
       first = False
