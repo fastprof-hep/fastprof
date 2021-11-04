@@ -82,6 +82,24 @@ class NumberNorm(Serializable) :
     """
     self.norm_value = norm_value
   
+  def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
+    """provides the NP variations that are implicit in the norm
+
+      This is called only for NPs. If the normalization parameter is an NP,
+      then this function will automatically provide the corresponding
+      impact value on the bin contents. Here there are no variations since the
+      norm is just a number, so always return None
+
+      Args:
+         par       : the nuisance parameter for which to get variations
+         variation : magnitude of the NP variation, in numbers of sigmas
+         normalize : if True, return the variation scaled to a +1sigma effect
+
+      Returns:
+        the relative yield variation for the specified NP variation
+    """
+    return None
+
   def value(self, pars_dict : dict) -> float :
     """Computes the overall normalization factor
 
