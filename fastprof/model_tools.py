@@ -8,7 +8,7 @@ import numpy as np
 import itertools
 
 from .core  import Model, Data, Parameters, ModelPOI
-from .norms import ParameterNorm, FormulaNorm
+from .norms import ParameterNorm, FormulaNorm, NumberNorm
 from .sample import Sample
 from .channels  import SingleBinChannel, MultiBinChannel, BinnedRangeChannel
   
@@ -186,23 +186,28 @@ class ChannelMerger :
         print("ERROR: unknown channel '%s'." % channel)
         return False   
     self.merged_samples = {}
+    longest_channel = None
     for channel in self.channels_to_merge :
       chan = self.model.channels[channel]
       if isinstance(chan, BinnedRangeChannel) :
         print("ERROR: cannot cannot merge channel '%s' of binned range type." % chan.name)
         return False
-      if len(chan.samples) > len(self.merged_samples) :
-        self.merged_samples = {}
-        for sample in chan.samples.values() : self.add_sample(sample)
+      if longest_channel is None or len(chan.samples) > len(longest_channel.samples) :
+        longest_channel = chan
+    for sample in longest_channel.samples.values() : self.add_sample(sample)
     for channel in self.channels_to_merge :
       chan = self.model.channels[channel]
       for sample in chan.samples : 
-        if sample not in self.merged_samples : self.add_sample(chan.samples[sample])
+        if sample not in self.merged_samples :
+          self.add_sample(chan.samples[sample])
+        else :
+          merged_sample = self.merged_samples[sample]
+          for par in chan.samples[sample].impacts :
+            if par not in merged_sample.impacts : merged_sample.impacts[par] = {"+1" : 0, "-1" : 0}
     return True
 
   def merge(self) :
     if not self.check() : return None
-    first_channel = self.model.channels[self.channels_to_merge[0]]
     for merged_sample in self.merged_samples.values() :
       all_yields = []
       for channel in self.channels_to_merge :
