@@ -52,7 +52,7 @@ import copy
 import json
 
 from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
-from utils import process_setval_list
+from fastprof_utils import process_setval_list
 
 
 ####################################################################################################################################

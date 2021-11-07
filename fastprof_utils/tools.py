@@ -1,5 +1,5 @@
 """
-Common functions for utils/ scripts
+Common functions for fastprof_utils/ scripts
 
 """
 

@@ -19,7 +19,7 @@ __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from fastprof import Model, Data, OptiMinimizer, NPMinimizer, QMuTildaCalculator
-from utils import process_setvals, process_setranges
+from fastprof_utils import process_setvals, process_setranges
 import matplotlib.pyplot as plt
 import numpy as np
 import json

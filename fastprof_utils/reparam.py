@@ -13,7 +13,7 @@ import numpy as np
 import json
 
 from fastprof import Model, Data, ModelPOI, ModelReparam, NumberNorm, ParameterNorm, FormulaNorm
-from utils import process_setval_list, process_setvals, process_setranges, process_pois
+from fastprof_utils import process_setval_list, process_setvals, process_setranges, process_pois
 
 
 ####################################################################################################################################

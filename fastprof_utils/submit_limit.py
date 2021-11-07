@@ -93,7 +93,7 @@ def run(argv = None) :
       print('Trying to submit iteration %d but previous iteration still seems active (file %s has size 0), aborting job submission' % (resume, 'stdout_%d' % (resume-1)))
       sys.exit(0)
   
-  command = './fastprof/utils/compute_limits.py -m %s -f %s -n %d -s %d %s -o samples/%s' % (options.model_file, options.fits_file, options.ntoys, options.seed, opts, options.name)
+  command = './fastprof/fastprof_utils/compute_limits.py -m %s -f %s -n %d -s %d %s -o samples/%s' % (options.model_file, options.fits_file, options.ntoys, options.seed, opts, options.name)
   with open(job, 'w') as f :
     f.write(command)
   os.chmod(job, 0o555)

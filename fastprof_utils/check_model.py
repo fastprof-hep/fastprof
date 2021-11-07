@@ -27,7 +27,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import matplotlib.pyplot as plt
 
 from fastprof import Model, Data, Raster, QMuCalculator, QMuTildaCalculator, OptiMinimizer
-from utils import process_setvals
+from fastprof_utils import process_setvals
 
 
 ####################################################################################################################################
