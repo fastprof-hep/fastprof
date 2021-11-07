@@ -34,7 +34,7 @@ def make_parser() :
   parser.add_argument(      "--regularize"    , type=float, default=None     , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None     , help="Cutoff to regularize the impact of NPs")
   parser.add_argument(      "--marker"        , type=str  , default='+'      , help="Marker type for plots")
-  parser.add_argument("-l",  "--linestyle"    , type=str  , default='-,--,:' , help="Line style for plots")
+  parser.add_argument("-l", "--linestyle"     , type=str  , default='-,--,:' , help="Line style for plots")
   parser.add_argument(      "--smoothing"     , type=int  , default=0        , help="Smoothing for contours (0=no smoothing)")
   parser.add_argument(      "--batch-mode"    , action='store_true'          , help="Batch mode: no plots shown")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=0        , help="Verbosity level")
