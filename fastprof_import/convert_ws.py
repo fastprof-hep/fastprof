@@ -53,7 +53,7 @@ import json,yaml
 import array
 import math
 import ROOT
-from root_import.tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned, trim_float
+from fastprof_import.tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned, trim_float
 
 class WSChannel() : pass
 class WSSample() : pass

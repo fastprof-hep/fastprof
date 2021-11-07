@@ -19,7 +19,7 @@ __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import ROOT
-from root_import.tools import make_asimov
+from fastprof_import.tools import make_asimov
 
 ####################################################################################################################################
 ###

@@ -61,7 +61,7 @@ import json
 from scipy.stats import norm
 import ROOT
 
-from root_import.tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
+from fastprof_import.tools import process_setvals, process_setranges, process_setconsts, fit, make_asimov, make_binned
 
 def make_parser() :
   parser = ArgumentParser("fit_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
