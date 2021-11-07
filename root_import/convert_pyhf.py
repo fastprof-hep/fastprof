@@ -145,12 +145,12 @@ def run(argv = None) :
           normfactors = [ modifier['name'] for modifier in pyhf_sample['modifiers'] if modifier['type'] == 'normfactor' ]
           if len(normfactors) > 1 : raise("Sample '%s' has %d normfactors, can only handle one -- exiting." % (sample['name'], len(normfactors)))
           if len(normfactors) == 1 :
-            sample['norm_type'] = 'parameter'
+            #sample['norm_type'] = 'parameter'
             sample['nominal_norm'] = 1 # FIXME: put the nominal POI or NP value here inste
             sample['norm'] = normfactors[0]
-          else :
-            sample['norm_type'] = 'number'
-            sample['norm'] = nominal_yields
+          #else :
+          #  sample['norm_type'] = 'number'
+          #  sample['norm'] = 1
           sample['impacts'] = {} 
           for modifier in pyhf_sample['modifiers'] :
             if not modifier['name'] in fastprof_model['NPs'] and not modifier['name'] in fastprof_model['POIs'] :
@@ -158,19 +158,28 @@ def run(argv = None) :
             if modifier['name'] in normfactors : continue
             if modifier['type'] == 'lumi' :
               #impact = { "+1" : +1, "-1" : -1 }
-              impact = { "+1" : fastprof_model['NPs']['lumi']['constraint'], "-1" : -fastprof_model['NPs']['lumi']['constraint'] }
+              impact = { "+1" : 1.0, "-1" : -1.0 }
             elif modifier['type'] == 'normsys' :
               impact = { "+1" : modifier['data']['hi'] - 1, "-1" : modifier['data']['lo'] - 1 }
             elif modifier['type'] == 'histosys' :
               impact = { "+1" : modifier['data']['hi_data'][0]/nominal_yields - 1, "-1" : modifier['data']['lo_data'][0]/nominal_yields - 1 }
             elif modifier['type'] == 'shapesys' :
-              impact = { "+1" : modifier['data'][0]/nominal_yields, "-1" : -modifier['data'][0]/nominal_yields }
+              sigma = modifier['data'][0]/nominal_yields
+              if sigma > 0 :
+                fastprof_model['NPs'][modifier['name']]['nominal_value'] = 1
+                fastprof_model['NPs'][modifier['name']]['constraint'] = sigma
+                impact = { "+1" : 1.0, "-1" : -1.0 }
+              else :
+                del fastprof_model['NPs'][modifier['name']]
             else :
               raise ValueError("Unknown modifier type '%s' in channel '%s'." % (modifier['type'], pyhf_channel['name']))
+            if impact["+1"]*impact["-1"] > 0 : 
+              print("WARNING: +1 sigma and -1 sigma impacts for '%s' in sample '%s' of channel '%s' (%g, %g) have the same sign, setting to default." % (modifier['name'], sample['name'], channel['name'], impact["+1"], impact["-1"]))
+              #impact = { "+1" : 0.0, "-1" : 0.0 }
             sample['impacts'][modifier['name']] = impact
           channel['samples'].append(sample)
       else :
-        raise("Conversion of multi-bin channels is not yet implemented, cannot handle channel '%s'." % pyhf_channel['name'])
+        raise TypeError("Conversion of multi-bin channels is not yet implemented, cannot handle channel '%s' with %d bins." % (pyhf_channel['name'], nbins))
         # TODO: implement fully multi-bin channels, and treat single-bin case as a special case (do everything the multi-bin way, then simplify to single-bin if nbins=1) 
         #for par in fastprof_model['NPs'] :
         #  if 'aux_obs' in par : 
@@ -190,8 +199,6 @@ def run(argv = None) :
     fastprof_data['aux_obs'] = []
     for par in fastprof_model['NPs'].values() :
       if 'aux_obs' in par : fastprof_data['aux_obs'].append({ 'name' : par['aux_obs'], 'value' : par['nominal_value'] })
-
-  fastprof_model['NPs']['lumi']['constraint'] = 1
 
   with open(options.output_file, 'w') as fd :
     sdict = {}
