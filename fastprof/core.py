@@ -686,6 +686,7 @@ class Model (Serializable) :
       ncols = int(nchan/nrows + 0.5)
       fig, axs = plt.subplots(nrows, ncols, figsize=figsize)
       fig.tight_layout()
+      if not isinstance(axs, list) : axs = np.array([ axs ])
       for ax in axs.flatten()[nchan:] : ax.set_visible(False)
       for channel, ax in zip(channel_name, axs.flatten()[:nchan]) :
         if logy: ax.set_yscale('log')
