@@ -1,9 +1,10 @@
 fastprof/__pycache__/
 utils/__pycache__/
-root_import/__pycache__/
+import/__pycache__/
 env/
 build/
 dist/
 pyvenv.cfg
 fastprof.egg-info/
 doc/api
+packaging/fastprof
