@@ -298,7 +298,7 @@ class Sample(Serializable) :
     # depending if the 'norm' parameter represents a float
     if norm_type == '' :
       norm = self.load_field('norm', sdict, None, [int, float, str])
-      if isinstance(norm, (int, float)) or norm == '' :
+      if isinstance(norm, (int, float)) or norm is None :
         norm_type = NumberNorm.type_str
       else :
         try:
