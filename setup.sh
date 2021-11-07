@@ -1,5 +1,6 @@
 python3 -m venv env --prompt fastprof
 source env/bin/activate
+pip install --upgrade pip | grep -v 'already satisfied'
 if [ ! -e build ]; then 
   pip install .; 
   cd doc; make doc; make html; cd ..
