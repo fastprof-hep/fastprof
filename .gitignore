@@ -1,6 +1,7 @@
-fastprof/__pycache__/
-utils/__pycache__/
-import/__pycache__/
+.eggs
+src/fastprof/__pycache__/
+src/fastprof_utils/__pycache__/
+src/fastprof_import/__pycache__/
 env/
 build/
 dist/
