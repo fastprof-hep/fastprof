@@ -237,10 +237,10 @@ class ChannelMerger :
         elif isinstance(chan, MultiBinChannel) :
           merged_bins.extend(chan.bins)
     else :
-      if len(self.obs_bins) != len(self.channels_to_merge) + 1 :
-        print("ERROR: expecting '%d' bin boundaries, got '%d'." % (len(self.channels_to_merge) + 1, self.obs_bins))
+      if len(self.obs_bins) != len(self.channels_to_merge) :
+        print("ERROR: specified '%d' bins, was expecting the same as the number of channels, '%d'." % (len(self.obs_bins), len(self.channels_to_merge)))
         return None
-      merged_bins = [ { 'lo_edge' : self.obs_bins[i], 'hi_edge' : self.obs_bins[i+1] } for i in range(0, len(self.channels_to_merge)) ]
+      merged_bins = [ { 'lo_edge' : obs_bin[0], 'hi_edge' : obs_bin[1] } for obs_bin in self.obs_bins ]
     merged_channels = {}
     merged_added = False
     for channel in self.model.channels.values() :
