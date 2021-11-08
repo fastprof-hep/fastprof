@@ -128,12 +128,15 @@ def run(argv = None) :
       interval = poi_scan.interval(print_result=True)
       # Plot results
       if not options.batch_mode :
-        poi_scan.plot(plt, marker='b', linestyle=linestyle, label='PRL_smooth', smooth=100)
-        poi_scan.plot(plt, marker=options.marker, linestyle=linestyle, label='PRL')
+        #poi_scan.plot(plt, marker='b', linestyle=linestyle, label='PRL_smooth', smooth=100)
+        poi_scan.plot(plt, linestyle=linestyle, label='Profile likelihood', smooth=100)
+        poi_scan.plot(plt, marker=options.marker, linestyle='None')
         plt.ylim(0, None)
         plt.axhline(y=poi_scan.ts_level, color='k', linestyle='dotted')
         plt.show()
         plt.legend()
+        plt.savefig(options.output_file + '%.0f%%CL.pdf' % (100*poi_scan.cl()))
+        plt.savefig(options.output_file + '%.0f%%CL.png' % (100*poi_scan.cl()))
       cl_dict = {}
       cl_dict['cl'] = poi_scan.cl()
       cl_dict['poi_name'] = poi_name
