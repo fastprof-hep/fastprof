@@ -685,12 +685,11 @@ class Model (Serializable) :
       nrows = int(math.sqrt(nchan))
       ncols = int(nchan/nrows + 0.5)
       fig, axs = plt.subplots(nrows, ncols, figsize=figsize)
-      fig.tight_layout()
       if not isinstance(axs, list) : axs = np.array([ axs ])
       for ax in axs.flatten()[nchan:] : ax.set_visible(False)
       for channel, ax in zip(channel_name, axs.flatten()[:nchan]) :
-        if logy: ax.set_yscale('log')
-        self.plot(pars=pars, data=data, channel_name=channel, only=only, exclude=exclude, variations=variations, residuals=residuals, canvas=ax, labels=labels, stack=stack, bin_width=bin_width)
+        self.plot(pars=pars, data=data, channel_name=channel, only=only, exclude=exclude, variations=variations, residuals=residuals, canvas=ax, labels=labels, stack=stack, bin_width=bin_width, logy=logy)
+      fig.tight_layout()
       return
       #channel = list(self.channels.values())[0]
       #print("Plotting channel '%s'" % channel.name)
@@ -706,6 +705,7 @@ class Model (Serializable) :
     else :
       raise ValueError("Channel '%s' is of an unsupported type" % channel.name)
     if canvas is None : canvas = plt.figure(figsize=figsize)
+    if logy: canvas.set_yscale('log')
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     start = self.channel_offsets[channel.name]
     stop  = start + channel.nbins()
@@ -731,7 +731,7 @@ class Model (Serializable) :
     else :
       subtract = np.zeros(nexp.shape[1])
       line_style = '-'
-      title = 'Model'
+      title = 'Full model'
       samples = range(0, len(channel.samples))
     yvals = tot_exp - subtract if not residuals or data is None else tot_exp - subtract - counts
     if isinstance(channel, BinnedRangeChannel) and bin_width is not None :
@@ -768,12 +768,13 @@ class Model (Serializable) :
         if isinstance(channel, BinnedRangeChannel) and bin_width is not None : tot_exp *= bin_corrs
         canvas.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=line_style, label='%s=%+g' %(v[0], v[1]) if labels else None)
     if labels : canvas.legend().set_zorder(100)
-    canvas.set_title(self.name)
+    canvas.set_title(channel.name)
     if isinstance(channel, BinnedRangeChannel) :
       canvas.set_xlabel(channel.obs_name + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
       canvas.set_ylabel('Events / %g %s ' % (bin_width, channel.obs_unit) if bin_width is not None else 'Events')
     elif isinstance(channel, SingleBinChannel) :
-      canvas.set_xlabel(channel.name)
+      canvas.tick_params(axis='x', which='both', bottom=False, labelbottom=False) # remove x ticks and labels 
+      #canvas.set_xlabel(channel.name)
       canvas.set_ylabel('Events')
 
     #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
