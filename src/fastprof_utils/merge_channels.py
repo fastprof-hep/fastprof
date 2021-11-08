@@ -67,7 +67,7 @@ def run(argv = None) :
       merge_specs.append({ 'name' : name, 'merged_channels' : merged_channels, 'ranges' : ranges })
   except Exception as inst :
     print(inst)
-    return
+    raise ValueError('Could not parse merged channel specification')
 
   current_model = model
   current_data = data
