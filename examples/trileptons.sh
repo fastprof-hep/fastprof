@@ -23,8 +23,8 @@ poi_scan.py -m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json 
 
 # Plot the model -- first we need to reunite the 3 SRs, which are provided as separate bins in the pyhf model.
 # The code below stitches together the different bins into a single range for each of the 3 SRs (SRFR, SR3l and SR4l)
-merge_channels.py -m run/brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json -d run/brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json \
--o run/trileptons/brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_mergebins --obs-name mZl --obs-unit GeV -c "\
+merge_channels.py -m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json -d fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json \
+-o fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_merged --obs-name mZl --obs-unit GeV -c "\
   SRFR=\
     SRFR_90_110_all_cuts:90:110,
     SRFR_110_130_all_cuts:110:130,
@@ -78,8 +78,8 @@ merge_channels.py -m run/brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json
     SR3l_580_inf_all_cuts:580:700"
 
 # Now perform the actual plot
-python -i src/fastprof_utils/plot.py \
--m run/trileptons/brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_mergebins.json \
--d run/trileptons/brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_mergebins_data.json \
+plot.py \
+-m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_merged.json \
+-d fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_merged_data.json \
 --setval mu_SIG=0.05 --stack --log-scale --window 15x10 -o plot.pdf
     
