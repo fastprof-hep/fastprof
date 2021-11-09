@@ -26,8 +26,8 @@ def make_parser() :
   parser.add_argument("-o", "--output-file"   , type=str  , required=True    , help="Name of output file")
   parser.add_argument("-c", "--channels"      , type=str  , required=True    , help="Merging specification, as new_channel1=channel1(range),channel2(range):...")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=0        , help="Verbosity level")
-  parser.add_argument("-n", "--obs-name"      , type=str  , default=None     , help="Name of observable in meged channel")
-  parser.add_argument("-u", "--obs-unit"      , type=str  , default=None     , help="Unit of observable in meged channel")
+  parser.add_argument("-n", "--obs-name"      , type=str  , default=None     , help="Name of observable in merged channel")
+  parser.add_argument("-u", "--obs-unit"      , type=str  , default=None     , help="Unit of observable in merged channel")
   return parser
 
 def run(argv = None) :
