@@ -18,13 +18,17 @@ jsonpatch inclusive_bkgonly.json <(pyhf patchset extract inclusive_patchset.json
 # Convert the model to fastprof format
 convert_pyhf.py brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json -o fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json
 
+# Prune away 8 problematic NPs
+prune_nps.py -m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json -d fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json -p "theory_scale_muF_ttZ, theory_scale_muR_ttZ, theory_scale_muRmuF_ttZ, shape_mcstat_Fakes_all_SRFR_130_150_all_obs_cuts, Fakes_all_negative_SRFR_440_580, shape_mcstat_Fakes_all_SRFR_440_580_all_obs_cuts, shape_mcstat_Fakes_all_SR4l_170_190_all_obs_cuts, shape_mcstat_Other_SRFR_330_360_all_obs_cuts" -o fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_pruned
+
+
 # Perform a likelihood scan over the mu_SIG POI
-poi_scan.py -m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json -y mu_SIG=-0.01:0.2:22+ -o mu_SIG -c 1 -v 1
+poi_scan.py -m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_pruned.json -d fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_pruned_data.json -y mu_SIG=-0.01:0.2:22+ -o mu_SIG -c 1 -v 1
 
 # Plot the model -- first we need to reunite the 3 SRs, which are provided as separate bins in the pyhf model.
 # The code below stitches together the different bins into a single range for each of the 3 SRs (SRFR, SR3l and SR4l)
-merge_channels.py -m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json -d fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json \
--o fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_merged --obs-name mZl --obs-unit GeV -c "\
+merge_channels.py -m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_pruned.json -d fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_pruned_data.json \
+-o fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_pruned_merged --obs-name mZl --obs-unit GeV -c "\
   SRFR=\
     SRFR_90_110_all_cuts:90:110,
     SRFR_110_130_all_cuts:110:130,
@@ -79,7 +83,7 @@ merge_channels.py -m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500
 
 # Now perform the actual plot
 plot.py \
--m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_merged.json \
--d fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_merged_data.json \
---setval mu_SIG=0.05 --stack --log-scale --window 15x10 -o plot.pdf
+-m fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_pruned_merged.json \
+-d fastprof_brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500_pruned_merged_data.json \
+--setval mu_SIG=0.05 --stack --log-scale --window 15x10 --bin-width 1 -o plot.pdf
     
