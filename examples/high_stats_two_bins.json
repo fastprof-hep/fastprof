@@ -39,6 +39,13 @@
             "aux_obs": "aux_bkg2"
          }
       ],
+      "expressions" : [
+         {
+            "name": "totalXS",
+            "type": "linear_combination",
+            "pars_coeffs": { "xs1" : 1, "xs2" : 1 }
+         }
+      ],
       "channels": [
          {
             "name": "SR1",
@@ -46,8 +53,7 @@
             "samples": [
                {
                   "name": "Signal",
-                  "norm_type": "formula",
-                  "norm": "xs1 + xs2",
+                  "norm": "totalXS",
                   "nominal_norm": 1,
                   "nominal_yields": [ 10 ],
                   "impacts": {

@@ -8,7 +8,7 @@ import numpy as np
 import itertools
 
 from .core  import Model, Data, Parameters, ModelPOI
-from .norms import ParameterNorm, FormulaNorm, NumberNorm
+from .norms import ExpressionNorm, NumberNorm
 from .sample import Sample
 from .channels  import SingleBinChannel, MultiBinChannel, BinnedRangeChannel
   
@@ -112,7 +112,7 @@ class ModelReparam :
       poi = self.model.pois.pop(selected_name)
       for channel in self.model.channels.values() :
         for sample in channel.samples.values() :
-          if isinstance(sample.norm, ParameterNorm) and sample.norm.par_name == selected_name :
+          if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
             if selected_name not in values :
               raise KeyError("Cannot remove POI '%s' as it is used to normalize sample '%s' of channel '%s'. Please provide a numerical value to use as a replacement." % (selected_name, sample.name, channel.name))
             if verbosity > 0 : print("Using %s=%g replacement in the normalization of sample '%s' of channel '%s'." % (selected_name, values[selected_name], sample.name, channel.name))
@@ -152,7 +152,7 @@ class NPPruner :
         if par.aux_obs : self.model.aux_obs.pop(par.aux_obs)
         for channel in self.model.channels.values() :
           for sample in channel.samples.values() :
-            if isinstance(sample.norm, ParameterNorm) and sample.norm.par_name == selected_name :
+            if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
               if self.verbosity > 0 : print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, par.nominal_value, sample.name, channel.name))
               sample.norm = NumberNorm(par.nominal_value)
             if isinstance(sample.norm, FormulaNorm) and sample.norm.formula.find(selected_name) != -1 :

@@ -5,7 +5,7 @@
 """
 
 from .base import Serializable
-from .norms import Norm, NumberNorm, ParameterNorm, FormulaNorm, LinearCombNorm
+from .norms import Norm, NumberNorm, ExpressionNorm
 import numpy as np
 from abc import abstractmethod
 
@@ -294,7 +294,7 @@ class Sample(Serializable) :
     """
     self.name = self.load_field('name', sdict, '', str)
     norm_type = self.load_field('norm_type', sdict, '', str)
-    # Automatic typecasting: either NumberNorm or ParameterNorm,
+    # Automatic typecasting: either NumberNorm or ExpressionNorm,
     # depending if the 'norm' parameter represents a float
     if norm_type == '' :
       norm = self.load_field('norm', sdict, None, [int, float, str])
@@ -305,19 +305,13 @@ class Sample(Serializable) :
           float(norm)
           norm_type = NumberNorm.type_str
         except Exception as inst:
-          norm_type = ParameterNorm.type_str
+          norm_type = ExpressionNorm.type_str
     if norm_type == NumberNorm.type_str :
       self.norm = NumberNorm()
-    elif norm_type == ParameterNorm.type_str :
-      self.norm = ParameterNorm()
-    elif norm_type == FormulaNorm.type_str :
-      self.norm = FormulaNorm()
-    elif norm_type == LinearCombNorm.type_str :
-      self.norm = LinearCombNorm()
-    elif norm_type == '' :
-      raise KeyError("Could not guess normalization type for sample '%s', please specify it explicitly." % self.name)
+    elif norm_type == ExpressionNorm.type_str :
+      self.norm = ExpressionNorm()
     else :
-      raise KeyError("Unknown normalisation type '%s' in sample '%s'." % (self.norm_type, self.name))
+      raise KeyError("Unknown normalisation type '%s' in sample '%s'." % (norm_type, self.name))
     self.norm.load_dict(sdict)
     self.nominal_norm = self.load_field('nominal_norm', sdict, None, [float, int])
     self.nominal_yields = self.load_field('nominal_yields', sdict, None, list)

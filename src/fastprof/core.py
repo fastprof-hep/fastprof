@@ -34,6 +34,7 @@ import matplotlib.pyplot as plt
 from .base import ModelPOI, ModelNP, ModelAux, Serializable
 from .sample import Sample
 from .channels import Channel, SingleBinChannel, MultiBinChannel, BinnedRangeChannel
+from .expressions import Expression, LinearCombination, Formula
 
 # -------------------------------------------------------------------------
 class Parameters :
@@ -367,15 +368,17 @@ class Model (Serializable) :
   """
 
   def __init__(self, name : str = '', pois : dict = None, nps : dict = None, aux_obs : dict = None, channels : dict = None,
-               use_asym_impacts : bool = True, use_linear_nps : bool = False, use_simple_sym_impacts : bool = True,
-               use_lognormal_terms : bool = False, variations : list = None, verbosity : int = 0) :
+               expressions : dict = None, use_asym_impacts : bool = True, use_linear_nps : bool = False,
+               use_simple_sym_impacts : bool = True, use_lognormal_terms : bool = False, variations : list = None,
+               verbosity : int = 0) :
     """Initialize Model object
 
       Args:
         pois     : the model POIs, as a dict mapping POI names to :class:`fastprof.elements.ModelPOI` objects
         nps      : the model NPs, as a dict mapping NP names to :class:`fastprof.elements.ModelNP` objects
         aux_obs  : the model aux. obs., as a dict mapping names to :class:`fastprof.elements.ModelAux` objects
-        channels : the model channelsm as a dict mapping channel names to :class:`fastprof.elements.Channel` objects
+        channels : the model channels, as a dict mapping channel names to :class:`fastprof.elements.Channel` objects
+        expressions      : the model expressions as a dict mapping names to :class:`fastprof.elements.Expression` objects
         use_asym_impacts : option to use symmetric or asymmetric NP impacts (see class description, default: True)
         use_linear_nps   : option to use the linear or exp form of NP impact on yields (see class description, default: False)
         use_simple_sym_impacts : option to use `sym_impacts` for the linear impacts (see :meth:`Model.linear_impacts`, default: True)
@@ -393,6 +396,7 @@ class Model (Serializable) :
         self.nps[par.name] = par
     self.aux_obs = { par.name : par for par in aux_obs.values() } if aux_obs is not None else {}
     self.channels = { channel.name : channel for channel in channels.values() } if channels is not None else {}
+    self.expressions = { expr.name : expr for expr in expressions.values() } if expressions is not None else {}
     self.use_asym_impacts = use_asym_impacts
     self.use_linear_nps = use_linear_nps
     self.use_simple_sym_impacts = use_simple_sym_impacts
@@ -466,6 +470,7 @@ class Model (Serializable) :
           self.neg_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(neg_list)
         self.sym_impact_coeffs[s, :, p] = np.concatenate(sym_list)
     if self.verbosity > 0 : sys.stderr.write('\n')
+
   def poi(self, index : str) -> ModelPOI :
     """Returns a POI object by index
 
@@ -486,6 +491,16 @@ class Model (Serializable) :
          The channel object of that name
     """
     return self.channels[name] if name in self.channels else None
+
+  def expression(self, name : str) -> Expression :
+    """Returns an expression object by name
+
+      Args:
+         name : an expression name
+      Returns:
+         The expression object of that name
+    """
+    return self.expressions[name] if name in self.expressions else None
 
   def all_pars(self) -> dict :
     """Returns all model parameters
@@ -548,7 +563,25 @@ class Model (Serializable) :
       else :
         return np.exp(np.log(1 + self.sym_impact_coeffs).dot(pars.nps))
 
-    
+  def full_expr_dict(self, pars) :
+    """Returns a full dictionary of parameter values, including expressions
+
+       Parameters are internally stored as :class:`Parameters` objects, but
+       to evaluate the NLL it is more convenient to have simple name:value
+       pairs. This also allows to add to the list the expressions, which
+       are essentially functions of the parameters. These are added in order,
+       under the assumption that expressions of other expressions are listed
+       after their dependents.
+
+      Args:
+         pars: a :class:`Parameters` object
+      Returns:
+         a dictionary of name:value pairs
+    """
+    pars_dict = pars.dict(nominal_nps=True)
+    for expr in self.expressions.values() : pars_dict[expr.name] = expr.value(pars_dict)
+    return pars_dict
+
   def n_exp(self, pars : Parameters) -> np.array :
     """Returns the expected event yields for a given parameter value
 
@@ -563,7 +596,8 @@ class Model (Serializable) :
       Returns:
          Expected event yields per sample per bin
     """
-    nnom = np.stack([ np.concatenate([ self.samples[(channel_name, s)].yields(pars.dict(nominal_nps=True)) if s < len(channel.samples) else np.zeros(channel.nbins()) \
+    pars_dict = self.full_expr_dict(pars)
+    nnom = np.stack([ np.concatenate([ self.samples[(channel_name, s)].yields(pars_dict) if s < len(channel.samples) else np.zeros(channel.nbins()) \
                       for channel_name, channel in self.channels.items()]) for s in range(0, self.max_nsamples) ]) 
     k = self.k_exp(pars)
     if self.cutoff == 0 : return nnom*k
@@ -791,7 +825,8 @@ class Model (Serializable) :
          Values of the derivatives of the negative log-likelihood wrt the POIs.
     """
     try :
-      dtot = (self.nominal_yields.T*np.array([ sample.norm_gradient(pars.dict(nominal_nps=True)) for sample in self.samples.values() ], dtype=float)).T.sum(axis=0)
+      pars_dict = self.full_expr_dict(pars)
+      dtot = (self.nominal_yields.T*np.array([ sample.norm_gradient(full_dict) for sample in self.samples.values() ], dtype=float)).T.sum(axis=0)
       ntot = self.tot_bin_exp(pars)
       return np.sum(dtot - data.counts*dtot/ntot)
     except:
@@ -948,11 +983,25 @@ class Model (Serializable) :
         channel = SingleBinChannel()
       elif dict_channel['type'] == BinnedRangeChannel.type_str :
         channel = BinnedRangeChannel()
+      else :
+        raise ValueError("ERROR: unsupported channel type '%s'" % dict_channel['type'])
       channel.load_dict(dict_channel)
       if channel.name in self.channels :
         raise ValueError('ERROR: multiple channels defined with the same name (%s)' % channel.name)
       self.channels[channel.name] = channel
     self.set_internal_vars()
+    if 'expressions' in sdict['model'] :
+      for dict_expr in sdict['model']['expressions'] :
+        if not 'type' in dict_expr or dict_expr['type'] == Formula.type_str :
+          expression = Formula()
+        elif dict_expr['type'] == LinearCombination.type_str :
+          expression = LinearCombination()
+        else :
+          raise ValueError("ERROR: unsupported expression type '%s'" % dict_expr['type'])
+        expression.load_dict(dict_expr)
+        if expression.name in self.expressions :
+          raise ValueError('ERROR: multiple expressions defined with the same name (%s)' % expression.name)
+        self.expressions[expression.name] = expression
     return self
 
   def fill_dict(self, sdict : dict) :
