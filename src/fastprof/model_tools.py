@@ -87,6 +87,13 @@ class ModelReparam :
       if verbosity > 0 : print("Adding POI '%s'." % str(poi))
       self.model.pois[poi.name] = poi
 
+  def add_expressions(self, new_expressions : list, verbosity : int = 0) :
+    for expr in new_expressions :
+      if expr.name in self.model.expressions : 
+        raise KeyError("Cannot add expression '%s' to model, an expression with that name is already defined." % expr.name)
+      if verbosity > 0 : print("Adding expression '%s'." % str(expr))
+      self.model.expressions[expr.name] = expr
+
   def update_norms(self, new_norms : dict, verbosity : int = 0) :
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :
@@ -105,21 +112,50 @@ class ModelReparam :
       else :
         new_names = [ par_name for par_name in self.model.pois if re.match(poi_name, par_name) ]
         if len(new_names) == 0 :
-          raise KeyError("Cannot remove POI '%s' from model, no matching POI is defined." % poi_name)
+          raise KeyError("Cannot remove POIs with specification '%s' from model, as no matching POI is defined." % poi_name)
         selected_names.extend(new_names)
+    expressions_to_remove = []
+    expression_values = {}
     for selected_name in selected_names :
       if verbosity > 0 : print("Removing POI '%s'." % selected_name)
       poi = self.model.pois.pop(selected_name)
-      for channel in self.model.channels.values() :
-        for sample in channel.samples.values() :
-          if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
-            if selected_name not in values :
-              raise KeyError("Cannot remove POI '%s' as it is used to normalize sample '%s' of channel '%s'. Please provide a numerical value to use as a replacement." % (selected_name, sample.name, channel.name))
-            if verbosity > 0 : print("Using %s=%g replacement in the normalization of sample '%s' of channel '%s'." % (selected_name, values[selected_name], sample.name, channel.name))
-            sample.norm = NumberNorm(values[selected_name])
-          if isinstance(sample.norm, FormulaNorm) and sample.norm.formula.find(selected_name) != -1 :
-            raise KeyError("Cannot remove POI '%s' as it is used to in formula '%s' normalizing sample '%s' of channel '%s'." % (selected_name, sample.norm.formula, sample.name, channel.name))
+      remove_from_norms(selected_name, values, verbosity)
+      for expr in self.model.expressions.values() :
+        if selected_name not in values :
+          raise KeyError("Cannot remove POI '%s' as it cannot be removed from expression '%s' as no replacement numerical value was provided." % (selected_name, expr.name))
+        value = expr.replace(selected_name, values[selected_name])
+        if value is None :
+          raise KeyError("Cannot remove POI '%s' from expression '%s'." % (selected_name, expr.name))          
+        if value != expr : # this is a numerical value, for when the expression has become trivial
+          expressions_to_remove.append(expr.name)
+          expression_values[expr.name] = value
+    self.remove_expressions(expressions_to_remove, expression_values)
 
+  def remove_expressions(self, expr_names : list, values : dict = {}, verbosity : int = 0) :
+    selected_names = []
+    for expr_name in expr_names :
+      if expr_name in self.model.expressions :
+        selected_names.append(expr_name)
+      else :
+        new_names = [ par_name for par_name in self.model.expressions if re.match(expr_name, par_name) ]
+        if len(new_names) == 0 :
+          raise KeyError("Cannot remove POIs with specification '%s' from model, as no matching POI is defined." % expr_name)
+        selected_names.extend(new_names)
+    for selected_name in selected_names :
+      if verbosity > 0 : print("Removing expression '%s'." % selected_name)
+      expr = self.model.expressions.pop(selected_name)
+      self.remove_from_norms(expr.name, values, verbosity)
+
+  def remove_from_norms(self, name : str, values : dict = {}, verbosity : int = 0) :
+    for channel in self.model.channels.values() :
+      for sample in channel.samples.values() :
+        if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == name :
+          if name in values :
+            sample.norm = NumberNorm(values[selected_name])
+            if verbosity > 0 :
+                print("Using %s=%g replacement in the normalization of sample '%s' of channel '%s'." % (name, values[name], sample.name, channel.name))
+          else :
+            raise KeyError("Cannot remove '%s' as it is used to normalize sample '%s' of channel '%s'. Please provide a numerical value to use as a replacement." % (name, sample.name, channel.name))
 
 # -------------------------------------------------------------------------
 class NPPruner :

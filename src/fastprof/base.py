@@ -123,7 +123,8 @@ class Serializable :
     self.fill_dict(sdict)
     return sdict
 
-  def load_field(self, key : str, dic : dict, default = None, types : list = []) :
+  @classmethod
+  def load_field(cls, key : str, dic : dict, default = None, types : list = []) :
     """Load an field from a dictionary of markup data
 
       If the key is not present, or if the value type is not among the

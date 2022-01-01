@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import json
 
-from fastprof import Model, Data, ModelPOI, ModelReparam, NumberNorm, ParameterNorm, FormulaNorm
+from fastprof import Model, Data, ModelPOI, Expression, ModelReparam, Norm
 from fastprof_utils import process_setval_list, process_setvals, process_setranges, process_pois
 
 
@@ -26,8 +26,9 @@ def make_parser() :
   parser.add_argument("-o", "--output-file" , type=str  , required=True, help="Name of output file")
   parser.add_argument("-n", "--norms"       , type=str  , default=None , help="New normalization terms to apply, in the form channel1:sample1:norm1,...")
   parser.add_argument("-f", "--file"        , type=str  , default=None , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
-  parser.add_argument("-a", "--add"         , type=str  , default=None , help="POI(s) to be added or modified (comma-separated list of )")
-  parser.add_argument("-r", "--remove"      , type=str  , default=None , help="POI(s) to be removed (comma-separated)")
+  parser.add_argument("-e", "--expressions" , type=str  , default=None , help="New expressions to add (comma-separated list of the form name:type:data)")
+  parser.add_argument("-a", "--add"         , type=str  , default=None , help="POI(s) to be added or modified (comma-separated list)")
+  parser.add_argument("-r", "--remove"      , type=str  , default=None , help="POI(s) to be removed (comma-separated list)")
   parser.add_argument("-v", "--verbosity"   , type=int  , default=0    , help="Verbosity level")
   return parser
 
@@ -52,51 +53,36 @@ def run(argv = None) :
         spec_names = spec.split(':')
         if len(spec_names) == 1 : spec_names = [ '.*' ] + spec_names
         if len(spec_names) == 2 : spec_names = [ '.*' ] + spec_names
-        norms[(spec_names[0], spec_names[1])] = spec_names[2]
+        norms[(spec_names[0], spec_names[1])] = Norm.instantiate({ 'norm' : spec_names[2] })
     except Exception as inst :
       print(inst)
       raise ValueError('Invalid normalization factor specification %s : should be of the form chan1:samp1:norm1,chan2:samp2:norm2,...' % options.norms)
 
-  if options.file is not None :
+  add_expressions = []
+  if options.expressions is not None :
     sdict = {}
-    try :
-      with open(options.file, 'r') as fd :
-        sdict = json.load(fd)
-    except FileNotFoundError as inst :
-      print("File '%s' not found." % options.file)
-      return
-    except Exception as inst :
-      print(inst)
-      print("Could not load data from '%s'." % options.file)
-      return
-  
-  if options.file is not None and 'norms' in sdict :
     try:
-      for norm in sdict['norms'] :
-        norm_spec = norm['norm']
-        channel = norm['channel'] if 'channel' in norm else ''
-        sample = norm['sample'] if 'sample' in norm else ''
-        norms[(channel, sample)] = norm_spec
+      expr_specs = options.expressions.replace(' ', '').replace('\n', '').split(',')
+      for spec in expr_specs :
+        if spec == '' : continue
+        spec_names = spec.split(':')
+        if len(spec_names) < 2 : raise ValueError('Only %d element(s) found in the specification' % len(spec_names))
+        if len(spec_names) == 2 : spec_names = [ spec_names[0], 'formula', spec_names[1] ]
+        sdict = { 'name' : spec_names[0], 'type' : spec_names[1] }
+        if spec_names[1] == 'formula' : 
+          sdict['formula'] = spec_names[2]
+        elif spec_names[1] == 'linear_combination' : 
+          sdict['pars_coeffs'] = {}
+          for pc_spec in spec_names[2].split('#') :
+            par_name, coeff_str = pc_spec.split('*')
+            sdict['pars_coeffs'][par_name] = float(coeff_str)
+        else :
+          raise ValueError("Invalid expression type '%s'." % spec_names[1])
+        expr = Expression.instantiate(sdict)
+        add_expressions.append(expr)
     except Exception as inst :
       print(inst)
-      print("Could not load norm data from '%s'." % options.file)
-      return
-
-  if len(norms) > 0 :
-    parsed_norms = {}
-    for (channel, sample), norm in norms.items() :
-      if norm in model.pois or norm in model.nps :
-        parsed_norms[(channel, sample)] = ParameterNorm(norm)
-        continue
-      if isinstance(norm, (int, float)) or norm == '' :
-        parsed_norms[(channel, sample)] = NumberNorm(norm)
-        continue
-      try:
-        float(norm)
-        parsed_norms[(channel, sample)] = NumberNorm(float(norm))
-      except Exception as inst:
-        parsed_norms[(channel, sample)] = FormulaNorm(norm)
-    reparam.update_norms(parsed_norms, verbosity=options.verbosity)
+      raise ValueError('Invalid expression specification %s : should be of the form name1:type1:data1,...' % options.expressions)    
 
   add_pois = []
   remove_pois = []
@@ -135,6 +121,10 @@ def run(argv = None) :
 
   if len(add_pois) > 0 :
     reparam.add_pois(add_pois, verbosity=options.verbosity)
+  if len(add_expressions) > 0 :
+    reparam.add_expressions(add_expressions, verbosity=options.verbosity)
+  if len(norms) > 0 :
+    reparam.update_norms(norms, verbosity=options.verbosity)
   if len(change_pois) > 0 :
     for poi in change_pois : 
       if options.verbosity > 0 : print("Modifying POI '%s', now '%s'." % (poi.name, str(poi)))

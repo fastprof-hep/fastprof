@@ -992,13 +992,7 @@ class Model (Serializable) :
     self.set_internal_vars()
     if 'expressions' in sdict['model'] :
       for dict_expr in sdict['model']['expressions'] :
-        if not 'type' in dict_expr or dict_expr['type'] == Formula.type_str :
-          expression = Formula()
-        elif dict_expr['type'] == LinearCombination.type_str :
-          expression = LinearCombination()
-        else :
-          raise ValueError("ERROR: unsupported expression type '%s'" % dict_expr['type'])
-        expression.load_dict(dict_expr)
+        expression = Expression.instantiate(dict_expr)
         if expression.name in self.expressions :
           raise ValueError('ERROR: multiple expressions defined with the same name (%s)' % expression.name)
         self.expressions[expression.name] = expression
@@ -1014,11 +1008,13 @@ class Model (Serializable) :
     sdict['model']['name'] = self.name
     sdict['model']['POIs'] = []
     sdict['model']['NPs'] = []
+    sdict['model']['expressions'] = []
     sdict['model']['aux_obs'] = []
     sdict['model']['channels'] = []
-    for poi in self.pois.values()    : sdict['model']['POIs']   .append(poi.dump_dict())
-    for par in self.nps.values()     : sdict['model']['NPs']    .append(par.dump_dict())
-    for aux in self.aux_obs.values() : sdict['model']['aux_obs'].append(aux.dump_dict())
+    for poi  in self.pois.values()        : sdict['model']['POIs']        .append(poi.dump_dict())
+    for par  in self.nps.values()         : sdict['model']['NPs']         .append(par.dump_dict())
+    for expr in self.expressions.values() : sdict['model']['expressions'] .append(expr.dump_dict())
+    for aux  in self.aux_obs.values()     : sdict['model']['aux_obs']     .append(aux.dump_dict())
     for channel in self.channels.values() : sdict['model']['channels'].append(channel.dump_dict())
 
   def __str__(self) -> str :

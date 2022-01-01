@@ -63,6 +63,34 @@ class Norm(Serializable) :
     """
     pass
 
+  @classmethod
+  def instantiate(cls, sdict, load_data : bool = True) :
+    """Instantiate an Expression object from one of the possibilities below.
+
+      Args:
+         cls: this class
+         sdict: A dictionary containing markup data
+    """
+    norm_type = cls.load_field('norm_type', sdict, '', str)
+    if norm_type == '' :
+      norm = cls.load_field('norm', sdict, None, [int, float, str])
+      if isinstance(norm, (int, float)) or norm is None :
+        norm_type = NumberNorm.type_str
+      else :
+        try:
+          float(norm)
+          norm_type = NumberNorm.type_str
+        except Exception as inst:
+          norm_type = ExpressionNorm.type_str
+    if norm_type == NumberNorm.type_str :
+      norm = NumberNorm()
+    elif norm_type == ExpressionNorm.type_str :
+      norm = ExpressionNorm()
+    else :
+      raise KeyError("Unknown normalisation type '%s'." % norm_type)
+    norm.load_dict(sdict)
+    return norm
+
 
 # -------------------------------------------------------------------------
 class NumberNorm(Serializable) :

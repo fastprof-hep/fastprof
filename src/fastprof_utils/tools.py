@@ -264,6 +264,6 @@ def process_pois(spec : str, model : Model, check_pars=True) :
       pois.append(ModelPOI(var, min_value=float_minval, max_value=float_maxval, initial_value=float_val))
   except Exception as inst :
     print(inst)
-    raise ValueError("ERROR : invalid parameter range specification '%s'." % spec)
+    raise ValueError("ERROR : invalid parameter range specification '%s', expecting 'par=value[:min][:max]'." % spec)
   return pois
 
