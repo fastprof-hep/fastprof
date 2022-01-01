@@ -7,4 +7,4 @@ Code reference
    :glob:
 
    api/fastprof
-   api/root_import
+   api/fastprof_import
