@@ -415,7 +415,7 @@ def run(argv = None) :
           sample_spec['norm'] = sample.normpar.GetName()
           sample_spec['nominal_norm'] = sample.nominal_norm
         else :
-          sample_spec['norm'] = ''
+          sample_spec['norm'] = 1
         sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
         sample_spec['impacts'] = sample.impacts
         sample_specs.append(sample_spec)

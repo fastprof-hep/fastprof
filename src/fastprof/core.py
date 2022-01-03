@@ -280,7 +280,10 @@ class Parameters :
       Returns:
         self
     """
-    for par, val in dic.items() : self.set(par, val, unscaled_nps)
+    if self.model is None : raise ValueError('Cannot perform operation without a model.')
+    for par in self.model.pois : self.set(par, dic[par], unscaled_nps)
+    for par in self.model.nps : self.set(par, dic[par], unscaled_nps)
+    #for par, val in dic.items() : self.set(par, val, unscaled_nps)
     return self
 
   def set_from_aux(self, data : 'Data') -> 'Parameters' :
@@ -468,7 +471,7 @@ class Model (Serializable) :
         if self.use_asym_impacts :
           self.pos_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(pos_list)
           self.neg_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(neg_list)
-        self.sym_impact_coeffs[s, :, p] = np.concatenate(sym_list)
+        self.sym_impact_coeffs[s, :, p] = np.concatenate(sym_list) # TODO: check here that there is some non-zero impact, can indicate trouble for later
     if self.verbosity > 0 : sys.stderr.write('\n')
 
   def poi(self, index : str) -> ModelPOI :
@@ -688,7 +691,7 @@ class Model (Serializable) :
       # automatically "broadcasts" only leading dimensions.
       return (impact.T*self.k_exp(pars).T).T
 
-  def plot(self, pars : Parameters, data : 'Data' = None, channel_name : str = None, only : list = None, exclude : list = None,
+  def plot(self, pars : Parameters, data : 'Data' = None, channel_names : str = None, only : list = None, exclude : list = None,
            variations : list = None, residuals : bool = False, canvas : plt.Figure = None, labels : bool = True, stack : bool = False, figsize=(8,6),
            bin_width : float = None, logy : bool = False) :
     """Plot the expected event yields and optionally data as well
@@ -713,22 +716,20 @@ class Model (Serializable) :
     """
     if not isinstance(only, list)    and only    is not None : only = [ only ]
     if not isinstance(exclude, list) and exclude is not None : exclude = [ exclude ]
-    if channel_name is None : channel_name = list(self.channels.keys())
-    if isinstance(channel_name, list) :
-      nchan = len(channel_name)
+    if channel_names is None : channel_names = list(self.channels.keys())
+    if isinstance(channel_names, list) :
+      nchan = len(channel_names)
       nrows = int(math.sqrt(nchan))
       ncols = int(nchan/nrows + 0.5)
       fig, axs = plt.subplots(nrows, ncols, figsize=figsize)
       if not isinstance(axs, list) : axs = np.array([ axs ])
       for ax in axs.flatten()[nchan:] : ax.set_visible(False)
-      for channel, ax in zip(channel_name, axs.flatten()[:nchan]) :
-        self.plot(pars=pars, data=data, channel_name=channel, only=only, exclude=exclude, variations=variations, residuals=residuals, canvas=ax, labels=labels, stack=stack, bin_width=bin_width, logy=logy)
+      for channel, ax in zip(channel_names, axs.flatten()[:nchan]) :
+        self.plot(pars=pars, data=data, channel_names=channel, only=only, exclude=exclude, variations=variations, residuals=residuals, canvas=ax, labels=labels, stack=stack, bin_width=bin_width, logy=logy)
       fig.tight_layout()
       return
-      #channel = list(self.channels.values())[0]
-      #print("Plotting channel '%s'" % channel.name)
-    if not channel_name in self.channels : raise KeyError('ERROR: Channel %s is not defined.' % channel_name)
-    channel = self.channels[channel_name]
+    if not channel_names in self.channels : raise KeyError('ERROR: Channel %s is not defined.' % channel_names)
+    channel = self.channels[channel_names]
     if isinstance(channel, BinnedRangeChannel) :
       grid = [ b['lo_edge'] for b in channel.bins ]
       grid.append(channel.bins[-1]['hi_edge'])
@@ -738,7 +739,9 @@ class Model (Serializable) :
       grid = [0, channel.nbins()]
     else :
       raise ValueError("Channel '%s' is of an unsupported type" % channel.name)
-    if canvas is None : canvas = plt.figure(figsize=figsize)
+    if canvas is None : 
+      plt.figure(figsize=figsize)
+      canvas=plt.axes()
     if logy: canvas.set_yscale('log')
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     start = self.channel_offsets[channel.name]

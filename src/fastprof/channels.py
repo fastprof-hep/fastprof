@@ -222,7 +222,7 @@ class BinnedRangeChannel(Channel) :
     if not 'bins' in sdict :
       raise KeyError("No 'bins' section defined for data channel '%s' in specified markup file." % self.name)
     if len(sdict['bins']) != self.nbins() :
-      raise ValueError("Binned range channel '%s' in specified markup file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), self.nbins()))
+      raise ValueError("Binned range channel '%s' in specified markup file has %d bins, but the model channel has %d." % (sdict['name'], len(sdict['bins']), self.nbins()))
     for b, bin_data in enumerate(sdict['bins']) :
       if bin_data['lo_edge'] != self.bins[b]['lo_edge'] or bin_data['hi_edge'] != self.bins[b]['hi_edge'] :
         raise ValueError("Bin %d in data channel '%s' spans [%g,%g], but the model bin spans [%g,%g]." %
