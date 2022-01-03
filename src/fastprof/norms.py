@@ -236,6 +236,7 @@ class ExpressionNorm(Serializable) :
       Returns:
          normalization factor value
     """
+    if self.expr_name == '' : return 1
     if not self.expr_name in pars_dict :
       raise KeyError("Cannot compute normalization as the value of an unknown expression '%s'. Known parameters are as follows: %s" % (self.expr_name, str(pars_dict)))
     return pars_dict[self.expr_name]
