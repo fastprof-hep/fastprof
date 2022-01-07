@@ -488,8 +488,8 @@ class OptiMinimizer (POIMinimizer) :
     def jacobian(pois) :
       update_current_hypo(pois)
       self.profile_nps(current_hypo, data)
-      if self.debug > 0 : print('== Jacobian:', data.model.gradient(self.np_min.min_pars, data))
-      return data.model.grad_poi(self.np_min.min_pars, data)
+      if self.debug > 2 : print('== Jacobian:', data.model.gradient(self.np_min.min_pars, data))
+      return data.model.gradient(self.np_min.min_pars, data)
     #def hess_p(poi, v) :
       #update_current_hypo(pois)
       #self.profile_nps(current_hypo, data)
