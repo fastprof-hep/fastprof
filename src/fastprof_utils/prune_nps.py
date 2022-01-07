@@ -38,9 +38,10 @@ def run(argv = None) :
   model = Model.create(options.model_file, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
 
+  if options.output_file.endswith('.json') : options.output_file = options.output_file[:-5]
 
   nps = options.nps.replace(' ', '').replace('\n', '').split(',')
-  NPPruner(model).remove_nps([ 'lumi', 'shape*', 'Fakes*', 'theory*', 'FF*', 'EL*', 'MUON*', 'JET*', 'MET*', 'param*', 'mu*' ])
+  NPPruner(model).remove_nps(nps)
   model.save('%s.json' % options.output_file)
 
   if options.data_file :
