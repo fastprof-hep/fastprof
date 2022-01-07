@@ -524,6 +524,10 @@ class OptiMinimizer (POIMinimizer) :
     self.min_nll = self.result.fun
     self.min_pois = self.result.x if isinstance(self.result.x, np.ndarray) else np.array([self.result.x])
     self.nfev = self.result.nfev
+    if self.method == 'L-BFGS-B': 
+      self.covmat = self.result.hess_inv.todense() # may not be available for
+      self.errors = np.sqrt(self.covmat.diagonal())
+      self.cormat = (self.covmat.T / self.errors).T / self.errors
     return self.min_nll
 
   def tmu(self, hypo : Parameters, data : Data, init_hypo : Parameters = None) -> float :
