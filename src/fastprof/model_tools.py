@@ -97,7 +97,13 @@ class ModelReparam :
   def update_norms(self, new_norms : dict, verbosity : int = 0) :
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :
-        matching_norms = [ norm for (channel_spec, sample_spec), norm in new_norms.items() if re.match(channel_spec, channel.name) and re.match(sample_spec, sample.name) ]
+        matching_norms = []
+        for (channel_spec, sample_spec), norm in new_norms.items() :
+          try :
+            if re.match(channel_spec, channel.name) and re.match(sample_spec, sample.name) : matching_norms.append(norm)
+          except Exception as inst :
+            print(inst)
+            raise ValueError("ERROR: invalid channel specification '%s' or sample specification '%s'." % (channel_spec, sample_spec)) 
         if len(matching_norms) == 0 : continue
         if len(matching_norms) > 1 :
           raise KeyError("Sample '%s' of channel '%s' matches multiple new normalization entries : \n %s" % (sample.name, channel.name, '\n'.join([str(norm) for norm in matching_norms])))
@@ -119,7 +125,7 @@ class ModelReparam :
     for selected_name in selected_names :
       if verbosity > 0 : print("Removing POI '%s'." % selected_name)
       poi = self.model.pois.pop(selected_name)
-      remove_from_norms(selected_name, values, verbosity)
+      self.remove_from_norms(selected_name, values, verbosity)
       for expr in self.model.expressions.values() :
         if selected_name not in values :
           raise KeyError("Cannot remove POI '%s' as it cannot be removed from expression '%s' as no replacement numerical value was provided." % (selected_name, expr.name))
@@ -191,9 +197,8 @@ class NPPruner :
             if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
               if self.verbosity > 0 : print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, par.nominal_value, sample.name, channel.name))
               sample.norm = NumberNorm(par.nominal_value)
-            if isinstance(sample.norm, FormulaNorm) and sample.norm.formula.find(selected_name) != -1 :
-              raise KeyError("Cannot remove POI '%s' as it is used to in a formula normalizing sample '%s' of channel '%s'." % (selected_name, sample.name, channel.name))
             if selected_name in sample.impacts : sample.impacts.pop(selected_name)
+        # TODO: should also check expressions
     self.model.set_internal_vars()
 
 
