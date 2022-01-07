@@ -497,13 +497,13 @@ def run(argv = None) :
 # ---------------------------------------------------------------------
 def fill_channel(channel, pois, aux_obs, mconfig, normpars, options) :
   
-  if options.verbosity > 0 : print("Creating channel '%' from PDF '%'" % (channel.name, channel.pdf.GetName()))
+  if options.verbosity > 0 : print("Creating channel '%s' from PDF '%s'" % (channel.name, channel.pdf.GetName()))
   if isinstance(channel.pdf, ROOT.RooProdPdf) :
     for i in range(0, channel.pdf.pdfList().getSize()) :
       pdf = channel.pdf.pdfList().at(i)
       if len(pdf.getDependents(aux_obs)) > 0 : continue
       if not isinstance(pdf, ROOT.RooAbsPdf) :
-        print("Got unexpected PDF of class '%' in PDF '%s' for channel '%s', skipping it." % (pdf.Class().GetName(), channel.pdf.GetName(), channel.name))
+        print("Got unexpected PDF of class '%s' in PDF '%s' for channel '%s', skipping it." % (pdf.Class().GetName(), channel.pdf.GetName(), channel.name))
         continue
       channel.pdf = pdf
       break
