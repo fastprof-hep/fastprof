@@ -45,6 +45,29 @@ def run(argv = None) :
   reparam = ModelReparam(model)
   norms = {}
 
+  # load options from JSON file instead of the command line, if specified
+  fdict = {}
+  if options.file is not None :
+    try :
+      with open(options.file, 'r') as fd :
+        fdict = json.load(fd)
+    except FileNotFoundError as inst :
+      print("File '%s' not found." % options.file)
+      return
+    except Exception as inst :
+      print(inst)
+      print("Could not load data from '%s'." % options.file)
+      return
+
+  if 'norms' in fdict : # from file
+    try :
+      for norm_dict in fdict['norms'] :
+        norms[(norm_dict['channel'], norm_dict['sample'])] = Norm.instantiate({ 'norm' : norm_dict['norm'] })
+    except Exception as inst :
+      print(inst)
+      print("Could not load norm data from '%s'." % options.file)
+      return
+
   if options.norms is not None :
     try:
       norm_specs = options.norms.replace(' ', '').replace('\n', '').split(',')
@@ -59,8 +82,18 @@ def run(argv = None) :
       raise ValueError('Invalid normalization factor specification %s : should be of the form chan1:samp1:norm1,chan2:samp2:norm2,...' % options.norms)
 
   add_expressions = []
+  
+  if 'expressions' in fdict : # from file
+    try :
+      for expr_dict in fdict['expressions'] :
+        add_expressions.append(Expression.instantiate(expr_dict))
+    except Exception as inst :
+      print(inst)
+      print("Could not load expression data from '%s'." % options.file)
+      return
+  
   if options.expressions is not None :
-    sdict = {}
+    expr_dict = {}
     try:
       expr_specs = options.expressions.replace(' ', '').replace('\n', '').split(',')
       for spec in expr_specs :
@@ -68,17 +101,17 @@ def run(argv = None) :
         spec_names = spec.split(':')
         if len(spec_names) < 2 : raise ValueError('Only %d element(s) found in the specification' % len(spec_names))
         if len(spec_names) == 2 : spec_names = [ spec_names[0], 'formula', spec_names[1] ]
-        sdict = { 'name' : spec_names[0], 'type' : spec_names[1] }
+        expr_dict = { 'name' : spec_names[0], 'type' : spec_names[1] }
         if spec_names[1] == 'formula' : 
-          sdict['formula'] = spec_names[2]
+          expr_dict['formula'] = spec_names[2]
         elif spec_names[1] == 'linear_combination' : 
-          sdict['pars_coeffs'] = {}
+          expr_dict['pars_coeffs'] = {}
           for pc_spec in spec_names[2].split('#') :
             par_name, coeff_str = pc_spec.split('*')
-            sdict['pars_coeffs'][par_name] = float(coeff_str)
+            expr_dict['pars_coeffs'][par_name] = float(coeff_str)
         else :
           raise ValueError("Invalid expression type '%s'." % spec_names[1])
-        expr = Expression.instantiate(sdict)
+        expr = Expression.instantiate(expr_dict)
         add_expressions.append(expr)
     except Exception as inst :
       print(inst)
@@ -88,21 +121,10 @@ def run(argv = None) :
   remove_pois = []
   change_pois = []
 
-  if options.add is not None :
-    pois = process_pois(options.add, model, check_pars=False)
-    for poi in pois :
-      if poi.name in model.pois :
-        change_pois.append(poi)
-      else :
-        add_pois.append(poi)
-    
-  if options.remove is not None :
-    remove_pois = [ v.replace(' ', '') for v in options.remove.split(',') ]
-
-  if options.file is not None and 'POIs' in sdict :
+  if 'POIs' in fdict : # from file
     new_pois = {}
     try :
-      for poi in sdict['POIs'] :
+      for poi in fdict['POIs'] :
         name = poi['name']
         new_poi = ModelPOI().load_dict(poi)
         new_pois[new_poi.name] = new_poi
@@ -118,6 +140,17 @@ def run(argv = None) :
     for poi in model.pois.values() :
       if poi.name not in new_pois :
         remove_pois.append(poi.name)
+
+  if options.add is not None :
+    pois = process_pois(options.add, model, check_pars=False)
+    for poi in pois :
+      if poi.name in model.pois :
+        change_pois.append(poi)
+      else :
+        add_pois.append(poi)
+    
+  if options.remove is not None :
+    remove_pois = [ v.replace(' ', '') for v in options.remove.split(',') ]
 
   if len(add_pois) > 0 :
     reparam.add_pois(add_pois, verbosity=options.verbosity)
