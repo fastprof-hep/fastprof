@@ -54,7 +54,7 @@ class Expression(Serializable) :
     """
     return None # TODO: add recursive calls to clients to make this safer
 
-  def load_dict(self, sdict) -> 'LinearCombination' :
+  def load_dict(self, sdict) -> 'Expression' :
     """Load object information from a dictionary of markup data
 
       Args:
