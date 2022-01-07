@@ -65,6 +65,10 @@ def run(argv = None) :
 
   main_pdf = mconfig.GetPdf()
 
+  pois = mconfig.GetParametersOfInterest()
+  nps = mconfig.GetNuisanceParameters()
+  pois.Print("V")
+
   data = None
   if options.data_name != '' :
     data = ws.data(options.data_name)
