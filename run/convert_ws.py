@@ -1,1 +1,1 @@
-../root_import/convert_ws.py
+../src/fastprof_import/convert_ws.py

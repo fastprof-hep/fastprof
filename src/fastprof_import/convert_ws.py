@@ -439,6 +439,7 @@ def run(argv = None) :
     bin_array = array.array('d', bins)
     hist = ROOT.TH1D('%s_hist' % channel.name, 'Data histogram for channel %s' % channel.name, nbins, bin_array)
     unbinned_data.fillHistogram(hist, ROOT.RooArgList(channel.obs), '' if channel.cat is None else '%s==%d' % (channel.cat.GetName(), channel.index))
+    #hist.SaveAs('%s_hist.root' % channel.name)
     bin_specs = []
     for b in range(0, nbins) :
       bin_spec = {}
