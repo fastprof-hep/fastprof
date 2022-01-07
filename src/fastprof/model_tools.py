@@ -337,10 +337,11 @@ class SamplePruner :
     return self.model
       
   def total_significance(self, nexp_sample, nexp_total) :
+    if np.min(nexp_total - nexp_sample) <= 0 : return np.finfo(nexp_total.dtype).max # return DBL_MAX if we have 0 background somewhere
     try :
       return math.sqrt(np.sum(2*(nexp_total*np.log(nexp_total/(nexp_total - nexp_sample)) - nexp_sample)))
     except :
-      return 0
+      return np.finfo(nexp_total.dtype).max
 
 # -------------------------------------------------------------------------
 class ParBound :
