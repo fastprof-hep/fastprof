@@ -171,7 +171,7 @@ class SingleParameter(Expression) :
     if name == self.name : return value
     return self
 
-  def load_dict(self, sdict) -> 'LinearCombination' :
+  def load_dict(self, sdict) -> 'SingleParameter' :
     """Load object information from a dictionary of markup data
 
       Args:
@@ -181,10 +181,8 @@ class SingleParameter(Expression) :
         self
     """
     super().load_dict(sdict)
-    if 'type' in sdict and sdict['type'] != LinearCombination.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], LinearCombination.type_str))
-    self.nominal_value = self.load_field('nominal_value', sdict, 0,  [float, int])
-    self.pars_coeffs = self.load_field('pars_coeffs', sdict, {}, dict)
+    if 'type' in sdict and sdict['type'] != SingleParameter.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], SingleParameter.type_str))
     return self
 
   def fill_dict(self, sdict) :
@@ -194,9 +192,7 @@ class SingleParameter(Expression) :
          sdict: A dictionary containing markup data
     """
     super().fill_dict(sdict)
-    sdict['type'] = LinearCombination.type_str
-    sdict['nominal_value'] = self.nominal_value
-    sdict['pars_coeffs'] = self.pars_coeffs
+    sdict['type'] = SingleParameter.type_str
 
   def __str__(self) -> str :
     """Provides a description string
@@ -204,7 +200,7 @@ class SingleParameter(Expression) :
       Returns:
         The object description
     """
-    return ''.join([ self.nominal_value ] + [ '%+g*%s' % (self.pars_coeffs[par_name], par_name) for par_name in self.pars_coeffs ])
+    return self.name
 
 
 # -------------------------------------------------------------------------
@@ -212,37 +208,37 @@ class LinearCombination(Expression) :
   """Class representing a linear combination of parameters
 
   Attributes:
-     pars_coeffs (dict) : dict with the format { par_name : par_coeff } 
+     coeffs (dict) : dict with the format { par_name : par_coeff } 
                           mapping parameter names to their coefficients
                           in the linear combination
   """
 
   type_str = 'linear_combination'
 
-  def __init__(self, name : str = '', nominal_value : float = 0, pars_coeffs : dict = {}) :
+  def __init__(self, name : str = '', nominal_value : float = 0, coeffs : dict = {}) :
     """Create a new LinearCombination object
     
     Args:
-      par_coeffs : dict specifying the parameters and coefficients of the 
-                   linear combination, with entries of the form par_name: coeff 
+      coeffs : dict specifying the parameters and coefficients of the 
+               linear combination, with entries of the form expr: coeff 
     """
     super().__init__(name)
     self.nominal_value = nominal_value
-    self.pars_coeffs = pars_coeffs
+    self.coeffs = coeffs
 
-  def value(self, pars_dict : dict) -> float :
+  def value(self, real_vals : dict) -> float :
     """Computes the expression value
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          expression value
     """
     val = self.nominal_value
-    for par_name in self.pars_coeffs :
-      if not par_name in pars_dict :
-        raise KeyError("Cannot evaluate linear combination of the unknowm parameter '%s'. Known parameters are as follows: %s" % (par_name, str(pars_dict)))
-      val += self.pars_coeffs[par_name]*pars_dict[par_name]
+    for expr in self.coeffs :
+      if not expr in real_vals :
+        raise KeyError("Cannot evaluate linear combination of the unknown parameter '%s'. Known parameters are as follows: %s" % (expr, str(real_vals)))
+      val += self.coeffs[expr]*real_vals[expr]
     return val
 
   def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
@@ -251,13 +247,13 @@ class LinearCombination(Expression) :
      Non-zero gradient is given by the linear coefficients
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          known gradient, in the form { par_name: dN/dpar }
     """
     val = np.zeros(len(pois))
-    for par_name in self.par_coeffs :
-      val += self.pars_coeffs[par_name]*reals[par_name].gradient(pois, reals, real_vals)
+    for par_name in self.coeffs :
+      val += self.coeffs[par_name]*reals[par_name].gradient(pois, reals, real_vals)
     return val
 
   def replace(self, name : str, value : float, reals : dict) -> float :
@@ -280,12 +276,12 @@ class LinearCombination(Expression) :
       Returns:
          self, or just a number if the expression is now trivial
     """
-    for par in self.pars_coeffs :
-      new_real = reals[par].replace(name, value, reals)
-      if new_real != reals[par] : # i.e. it is now a trivial number
-        self.nominal_value += self.pars_coeffs[par]*new_real
-        del self.pars_coeffs[par]
-    if len(self.pars_coeffs) > 0 : return self
+    for expr in self.coeffs :
+      new_expr = reals[expr].replace(name, value, reals)
+      if new_expr != reals[expr] : # i.e. it is now a trivial number
+        self.nominal_value += self.coeffs[expr]*new_expr
+        del self.coeffs[expr]
+    if len(self.coeffs) > 0 : return self
     return self.nominal_value
 
   def load_dict(self, sdict) -> 'LinearCombination' :
@@ -299,9 +295,9 @@ class LinearCombination(Expression) :
     """
     super().load_dict(sdict)
     if 'type' in sdict and sdict['type'] != LinearCombination.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], LinearCombination.type_str))
+      raise ValueError("Cannot load expression data defined for type '%s' into object of type '%s'" % (sdict['type'], LinearCombination.type_str))
     self.nominal_value = self.load_field('nominal_value', sdict, 0,  [float, int])
-    self.pars_coeffs = self.load_field('pars_coeffs', sdict, {}, dict)
+    self.coeffs = self.load_field('coeffs', sdict, {}, dict)
     return self
 
   def fill_dict(self, sdict) :
@@ -313,7 +309,7 @@ class LinearCombination(Expression) :
     super().fill_dict(sdict)
     sdict['type'] = LinearCombination.type_str
     sdict['nominal_value'] = self.nominal_value
-    sdict['pars_coeffs'] = self.pars_coeffs
+    sdict['coeffs'] = self.coeffs
 
   def __str__(self) -> str :
     """Provides a description string
@@ -321,7 +317,145 @@ class LinearCombination(Expression) :
       Returns:
         The object description
     """
-    return ''.join([ self.nominal_value ] + [ '%+g*%s' % (self.pars_coeffs[par_name], par_name) for par_name in self.pars_coeffs ])
+    return ''.join([ self.nominal_value ] + [ '%+g*%s' % (self.coeffs[par_name], par_name) for par_name in self.coeffs ])
+
+
+# -------------------------------------------------------------------------
+class ProductRatio(Expression) :
+  """Class representing a linear combination of parameters
+
+  Attributes:
+     numerator (list) : list of expressions in the numerator
+     denominator (list) : list of expressions in the denominator
+  """
+
+  type_str = 'product_ratio'
+
+  def __init__(self, name : str = '', prefactor : float = 1, numerator : list = [], denominator : list = []) :
+    """Create a new LinearCombination object
+    
+    Args:
+      numerator   : list of expressions in the numerator
+      denominator : list of expressions in the denominator
+    """
+    super().__init__(name)
+    self.prefactor = prefactor
+    self.numerator = numerator
+    self.denominator = denominator
+
+  def value(self, real_vals : dict) -> float :
+    """Computes the expression value
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+         expression value
+    """
+    val = self.prefactor
+    for expr in self.numerator :
+      if not expr in real_vals :
+        raise KeyError("Cannot evaluate product of the unknown parameter '%s'. Known parameters are as follows: %s" % (expr, str(pars_dict)))
+      val *= real_vals[expr]
+    for expr in self.denominator :
+      if not expr in real_vals :
+        raise KeyError("Cannot evaluate ratio of the unknown parameter '%s'. Known parameters are as follows: %s" % (expr, str(pars_dict)))
+      expr_val = real_vals[expr]
+      if expr_val == 0 : raise ValueError("Attempting to divide by '%s' == 0 when computing the value of '%s'." % (expr, self.name))
+      val /= expr_val
+    return val
+
+  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes gradient of the normalization wrt parameters
+
+     Non-zero gradient is given by the linear coefficients
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         known gradient, in the form { par_name: dN/dpar }
+    """
+    val = np.zeros(len(pois))
+    for expr in self.numerator :
+      expr_val = real_vals[expr]
+      if expr_val == 0 : continue
+      val += reals[expr].gradient(pois, reals, real_vals)/expr_val
+    for expr in self.denominator :
+      expr_val = real_vals[expr]
+      if expr_val == 0 : raise ValueError("Attempting to divide by '%s' == 0 when computing the gradient of '%s'." % (expr, self.name)) 
+      val -= reals[expr].gradient(pois, reals, real_vals)/expr_val
+    val *= self.value(real_vals)
+    return val
+
+  def replace(self, name : str, value : float, reals : dict) -> float :
+    """Replaces parameter 'name' by a numberical value
+
+       All instances of the parameter 'name'
+       should be replaced by 'value'. This expression should 
+       update itself to remove the dependency on 'name', and
+       adjust its own numerical value according to 'value'.
+       If this makes the expression trivial, the resulting
+       numerical value of the expression is returned. Otherwise,
+       the expession itself is returned.
+
+      Args:
+         name : the name of the parameter to replace
+         value : the value to use as replacement
+         reals : a dict containing all the reals in the model,
+                 to recursively propagate the replace call to
+                 sub-expressions.
+      Returns:
+         self, or just a number if the expression is now trivial
+    """
+    for expr in self.numerator :
+      new_expr = reals[expr].replace(name, value, reals)
+      if new_real != reals[expr] : # i.e. it is now a trivial number
+        self.prefactor *= new_real
+        del self.numerator[expr]
+    for expr in self.denominator :
+      new_expr = reals[expr].replace(name, value, reals)
+      if new_real != reals[expr] : # i.e. it is now a trivial number
+        if expr_val == 0 : raise ValueError("Attempting to divide by '%s' == 0 when replacing '%s'=%g in '%s'." % (expr, name, value, self.name)) 
+        self.prefactor /= new_real
+        del self.denominator[expr]
+    if len(self.numerator) + len(self.denominator) > 0 : return self
+    return self.prefactor
+
+  def load_dict(self, sdict) -> 'ProductRatio' :
+    """Load object information from a dictionary of markup data
+
+      Args:
+        sdict: A dictionary containing markup data
+
+      Returns:
+        self
+    """
+    super().load_dict(sdict)
+    if 'type' in sdict and sdict['type'] != ProductRatio.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], ProductRatio.type_str))
+    self.prefactor   = self.load_field('prefactor'  , sdict, 0,  [int, float])
+    self.numerator   = self.load_field('numerator'  , sdict, 0,  list)
+    self.denominator = self.load_field('denominator', sdict, 0,  list)
+    return self
+
+  def fill_dict(self, sdict) :
+    """Save information to a dictionary of markup data
+
+      Args:
+         sdict: A dictionary containing markup data
+    """
+    super().fill_dict(sdict)
+    sdict['type'] = ProductRatio.type_str
+    sdict['prefactor'] = self.prefactor
+    sdict['numerator'] = self.numerator
+    sdict['denominator'] = self.denominator
+
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    return '*'.join([ self.prefactor ] + self.numerator) + '(' +  '*'.join(self.denominator) + ')'
 
 
 # -------------------------------------------------------------------------
