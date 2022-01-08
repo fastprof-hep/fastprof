@@ -243,25 +243,25 @@ class Sample(Serializable) :
       print(inst)
       return self.impact(par, +1)
 
-  def normalization(self, pars_dict : dict) -> float :
+  def normalization(self, real_vals : dict) -> float :
     """Computes the overall normalization factor
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          normalization factor value
     """
-    return self.norm.value(pars_dict)/self.nominal_norm
+    return self.norm.value(real_vals)/self.nominal_norm
 
-  def yields(self, pars_dict : dict) -> np.ndarray :
+  def yields(self, real_vals : dict) -> np.ndarray :
     """Computes the scaled yields for a given value of the POIs
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          the array of normalized event yields
     """
-    return self.normalization(pars_dict)*self.nominal_yields
+    return self.normalization(real_vals)*self.nominal_yields
 
   def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes the overall normalization factor

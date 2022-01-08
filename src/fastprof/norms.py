@@ -32,22 +32,22 @@ class Norm(Serializable) :
     return None
 
   @abstractmethod
-  def value(self, pars_dict : dict) -> float :
+  def value(self, real_vals : dict) -> float :
     """Computes the overall normalization factor
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          normalization factor value
     """
     pass
 
   
-  def gradient(self, pois : dict, expressions : dict, pars_dict : dict) -> np.array :
+  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          known gradient, in the form { par_name: dN/dpar },
          or `None` if gradient are not defined
@@ -128,24 +128,24 @@ class NumberNorm(Serializable) :
     """
     return None
 
-  def value(self, pars_dict : dict) -> float :
+  def value(self, real_vals : dict) -> float :
     """Computes the overall normalization factor
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          normalization factor value
     """
     return self.norm_value
 
-  def gradient(self, pois : dict, expressions : dict, pars_dict : dict) -> np.array :
+  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
       
       Here the norm is constant so the gradient are defined,
       but all are 0. In this case, return an empty dict
       
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          known gradient, in the form { par_name: dN/dpar }
     """
@@ -228,18 +228,18 @@ class ExpressionNorm(Serializable) :
       rel_var = variation*par.variation/par.nominal_value
     return { '%+g' % variation : rel_var, '%+g' % -variation : -rel_var }
 
-  def value(self, pars_dict : dict) -> float :
+  def value(self, real_vals : dict) -> float :
     """Computes the overall normalization factor
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          normalization factor value
     """
     if self.expr_name == '' : return 1
-    if not self.expr_name in pars_dict :
-      raise KeyError("Cannot compute normalization as the value of an unknown expression '%s'. Known parameters are as follows: %s" % (self.expr_name, str(pars_dict)))
-    return pars_dict[self.expr_name]
+    if not self.expr_name in real_vals :
+      raise KeyError("Cannot compute normalization as the value of the unknown expression '%s'. Known parameters are as follows: %s" % (self.expr_name, str(pars_dict)))
+    return real_vals[self.expr_name]
 
   def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
@@ -247,7 +247,7 @@ class ExpressionNorm(Serializable) :
      Only one gradient is non-zero, return this one
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          known gradient, in the form { expr_name: dN/dpar }
     """

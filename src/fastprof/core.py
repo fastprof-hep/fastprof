@@ -582,7 +582,7 @@ class Model (Serializable) :
       Returns:
          a dictionary of name:value pairs
     """
-    vals = pars.dict(pois_only=True)
+    vals = pars.dict(nominal_nps=True)
     for real in self.expressions.values() : vals[real.name] = real.value(vals)
     return vals
 
