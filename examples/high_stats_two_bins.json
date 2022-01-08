@@ -43,7 +43,7 @@
          {
             "name": "totalXS",
             "type": "linear_combination",
-            "pars_coeffs": { "xs1" : 1, "xs2" : 1 }
+            "coeffs": { "xs1" : 1, "xs2" : 1 }
          }
       ],
       "channels": [
