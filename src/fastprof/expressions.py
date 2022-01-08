@@ -42,16 +42,25 @@ class Expression(Serializable) :
     """
     return None
 
-  def replace(self, name, value, reals) -> float :
+  def replace(self, name : str, value : float, reals : dict) -> float :
     """Replaces parameter 'name' by a numberical value
 
-       If this is not possible, None is returned. If this makes the expression
-       trivial, the resulting numerical value of the expression is returned.
+       All instances of the parameter 'name'
+       should be replaced by 'value'. This expression should 
+       update itself to remove the dependency on 'name', and
+       adjust its own numerical value according to 'value'.
+       If this makes the expression trivial, the resulting
+       numerical value of the expression is returned. Otherwise,
+       the expession itself is returned.
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         name : the name of the parameter to replace
+         value : the value to use as replacement
+         reals : a dict containing all the reals in the model,
+                 to recursively propagate the replace call to
+                 sub-expressions.
       Returns:
-         self for sucess, None for failure, and a number if the expression is now trivial
+         self, or just a number if the expression is now trivial
     """
     raise KeyError("ERROR: cannot replace value of parameter '%s' in expression '%s'." % (name, self.name))
 
@@ -139,16 +148,25 @@ class SingleParameter(Expression) :
         raise KeyError("Invalid single-parameter expression '%s', not formed from a POI. Known POIs are as follows: %s" % (self.name, str(pois.keys())))
     return np.array([ 1 if poi == self.name else 0 for poi in pois ])
 
-  def replace(self, name, value, reals) -> float :
-    """Replaces parameter 'name' by a numerical value
-    
-       If this is not possible, None is returned. If this makes the expression
-       trivial, the resulting numerical value of the expression is returned.
+  def replace(self, name : str, value : float, reals : dict) -> float :
+    """Replaces parameter 'name' by a numberical value
+
+       All instances of the parameter 'name'
+       should be replaced by 'value'. This expression should 
+       update itself to remove the dependency on 'name', and
+       adjust its own numerical value according to 'value'.
+       If this makes the expression trivial, the resulting
+       numerical value of the expression is returned. Otherwise,
+       the expession itself is returned.
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         name : the name of the parameter to replace
+         value : the value to use as replacement
+         reals : a dict containing all the reals in the model,
+                 to recursively propagate the replace call to
+                 sub-expressions.
       Returns:
-         self for sucess, None for failure, and a number if the expression is now trivial
+         self, or just a number if the expression is now trivial
     """
     if name == self.name : return value
     return self
@@ -242,22 +260,30 @@ class LinearCombination(Expression) :
       val += self.pars_coeffs[par_name]*reals[par_name].gradient(pois, reals, real_vals)
     return val
 
-  def replace(self, name, value, reals) -> float :
+  def replace(self, name : str, value : float, reals : dict) -> float :
     """Replaces parameter 'name' by a numberical value
-    
-       If this is not possible, None is returned. If this makes the expression
-       trivial, the resulting numerical value of the expression is returned.
+
+       All instances of the parameter 'name'
+       should be replaced by 'value'. This expression should 
+       update itself to remove the dependency on 'name', and
+       adjust its own numerical value according to 'value'.
+       If this makes the expression trivial, the resulting
+       numerical value of the expression is returned. Otherwise,
+       the expession itself is returned.
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         name : the name of the parameter to replace
+         value : the value to use as replacement
+         reals : a dict containing all the reals in the model,
+                 to recursively propagate the replace call to
+                 sub-expressions.
       Returns:
-         self for sucess, None for failure, and a number if the expression is now trivial
+         self, or just a number if the expression is now trivial
     """
-    if not name in self.pars_coeffs : return self
     for par in self.pars_coeffs :
       new_real = reals[par].replace(name, value, reals)
-      if new_par != reals[par] :
-        self.nominal_value += self.pars_coeffs[par]*value
+      if new_real != reals[par] : # i.e. it is now a trivial number
+        self.nominal_value += self.pars_coeffs[par]*new_real
         del self.pars_coeffs[par]
     if len(self.pars_coeffs) > 0 : return self
     return self.nominal_value
