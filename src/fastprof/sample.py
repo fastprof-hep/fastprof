@@ -263,7 +263,7 @@ class Sample(Serializable) :
     """
     return self.normalization(pars_dict)*self.nominal_yields
 
-  def norm_gradient(self, pars_dict : dict) -> float :
+  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes the overall normalization factor
 
       Args:
@@ -271,8 +271,8 @@ class Sample(Serializable) :
       Returns:
          normalization factor value
     """
-    grad = self.norm.gradient(pars_dict)
-    return grad/self.nominal_norm if grad is not None else None
+    norm_grad = self.norm.gradient(pois, reals, real_vals)
+    return np.outer(self.nominal_yields, norm_grad/self.nominal_norm) if norm_grad is not None else None    
 
   def __str__(self) -> str :
     """Provides a description string

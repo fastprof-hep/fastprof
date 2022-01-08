@@ -43,7 +43,7 @@ class Norm(Serializable) :
     pass
 
   
-  def gradient(self, pars_dict : dict) -> dict :
+  def gradient(self, pois : dict, expressions : dict, pars_dict : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
 
       Args:
@@ -138,7 +138,7 @@ class NumberNorm(Serializable) :
     """
     return self.norm_value
 
-  def gradient(self, pars_dict : dict) -> dict :
+  def gradient(self, pois : dict, expressions : dict, pars_dict : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
       
       Here the norm is constant so the gradient are defined,
@@ -149,7 +149,7 @@ class NumberNorm(Serializable) :
       Returns:
          known gradient, in the form { par_name: dN/dpar }
     """
-    return {}
+    return np.zeros(len(pois))
 
   def load_dict(self, sdict) -> 'NumberNorm' :
     """Load object information from a dictionary of markup data
@@ -241,7 +241,7 @@ class ExpressionNorm(Serializable) :
       raise KeyError("Cannot compute normalization as the value of an unknown expression '%s'. Known parameters are as follows: %s" % (self.expr_name, str(pars_dict)))
     return pars_dict[self.expr_name]
 
-  def gradient(self, pars_dict : dict) -> dict :
+  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
 
      Only one gradient is non-zero, return this one
@@ -251,7 +251,7 @@ class ExpressionNorm(Serializable) :
       Returns:
          known gradient, in the form { expr_name: dN/dpar }
     """
-    return { self.expr_name : 1 }
+    return reals[self.expr_name].gradient(pois, reals, real_vals)
 
   def load_dict(self, sdict) -> 'ExpressionNorm' :
     """Load object information from a dictionary of markup data

@@ -1,5 +1,5 @@
 from .base            import ModelPOI, ModelNP, ModelAux, Serializable
-from .expressions     import Expression, LinearCombination, Formula
+from .expressions     import Expression, SingleParameter, LinearCombination, Formula
 from .norms           import Norm, NumberNorm, ExpressionNorm
 from .sample          import Sample
 from .channels        import Channel, SingleBinChannel, BinnedRangeChannel

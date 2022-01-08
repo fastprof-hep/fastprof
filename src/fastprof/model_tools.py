@@ -128,10 +128,8 @@ class ModelReparam :
       self.remove_from_norms(selected_name, values, verbosity)
       for expr in self.model.expressions.values() :
         if selected_name not in values :
-          raise KeyError("Cannot remove POI '%s' as it cannot be removed from expression '%s' as no replacement numerical value was provided." % (selected_name, expr.name))
-        value = expr.replace(selected_name, values[selected_name])
-        if value is None :
-          raise KeyError("Cannot remove POI '%s' from expression '%s'." % (selected_name, expr.name))          
+          raise KeyError("Cannot remove POI '%s' since it must be removed from expression '%s' and no replacement value was provided." % (selected_name, expr.name))
+        value = expr.replace(selected_name, values[selected_name], self.model.reals)
         if value != expr : # this is a numerical value, for when the expression has become trivial
           expressions_to_remove.append(expr.name)
           expression_values[expr.name] = value
@@ -337,11 +335,11 @@ class SamplePruner :
     return self.model
       
   def total_significance(self, nexp_sample, nexp_total) :
-    if np.min(nexp_total - nexp_sample) <= 0 : return np.finfo(nexp_total.dtype).max # return DBL_MAX if we have 0 background somewhere
+    if np.min(nexp_total - nexp_sample) <= 0 : return np.Infinity
     try :
       return math.sqrt(np.sum(2*(nexp_total*np.log(nexp_total/(nexp_total - nexp_sample)) - nexp_sample)))
     except :
-      return np.finfo(nexp_total.dtype).max
+      return np.Infinity
 
 # -------------------------------------------------------------------------
 class ParBound :

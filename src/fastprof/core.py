@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 from .base import ModelPOI, ModelNP, ModelAux, Serializable
 from .sample import Sample
 from .channels import Channel, SingleBinChannel, MultiBinChannel, BinnedRangeChannel
-from .expressions import Expression, LinearCombination, Formula
+from .expressions import Expression, SingleParameter
 
 # -------------------------------------------------------------------------
 class Parameters :
@@ -423,6 +423,7 @@ class Model (Serializable) :
     self.nauxs = len(self.aux_obs)
     self.poi_indices = {}
     self.np_indices = {}
+    self.reals = { **{ poi : SingleParameter(poi) for poi in self.pois}, **self.expressions }
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
@@ -566,7 +567,7 @@ class Model (Serializable) :
       else :
         return np.exp(np.log(1 + self.sym_impact_coeffs).dot(pars.nps))
 
-  def full_expr_dict(self, pars) :
+  def real_vals(self, pars) :
     """Returns a full dictionary of parameter values, including expressions
 
        Parameters are internally stored as :class:`Parameters` objects, but
@@ -581,9 +582,9 @@ class Model (Serializable) :
       Returns:
          a dictionary of name:value pairs
     """
-    pars_dict = pars.dict(nominal_nps=True)
-    for expr in self.expressions.values() : pars_dict[expr.name] = expr.value(pars_dict)
-    return pars_dict
+    vals = pars.dict(pois_only=True)
+    for real in self.expressions.values() : vals[real.name] = real.value(vals)
+    return vals
 
   def n_exp(self, pars : Parameters) -> np.array :
     """Returns the expected event yields for a given parameter value
@@ -599,8 +600,8 @@ class Model (Serializable) :
       Returns:
          Expected event yields per sample per bin
     """
-    pars_dict = self.full_expr_dict(pars)
-    nnom = np.stack([ np.concatenate([ self.samples[(channel_name, s)].yields(pars_dict) if s < len(channel.samples) else np.zeros(channel.nbins()) \
+    real_vals = self.real_vals(pars)
+    nnom = np.stack([ np.concatenate([ self.samples[(channel_name, s)].yields(real_vals) if s < len(channel.samples) else np.zeros(channel.nbins()) \
                       for channel_name, channel in self.channels.items()]) for s in range(0, self.max_nsamples) ]) 
     k = self.k_exp(pars)
     if self.cutoff == 0 : return nnom*k
@@ -649,12 +650,53 @@ class Model (Serializable) :
         result = np.sum(ntot - nexp0 - data.counts*(np.log(ntot/nexp0)))
       if not no_constraints :
          result += 0.5*np.linalg.multi_dot((delta, self.constraint_hessian, delta))
-      if math.isnan(result) : result = math.inf
+      if math.isnan(result) : result = np.Infinity
       return result
     except Exception as inst:
       print('Fast NLL computation failed with the following exception, returning +Inf')
       print(inst)
       return np.Infinity
+
+  def gradient(self, pars : Parameters, data : 'Data') -> np.ndarray :
+    """Returns the derivatives of the negative log-likelihood wrt the POIs
+
+      Output format: 1D np.ndarray of size `npois`.
+
+      Args:
+         pars : parameter values at which to compute the likelihood
+         data : observed dataset for which to compute the likelihood
+      Returns:
+         Values of the derivatives of the negative log-likelihood wrt the POIs.
+    """
+    try :
+      real_vals = self.real_vals(pars)
+      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals) \
+                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois))) \
+                                          for channel_name, channel in self.channels.items()]) \
+                                          for s in range(0, self.max_nsamples) ]) 
+      dtot = grads.sum(axis=0)
+      ntot = self.tot_bin_exp(pars)
+      return np.sum(dtot - (data.counts*dtot.T/ntot).T, axis=0)
+    except:
+      return None
+
+  def hessian(self, pars : Parameters, data : 'Data') -> np.ndarray :
+    """Returns the Hessian matrix of the negative log-likelihood wrt the POIs
+
+      Output format: 2D np.ndarray of size `npois` x `npois`.
+      TODO : update to the new POI scheme, code below is obsolete
+
+      Args:
+         pars : parameter values at which to compute the likelihood
+         data : observed dataset for which to compute the likelihood
+      Returns:
+         Hessian matrix of the negative log-likelihood wrt the POIs.
+    """
+    sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
+    nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
+    s = 0
+    for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
+    return s
 
   def linear_impacts(self, pars : Parameters) -> np.array :
     """Returns the NP impacts used in linear computations
@@ -815,43 +857,6 @@ class Model (Serializable) :
       canvas.set_ylabel('Events')
 
     #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
-
-  def gradient(self, pars : Parameters, data : 'Data') -> np.ndarray :
-    """Returns the derivatives of the negative log-likelihood wrt the POIs
-
-      Output format: 1D np.ndarray of size `npois`.
-
-      Args:
-         pars : parameter values at which to compute the likelihood
-         data : observed dataset for which to compute the likelihood
-      Returns:
-         Values of the derivatives of the negative log-likelihood wrt the POIs.
-    """
-    try :
-      pars_dict = self.full_expr_dict(pars)
-      dtot = (self.nominal_yields.T*np.array([ sample.norm_gradient(full_dict) for sample in self.samples.values() ], dtype=float)).T.sum(axis=0)
-      ntot = self.tot_bin_exp(pars)
-      return np.sum(dtot - data.counts*dtot/ntot)
-    except:
-      return None
-
-  def hessian(self, pars : Parameters, data : 'Data') -> np.ndarray :
-    """Returns the Hessian matrix of the negative log-likelihood wrt the POIs
-
-      Output format: 2D np.ndarray of size `npois` x `npois`.
-      TODO : update to the new POI scheme, code below is obsolete
-
-      Args:
-         pars : parameter values at which to compute the likelihood
-         data : observed dataset for which to compute the likelihood
-      Returns:
-         Hessian matrix of the negative log-likelihood wrt the POIs.
-    """
-    sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
-    nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
-    s = 0
-    for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
-    return s
 
   def expected_pars(self, pois : dict, minimizer : 'NPMinimizer' = None) -> Parameters :
     """Assigns NP values to a set of POI values

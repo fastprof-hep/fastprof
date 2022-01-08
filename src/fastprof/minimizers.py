@@ -408,7 +408,8 @@ class OptiMinimizer (POIMinimizer) :
      debug      (int)         : level of debug output
 
   """
-  def __init__(self, method : str = 'scalar', init_pois : Parameters = None, bounds : dict = None, niter : int = 1, floor : float = 1E-7, rebound : int = 0, alt_method : str = None, debug : int = 0) :
+  def __init__(self, method : str = 'scalar', init_pois : Parameters = None, bounds : dict = None, niter : int = 1, floor : float = 1E-7,
+               rebound : int = 0, alt_method : str = None, force_num_jac : bool = False, debug : int = 0) :
     """Initialize the POIMinimizer object
 
       Args:
@@ -428,6 +429,7 @@ class OptiMinimizer (POIMinimizer) :
     self.rebound = rebound
     self.alt_method = alt_method
     self.debug = debug
+    self.force_num_jac = force_num_jac
     self.np_min = None
 
   def clone(self) :
@@ -461,7 +463,6 @@ class OptiMinimizer (POIMinimizer) :
     free_indices = [ i for i, bound in enumerate(self.bounds.values()) if bound.is_free() ]
     x0     = [ self.init_pois[bound.par] for bound in self.bounds.values() if bound.is_free() ]
     bounds = [ bound.bounds()            for bound in self.bounds.values() if bound.is_free() ]
-    jac = jacobian if data.model.gradient(self.init_pois, data) is not None else None
     if len(x0) == 0 and self.method != '' :
       if self.debug > 0 : print("== OptiMinimizer: No free parameter of interest, will just minimize NPs.")
       self.method = ''
@@ -470,7 +471,7 @@ class OptiMinimizer (POIMinimizer) :
       self.nfev = 0
       return self.min_nll
     if len(x0) > 1 and self.method == 'scalar' :
-      print("== OptiMinimizer: Cannot use method 'scalar' for multiple POIs, switching to 'L-BFGS-B'.")
+      print("== OptiMinimizer: cannot use method 'scalar' for multiple POIs, switching to 'L-BFGS-B'.")
       self.method = 'L-BFGS-B'
 
     def update_current_hypo(pois) :
@@ -495,7 +496,12 @@ class OptiMinimizer (POIMinimizer) :
       #self.profile_nps(current_hypo, data)
       #if self.debug > 0 : print('== Hessian:', data.model.hess_poi(self.np_min.min_pars, data)*v[0])
       #return np.array(data.model.hess_poi(self.np_min.min_pars, data)*v[0])
-
+    jac = jacobian if data.model.gradient(self.init_pois, data) is not None and self.force_num_jac is False else None
+    if self.debug > 0 :
+      if jac is None :
+        print("== OptiMinimizer: closed-form jacobian not available, will evaluate it numerically.")
+      else:
+        print("== OptiMinimizer: using closed-form jacobian.")
     if self.method == 'scalar' :
       bound = bounds[0]
       if self.debug > 0 : print("== OptiMinimizer: minimizing using scalar method 'bounded' in range %s" % str(bound))
