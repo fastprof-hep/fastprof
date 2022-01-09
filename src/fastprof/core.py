@@ -671,9 +671,9 @@ class Model (Serializable) :
     try :
       real_vals = self.real_vals(pars)
       # grads is an array of shape (n_samples, n_bins, n_pois)
-      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals) \
-                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois))) \
-                                          for channel_name, channel in self.channels.items()]) \
+      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
+                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
+                                          for channel_name, channel in self.channels.items()])
                          for s in range(0, self.max_nsamples) ]) 
       gtot = grads.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois)
       ntot = self.tot_bin_exp(pars) # shape = (n_bins)
@@ -698,14 +698,14 @@ class Model (Serializable) :
     try :
       real_vals = self.real_vals(pars)
       # grads is an array of shape (n_samples, n_bins, n_pois)
-      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals) \
-                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois))) \
-                                          for channel_name, channel in self.channels.items()]) \
+      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
+                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
+                                          for channel_name, channel in self.channels.items()])
                          for s in range(0, self.max_nsamples) ])
       # hesse is an array of shape (n_samples, n_bins, n_pois, n_pois)
-      hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, self.reals, real_vals) \
-                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois))) \
-                                          for channel_name, channel in self.channels.items()]) \
+      hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, self.reals, real_vals)
+                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois), len(self.pois)))
+                                          for channel_name, channel in self.channels.items()])
                          for s in range(0, self.max_nsamples) ])
       gtot = grads.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois)
       htot = hesse.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois, n_pois)
@@ -715,6 +715,19 @@ class Model (Serializable) :
       return np.sum(htot - htot*ratio + gtot[:, None, :]*gtot[:, :, None]*ratio/ntot[:, None, None], axis=0)
     except:
       return None
+
+  def covariance_matrix(self, pars : Parameters, data : 'Data') -> np.ndarray :
+    hess = self.hessian(pars, data)
+    return np.linalg.inv(hess)
+
+  def parabolic_errors(self, pars : Parameters, data : 'Data') -> np.ndarray :
+    cov = self.covariance_matrix(pars, data)
+    return np.sqrt(cov.diagonal())
+
+  def correlation_matrix(self, pars : Parameters, data : 'Data') -> np.ndarray :
+    cov = self.covariance_matrix(pars, data)
+    errors = np.sqrt(cov.diagonal())
+    return (cov.T / errors).T / errors
 
   def linear_impacts(self, pars : Parameters) -> np.array :
     """Returns the NP impacts used in linear computations
