@@ -29,7 +29,19 @@ class Expression(Serializable) :
     pass
 
   def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the expression wrt parameters
+    """Computes the gradient of the expression wrt parameters
+
+     Non-zero gradient is given by the linear coefficients
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         known gradients, in the form { par_name: dN/dpar }
+    """
+    return None
+
+  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes the Hessian of the expression wrt parameters
 
      Non-zero gradient is given by the linear coefficients
 
