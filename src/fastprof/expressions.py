@@ -8,9 +8,7 @@ class Expression(Serializable) :
   """Class representing an expression involving POIs and/or NPs
 
   Attributes:
-     pars_coeffs (dict) : dict with the format { par_name : par_coeff } 
-                          mapping parameter names to their coefficients
-                          in the linear combination
+     name (str) : the name of the expression
   """
 
   def __init__(self, name : str = '') :
@@ -104,11 +102,6 @@ class Expression(Serializable) :
 # -------------------------------------------------------------------------
 class SingleParameter(Expression) :
   """Class representing a single parameter
-
-  Attributes:
-     pars_coeffs (dict) : dict with the format { par_name : par_coeff } 
-                          mapping parameter names to their coefficients
-                          in the linear combination
   """
 
   type_str = 'single_parameter'
@@ -140,13 +133,23 @@ class SingleParameter(Expression) :
      Non-zero gradient is given by the linear coefficients
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          known gradient, in the form { par_name: dN/dpar }
     """
     if not self.name in pois :
         raise KeyError("Invalid single-parameter expression '%s', not formed from a POI. Known POIs are as follows: %s" % (self.name, str(pois.keys())))
     return np.array([ 1 if poi == self.name else 0 for poi in pois ])
+
+  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes Hessian of the normalization wrt parameters
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+        Hessian matrix
+    """
+    return np.zeros((len(pois), len(pois)))
 
   def replace(self, name : str, value : float, reals : dict) -> float :
     """Replaces parameter 'name' by a numberical value
@@ -256,6 +259,16 @@ class LinearCombination(Expression) :
       val += self.coeffs[par_name]*reals[par_name].gradient(pois, reals, real_vals)
     return val
 
+  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes Hessian of the normalization wrt parameters
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+        Hessian matrix
+    """
+    return np.zeros((len(pois), len(pois)))
+
   def replace(self, name : str, value : float, reals : dict) -> float :
     """Replaces parameter 'name' by a numberical value
 
@@ -317,7 +330,7 @@ class LinearCombination(Expression) :
       Returns:
         The object description
     """
-    return ''.join([ self.nominal_value ] + [ '%+g*%s' % (self.coeffs[par_name], par_name) for par_name in self.coeffs ])
+    return ''.join([ str(self.nominal_value) ] + [ '%+g*%s' % (self.coeffs[par_name], par_name) for par_name in self.coeffs ])
 
 
 # -------------------------------------------------------------------------
@@ -364,8 +377,21 @@ class ProductRatio(Expression) :
       val /= expr_val
     return val
 
+  def prod_relative_gradient(self, pois : dict, reals : dict, real_vals : dict, product : list, raise_div_by_zero : bool= False) -> np.array :
+    val = np.zeros(len(pois))
+    for expr in product :
+      expr_val = real_vals[expr]
+      if expr_val == 0 : 
+        if raise_div_by_zero :
+          if expr_val == 0 : raise ZeroDivisionError("Division by '%s' == 0." % expr)
+        else :
+          continue
+      val += reals[expr].gradient(pois, reals, real_vals)/expr_val
+    return val
+    
+
   def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the normalization wrt parameters
+    """Computes gradient of the expression wrt parameters
 
      Non-zero gradient is given by the linear coefficients
 
@@ -374,17 +400,38 @@ class ProductRatio(Expression) :
       Returns:
          known gradient, in the form { par_name: dN/dpar }
     """
-    val = np.zeros(len(pois))
-    for expr in self.numerator :
+    rel_grad_nom = self.prod_relative_gradient(pois, reals, real_vals, self.numerator  , raise_div_by_zero=False)
+    rel_grad_den = self.prod_relative_gradient(pois, reals, real_vals, self.denominator, raise_div_by_zero=True)
+    return self.value(real_vals)*(rel_grad_nom - rel_grad_den)
+    
+  def prod_relative_hessian(self, pois : dict, reals : dict, real_vals : dict, product : list, raise_div_by_zero : bool= False) -> np.array :
+    val = np.zeros((len(pois), len(pois)))
+    for expr in product :
       expr_val = real_vals[expr]
-      if expr_val == 0 : continue
-      val += reals[expr].gradient(pois, reals, real_vals)/expr_val
-    for expr in self.denominator :
-      expr_val = real_vals[expr]
-      if expr_val == 0 : raise ValueError("Attempting to divide by '%s' == 0 when computing the gradient of '%s'." % (expr, self.name)) 
-      val -= reals[expr].gradient(pois, reals, real_vals)/expr_val
-    val *= self.value(real_vals)
+      if expr_val == 0 :
+        if raise_div_by_zero :
+          raise ZeroDivisionError("Division by '%s' == 0." % expr)
+        else :
+          continue
+      rel_hess = reals[expr].hessian (pois, reals, real_vals)/expr_val
+      rel_grad = reals[expr].gradient(pois, reals, real_vals)/expr_val
+      val += rel_hess - rel_grad[:,None]*rel_grad[None,:]
     return val
+
+  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes Hessian of the expression wrt parameters
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+        Hessian matrix
+    """
+    rel_hess_nom = self.prod_relative_hessian (pois, reals, real_vals, self.numerator  , raise_div_by_zero=False)
+    rel_hess_den = self.prod_relative_hessian (pois, reals, real_vals, self.denominator, raise_div_by_zero=True)
+    rel_grad_nom = self.prod_relative_gradient(pois, reals, real_vals, self.numerator  , raise_div_by_zero=False)
+    rel_grad_den = self.prod_relative_gradient(pois, reals, real_vals, self.denominator, raise_div_by_zero=True)
+    rel_grad_ratio = rel_grad_nom - rel_grad_den
+    return self.value(real_vals)*(rel_hess_nom - rel_hess_den + rel_grad_ratio[:,None]*rel_grad_ratio[None,:])
 
   def replace(self, name : str, value : float, reals : dict) -> float :
     """Replaces parameter 'name' by a numberical value
@@ -455,7 +502,7 @@ class ProductRatio(Expression) :
       Returns:
         The object description
     """
-    return '*'.join([ self.prefactor ] + self.numerator) + '(' +  '*'.join(self.denominator) + ')'
+    return '*'.join([ str(self.prefactor) ] + self.numerator) + '(' +  '*'.join(self.denominator) + ')'
 
 
 # -------------------------------------------------------------------------

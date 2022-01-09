@@ -274,6 +274,17 @@ class Sample(Serializable) :
     norm_grad = self.norm.gradient(pois, reals, real_vals)
     return np.outer(self.nominal_yields, norm_grad/self.nominal_norm) if norm_grad is not None else None    
 
+  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes the overall normalization factor
+
+      Args:
+         pars_dict : a dictionary of parameter name: value pairs
+      Returns:
+         normalization factor value
+    """
+    norm_hess = self.norm.hessian(pois, reals, real_vals)
+    return np.outer(self.nominal_yields, norm_hess/self.nominal_norm) if norm_hess is not None else None    
+
   def __str__(self) -> str :
     """Provides a description string
 

@@ -54,6 +54,17 @@ class Norm(Serializable) :
     """
     return None
 
+  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes gradient of the normalization wrt parameters
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+         known gradient, in the form { par_name: dN/dpar },
+         or `None` if gradient are not defined
+    """
+    return None
+
   @abstractmethod
   def __str__(self) -> str :
     """Provides a description string
@@ -141,15 +152,26 @@ class NumberNorm(Serializable) :
   def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
       
-      Here the norm is constant so the gradient are defined,
-      but all are 0. In this case, return an empty dict
+      Here the norm is constant so the gradient are all 0.
       
       Args:
          real_vals : a dictionary of parameter name: value pairs
       Returns:
-         known gradient, in the form { par_name: dN/dpar }
+        gradient vector, with size len(pois)
     """
     return np.zeros(len(pois))
+
+  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes gradient of the normalization wrt parameters
+      
+      Here the norm is constant so the hessian are all 0.
+      
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+        Hessian matrix
+    """
+    return np.zeros((len(pois), len(pois)))
 
   def load_dict(self, sdict) -> 'NumberNorm' :
     """Load object information from a dictionary of markup data
@@ -244,14 +266,22 @@ class ExpressionNorm(Serializable) :
   def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
 
-     Only one gradient is non-zero, return this one
-
       Args:
          real_vals : a dictionary of parameter name: value pairs
       Returns:
          known gradient, in the form { expr_name: dN/dpar }
     """
     return reals[self.expr_name].gradient(pois, reals, real_vals)
+
+  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes hessian of the normalization wrt parameters
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+         known gradient, in the form { expr_name: dN/dpar }
+    """
+    return reals[self.expr_name].hessian(pois, reals, real_vals)
 
   def load_dict(self, sdict) -> 'ExpressionNorm' :
     """Load object information from a dictionary of markup data

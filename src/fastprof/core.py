@@ -670,13 +670,16 @@ class Model (Serializable) :
     """
     try :
       real_vals = self.real_vals(pars)
+      # grads is an array of shape (n_samples, n_bins, n_pois)
       grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals) \
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois))) \
                                           for channel_name, channel in self.channels.items()]) \
-                                          for s in range(0, self.max_nsamples) ]) 
-      dtot = grads.sum(axis=0)
-      ntot = self.tot_bin_exp(pars)
-      return np.sum(dtot - (data.counts*dtot.T/ntot).T, axis=0)
+                         for s in range(0, self.max_nsamples) ]) 
+      gtot = grads.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois)
+      ntot = self.tot_bin_exp(pars) # shape = (n_bins)
+      # broadcast ntot and data.counts to match gtot, sum over bins
+      ratio = (data.counts/ntot)[:, None]
+      return np.sum(gtot - gtot*ratio, axis=0)
     except:
       return None
 
@@ -692,11 +695,26 @@ class Model (Serializable) :
       Returns:
          Hessian matrix of the negative log-likelihood wrt the POIs.
     """
-    sexp = self.s_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
-    nexp = sexp + self.b_exp(pars) # This is for a "mu" POI, i.e. d(S_i)/dmu = S_i^exp (true for S_i = mu S_i^exp).
-    s = 0
-    for i in range(0, sexp.size) : s += sexp[i]*data.n[i]/nexp[i]**2
-    return s
+    try :
+      real_vals = self.real_vals(pars)
+      # grads is an array of shape (n_samples, n_bins, n_pois)
+      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals) \
+                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois))) \
+                                          for channel_name, channel in self.channels.items()]) \
+                         for s in range(0, self.max_nsamples) ])
+      # hesse is an array of shape (n_samples, n_bins, n_pois, n_pois)
+      hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, self.reals, real_vals) \
+                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois))) \
+                                          for channel_name, channel in self.channels.items()]) \
+                         for s in range(0, self.max_nsamples) ])
+      gtot = grads.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois)
+      htot = hesse.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois, n_pois)
+      ntot = self.tot_bin_exp(pars) # shape = (n_bins)
+      # broadcast ntot and data.counts to match dtot, sum over bins
+      ratio = (data.counts/ntot)[:, None, None]
+      return np.sum(htot - htot*ratio + gtot[:, None, :]*gtot[:, :, None]*ratio/ntot[:, None, None], axis=0)
+    except:
+      return None
 
   def linear_impacts(self, pars : Parameters) -> np.array :
     """Returns the NP impacts used in linear computations
