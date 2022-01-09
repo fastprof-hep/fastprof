@@ -120,9 +120,9 @@ def run(argv = None) :
   add_pois = []
   remove_pois = []
   change_pois = []
+  new_pois = {}
 
   if 'POIs' in fdict : # from file
-    new_pois = {}
     try :
       for poi in fdict['POIs'] :
         name = poi['name']
@@ -164,6 +164,9 @@ def run(argv = None) :
       model.pois[poi.name] = poi
   if len(remove_pois) > 0 :
     reparam.remove_pois(remove_pois, verbosity=options.verbosity)
+
+  # If we specified a full list of POIs, reorder the POIs to match the list order
+  if len(new_pois) > 0 : model.pois = {name : model.pois[name] for name in new_pois}
 
   if options.verbosity >= 1 : print('Saving model to file %s' % options.output_file)
   model.save(options.output_file)
