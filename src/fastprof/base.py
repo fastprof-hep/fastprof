@@ -143,10 +143,11 @@ class Serializable :
     val = dic[key]
     if val is None : return val
     if not isinstance(types, list) : types = [ types ]
+    if types == [ np.ndarray ] : types.append(list) 
     if types != [] and not any([isinstance(val, t) for t in types]) :
       raise TypeError('Object at key %s in markup dictionary has type %s, not the expected %s' %
                       (key, val.__class__.__name__, '|'.join([t.__name__ for t in types])))
-    if types == [ list ] : val = np.array(val, dtype=float)
+    if types == [ np.ndarray, list ] : val = np.array(val, dtype=float)
     return val
 
   def unnumpy(self, obj) :
