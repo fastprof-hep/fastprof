@@ -423,7 +423,7 @@ class Model (Serializable) :
     self.nauxs = len(self.aux_obs)
     self.poi_indices = {}
     self.np_indices = {}
-    self.reals = { **{ poi : SingleParameter(poi) for poi in self.pois}, **self.expressions }
+    self.reals = { **{ poi : SingleParameter(poi) for poi in self.pois}, **{ par : SingleParameter(par) for par in self.nps}, **self.expressions }
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
