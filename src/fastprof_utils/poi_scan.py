@@ -11,6 +11,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import matplotlib.pyplot as plt
 import numpy as np
 import json
+import time
 
 from fastprof import Model, Data, Parameters, POIHypo, OptiMinimizer, Raster, TMuCalculator, PLRScan1D, PLRScan2D
 from fastprof_utils import process_setval_list, process_setvals, process_setranges
@@ -38,6 +39,7 @@ def make_parser() :
   parser.add_argument(      "--smoothing"     , type=int  , default=0        , help="Smoothing for contours (0=no smoothing)")
   parser.add_argument(      "--batch-mode"    , action='store_true'          , help="Batch mode: no plots shown")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=0        , help="Verbosity level")
+  parser.add_argument("-t", "--show-timing"   , action='store_true'          , help="Enables printout of timing information")
   return parser
 
 def run(argv = None) :
@@ -46,6 +48,7 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     sys.exit(0)
+  if options.show_timing : start_time = time.time()
   if options.verbosity >= 1 : print('Initializing model from file %s' % options.model_file)
   model = Model.create(options.model_file, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
@@ -84,7 +87,7 @@ def run(argv = None) :
     print('Will scan the following hypotheses : \n- %s' % '\n- '.join([str(hypo) for hypo in process_setval_list(options.hypos, model)]))
 
   # Compute the tmu values
-  calc = TMuCalculator(OptiMinimizer(niter=options.iterations, debug=options.verbosity).set_pois(model))
+  calc = TMuCalculator(OptiMinimizer(niter=options.iterations, verbosity=options.verbosity).set_pois(model))
   if options.verbosity > 1 : 
     prof_pois = set(calc.minimizer.free_pois()) - set(pois)
     if len(prof_pois) > 0 : print('Will profile over POI(s) %s.' % ','.join(prof_pois)) 
@@ -98,18 +101,22 @@ def run(argv = None) :
   except FileNotFoundError :
     pass
   
+  if options.show_timing : comp_start_time = time.time()
+
   if do_computation :
     raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity, free_fit=options.best_fit_mode)
     raster.save(raster_file)
 
-  raster.print(keys=[ 'tmu' ], verbosity=options.verbosity + 1)
+  if options.show_timing : comp_stop_time = time.time()
+
+  if not options.batch_mode : raster.print(keys=[ 'tmu' ], verbosity=options.verbosity + 1)
   sdict = {}
 
   try :
     cl_values = [ float(cl) for cl in options.cl.split(',') ]
   except Exception as inst :
     print(inst)
-    print("'Could not parse CL/nsigmas specification, expected comma-separated list of float values, got '%s'." % options.cl)
+    print("Could not parse CL/nsigmas specification, expected comma-separated list of float values, got '%s'." % options.cl)
     return
   
   linestyles = options.linestyle.split(',')
@@ -160,6 +167,12 @@ def run(argv = None) :
         plt.show()
         plt.legend()
       first = False
+
+  if options.show_timing :
+    stop_time = time.time()
+    print("##           Setup time : %g s" % (comp_start_time - start_time))
+    print("##     Computation time : %g s" % (comp_stop_time - comp_start_time))
+    print("## Post-processing time : %g s" % (stop_time - comp_stop_time))
 
   with open(results_file, 'w') as fd:
     json.dump(sdict, fd, ensure_ascii=True, indent=3)

@@ -239,8 +239,8 @@ class POIMinimizer :
       for poi in hypo : self.bounds[poi] = ParBound(poi, hypo[poi], hypo[poi])
     for bound in self.bounds.values() :
       if not bound.test_value(self.init_pois[bound.par]) :
-        if self.debug > 1 :
-          print("Warning: resetting value of POI '%s' to %g (from %g) to ensure it verifies bound %s." % (bound.par, (bound.min_value + bound.max_value)/2, self.init_pois[bound.par], str(bound)))
+        print("Warning: resetting value of POI '%s' to %g (from %g) to ensure it verifies bound %s." 
+              % (bound.par, (bound.min_value + bound.max_value)/2, self.init_pois[bound.par], str(bound)))
         self.init_pois[bound.par] = (bound.min_value + bound.max_value)/2
     return self
 
@@ -405,11 +405,11 @@ class OptiMinimizer (POIMinimizer) :
                                 primary one (given by the `method` attribute) fails.
      rebound    (int)         : if > 0, perform `rebound` iterations while narrowing the bounds
                                 by a factor 2 each time
-     debug      (int)         : level of debug output
+     verbosity  (int)         : output level
 
   """
   def __init__(self, method : str = 'scalar', init_pois : Parameters = None, bounds : dict = None, niter : int = 1, floor : float = 1E-7,
-               rebound : int = 0, alt_method : str = None, force_num_jac : bool = False, debug : int = 0) :
+               rebound : int = 0, alt_method : str = None, force_num_jac : bool = False, verbosity : int = 0) :
     """Initialize the POIMinimizer object
 
       Args:
@@ -428,12 +428,12 @@ class OptiMinimizer (POIMinimizer) :
     self.method = method
     self.rebound = rebound
     self.alt_method = alt_method
-    self.debug = debug
+    self.verbosity = verbosity
     self.force_num_jac = force_num_jac
     self.np_min = None
 
   def clone(self) :
-    return OptiMinimizer(self.method, self.init_pois.clone() if self.init_pois is not None else None, copy.deepcopy(self.bounds), self.niter, self.floor, self.rebound, self.alt_method, self.debug)
+    return OptiMinimizer(self.method, self.init_pois.clone() if self.init_pois is not None else None, copy.deepcopy(self.bounds), self.niter, self.floor, self.rebound, self.alt_method, self.verbosity)
 
   def minimize(self, data : Data) -> float :
     """Minimization over POIs
@@ -464,7 +464,7 @@ class OptiMinimizer (POIMinimizer) :
     x0     = [ self.init_pois[bound.par] for bound in self.bounds.values() if bound.is_free() ]
     bounds = [ bound.bounds()            for bound in self.bounds.values() if bound.is_free() ]
     if len(x0) == 0 and self.method != '' :
-      if self.debug > 0 : print("== OptiMinimizer: No free parameter of interest, will just minimize NPs.")
+      if self.verbosity > 0 : print("== OptiMinimizer: No free parameter of interest, will just minimize NPs.")
       self.method = ''
       self.profile_nps(current_hypo, data)
       self.min_pois = []
@@ -482,35 +482,35 @@ class OptiMinimizer (POIMinimizer) :
       #print('njpb pois = ', pois, type(pois))
       update_current_hypo(pois)
       self.profile_nps(current_hypo, data)
-      if self.debug > 2 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.min_nll))
-      if self.debug > 3 : print(current_hypo)
-      if self.debug > 4 : print(self.min_pars)
+      if self.verbosity > 2 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.min_nll))
+      if self.verbosity > 3 : print(current_hypo)
+      if self.verbosity > 4 : print(self.min_pars)
       return self.min_nll
     def jacobian(pois) :
       update_current_hypo(pois)
       self.profile_nps(current_hypo, data)
-      if self.debug > 2 : print('== Jacobian:', data.model.gradient(self.np_min.min_pars, data))
+      if self.verbosity > 2 : print('== Jacobian:', data.model.gradient(self.np_min.min_pars, data))
       return data.model.gradient(self.np_min.min_pars, data)
     #def hess_p(poi, v) :
       #update_current_hypo(pois)
       #self.profile_nps(current_hypo, data)
-      #if self.debug > 0 : print('== Hessian:', data.model.hess_poi(self.np_min.min_pars, data)*v[0])
+      #if self.verbosity > 0 : print('== Hessian:', data.model.hess_poi(self.np_min.min_pars, data)*v[0])
       #return np.array(data.model.hess_poi(self.np_min.min_pars, data)*v[0])
     jac = jacobian if data.model.gradient(self.init_pois, data) is not None and self.force_num_jac is False else None
-    if self.debug > 0 :
+    if self.verbosity > 0 :
       if jac is None :
         print("== OptiMinimizer: closed-form jacobian not available, will evaluate it numerically.")
       else:
         print("== OptiMinimizer: using closed-form jacobian.")
     if self.method == 'scalar' :
       bound = bounds[0]
-      if self.debug > 0 : print("== OptiMinimizer: minimizing using scalar method 'bounded' in range %s" % str(bound))
+      if self.verbosity > 0 : print("== OptiMinimizer: minimizing using scalar method 'bounded' in range %s" % str(bound))
       self.result = scipy.optimize.minimize_scalar(objective, bounds=bound, method='bounded', options={'xatol': 1e-5 })
     elif self.method == 'CG':
-      if self.debug > 0 : print("== Optimizer: using method 'scalar' in range %s" % str(bound))
+      if self.verbosity > 0 : print("== Optimizer: using method 'scalar' in range %s" % str(bound))
       self.result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='CG', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })
     elif self.method == 'L-BFGS-B':
-      if self.debug > 0 :
+      if self.verbosity > 0 :
         print("== OptiMinimizer: minimizing the following parameters using method 'L-BFGS-B' :")
         for bound in self.bounds.values() : print('%10s = %10g (%s)' % (bound.par, self.init_pois[bound.par], str(bound)))
       self.result = scipy.optimize.minimize(objective, x0=x0, bounds=bounds, method='L-BFGS-B', jac=jac, options={'gtol': 1e-5, 'ftol':1e-5 })

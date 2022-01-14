@@ -1,0 +1,5 @@
+Producing PLR scan with POI(s) ['xs_BSM'], bounds {'xs_BSM': xs_BSM >= 0 and xs_BSM <= 10}.
+xs_BSM = 1.09625 +0.933537 -0.681759 @ 68.3% CL
+##           Setup time : 0.041163 s
+##     Computation time : 13.3914 s
+## Post-processing time : 0.0401211 s

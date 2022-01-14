@@ -25,3 +25,8 @@ poi_scan_2d:
   script:
     - testing/poi_scan_2d/run.sh > out.log
     - testing/poi_scan_2d/diff.sh out.log testing/poi_scan_2d/ref.log
+    
+poi_scan_timing:
+  script:
+    - testing/poi_scan_timing/run.sh > out.log
+    - testing/poi_scan_timing/diff.sh out.log testing/poi_scan_timing/ref.log
