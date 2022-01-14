@@ -592,7 +592,7 @@ class Model (Serializable) :
     The expected yields correspond to the nominal yields for each sample,
     corrected for the overall normalization terms (function of the POIs)
     and the NP impacts (function of the NPs, see :meth:`Model.k_exp`)
-    They provided for each sample in each measurement bin, as a 2D
+    They are provided for each sample in each measurement bin, as a 2D
     np.array with dimensions`nbins` x `nsamples`.
 
       Args:
@@ -680,7 +680,10 @@ class Model (Serializable) :
       # broadcast ntot and data.counts to match gtot, sum over bins
       ratio = (data.counts/ntot)[:, None]
       return np.sum(gtot - gtot*ratio, axis=0)
-    except:
+    except Exception as inst:
+      #print('Exception in gradient computation: ', Exception, inst)
+      #import traceback
+      #print(traceback.format_exc())
       return None
 
   def hessian(self, pars : Parameters, data : 'Data') -> np.ndarray :
@@ -722,7 +725,8 @@ class Model (Serializable) :
 
   def parabolic_errors(self, pars : Parameters, data : 'Data') -> np.ndarray :
     cov = self.covariance_matrix(pars, data)
-    return np.sqrt(cov.diagonal())
+    errors = np.sqrt(cov.diagonal())
+    return { poi : errors[i] for i, poi in enumerate(self.pois) }
 
   def correlation_matrix(self, pars : Parameters, data : 'Data') -> np.ndarray :
     cov = self.covariance_matrix(pars, data)
