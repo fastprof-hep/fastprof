@@ -74,7 +74,10 @@ def run(argv = None) :
       raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
     print('Using Asimov dataset with POIs %s.' % str(sets))
   else :
-    data = Data(model).load(options.model_file)
+    try :
+      data = Data(model).load(options.model_file)
+    except KeyError :
+      data = None
 
   if options.setval is not None :
     try :
@@ -93,7 +96,7 @@ def run(argv = None) :
     mini.minimize(data)
     pars = mini.min_pars
   else :
-    pars = model.expected_pars([0]*model.npois)
+    pars = model.initial_pars()
 
   try:
     width, height = tuple( [ float(dim) for dim in options.window.split('x') ] )
