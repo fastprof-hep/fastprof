@@ -922,7 +922,7 @@ class Model (Serializable) :
     """Assigns NP values to a set of POI values
 
       By default, returns a :class:`Parameters` object with the POI values
-      defined by the `pois` arg, and the NPs set to 0. If a dataset is
+      defined by the `pois` arg, and the NPs set to 0. If a dataset is 
       provided, will set the NPs to their profiled values.
       The `pois` arg can also be a class:`Parameters` object, from which
       the POI values will be taken (and the NP values ignored).
@@ -1054,6 +1054,10 @@ class Model (Serializable) :
       channel.load_dict(dict_channel)
       if channel.name in self.channels :
         raise ValueError('ERROR: multiple channels defined with the same name (%s)' % channel.name)
+      for sample in channel.samples.values() :
+        if len(sample.nominal_yields) != channel.nbins() :
+          raise ValueError("ERROR: sample '%s' of channel '%s' has nominal_yields of the wrong size (%d, expected %d)."
+                           % (sample.name, channel.name, len(sample.nominal_yields), channel.nbins()))
       self.channels[channel.name] = channel
     self.set_internal_vars()
     if 'expressions' in sdict['model'] :
