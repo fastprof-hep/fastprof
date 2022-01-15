@@ -89,7 +89,7 @@ def run(argv = None) :
 
   if options.show_timing : comp_start_time = time.time()
 
-  opti = OptiMinimizer(method=options.method)
+  opti = OptiMinimizer(method=options.method, verbosity=options.verbosity)
   min_nll = opti.minimize(data)
 
   if options.show_timing : comp_stop_time = time.time()
