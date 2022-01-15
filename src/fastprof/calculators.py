@@ -169,7 +169,7 @@ class TestStatisticCalculator :
     using a linear model.
 
     Args:
-      hypos  : a list of POIHypo objects
+      hypos  : a list of POIHypo objects (or just POI dicts)
       data   : the input dataset
       name   : name of the output :class:`PLRData` objects
       verbosity : the levelf of verbosity of the output (0 or 1 currently)
@@ -179,6 +179,7 @@ class TestStatisticCalculator :
     fast_plr_data = {}
     start_time = timer()
     for i, hypo in enumerate(hypos) :
+      if isinstance(hypo, dict) : hypo = POIHypo(hypo)
       if verbosity > 1 :
         print('Processing hypothesis point %d of %d : %s %s' % (i+1, len(hypos), str(hypo), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
       fast_plr_data[hypo] = self.compute_fast_q(hypo, data, full_hypos[hypo] if hypo in full_hypos else None, '%s_%g' % (name, i))
