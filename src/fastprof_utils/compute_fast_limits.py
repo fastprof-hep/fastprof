@@ -50,6 +50,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import copy
 import json
+import time
 
 from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
 from fastprof_utils import process_setval_list
@@ -81,6 +82,7 @@ def make_parser() :
   parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
   parser.add_argument(      "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
+  parser.add_argument(      "--show-timing"   , action='store_true'          , help="Enables printout of timing information")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
   return parser
 
@@ -90,6 +92,8 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     sys.exit(0)
+
+  if options.show_timing : start_time = time.time()
 
   model = Model.create(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
@@ -157,10 +161,16 @@ def run(argv = None) :
     do_computation = False
   except FileNotFoundError :
     pass
+
+  if options.show_timing : comp_start_time = time.time()
+
   if do_computation :
     full_hypos = { hypo : model.expected_pars(hypo.pars) for hypo in hypos }
     faster = calc.compute_fast_results(hypos, data, full_hypos)
     faster.save(raster_file)
+
+  if options.show_timing : comp_stop_time = time.time()
+
   faster.print(verbosity = options.verbosity)
   if options.ntoys == 0 : return
 
@@ -258,6 +268,12 @@ def run(argv = None) :
   if options.bands :
     for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
       jdict['limit_sampling_CLs_expected_band_%+d' % band] = limit_sampling_cls_bands[band]
+
+  if options.show_timing :
+    stop_time = time.time()
+    print("##           Setup time : %g s" % (comp_start_time - start_time))
+    print("##     Computation time : %g s" % (comp_stop_time - comp_start_time))
+    print("## Post-processing time : %g s" % (stop_time - comp_stop_time))
 
   with open(results_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
