@@ -177,27 +177,30 @@ class NPPruner :
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :
         for pruned_np in pruned_nps : sample.impacts.pop(pruned_np)
-    self.remove_nps(pruned_nps)
+    return self.remove_nps(pruned_nps)
 
-  def remove_nps(self, np_names : list) :
+  def remove_nps(self, np_names : list, values : dict = None, clone_model : bool = False) :
+    model = model.clone(set_internal_vars=False) if clone_model else self.model
     for np_name in np_names :
-      if np_name in self.model.nps :
+      if np_name in model.nps :
         selected_names = [ np_name ]
       else :
-        selected_names = [ par_name for par_name in self.model.nps if re.match(np_name, par_name) ]
+        selected_names = [ par_name for par_name in model.nps if re.match(np_name, par_name) ]
         if len(selected_names) == 0 :
           raise KeyError("Cannot remove NP '%s' from model, no matching NP is defined." % np_name)
       for selected_name in selected_names :
-        par = self.model.nps.pop(selected_name)
-        if par.aux_obs : self.model.aux_obs.pop(par.aux_obs)
-        for channel in self.model.channels.values() :
+        par = model.nps.pop(selected_name)
+        value = values[selected_name] if selected_name in values else par.nominal_value
+        if par.aux_obs : model.aux_obs.pop(par.aux_obs)
+        for channel in model.channels.values() :
           for sample in channel.samples.values() :
             if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
-              if self.verbosity > 0 : print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, par.nominal_value, sample.name, channel.name))
-              sample.norm = NumberNorm(par.nominal_value)
+              if self.verbosity > 0 : print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, value, sample.name, channel.name))
+              sample.norm = NumberNorm(value)
             if selected_name in sample.impacts : sample.impacts.pop(selected_name)
         # TODO: should also check expressions
-    self.model.set_internal_vars()
+    model.set_internal_vars()
+    return model
 
 
 # -------------------------------------------------------------------------
