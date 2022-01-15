@@ -142,7 +142,7 @@ Given that the model seems to behave as expected, one can try a few simple fits.
 
 .. code-block:: console
 
-  ./fit_fast.py -m model_mX2000.json --setrange xs:0:10
+  ./fit_model.py -m model_mX2000.json --setrange xs:0:10
 
 where the second argument overrides the range of the POI to :math:`0 \le \text{xs} \le 10` fb. The output is::
 
@@ -166,7 +166,7 @@ Another test is to run the fit on an Asimov dataset generated for `xs=1` using
 
 .. code-block:: console
 
-  ./fit_fast.py -m model_mX2000.json --asimov xs=1 --setrange xs:0:10
+  ./fit_model.py -m model_mX2000.json --asimov xs=1 --setrange xs:0:10
   
 This yields::
 
@@ -193,7 +193,7 @@ One can also run a hypothesis test by passing `--hypo` option. An example in dat
 
 .. code-block:: console
 
-  ./fit_fast.py -m model_mX2000.json --hypo xs=0.2 --setrange xs:0:10 
+  ./fit_model.py -m model_mX2000.json --hypo xs=0.2 --setrange xs:0:10 
 
 Which gives the output::
 

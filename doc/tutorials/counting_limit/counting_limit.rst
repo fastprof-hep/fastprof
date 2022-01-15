@@ -120,7 +120,7 @@ Given that the model seems to behave as expected, one can try a few simple fits.
 
 .. code-block:: console
 
-  ./fit_fast.py -m inputs/simple_counting.json
+  ./fit_model.py -m inputs/simple_counting.json
 
 The output is::
 
@@ -138,7 +138,7 @@ We now fit with
 
 .. code-block:: console
 
-  ./fit_fast.py -m inputs/simple_counting.json -d inputs/simple_counting_n1.json
+  ./fit_model.py -m inputs/simple_counting.json -d inputs/simple_counting_n1.json
 
 Where the second argument (`-d` or `--data-file`) specifies a separate dataset which takes precedence over the one contained in the model file.
 The output is now::
@@ -152,7 +152,7 @@ The same tests can be perfomed on the model with a systematic uncertainty:
 
 .. code-block:: console
 
-  ./fit_fast.py -m inputs/counting_with_syst.json
+  ./fit_model.py -m inputs/counting_with_syst.json
   
 This yields::
 
@@ -176,7 +176,7 @@ We now fit with
 
 .. code-block:: console
 
-  ./fit_fast.py -m inputs/counting_with_syst.json -d inputs/counting_with_syst_n1.json
+  ./fit_model.py -m inputs/counting_with_syst.json -d inputs/counting_with_syst_n1.json
 
 with the output::
 
@@ -194,7 +194,7 @@ One can also run a hypothesis test by passing `--hypo` option. An example is
 
 .. code-block:: console
 
-   ./fit_fast.py -m inputs/simple_counting.json --hypo nsig=2
+   ./fit_model.py -m inputs/simple_counting.json --hypo nsig=2
 
 Which gives the output::
 
@@ -220,7 +220,7 @@ The same can also be done using the model with a background systematic:
 
 .. code-block:: console
 
-   ./fit_fast.py -m inputs/counting_with_syst.json --hypo nsig=2
+   ./fit_model.py -m inputs/counting_with_syst.json --hypo nsig=2
 
 Which gives the output::
 
