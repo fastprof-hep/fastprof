@@ -1,0 +1,42 @@
+{
+   "data": {
+      "channels": [
+         {
+            "name"  : "1-jet",
+            "counts": 5
+         },
+         {
+            "name": "2-jets",
+            "obs_name": "m_{jj}",
+            "obs_unit": "GeV",
+            "bins": [
+               {
+                  "lo_edge": 150,
+                  "hi_edge": 250,
+                  "counts" :  50
+               },
+               {
+                  "lo_edge": 250,
+                  "hi_edge": 500,
+                  "counts" :  10
+               },
+               {
+                  "lo_edge":  500,
+                  "hi_edge": 2000,
+                  "counts":     3
+               }
+            ]
+         }
+      ],
+      "aux_obs": [
+         {
+            "name": "aux_lumi",
+            "value": 0.0
+         },
+         {
+            "name": "aux_eff",
+            "value": 0.0
+         }
+      ]
+   }
+}
