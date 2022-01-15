@@ -48,7 +48,9 @@ def run(argv = None) :
   if not options :
     parser.print_help()
     sys.exit(0)
+
   if options.show_timing : start_time = time.time()
+
   if options.verbosity >= 1 : print('Initializing model from file %s' % options.model_file)
   model = Model.create(options.model_file, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
