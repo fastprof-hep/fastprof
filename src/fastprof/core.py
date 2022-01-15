@@ -820,6 +820,7 @@ class Model (Serializable) :
       plt.figure(figsize=figsize)
       canvas=plt.axes()
     if logy: canvas.set_yscale('log')
+    if isinstance(pars, dict) : pars = Parameters(pars, model=self)
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
     start = self.channel_offsets[channel.name]
     stop  = start + channel.nbins()
@@ -917,6 +918,26 @@ class Model (Serializable) :
     else :
       return pars
 
+  def initial_pars(self, minimizer : 'NPMinimizer' = None) -> Parameters :
+    """Assigns NP values to a set of POI values
+
+      By default, returns a :class:`Parameters` object with the POI values
+      defined by the `pois` arg, and the NPs set to 0. If a dataset is
+      provided, will set the NPs to their profiled values.
+      The `pois` arg can also be a class:`Parameters` object, from which
+      the POI values will be taken (and the NP values ignored).
+
+      Args:
+         minimizer (optional) : dataset to use for the profiling
+      Returns:
+         Object containing the POI values and associated NP values.
+    """
+    pars = Parameters({ poi.name : poi.initial_value for poi in self.pois.values() }, model=self)
+    if minimizer is not None :
+      return minimizer.profile(pars)
+    else :
+      return pars
+
   def generate_data(self, pars : Parameters) -> 'Data' :
     """Generate a pseudo-dataset for given parameter values
 
@@ -930,6 +951,7 @@ class Model (Serializable) :
       Returns:
          A randomly-generated dataset
     """
+    if not isinstance(pars, Parameters) : pars = Parameters(pars, model=self)
     return Data(self, np.random.poisson(self.tot_bin_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
 
   def generate_asimov(self, pars : Parameters) -> 'Data' :
@@ -946,6 +968,7 @@ class Model (Serializable) :
       Returns:
          An Asimov dataset
     """
+    if not isinstance(pars, Parameters) : pars = Parameters(pars, model=self)
     return Data(self).set_data(self.tot_bin_exp(pars), pars.nps)
 
   def generate_expected(self, pois, minimizer = None) :
