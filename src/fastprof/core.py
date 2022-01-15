@@ -1055,7 +1055,8 @@ class Model (Serializable) :
       if channel.name in self.channels :
         raise ValueError('ERROR: multiple channels defined with the same name (%s)' % channel.name)
       for sample in channel.samples.values() :
-        if len(sample.nominal_yields) != channel.nbins() :
+        # nominal yields can be None, which corresponds to [1...1] so norm carries all the information
+        if sample.nominal_yields is not None and len(sample.nominal_yields) != channel.nbins() :
           raise ValueError("ERROR: sample '%s' of channel '%s' has nominal_yields of the wrong size (%d, expected %d)."
                            % (sample.name, channel.name, len(sample.nominal_yields), channel.nbins()))
       self.channels[channel.name] = channel
