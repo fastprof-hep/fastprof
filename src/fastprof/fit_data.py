@@ -20,6 +20,9 @@ from .base import Serializable
 from .core import Model, Parameters, ModelPOI
 from .minimizers import OptiMinimizer
 
+#TODO: remove POIHypo, replace with dict. Only issue seems to be in Raster, where
+# POIHypo is used as a dict key, which is not allowed for a dict. One would have to use tuple(dict), frozenset or similar.
+
 class POIHypo(Serializable) :
   """Class describing an hypothesis on some or all of the model POIs
 
@@ -427,6 +430,7 @@ class Raster(Serializable) :
     if filename is not None : self.load_with_asimov(filename, 'asimov') if load_asimov is not None else self.load(filename)
     if self.use_global_best_fit : self.set_global_best_fit()
     if self.fill_missing : self.compute_tmu()
+    self.set_pois()
 
   @classmethod
   def have_compatible_pois(cls, hypos : list) -> list :
@@ -444,9 +448,9 @@ class Raster(Serializable) :
     Returns:
       the list of POIs, or None
     """
-    if len(hypos) <= 1 : return True
+    if len(hypos) <= 1 : return []
     pois = list(hypos[0].keys())
-    if any([ list(hypo.keys()) != pois for hypo in hypos[1:] ]) : return None
+    if any([ list(hypo.keys()) != pois for hypo in hypos[1:] ]) : return []
     return pois
       
   def key_value(self, key : str, hypo : Parameters) -> float :
@@ -465,7 +469,7 @@ class Raster(Serializable) :
       the numerical value
     """
     if not hypo in self.plr_data : raise KeyError('While trying to access key %s, hypo %s was not found in raster %s.' % (key, str(hypo), self.name))
-    for poi in self.pois() :
+    for poi in self.pois :
       if key == poi and poi in hypo : return hypo[poi]
       if key == 'best_' + poi : return self.plr_data[hypo].free_fit.fitpars[poi].value
     if key in self.plr_data[hypo].pvs :
@@ -490,7 +494,7 @@ class Raster(Serializable) :
         return False
     return True
 
-  def pois(self) -> dict :
+  def set_pois(self) :
     """Shortcut method to the list of POIs
 
     Returns the POIs from the first raster point, as
@@ -500,7 +504,7 @@ class Raster(Serializable) :
       POIs as a { par_name : par_value } dictionary.
     """
     hypo_pois = self.have_compatible_pois(list(self.plr_data.keys()))
-    return { poi_name : self.model.pois[poi_name] for poi_name in hypo_pois }
+    self.pois = { poi_name : self.model.pois[poi_name] for poi_name in hypo_pois }
 
   def set_global_best_fit(self) :
     """Set the same best-fit results across all points
@@ -558,6 +562,7 @@ class Raster(Serializable) :
     for i, plr_dict in enumerate(sdict[self.name]) :
       plr_data = PLRData('%s_%d' % (self.name, i), model=self.model).load_dict(plr_dict)
       self.plr_data[plr_data.hypo] = plr_data
+    self.set_pois()
     if self.use_global_best_fit : self.set_global_best_fit()
     if self.fill_missing : self.compute_tmu()
     return self
@@ -632,20 +637,20 @@ class Raster(Serializable) :
       keys = []
       if verbosity == 0 : verbosity = 1
     if verbosity > 0 :
-      keys = list(self.pois().keys()) + keys
+      keys = list(self.pois.keys()) + keys
       if 'pv' in plr_template.pvs : keys += [ 'pv' ]
       if 'cls' in plr_template.pvs : keys += [ 'cls' ]
       if 'clb' in plr_template.pvs : keys += [ 'clb' ]
-      if verbosity > 1 : keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois().keys() ])
+      if verbosity > 1 : keys.extend([ 'tmu' ] + [ 'best_' + k for k in self.pois.keys() ])
     s = ''
     for key in keys :
       s += '| %-15s ' % key
-      if not other is None and not key in self.pois().keys() : s += '| %-15s ' % ('%s (%s)' % (key, other.name))
+      if not other is None and not key in self.pois.keys() : s += '| %-15s ' % ('%s (%s)' % (key, other.name))
     for hypo, plr_data in self.plr_data.items() :
       s += '\n'
       for key in keys :
         s += '| %-15g ' % self.key_value(key, hypo)
-        if not other is None and not key in self.pois().keys() : s += '| %-15g ' % other.key_value(key, hypo)
+        if not other is None and not key in self.pois.keys() : s += '| %-15g ' % other.key_value(key, hypo)
     if verbosity > 2 :
       for hypo, plr_data in self.plr_data.items() :
         s += '\n------------------------------------------------'
