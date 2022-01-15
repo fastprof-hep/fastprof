@@ -9,7 +9,8 @@ import itertools
 import matplotlib.pyplot as plt
 
 from .core  import Model, Data, Parameters
-  
+from .minimizers import POIMinimizer, OptiMinimizer
+
 # -------------------------------------------------------------------------
 class PlotNPs :
   
@@ -67,15 +68,15 @@ class PlotResults :
     plt.colorbar(img)
     plt.tight_layout()
     
-  def plot_best_fit(self, pars: Parameters = None, values: dict = None, sym_errors : dict = None, results : dict = None, figsize : tuple = (10,10), fig : plt.Figure = None) :
+  def plot_best_fit(self, values: dict = None, sym_errors : dict = None, results : dict = None, figsize : tuple = (10,10), fig : plt.Figure = None) :
     self.make_canvas(figsize, fig)
     vals = np.zeros(len(self.data.model.pois))
-    if pars is not None :
-      vals = np.array([ pars[poi] for poi in self.data.model.pois ])
-    elif values is not None :
+    if values is not None :
       vals = np.array([ values[poi] for poi in self.data.model.pois ])
     elif results is not None :
       vals = np.array([ results[poi][0] for poi in self.data.model.pois ])
+    elif self.pars is not None :
+      vals = np.array([ self.pars[poi] for poi in self.data.model.pois ])
     else :
       raise ValueError("Parameter values should be provided either through the 'pars', 'values' or 'results' arguments.")
     if sym_errors is not None :
@@ -85,6 +86,47 @@ class PlotResults :
       errs = np.array([[ results[poi][1] for poi in self.data.model.pois ], [ results[poi][2] for poi in self.data.model.pois ]])
     else :
       errs = np.zeros((2,len(self.data.model.pois)))
-    plt.errorbar(vals, np.arange(len(self.data.model.pois), 0, -1), yerr=errs, fmt='o')
+    plt.errorbar(vals, np.arange(len(self.data.model.pois), 0, -1), xerr=errs, fmt='o')
     self.decorate_with_pois(axes='y', reverse=True)
     plt.tight_layout()
+
+class PlotImpacts :
+
+  def __init__(self, poi, data, minimizer : POIMinimizer = None) :
+    self.data = data
+    self.poi = poi
+    self.minimizer = minimizer if minimizer is not None else OptiMinimizer()
+  
+  def make_canvas(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
+    if not fig :
+      plt.figure(figsize=figsize)
+    else :
+      plt.figure(canvas.number)
+
+  def plot(self, prefit : bool = True, postfit : bool =True, impacts : bool = True, figsize : tuple = (10,10), fig : plt.Figure = None) :
+    self.make_canvas(figsize, fig)
+    self.plot_impacts(prefit=prefit, postfit=postfit)
+    self.plot_pulls()
+    plt.tight_layout()
+
+  def plot_impacts(self, prefit : bool = True, postfit : bool = True) :
+    pass # for now
+
+  def impacts(self, is_postfit : bool = True) :
+    impacts = []
+    self.minimizer.minimize(data)
+    min_pars = self.minimizer.min_pars.clone()
+    if is_postfit : errors = self.data.model.parabolic_errors(min_pars, data)
+
+    for par in self.data.model.nps :
+      var = errors[par.name] if is_postfit else 1
+      posvar_model = NPPruner(model).remove_nps([ par.name ], { par.name : min_pars[par.name] + var })
+      self.minimizer.minimize(data.clone(posvar_model))
+      posvar_min_pars = self.minimizer.min_pars.clone()
+      negvar_model = NPPruner(model).remove_nps([ par.name ], { par.name : min_pars[par.name] - var })
+      self.minimizer.minimize(data.clone(negvar_model))
+      negvar_min_pars = self.minimizer.min_pars.clone()
+      impacts.append((par.name, posvar_min_pars[self.poi] - min_pars[self.poi], negvar_min_pars[self.poi] - min_pars[self.poi]))
+      
+    return { trip[0] : (trip[1], trip[2]) for trip in sorted(impacts, key=lambda trip: (trip[1] - trip[2])/2) }  
+ 

@@ -723,13 +723,13 @@ class Model (Serializable) :
     hess = self.hessian(pars, data)
     return np.linalg.inv(hess)
 
-  def parabolic_errors(self, pars : Parameters, data : 'Data') -> np.ndarray :
-    cov = self.covariance_matrix(pars, data)
+  def parabolic_errors(self, pars : Parameters = None, data : 'Data' = None, covmat : np.array = None) -> np.ndarray :
+    cov = covmat if covmat is not None else self.covariance_matrix(pars, data)
     errors = np.sqrt(cov.diagonal())
     return { poi : errors[i] for i, poi in enumerate(self.pois) }
 
-  def correlation_matrix(self, pars : Parameters, data : 'Data') -> np.ndarray :
-    cov = self.covariance_matrix(pars, data)
+  def correlation_matrix(self, pars : Parameters = None, data : 'Data' = None, covmat : np.array = None) -> np.ndarray :
+    cov = covmat if covmat is not None else self.covariance_matrix(pars, data)
     errors = np.sqrt(cov.diagonal())
     return (cov.T / errors).T / errors
 
