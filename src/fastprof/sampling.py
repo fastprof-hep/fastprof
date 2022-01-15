@@ -35,13 +35,17 @@ class SamplingDistribution :
     filename (str)       : the filename from which the
                            distribution was loaded
   """
-  def __init__(self, nentries : int = 0) :
+  def __init__(self, nentries : int = 0, samples : np.ndarray = None) :
     """Initialize the `SamplingDistribution` object
 
     Args:
       nentries : the number of samples to reserve in the array
     """
-    self.samples = np.zeros(nentries)
+    if samples is not None :
+      self.samples = np.array(samples)
+      self.sort()
+    else :
+      self.samples = np.zeros(nentries)
     self.filename = None
 
   def sort(self) :
