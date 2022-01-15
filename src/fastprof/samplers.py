@@ -237,7 +237,7 @@ class OptiSampler (Sampler) :
     self.debug = debug
     self.debug_data = pd.DataFrame()
     self.minimizer = OptiMinimizer(self.method, niter=self.niter, floor=self.floor)
-    if self.debug : self.minimizer.debug = 2
+    if self.debug : self.minimizer.verbosity = 2
 
   def compute(self, data, toy_iter) :
     """Compute the asymptotic p-value
