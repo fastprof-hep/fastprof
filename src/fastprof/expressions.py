@@ -5,7 +5,7 @@ from abc import abstractmethod
 
 # -------------------------------------------------------------------------
 class Expression(Serializable) :
-  """Class representing an expression involving POIs and/or NPs
+  """Class representing an expression involving POIs
 
   Attributes:
      name (str) : the name of the expression
@@ -106,6 +106,8 @@ class Expression(Serializable) :
       expression = Formula()
     elif sdict['type'] == LinearCombination.type_str :
       expression = LinearCombination()
+    elif sdict['type'] == ProductRatio.type_str :
+      expression = ProductRatio()
     else :
       raise ValueError("ERROR: unsupported expression type '%s'" % sdict['type'])
     if load_data : expression.load_dict(sdict)
@@ -121,10 +123,7 @@ class SingleParameter(Expression) :
   def __init__(self, par_name : str = '') :
     """Create a new LinearCombination object
     
-    Args:
-      par_coeffs : dict specifying the parameters and coefficients of the 
-                   linear combination, with entries of the form par_name: coeff 
-    """
+    #"""
     super().__init__(par_name)
 
   def value(self, real_vals : dict) -> float :
@@ -149,8 +148,7 @@ class SingleParameter(Expression) :
       Returns:
          known gradient, in the form { par_name: dN/dpar }
     """
-    if not self.name in pois :
-        raise KeyError("Invalid single-parameter expression '%s', not formed from a POI. Known POIs are as follows: %s" % (self.name, str(pois.keys())))
+    if not self.name in pois : return np.zeros(len(pois))
     return np.array([ 1 if poi == self.name else 0 for poi in pois ])
 
   def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
@@ -491,9 +489,9 @@ class ProductRatio(Expression) :
     super().load_dict(sdict)
     if 'type' in sdict and sdict['type'] != ProductRatio.type_str :
       raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], ProductRatio.type_str))
-    self.prefactor   = self.load_field('prefactor'  , sdict, 0,  [int, float])
-    self.numerator   = self.load_field('numerator'  , sdict, 0,  list)
-    self.denominator = self.load_field('denominator', sdict, 0,  list)
+    self.prefactor   = self.load_field('prefactor'  , sdict,  1,  [int, float])
+    self.numerator   = self.load_field('numerator'  , sdict, [],  list)
+    self.denominator = self.load_field('denominator', sdict, [],  list)
     return self
 
   def fill_dict(self, sdict) :
