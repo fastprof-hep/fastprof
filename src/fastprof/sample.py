@@ -306,7 +306,7 @@ class Sample(Serializable) :
     self.name = self.load_field('name', sdict, '', str)
     self.norm = Norm.instantiate(sdict)
     self.nominal_norm = self.load_field('nominal_norm', sdict, None, [float, int])
-    self.nominal_yields = self.load_field('nominal_yields', sdict, None, list)
+    self.nominal_yields = self.load_field('nominal_yields', sdict, None, np.ndarray)
     self.impacts = self.load_field('impacts', sdict, {}, dict)
     return self
 
