@@ -144,10 +144,10 @@ def run(argv = None) :
       raise ValueError('Could not parse parameter bound specification "%s", expected in the form name1=[min]#[max],name2=[min]#[max],...' % options.bounds)
 
   if options.test_statistic == 'q~mu' :
-    if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+    if len(raster.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
     calc = QMuTildaCalculator(OptiMinimizer().set_pois_from_model(model))
   elif options.test_statistic == 'q_mu' :
-    if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+    if len(raster.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
     calc = QMuCalculator(OptiMinimizer().set_pois_from_model(model))
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
@@ -187,7 +187,7 @@ def run(argv = None) :
 
   if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
 
-  poi = raster.pois()[list(raster.pois())[0]]
+  poi = raster.pois[list(raster.pois)[0]]
 
   for plr_data in raster.plr_data.values() :
     plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)

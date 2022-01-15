@@ -31,7 +31,7 @@ class Scan :
     self.key = key
 
   def find_poi(self, poi_name : str, index : int = 0) :
-    raster_pois = self.raster.pois()
+    raster_pois = self.raster.pois
     if poi_name is not None :
       if poi_name in raster_pois :
         return raster_pois[poi_name]
@@ -241,7 +241,7 @@ class UpperLimitScan (Scan1D):
   Attributes:
   """
 
-  def __init__(self, raster : Raster, pv_key : str = None, poi_name : str = None, calculator : TestStatisticCalculator = None, name = 'Upper limit', cl = 0.95, cl_name = None) :
+  def __init__(self, raster : Raster, pv_key : str, poi_name : str = None, calculator : TestStatisticCalculator = None, name = 'Upper limit', cl = 0.95, cl_name = None) :
     """Initialize the `UpperLimitScan` object"""
     super().__init__(raster, pv_key, poi_name, calculator, name)
     self.cl = 0.95

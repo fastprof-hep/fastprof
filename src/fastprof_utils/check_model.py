@@ -81,10 +81,10 @@ def run(argv = None) :
     data = Data(model).load(options.model_file)
 
   if options.test_statistic == 'q~mu' :
-    if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+    if len(raster.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
     calc = QMuTildaCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model))
   elif options.test_statistic == 'q_mu' :
-    if len(raster.pois()) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+    if len(raster.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
     calc = QMuCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model))
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
@@ -94,7 +94,7 @@ def run(argv = None) :
   if options.verbosity > 2 : print(str(faster))
   # Plot results
   if not options.batch_mode :
-    poi = raster.pois()[list(raster.pois())[0]]
+    poi = raster.pois[list(raster.pois)[0]]
     plt.ion()
     fig1 = plt.figure(1)
     plt.suptitle('$CL_{s+b}$')
