@@ -128,6 +128,7 @@ class ModelReparam :
       if not selected_name in self.model.expressions : # if we just replaced this POI by an expression, leave the norms as they are
         self.remove_from_norms(selected_name, values, verbosity)
       for expr in self.model.expressions.values() :
+        continue # TODO : here we should test if poi is in the expression, which is not implemented yet.
         if selected_name not in values :
           raise KeyError("Cannot remove POI '%s' since it must be removed from expression '%s' and no replacement value was provided." % (selected_name, expr.name))
         value = expr.replace(selected_name, values[selected_name], self.model.reals)
