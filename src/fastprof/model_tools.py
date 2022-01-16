@@ -91,7 +91,7 @@ class ModelReparam :
     for expr in new_expressions :
       if expr.name in self.model.expressions : 
         raise KeyError("Cannot add expression '%s' to model, an expression with that name is already defined." % expr.name)
-      if verbosity > 0 : print("Adding expression '%s'." % str(expr))
+      if verbosity > 0 : print("Adding expression '%s = %s'." % (expr.name, str(expr)))
       self.model.expressions[expr.name] = expr
 
   def update_norms(self, new_norms : dict, verbosity : int = 0) :
@@ -125,7 +125,8 @@ class ModelReparam :
     for selected_name in selected_names :
       if verbosity > 0 : print("Removing POI '%s'." % selected_name)
       poi = self.model.pois.pop(selected_name)
-      self.remove_from_norms(selected_name, values, verbosity)
+      if not selected_name in self.model.expressions : # if we just replaced this POI by an expression, leave the norms as they are
+        self.remove_from_norms(selected_name, values, verbosity)
       for expr in self.model.expressions.values() :
         if selected_name not in values :
           raise KeyError("Cannot remove POI '%s' since it must be removed from expression '%s' and no replacement value was provided." % (selected_name, expr.name))
@@ -190,7 +191,7 @@ class NPPruner :
           raise KeyError("Cannot remove NP '%s' from model, no matching NP is defined." % np_name)
       for selected_name in selected_names :
         par = model.nps.pop(selected_name)
-        value = values[selected_name] if selected_name in values else par.nominal_value
+        value = values[selected_name] if values is not None and selected_name in values else par.nominal_value
         if par.aux_obs : model.aux_obs.pop(par.aux_obs)
         for channel in model.channels.values() :
           for sample in channel.samples.values() :
