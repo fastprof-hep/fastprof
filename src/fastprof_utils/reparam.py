@@ -29,6 +29,7 @@ def make_parser() :
   parser.add_argument("-e", "--expressions" , type=str  , default=None , help="New expressions to add (comma-separated list of the form name:type:data)")
   parser.add_argument("-a", "--add"         , type=str  , default=None , help="POI(s) to be added or modified (comma-separated list)")
   parser.add_argument("-r", "--remove"      , type=str  , default=None , help="POI(s) to be removed (comma-separated list)")
+  parser.add_argument(      "--replacements", type=str  , default=None , help="Replacement values for removed POIs, in the form name:value [default: use initial values]")
   parser.add_argument("-v", "--verbosity"   , type=int  , default=0    , help="Verbosity level")
   return parser
 
@@ -121,6 +122,26 @@ def run(argv = None) :
   remove_pois = []
   change_pois = []
   new_pois = {}
+  replacements = {}
+
+  if 'replacements' in fdict : # from file
+    try :
+      for par, value in fdict['replacements'].items() :
+        replacements[par] = value
+    except Exception as inst :
+      print(inst)
+      print("Could not load replacement data from '%s'." % options.file)
+      return
+
+  if options.replacements is not None :
+    try :
+      for repl_spec in options.replacements.split(',') :
+        par, value = repl_spec.replace(' ', '').split(':')
+        replacements[par] = value
+    except Exception as inst :
+      print(inst)
+      print("Could not parse replacement data")
+      return
 
   if 'POIs' in fdict : # from file
     try :
@@ -159,11 +180,15 @@ def run(argv = None) :
   if len(norms) > 0 :
     reparam.update_norms(norms, verbosity=options.verbosity)
   if len(change_pois) > 0 :
-    for poi in change_pois : 
+    for poi in change_pois :
       if options.verbosity > 0 : print("Modifying POI '%s', now '%s'." % (poi.name, str(poi)))
       model.pois[poi.name] = poi
   if len(remove_pois) > 0 :
-    reparam.remove_pois(remove_pois, verbosity=options.verbosity)
+    for poi in remove_pois :
+      if poi not in replacements :
+        replacements[poi] = model.pois[poi].initial_value
+        if options.verbosity > 0 : print("Using default replacement '%s=%g' when removing POI '%s'." % (poi, replacements[poi], poi))
+    reparam.remove_pois(remove_pois, verbosity=options.verbosity, values=replacements)
 
   # If we specified a full list of POIs, reorder the POIs to match the list order
   if len(new_pois) > 0 : model.pois = {name : model.pois[name] for name in new_pois}
