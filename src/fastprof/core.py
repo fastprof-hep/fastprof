@@ -1068,13 +1068,13 @@ class Model (Serializable) :
           raise ValueError("ERROR: sample '%s' of channel '%s' has nominal_yields of the wrong size (%d, expected %d)."
                            % (sample.name, channel.name, len(sample.nominal_yields), channel.nbins()))
       self.channels[channel.name] = channel
-    self.set_internal_vars()
     if 'expressions' in sdict['model'] :
       for dict_expr in sdict['model']['expressions'] :
         expression = Expression.instantiate(dict_expr)
         if expression.name in self.expressions :
           raise ValueError('ERROR: multiple expressions defined with the same name (%s)' % expression.name)
         self.expressions[expression.name] = expression
+    self.set_internal_vars()
     return self
 
   def fill_dict(self, sdict : dict) :
