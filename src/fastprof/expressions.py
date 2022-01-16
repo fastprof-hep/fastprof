@@ -72,7 +72,7 @@ class Expression(Serializable) :
       Returns:
          self, or just a number if the expression is now trivial
     """
-    raise KeyError("ERROR: cannot replace value of parameter '%s' in expression '%s'." % (name, self.name))
+    raise KeyError("Cannot replace value of parameter '%s' in expression '%s'." % (name, self.name))
 
   def load_dict(self, sdict) -> 'Expression' :
     """Load object information from a dictionary of markup data
@@ -109,7 +109,7 @@ class Expression(Serializable) :
     elif sdict['type'] == ProductRatio.type_str :
       expression = ProductRatio()
     else :
-      raise ValueError("ERROR: unsupported expression type '%s'" % sdict['type'])
+      raise ValueError("Unsupported expression type '%s'" % sdict['type'])
     if load_data : expression.load_dict(sdict)
     return expression
 
@@ -181,7 +181,9 @@ class SingleParameter(Expression) :
       Returns:
          self, or just a number if the expression is now trivial
     """
-    if name == self.name : return value
+    if name == self.name :
+      if value is None : raise KeyError("Cannot remove POI '%s' since it must be removed from expression '%s' and no replacement value was provided." % (name, self.name))
+      return value
     return self
 
   def load_dict(self, sdict) -> 'SingleParameter' :
@@ -299,11 +301,13 @@ class LinearCombination(Expression) :
       Returns:
          self, or just a number if the expression is now trivial
     """
+    to_remove = []
     for expr in self.coeffs :
       new_expr = reals[expr].replace(name, value, reals)
       if new_expr != reals[expr] : # i.e. it is now a trivial number
         self.nominal_value += self.coeffs[expr]*new_expr
-        del self.coeffs[expr]
+        to_remove.append(expr)
+    for expr in to_remove : del self.coeffs[expr]
     if len(self.coeffs) > 0 : return self
     return self.nominal_value
 
@@ -463,17 +467,21 @@ class ProductRatio(Expression) :
       Returns:
          self, or just a number if the expression is now trivial
     """
+    to_remove = []
     for expr in self.numerator :
       new_expr = reals[expr].replace(name, value, reals)
       if new_real != reals[expr] : # i.e. it is now a trivial number
         self.prefactor *= new_real
-        del self.numerator[expr]
+        to_remove.append(expr)
+    for expr in to_remove : del self.numerator[expr]
+    to_remove = []
     for expr in self.denominator :
       new_expr = reals[expr].replace(name, value, reals)
       if new_real != reals[expr] : # i.e. it is now a trivial number
         if expr_val == 0 : raise ValueError("Attempting to divide by '%s' == 0 when replacing '%s'=%g in '%s'." % (expr, name, value, self.name)) 
         self.prefactor /= new_real
-        del self.denominator[expr]
+        to_remove.append(expr)
+    for expr in to_remove : del self.denominator[expr]
     if len(self.numerator) + len(self.denominator) > 0 : return self
     return self.prefactor
 
