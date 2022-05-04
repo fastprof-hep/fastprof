@@ -129,8 +129,8 @@ class Sample(Serializable) :
         list of available variations
     """
     if par is None and len(self.impacts) > 0 : par = list(self.impacts.keys())[0]
-    if not par in self.impacts : return [+1, -1] # no registered impact: return dummy +/- sigma variations of 0 (see below)
-    #raise KeyError("No impact defined in sample '%s' for parameter '%s'." % (self.name, par))
+    if not par in self.impacts : return [+1, -1] # no registered impact: return dummy +/- 1 sigma variations of 0 (see below)
+    if isinstance(self.impacts[par], float) : return [+1, -1] # impact provided as just a single number: assume this refers to +/- 1 sigma variations.
     if len(self.impacts[par]) == 0 : return []
     prototype = self.impacts[par][0] if isinstance(self.impacts[par], list) else self.impacts[par]
     return [ +1 if var == 'pos' else -1 if var == 'neg' else float(var) for var in prototype.keys() ]
@@ -153,17 +153,17 @@ class Sample(Serializable) :
       try:
         imp = np.array([ imp['%+g' % variation] for imp in self.impacts[par] ], dtype=float)
       except Exception as inst:
-        # Legacy naming scheme
-        if (variation == 1 or variation == -1) :
-          which = 'pos' if variation == 1 else 'neg'
-          try:
-            imp = np.array([ imp[which] for imp in self.impacts[par] ], dtype=float)
-          except Exception as inst:
-            print('Impact lookup failed for sample %s, parameter %s, variation %+g' % (self.name, par, variation))
-            raise(inst)
+        print('Impact lookup failed for sample %s, parameter %s, variation %+g' % (self.name, par, variation))
+        print('Expected a list of variations (one for each bin), instead got')
+        print(self.impacts[par])
+        print('Leading to the following error:')
+        raise(inst)
     # Case 2 : the impacts are provided as a single dict, which is common for all the bins
     if isinstance(self.impacts[par], dict) :
       imp = np.array([ self.impacts[par]['%+g' % variation] ] * len(self.nominal_yields), dtype=float)
+    # Case 2 : the impacts are provided as a single float, which is common for all the bins
+    if isinstance(self.impacts[par], float) :
+      imp = np.array( [ self.impacts[par]*variation ] * len(self.nominal_yields), dtype=float)
     if imp is None : return imp
     return (1 + imp)**(1/variation) - 1 if normalize else imp
 
