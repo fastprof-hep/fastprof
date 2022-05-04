@@ -42,11 +42,11 @@ def process_setvals(setvals : str, model : Model, match_pois : bool = True, matc
     raise ValueError("ERROR : invalid variable assignment specification '%s'." % setvals)
   for (var, val) in sets :
     if match_pois :
-      matching_pois = [ p for p in model.pois.keys() if re.match(var, p) ]
+      matching_pois = [ p for p in model.pois.keys() if re.match(var + '$', p) ]
       if len(matching_pois) == 0 and not match_nps : raise ValueError("No POIs matching '%s' defined in model." % var)
     else : matching_pois = []
     if match_nps :
-      matching_nps = [ p for p in model.nps.keys() if re.match(var, p) ]
+      matching_nps = [ p for p in model.nps.keys() if re.match(var + '$', p) ]
       if len(matching_nps) == 0 and not match_pois : raise ValueError("No NPs matching '%s' defined in model." % var)
     else : matching_nps = []
     matching_all = matching_pois + matching_nps
@@ -144,7 +144,7 @@ def process_setval_list(spec : str, model : Model, match_pois : bool = True, mat
   return process_setval_dicts([ process_setvals(spec, model, match_pois, match_nps, check_val=False) for spec in spec.split('|') ])
   
   
-def process_setval_dicts(setval_dicts : dict) -> dict :
+def process_setval_dicts(setval_dicts : list) -> dict :
   new_svds = []
   any_expanded = False
   for svd in setval_dicts :
@@ -192,7 +192,8 @@ def process_setranges(spec : str, model : Model) :
   try:
     sets = [ v.replace(' ', '').split('=') for v in spec.split(',') ]
     for (var, var_range) in sets :
-      if not var in model.pois : raise ValueError("Parameter of interest '%s' not defined in model." % var)
+      matching_pois = [ p for p in model.pois.keys() if re.match(var + '$', p) ]
+      if len(matching_pois) == 0 : raise ValueError("Specification '%s' does not match any POIs in the model." % var)
       splits = var_range.split(':')
       if len(splits) == 1 : splits = splits*2
       if len(splits) != 2 : raise ValueError("Invalid range specification '%s' for parameters '%s', expecting 'min:max'." % (var_range, var))
@@ -202,13 +203,13 @@ def process_setranges(spec : str, model : Model) :
           float_minval = float(minval)
         except ValueError as inst :
           raise ValueError("Invalid numerical value '%s' for the lower bound of variable '%s'." % (minval, var))
-        model.pois[var].min_value = float_minval
+        for poi in matching_pois : model.pois[poi].min_value = float_minval
       if maxval != '' :
         try :
           float_maxval = float(maxval)
         except ValueError as inst :
           raise ValueError("Invalid numerical value '%s' for the upper bound of variable '%s'." % (maxval, var))
-        model.pois[var].max_value = float_maxval
+        for poi in matching_pois : model.pois[poi].max_value = float_maxval
     if minval != '' and maxval != '' and float_minval == float_maxval :
       print("INFO : fixing %s to %g" % (var, float_maxval))
     else :
