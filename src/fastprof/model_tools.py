@@ -100,7 +100,7 @@ class ModelReparam :
         matching_norms = []
         for (channel_spec, sample_spec), norm in new_norms.items() :
           try :
-            if re.match(channel_spec, channel.name) and re.match(sample_spec, sample.name) : matching_norms.append(norm)
+            if re.match(channel_spec + '$', channel.name) and re.match(sample_spec + '$', sample.name) : matching_norms.append(norm)
           except Exception as inst :
             print(inst)
             raise ValueError("ERROR: invalid channel specification '%s' or sample specification '%s'." % (channel_spec, sample_spec)) 
@@ -116,7 +116,7 @@ class ModelReparam :
       if poi_name in self.model.pois :
         selected_names.append(poi_name)
       else :
-        new_names = [ par_name for par_name in self.model.pois if re.match(poi_name, par_name) ]
+        new_names = [ par_name for par_name in self.model.pois if re.match(poi_name + '$', par_name) ]
         if len(new_names) == 0 :
           raise KeyError("Cannot remove POIs with specification '%s' from model, as no matching POI is defined." % poi_name)
         selected_names.extend(new_names)
@@ -185,7 +185,7 @@ class NPPruner :
       if np_name in model.nps :
         selected_names = [ np_name ]
       else :
-        selected_names = [ par_name for par_name in model.nps if re.match(np_name, par_name) ]
+        selected_names = [ par_name for par_name in model.nps if re.match(np_name + '$', par_name) ]
         if len(selected_names) == 0 :
           raise KeyError("Cannot remove NP '%s' from model, no matching NP is defined." % np_name)
       for selected_name in selected_names :
