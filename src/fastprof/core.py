@@ -1011,6 +1011,21 @@ class Model (Serializable) :
     """
     return Model(verbosity=verbosity).load(filename, flavor=flavor)
 
+  @staticmethod
+  def create_from_dict(sdict : dict, verbosity : int = 0) -> 'Model' :
+    """Shortcut method to instantiate a model from a markup file
+
+      Same behavior as creating a default model and loading from the file,
+      rolled into a single command
+
+      Args:
+         sdict : a dictionary containing the model definition
+         verbosity: level of verbosity (0=minimal)
+      Returns:
+         The created model
+    """
+    return Model(verbosity=verbosity).load_dict(sdict)
+
   def load_dict(self, sdict : dict) -> 'Model' :
     """Load object information from a dictionary of markup data
 
