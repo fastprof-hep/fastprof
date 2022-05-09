@@ -433,8 +433,10 @@ class Model (Serializable) :
     self.np_indices = {}
     self.reals = { **{ poi : SingleParameter(poi) for poi in self.pois}, **{ par : SingleParameter(par) for par in self.nps}, **self.expressions }
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
-    self.np_nominal_values = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
-    self.np_variations     = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
+    self.poi_initial_values = np.array([ poi.initial_value for poi in self.pois.values() ], dtype=float)
+    self.np_nominal_values  = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
+    self.np_variations      = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
+    self.pars_nominal = Parameters(self.poi_initial_values, self.np_nominal_values, self)
     for p, par in enumerate(self.nps.values()) :
       if par.constraint is not None :
         self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
@@ -451,7 +453,7 @@ class Model (Serializable) :
       self.channel_offsets[channel.name] = self.nbins
       self.nbins += channel.nbins()
       for s, sample in enumerate(channel.samples.values()) :
-        sample.set_np_data(self.nps.values(), variation=1, verbosity=self.verbosity)
+        sample.set_np_data(self.nps.values(), self.reals, self.real_vals(self.pars_nominal), variation=1, verbosity=self.verbosity)
         self.samples[(channel.name, s)] = sample
     if self.verbosity > 1 : print('Initializing nominal event yields')
     self.nominal_yields = np.stack([ np.concatenate([ self.samples[(channel.name, s)].nominal_yields if s < len(channel.samples) else np.zeros(channel.nbins()) for channel in self.channels.values()]) for s in range(0, self.max_nsamples) ])      

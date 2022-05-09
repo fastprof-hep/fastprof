@@ -74,7 +74,7 @@ class Sample(Serializable) :
     self.pos_imps = {}
     self.neg_imps = {}
 
-  def set_np_data(self, nps : list, variation : float = 1, verbosity : int = 0) :
+  def set_np_data(self, nps : list, reals : dict, real_vals : dict, variation : float = 1, verbosity : int = 0) :
     """Post-initialization update based on model NPs
 
     The function performs a couple of updates that require passing
@@ -116,9 +116,9 @@ class Sample(Serializable) :
       self.nominal_yields = np.array([ self.nominal_norm ])
     for par in nps :
       if par.name in self.impacts : continue
-      imp_impact = self.norm.implicit_impact(par, +variation)
+      imp_impact = self.norm.implicit_impact(par, reals, real_vals, +variation)
       if imp_impact is None : continue
-      self.impacts[par.name] =  imp_impact
+      self.impacts[par.name] = imp_impact
 
   def available_variations(self, par : str = None) -> list :
     """provides the available variations of the per-bin event yields for a given NP

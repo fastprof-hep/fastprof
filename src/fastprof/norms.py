@@ -22,7 +22,7 @@ class Norm(Serializable) :
     """
     pass
   
-  def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
+  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
     """provides the NP variations that are implicit in the norm
 
       Args:
@@ -121,7 +121,7 @@ class NumberNorm(Serializable) :
     """
     self.norm_value = norm_value
   
-  def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
+  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
     """provides the NP variations that are implicit in the norm
 
       This is called only for NPs. If the normalization parameter is an NP,
@@ -228,7 +228,7 @@ class ExpressionNorm(Serializable) :
     """
     self.expr_name = expr_name
   
-  def implicit_impact(self, par : ModelNP, variation : float = +1) -> list :
+  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
     """provides the NP variations that are implicit in the norm
 
       This is called only for NPs. If the normalization parameter is an NP,
@@ -244,10 +244,7 @@ class ExpressionNorm(Serializable) :
       Returns:
         the relative yield variation for the specified NP variation
     """
-    if par.name != self.expr_name or par.nominal_value == 0 : 
-      rel_var = 0
-    else :
-      rel_var = variation*par.variation/par.nominal_value
+    rel_var = variation*par.variation*self.gradient({ par.name : par }, reals, real_vals)[0]/par.nominal_value if par.nominal_value != 0 else 0
     return { '%+g' % variation : rel_var, '%+g' % -variation : -rel_var }
 
   def value(self, real_vals : dict) -> float :
