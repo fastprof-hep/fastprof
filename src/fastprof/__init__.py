@@ -2,7 +2,7 @@ from .base            import ModelPOI, ModelNP, ModelAux, Serializable
 from .expressions     import Expression, SingleParameter, LinearCombination, ProductRatio, Formula
 from .norms           import Norm, NumberNorm, ExpressionNorm
 from .sample          import Sample
-from .channels        import Channel, SingleBinChannel, BinnedRangeChannel
+from .channels        import Channel, SingleBinChannel, BinnedRangeChannel, GaussianChannel
 from .core            import Model, Parameters, Data
 from .test_statistics import TMu, QMu, QMuTilda
 from .minimizers      import NPMinimizer, OptiMinimizer, ScanMinimizer

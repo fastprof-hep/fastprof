@@ -70,6 +70,9 @@ class Channel(Serializable) :
     """
     return self.samples[name] if name in self.samples else None
 
+  def pdf_type(self) :
+    return 'poisson'
+
   def __str__(self) -> str :
     """Provides a description string
 
@@ -345,8 +348,8 @@ class SingleBinChannel(Channel) :
 class MultiBinChannel(Channel) :
   """Class representing a model channel consisting of a set of discrete bins
 
-  Class derived from :class:`Channel` to handle a bin channel consisting
-  of a set of discrete, names bins.
+  Class derived from :class:`Channel` to handle a channel consisting
+  of a set of discrete, named bins.
  
   Each bin is specified by a bin name.
   """
@@ -414,7 +417,7 @@ class MultiBinChannel(Channel) :
       raise KeyError("No 'bins' section defined for data channel '%s' in specified markup file." % self.name)
     if len(sdict['bins']) != self.nbins() :
       raise ValueError("Binned range channel '%s' in specified markup file has %d bins, but the model channel has %d." % (channel['name'], len(channel['bins']), self.nbins()))
-    for b, bin_data in sdict['bins'] :
+    for b, bin_data in enumerate(sdict['bins']) :
       if bin_data['name'] != self.bins[b] :
         raise ValueError("Bin %d in data channel '%s' has name '%s', but the model specifies name '%s'." % (b, self.name, bin_data['name'], self.bins[b]))
       counts[b] = bin_data['counts']
@@ -437,5 +440,121 @@ class MultiBinChannel(Channel) :
       bin_data = {}
       bin_data['name'] = bin_name
       bin_data['counts'] = int(counts[b])
+      sdict['bins'].append(bin_data)
+
+
+# -------------------------------------------------------------------------
+class GaussianChannel(Channel) :
+  """Class representing a model channel with Gaussian bins
+
+  Class derived from :class:`Channel` to handle a channel consisting
+  of a set of named bin with observables following Gaussian distributions
+ 
+  Each bin is specified by a bin name, and the Hessian matrix of the 
+  measurement (the inverse of its covariance) must be provided.
+  """
+  type_str = 'gaussian'
+
+  def __init__(self, name : str = '', bins : list = None, samples : dict = None,
+               hessian : np.ndarray = None, covariance : np.ndarray = None) :
+    """Initializes the GaussianChannel class
+
+      Args:
+         name : channel name
+         bins : list of bin names
+    """
+    super().__init__(name, samples)
+    self.bins = bins if bins is not None else {}
+    if hessian is not None :
+      self.hessian = hessian
+    elif covariance is not None :
+      try :
+        self.hessian = np.linalg.inv(covariance)
+      except Exception as inst :
+        print("ERROR: could not invert the covariance matrix of Gaussian channel '%s', exiting." % name)
+        raise inst
+    else :
+      self.hessian = None
+
+  def nbins(self) -> int :
+    """Returns the number of bins in the channel
+
+      Returns:
+        the number of bins
+    """
+    return len(self.bins)
+
+  def pdf_type(self) :
+    return 'gaussian'
+
+  def load_dict(self, sdict : dict) :
+    """Load object information from a dictionary of markup data
+
+      Args:
+        sdict: A dictionary containing markup data
+
+      Returns:
+        Channel: self
+    """
+    super().load_dict(sdict)
+    if sdict['type'] != GaussianChannel.type_str :
+      raise ValueError("Trying to load a GaussianChannel from channel data of type '%s'" % sdict['type'])
+    self.bins = sdict['bins']
+    self.hessian = np.linalg.inv(sdict['covariance'])
+    return self
+
+  def fill_dict(self, sdict) :
+    """Save information to a dictionary of markup data
+
+      Args:
+         sdict: A dictionary containing markup data
+    """
+    super().fill_dict(sdict)
+    sdict['type'] = MultiBinChannel.type_str
+    sdict['bins'] = self.bins
+    sdict['covariance'] = np.linalg.inv(self.hessian)
+    sdict['samples'] = sdict.pop('samples') # reorder to have samples at end
+
+  def load_data_dict(self, sdict : dict, obs : np.array) :
+    """Load observed data information from markup
+    
+    Utility function called from :class:`fastprof.Data` to parse
+    an observed data specification for this channel and fill an
+    array of observables
+
+      Args:
+        sdict: A dictionary containing markup data
+        obs : the array of observables to fill
+    """
+    super().load_data_dict(sdict, obs)
+    if not 'name' in sdict :
+      raise KeyError("Data channel definition must contain a 'name' field")
+    if not 'bins' in sdict :
+      raise KeyError("No 'bins' section defined for data channel '%s' in the dataset description." % self.name)
+    if len(sdict['bins']) != self.nbins() :
+      raise ValueError("Binned range channel '%s' in the dataset description has %d bins, but the model channel has %d." % (sdict['name'], len(sdict['bins']), self.nbins()))
+    for b, bin_data in enumerate(sdict['bins']) :
+      if bin_data['name'] != self.bins[b] :
+        raise ValueError("Bin %d in data channel '%s' has name '%s', but the model specifies name '%s'." % (b, self.name, bin_data['name'], self.bins[b]))
+      obs[b] = bin_data['obs']
+
+  def save_data_dict(self, sdict : dict, obs : np.array) :
+    """Save observed data information from markup
+    
+    Utility function called from :class:`fastprof.Data` to write
+    out an observed data specification for this channel into the
+    appropriate format
+
+    Args:
+      sdict  : A dictionary to fill with markup data
+      obs : an array of observables to read from
+    """
+    super().save_data_dict(sdict, obs)
+    sdict['type'] = MultiBinChannel.type_str
+    sdict['bins'] = []
+    for b, bin_name in enumerate(self.bins) :
+      bin_data = {}
+      bin_data['name'] = bin_name
+      bin_data['counts'] = int(obs[b])
       sdict['bins'].append(bin_data)
 
