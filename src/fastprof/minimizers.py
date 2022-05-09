@@ -88,8 +88,15 @@ class NPMinimizer :
     # a,b,c : NP indices
     impacts = model.linear_impacts(hypo)
     # print('njpb', model.nbins_poisson, model.nbins_gaussian, model.nbins)
-    (p_pois, q_pois) = self.pq_einsum_poisson (n_nom[:,:model.nbins_poisson], self.data.counts[:model.nbins_poisson], impacts[:,:model.nbins_poisson,:])
-    (p_gaus, q_gaus) = self.pq_einsum_gaussian(n_nom[:,model.nbins_poisson:], self.data.counts[model.nbins_poisson:], impacts[:,model.nbins_poisson:,:])
+    if model.nbins_poisson > 0 :
+      (p_pois, q_pois) = self.pq_einsum_poisson (n_nom[:,:model.nbins_poisson], self.data.counts[:model.nbins_poisson], impacts[:,:model.nbins_poisson,:])
+    else :
+      (p_pois, q_pois) = (np.zeros((model.nnps, model.nnps)), np.zeros(model.nnps))
+    if model.nbins_gaussian > 0 :
+      (p_gaus, q_gaus) = self.pq_einsum_gaussian(n_nom[:,model.nbins_poisson:], self.data.counts[model.nbins_poisson:], impacts[:,model.nbins_poisson:,:])
+    else :
+      (p_gaus, q_gaus) = (np.zeros((model.nnps, model.nnps)), np.zeros(model.nnps))
+    # print('njpb', p_pois, q_pois, p_gaus, q_gaus, model.constraint_hessian, model.constraint_hessian.dot(hypo.nps - self.data.aux_obs))
     p = p_pois + p_gaus + model.constraint_hessian
     q = q_pois + q_gaus + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
     return (p,q)
@@ -246,7 +253,7 @@ class POIMinimizer :
     pass
 
   @abstractmethod
-  def minimize(self, data : Data, init_hypo : Parameters = None) -> float :
+  def minimize(self, data : Data, init_pars : Parameters = None) -> float :
     """Abstract method to perform POI minimization
 
       This method needs to be implemented in derived classes. It performs
@@ -255,7 +262,7 @@ class POIMinimizer :
 
       Args:
          data : dataset for which to compute the NLL
-         init_hypo : initial value (of POIs and NPs) for the minimization
+         init_pars : initial value (of POIs and NPs) for the minimization
       Returns:
          best-fit NLL
     """
@@ -272,7 +279,7 @@ class POIMinimizer :
       Returns:
         self
     """
-    self.init_pois = Parameters({ poi.name : poi.initial_value for poi in model.pois.values() }, model=model) if init_pars is None else init_pars.clone()
+    self.init_pois = model.nominal_pars.clone() if init_pars is None else init_pars.clone()
     if hypo is not None :
       for par, val in hypo.items() : self.init_pois[par] = val
     self.bounds = { poi.name : ParBound(poi.name, poi.min_value, poi.max_value) for poi in model.pois.values() }
@@ -397,7 +404,7 @@ class ScanMinimizer (POIMinimizer) :
   def clone(self) :
     return ScanMinimizer(self.model, copy.copy(scan_pois), niter)
 
-  def minimize(self, data : Data) -> float :
+  def minimize(self, data : Data, init_pars : Parameters = None) -> float :
     """Minimization over POIs
 
       The method scans over the POI values in `scan_pois`, computes
@@ -409,6 +416,8 @@ class ScanMinimizer (POIMinimizer) :
       Returns:
          best-fit parameters
     """
+    if init_pars is not None or self.init_pois is None or self.bounds is None :
+      self.set_pois(data.model, init_pars)
     self.nlls = np.zeros(self.scan_pois.size)
     for i in range(0, len(self.scan_pois)) :
       scan_hypo = init_hypo.clone().set_poi(self.scan_pois[i])
@@ -476,7 +485,7 @@ class OptiMinimizer (POIMinimizer) :
   def clone(self) :
     return OptiMinimizer(self.method, self.init_pois.clone() if self.init_pois is not None else None, copy.deepcopy(self.bounds), self.niter, self.floor, self.rebound, self.alt_method, self.verbosity)
 
-  def minimize(self, data : Data) -> float :
+  def minimize(self, data : Data, init_pars : Parameters = None) -> float :
     """Minimization over POIs
 
       The method implements two algorithms by default:
@@ -499,7 +508,8 @@ class OptiMinimizer (POIMinimizer) :
       Returns:
          best-fit parameters
     """
-    if self.init_pois is None or self.bounds is None : self.set_pois(data.model)
+    if init_pars is not None or self.init_pois is None or self.bounds is None :
+      self.set_pois(data.model, init_pars)
     current_hypo = self.init_pois.clone()
     free_indices = [ i for i, bound in enumerate(self.bounds.values()) if bound.is_free() ]
     x0     = [ self.init_pois[bound.par] for bound in self.bounds.values() if bound.is_free() ]
