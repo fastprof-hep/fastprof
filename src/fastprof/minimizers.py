@@ -83,18 +83,59 @@ class NPMinimizer :
     """
     model = self.data.model
     n_nom = model.n_exp(hypo)
-    t_nom = n_nom.sum(axis=0)
-    delta_obs = t_nom - self.data.counts
-    ratio_nom = n_nom / t_nom
     # i : bin index
     # k,l : sample indices
     # a,b,c : NP indices
     impacts = model.linear_impacts(hypo)
+    # print('njpb', model.nbins_poisson, model.nbins_gaussian, model.nbins)
+    (p_pois, q_pois) = self.pq_einsum_poisson (n_nom[:,:model.nbins_poisson], self.data.counts[:model.nbins_poisson], impacts[:,:model.nbins_poisson,:])
+    (p_gaus, q_gaus) = self.pq_einsum_gaussian(n_nom[:,model.nbins_poisson:], self.data.counts[model.nbins_poisson:], impacts[:,model.nbins_poisson:,:])
+    p = p_pois + p_gaus + model.constraint_hessian
+    q = q_pois + q_gaus + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    return (p,q)
+
+  def pq_einsum_poisson(self, n_nom : np.ndarray, obs : np.ndarray, impacts : np.ndarray) -> (np.ndarray, np.ndarray) :
+    """Non-public helper function to compute minimization inputs
+
+      Args:
+         hypo : the POI hypothesis at which to perform the minimization
+      Returns:
+         The P-matrix and Q-vector that enter the computation
+         of the best-fit NPs
+    """
+    # i : bin index
+    # k,l : sample indices
+    # a,b,c : NP indices
+    t_nom = n_nom.sum(axis=0)
+    delta_obs = t_nom - obs
+    ratio_nom = n_nom / t_nom
     ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts, optimize=self.optimize_einsum)
-    q  = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=self.optimize_einsum) + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    q = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=self.optimize_einsum)
     p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts, optimize=self.optimize_einsum)
-    if model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
-    p += model.constraint_hessian
+    if self.data.model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
+    return (p,q)
+
+  def pq_einsum_gaussian(self, n_nom : np.ndarray, obs : np.ndarray, impacts : np.ndarray) -> (np.ndarray, np.ndarray) :
+    """Non-public helper function to compute minimization inputs
+
+      Args:
+         hypo : the POI hypothesis at which to perform the minimization
+      Returns:
+         The P-matrix and Q-vector that enter the computation
+         of the best-fit NPs
+    """
+    # i,j : bin indices
+    # k,l : sample indices
+    # a,b,c : NP indices
+    t_nom = n_nom.sum(axis=0)
+    delta_obs = t_nom - obs
+    hessian = self.data.model.poi_hessian
+    #print('njpb', n_nom.shape, impacts.shape)
+    n_nom_impacts = np.einsum('ki,kia->ia', n_nom, impacts, optimize=self.optimize_einsum)
+    #print('njpb', n_nom_impacts.shape, hessian.shape, delta_obs.shape)
+    q = 2*np.einsum('ia,ij,j->a', n_nom_impacts, hessian, delta_obs, optimize=self.optimize_einsum)
+    p = 2*np.einsum('ia,ij,jb->ab', n_nom_impacts, hessian, n_nom_impacts, optimize=self.optimize_einsum)
+    if self.data.model.use_lognormal_terms : p += 2*np.einsum('ki,ij,j,kia,kib->ab', n_nom, hessian, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
     return (p,q)
 
   def profile(self, hypo : Parameters) -> Parameters :

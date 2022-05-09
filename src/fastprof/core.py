@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 
 from .base import ModelPOI, ModelNP, ModelAux, Serializable
 from .sample import Sample
-from .channels import Channel, SingleBinChannel, MultiBinChannel, BinnedRangeChannel
+from .channels import Channel, SingleBinChannel, MultiBinChannel, BinnedRangeChannel, GaussianChannel
 from .expressions import Expression, SingleParameter
 
 # -------------------------------------------------------------------------
@@ -448,9 +448,21 @@ class Model (Serializable) :
     self.max_nsamples = 0
     self.channel_offsets = {}
     if len(self.channels) == 0 : return
+    poisson_channels  = { channel.name : channel for channel in self.channels.values() if channel.pdf_type() == 'poisson' }
+    gaussian_channels = { channel.name : channel for channel in self.channels.values() if channel.pdf_type() == 'gaussian' }
+    channels = { **poisson_channels,  **gaussian_channels }
+    self.nbins_poisson  = sum([ channel.nbins() for channel in  poisson_channels.values() ])
+    self.nbins_gaussian = sum([ channel.nbins() for channel in gaussian_channels.values() ])
+    self.poi_hessian = np.zeros((self.nbins_gaussian, self.nbins_gaussian))
+    if list(channels.keys()) != list(self.channels.keys()) :
+      if self.verbose > 0 : print('Warning: reordering channels to put Gaussians at the end')
+      self.channels = channels
     for channel in self.channels.values() :
       if len(channel.samples) > self.max_nsamples : self.max_nsamples = len(channel.samples)
       self.channel_offsets[channel.name] = self.nbins
+      if channel.pdf_type() == 'gaussian' :
+        offset = self.nbins - self.nbins_poisson
+        self.poi_hessian[offset:offset + channel.nbins(), offset:offset + channel.nbins()] = channel.hessian
       self.nbins += channel.nbins()
       for s, sample in enumerate(channel.samples.values()) :
         sample.set_np_data(self.nps.values(), self.reals, self.real_vals(self.pars_nominal), variation=1, verbosity=self.verbosity)
@@ -1074,6 +1086,8 @@ class Model (Serializable) :
         channel = SingleBinChannel()
       elif dict_channel['type'] == BinnedRangeChannel.type_str :
         channel = BinnedRangeChannel()
+      elif dict_channel['type'] == GaussianChannel.type_str :
+        channel = GaussianChannel()
       else :
         raise ValueError("ERROR: unsupported channel type '%s'" % dict_channel['type'])
       channel.load_dict(dict_channel)
