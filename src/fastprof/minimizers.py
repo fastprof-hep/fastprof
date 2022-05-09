@@ -111,7 +111,7 @@ class NPMinimizer :
     ratio_nom = n_nom / t_nom
     ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts, optimize=self.optimize_einsum)
     q = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=self.optimize_einsum)
-    p = np.einsum('i,ia,ib->ab', self.data.counts, ratio_impacts, ratio_impacts, optimize=self.optimize_einsum)
+    p = np.einsum('i,ia,ib->ab', obs, ratio_impacts, ratio_impacts, optimize=self.optimize_einsum)
     if self.data.model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
     return (p,q)
 
@@ -133,8 +133,8 @@ class NPMinimizer :
     #print('njpb', n_nom.shape, impacts.shape)
     n_nom_impacts = np.einsum('ki,kia->ia', n_nom, impacts, optimize=self.optimize_einsum)
     #print('njpb', n_nom_impacts.shape, hessian.shape, delta_obs.shape)
-    q = 2*np.einsum('ia,ij,j->a', n_nom_impacts, hessian, delta_obs, optimize=self.optimize_einsum)
-    p = 2*np.einsum('ia,ij,jb->ab', n_nom_impacts, hessian, n_nom_impacts, optimize=self.optimize_einsum)
+    q = np.einsum('ia,ij,j->a', n_nom_impacts, hessian, delta_obs, optimize=self.optimize_einsum)
+    p = np.einsum('ia,ij,jb->ab', n_nom_impacts, hessian, n_nom_impacts, optimize=self.optimize_einsum)
     if self.data.model.use_lognormal_terms : p += 2*np.einsum('ki,ij,j,kia,kib->ab', n_nom, hessian, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
     return (p,q)
 

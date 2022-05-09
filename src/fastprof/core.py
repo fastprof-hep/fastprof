@@ -436,7 +436,7 @@ class Model (Serializable) :
     self.poi_initial_values = np.array([ poi.initial_value for poi in self.pois.values() ], dtype=float)
     self.np_nominal_values  = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations      = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
-    self.pars_nominal = Parameters(self.poi_initial_values, self.np_nominal_values, self)
+    self.nominal_pars = Parameters(self.poi_initial_values, self.np_nominal_values, self)
     for p, par in enumerate(self.nps.values()) :
       if par.constraint is not None :
         self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
@@ -465,7 +465,7 @@ class Model (Serializable) :
         self.poi_hessian[offset:offset + channel.nbins(), offset:offset + channel.nbins()] = channel.hessian
       self.nbins += channel.nbins()
       for s, sample in enumerate(channel.samples.values()) :
-        sample.set_np_data(self.nps.values(), self.reals, self.real_vals(self.pars_nominal), variation=1, verbosity=self.verbosity)
+        sample.set_np_data(self.nps.values(), self.reals, self.real_vals(self.nominal_pars), variation=1, verbosity=self.verbosity)
         self.samples[(channel.name, s)] = sample
     if self.verbosity > 1 : print('Initializing nominal event yields')
     self.nominal_yields = np.stack([ np.concatenate([ self.samples[(channel.name, s)].nominal_yields if s < len(channel.samples) else np.zeros(channel.nbins()) for channel in self.channels.values()]) for s in range(0, self.max_nsamples) ])      
@@ -665,11 +665,21 @@ class Model (Serializable) :
     delta = data.aux_obs - pars.nps
     ntot = self.tot_bin_exp(pars, floor)
     try :
+      result = 0
       if not offset :
-        result = np.sum(ntot - data.counts*np.log(ntot))
+        if self.nbins_poisson > 0 :
+          result += np.sum(ntot[:self.nbins_poisson] - data.counts[:self.nbins_poisson]*np.log(ntot[:self.nbins_poisson]))
+        if self.nbins_gaussian > 0 :
+          delta_poi = ntot[self.nbins_poisson:] - data.counts[self.nbins_poisson:]
+          result += 0.5*np.linalg.multi_dot((delta_poi, self.poi_hessian, delta_poi))
       else :
-        nexp0 = self.nominal_yields.sum(axis=0)
-        result = np.sum(ntot - nexp0 - data.counts*(np.log(ntot/nexp0)))
+        if self.nbins_poisson > 0 :
+          nexp0 = self.nominal_yields.sum(axis=0)[:self.nbins_poisson]
+          result += np.sum(ntot[:self.nbins_poisson] - nexp0 - data.counts[:self.nbins_poisson]*(np.log(ntot[:self.nbins_poisson]/nexp0)))
+        if self.nbins_gaussian > 0 :
+          nexp0 = self.nominal_yields.sum(axis=0)[self.nbins_poisson:]
+          delta_poi = ntot[self.nbins_poisson:] - data.counts[self.nbins_poisson:]
+          result += 0.5*np.linalg.multi_dot((delta_poi + nexp0, self.poi_hessian, delta_poi - nexp0))
       if not no_constraints :
          result += 0.5*np.linalg.multi_dot((delta, self.constraint_hessian, delta))
       if math.isnan(result) : result = np.Infinity
