@@ -104,14 +104,120 @@ class Expression(Serializable) :
     """
     if not 'type' in sdict or sdict['type'] == Formula.type_str :
       expression = Formula()
+    elif sdict['type'] == Number.type_str :
+      expression = Number()
     elif sdict['type'] == LinearCombination.type_str :
       expression = LinearCombination()
     elif sdict['type'] == ProductRatio.type_str :
       expression = ProductRatio()
+    elif sdict['type'] == Exponential.type_str :
+      expression = Exponential()
     else :
       raise ValueError("Unsupported expression type '%s'" % sdict['type'])
     if load_data : expression.load_dict(sdict)
     return expression
+
+# -------------------------------------------------------------------------
+class Number(Expression) :
+  """Class representing a single number
+  """
+
+  type_str = 'number'
+
+  def __init__(self, par_name : str = '', value : float = 0) :
+    """Create a new LinearCombination object
+
+    #"""
+    super().__init__(par_name)
+    self.val = value
+
+  def value(self, real_vals : dict) -> float :
+    """Computes the expression value
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+         expression value
+    """
+    return self.val
+
+  def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes gradient of the normalization wrt parameters
+
+     Non-zero gradient is given by the linear coefficients
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+         known gradient, in the form { par_name: dN/dpar }
+    """
+    return np.zeros(len(pars))
+
+  def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes Hessian of the normalization wrt parameters
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+        Hessian matrix
+    """
+    return np.zeros((len(pars), len(pars)))
+
+  def replace(self, name : str, value : float, reals : dict) -> float :
+    """Replaces parameter 'name' by a numberical value
+
+       All instances of the parameter 'name'
+       should be replaced by 'value'. This expression should
+       update itself to remove the dependency on 'name', and
+       adjust its own numerical value according to 'value'.
+       If this makes the expression trivial, the resulting
+       numerical value of the expression is returned. Otherwise,
+       the expession itself is returned.
+
+      Args:
+         name : the name of the parameter to replace
+         value : the value to use as replacement
+         reals : a dict containing all the reals in the model,
+                 to recursively propagate the replace call to
+                 sub-expressions.
+      Returns:
+         self, or just a number if the expression is now trivial
+    """
+    return self
+
+  def load_dict(self, sdict) -> 'Number' :
+    """Load object information from a dictionary of markup data
+
+      Args:
+        sdict: A dictionary containing markup data
+
+      Returns:
+        self
+    """
+    super().load_dict(sdict)
+    if 'type' in sdict and sdict['type'] != Number.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], Number.type_str))
+    self.val = self.load_field('value', sdict, 0, [int, float])
+    return self
+
+  def fill_dict(self, sdict) :
+    """Save information to a dictionary of markup data
+
+      Args:
+         sdict: A dictionary containing markup data
+    """
+    super().fill_dict(sdict)
+    sdict['type'] = Number.type_str
+    sdict['value'] = self.val
+
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    return '%s=%g' % (self.name, self.val)
+
 
 # -------------------------------------------------------------------------
 class SingleParameter(Expression) :
@@ -591,3 +697,118 @@ class Formula(Expression) :
     """
     return 'formula[%s]' % self.formula
 
+
+# -------------------------------------------------------------------------
+class Exponential(Expression) :
+  """Class representing a linear combination of parameters
+
+  Attributes:
+     coeffs (dict) : dict with the format { par_name : par_coeff }
+                          mapping parameter names to their coefficients
+                          in the linear combination
+  """
+
+  type_str = 'exp'
+
+  def __init__(self, name : str = '', exponent : str = '') :
+    """Create a new Exponential object
+
+    Args:
+      exponent : name of the expression specifying the exponent
+    """
+    super().__init__(name)
+    self.exponent = exponent
+
+  def value(self, real_vals : dict) -> float :
+    """Computes the expression value
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+         expression value
+    """
+    if not self.exponent in real_vals :
+      raise KeyError("Cannot evaluate exponential of the unknown expression '%s'. Known expressions are as follows: %s" % (self.exponent, str(real_vals.keys())))
+    return np.exp(real_vals[self.exponent])
+
+  def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes gradient of the normalization wrt parameters
+
+     Non-zero gradient is given by the linear coefficients
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+         known gradient, in the form { par_name: dN/dpar }
+    """
+    if not self.exponent in reals :
+      raise KeyError("Cannot compute gradient of the exponential of the unknown expression '%s'. Known expressions are as follows: %s" % (self.exponent, str(reals.keys())))
+    return self.value(real_vals)*reals[self.exponent].gradient(pars, reals, real_vals)
+
+  def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Computes Hessian of the normalization wrt parameters
+
+      Args:
+         real_vals : a dictionary of parameter name: value pairs
+      Returns:
+        Hessian matrix
+    """
+    if not self.exponent in reals :
+      raise KeyError("Cannot compute Hessian of the exponential of the unknown expression '%s'. Known expressions are as follows: %s" % (self.exponent, str(reals.keys())))
+    grad = reals[self.exponent].gradient(pars, reals, real_vals)
+    return self.value(real_vals)*(reals[self.exponent].hessian(pars, reals, real_vals) + np.outer(grad, grad))
+
+  def replace(self, name : str, value : float, reals : dict) -> float :
+    """Replaces parameter 'name' by a numberical value
+
+       All instances of the parameter 'name'
+       should be replaced by 'value'. This expression should
+       update itself to remove the dependency on 'name', and
+       adjust its own numerical value according to 'value'.
+       If this makes the expression trivial, the resulting
+       numerical value of the expression is returned. Otherwise,
+       the expession itself is returned.
+
+      Args:
+         name : the name of the parameter to replace
+         value : the value to use as replacement
+         reals : a dict containing all the reals in the model,
+                 to recursively propagate the replace call to
+                 sub-expressions.
+      Returns:
+         self, or just a number if the expression is now trivial
+    """
+    return reals[self.exponent].replace(name, value, reals)
+
+  def load_dict(self, sdict) -> 'Exponential' :
+    """Load object information from a dictionary of markup data
+
+      Args:
+        sdict: A dictionary containing markup data
+
+      Returns:
+        self
+    """
+    super().load_dict(sdict)
+    if 'type' in sdict and sdict['type'] != Exponential.type_str :
+      raise ValueError("Cannot load expression data defined for type '%s' into object of type '%s'" % (sdict['type'], Exponential.type_str))
+    self.exponent = self.load_field('exponent', sdict, '', str)
+    return self
+
+  def fill_dict(self, sdict) :
+    """Save information to a dictionary of markup data
+
+      Args:
+         sdict: A dictionary containing markup data
+    """
+    super().fill_dict(sdict)
+    sdict['type'] = Exponential.type_str
+    sdict['exponent'] = self.exponent
+
+  def __str__(self) -> str :
+    """Provides a description string
+
+      Returns:
+        The object description
+    """
+    return 'exp(%s)' % self.exponent
