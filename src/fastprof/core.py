@@ -685,7 +685,8 @@ class Model (Serializable) :
       if math.isnan(result) : result = np.Infinity
       return result
     except Exception as inst:
-      print('Fast NLL computation failed with the following exception, returning +Inf')
+      exc_type, exc_obj, exc_tb = sys.exc_info()
+      print('Fast NLL computation failed with the following exception in %s at line %g, returning +Inf' % (exc_tb.tb_frame.f_code.co_filename, exc_tb.tb_lineno))
       print(inst)
       return np.Infinity
 
@@ -710,7 +711,7 @@ class Model (Serializable) :
       gtot = grads.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois)
       ntot = self.tot_bin_exp(pars) # shape = (n_bins)
       # broadcast ntot and data.counts to match gtot, sum over bins
-      ratio = (data.counts/ntot)[:, None]
+      ratio = (data.counts/ntot)[:, None] if gtot > 0 else 0
       return np.sum(gtot - gtot*ratio, axis=0)
     except Exception as inst:
       #print('Exception in gradient computation: ', Exception, inst)
