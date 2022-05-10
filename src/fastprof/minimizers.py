@@ -292,6 +292,8 @@ class POIMinimizer :
         self.init_pois[bound.par] = (bound.min_value + bound.max_value)/2
     return self
 
+  def set_constant(self, parvals : dict) :
+    for par, val in parvals.items() : self.bounds[par] = ParBound(par, val, val)
 
   def free_pois(self) :
     if self.init_pois is None : return None
