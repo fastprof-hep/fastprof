@@ -985,7 +985,11 @@ class Model (Serializable) :
          A randomly-generated dataset
     """
     if not isinstance(pars, Parameters) : pars = Parameters(pars, model=self)
-    return Data(self, np.random.poisson(self.tot_bin_exp(pars)), [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
+    ntot = self.tot_bin_exp(pars)
+    yields = np.zeros(len(ntot))
+    if self.nbins_poisson  > 0 : yields[:self.nbins_poisson] = np.random.poisson(ntot[:self.nbins_poisson])
+    if self.nbins_gaussian > 0 : yields[self.nbins_poisson:] = np.random.multivariate_normal(ntot[self.nbins_poisson:], self.poi_hessian)
+    return Data(self, yields, [ par.generate_aux(pars[par.name]) for par in self.nps.values() ])
 
   def generate_asimov(self, pars : Parameters) -> 'Data' :
     """Generate an Asimov dataset for given parameter values
