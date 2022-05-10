@@ -126,7 +126,7 @@ class Number(Expression) :
 
   def __init__(self, par_name : str = '', value : float = 0) :
     """Create a new LinearCombination object
-
+    
     #"""
     super().__init__(par_name)
     self.val = value
@@ -167,7 +167,7 @@ class Number(Expression) :
     """Replaces parameter 'name' by a numberical value
 
        All instances of the parameter 'name'
-       should be replaced by 'value'. This expression should
+       should be replaced by 'value'. This expression should 
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
        If this makes the expression trivial, the resulting
@@ -476,6 +476,18 @@ class ProductRatio(Expression) :
     self.numerator = numerator
     self.denominator = denominator
 
+  def numerator_value(self, real_vals : dict) -> float :
+    for expr in self.numerator :
+      if not expr in real_vals :
+        raise KeyError("Cannot evaluate product of the unknown parameter '%s'. Known parameters are as follows: %s" % (expr, str(real_vals)))
+    return np.prod([ real_vals[expr] for expr in self.numerator ])
+
+  def denominator_value(self, real_vals : dict) -> float :
+    for expr in self.denominator :
+      if not expr in real_vals :
+        raise KeyError("Cannot evaluate ratio of the unknown parameter '%s'. Known parameters are as follows: %s" % (expr, str(real_vals)))
+    return np.prod([ real_vals[expr] for expr in self.denominator ])
+
   def value(self, real_vals : dict) -> float :
     """Computes the expression value
 
@@ -484,31 +496,28 @@ class ProductRatio(Expression) :
       Returns:
          expression value
     """
-    val = self.prefactor
-    for expr in self.numerator :
-      if not expr in real_vals :
-        raise KeyError("Cannot evaluate product of the unknown parameter '%s'. Known parameters are as follows: %s" % (expr, str(pars_dict)))
-      val *= real_vals[expr]
-    for expr in self.denominator :
-      if not expr in real_vals :
-        raise KeyError("Cannot evaluate ratio of the unknown parameter '%s'. Known parameters are as follows: %s" % (expr, str(pars_dict)))
-      expr_val = real_vals[expr]
-      if expr_val == 0 : raise ValueError("Attempting to divide by '%s' == 0 when computing the value of '%s'." % (expr, self.name))
-      val /= expr_val
+    try :
+      val = self.prefactor*self.numerator_value(real_vals)/self.denominator_value(real_vals)
+    except ZeroDivisionError :
+      raise ValueError("Attempting to divide by 0 in the denominator of '%s'." % self.name)
     return val
 
-  def prod_relative_gradient(self, pars : dict, reals : dict, real_vals : dict, product : list, raise_div_by_zero : bool= False) -> np.array :
-    val = np.zeros(len(pars))
-    for expr in product :
-      expr_val = real_vals[expr]
-      if expr_val == 0 : 
-        if raise_div_by_zero :
-          if expr_val == 0 : raise ZeroDivisionError("Division by '%s' == 0." % expr)
-        else :
-          continue
-      val += reals[expr].gradient(pars, reals, real_vals)/expr_val
-    return val
-    
+  # gradient of a product -- remove each term in turn and replace by its gradient
+  # allows to never divide by terms, which may be zero, so useful for the numerator.
+  def prod_gradient(self, pars : dict, reals : dict, real_vals : dict, product : list) -> np.array :
+    if len(product) == 0 : return np.zeros(len(pars))
+    expr_vals = np.array( [ real_vals[expr] for expr in product ] )
+    expr_mat = np.tile(expr_vals, (len(expr_vals), 1))
+    np.fill_diagonal(expr_mat, 1)
+    grad_vals = np.stack([ reals[expr].gradient(pars, reals, real_vals) for expr in product ], axis=1)
+    return np.sum(np.prod(expr_mat, axis=1)*grad_vals, axis=1)
+
+  # normalized gradient -- sum of T'/T for each term, i.e. the above divided by the product value
+  def norm_gradient(self, pars : dict, reals : dict, real_vals : dict, product : list) -> np.array :
+    if len(product) == 0 : return np.zeros(len(pars))
+    expr_vals = np.array( [ real_vals[expr] for expr in product ] )
+    grad_vals = np.stack([ reals[expr].gradient(pars, reals, real_vals) for expr in product ], axis=1)
+    return np.sum(grad_vals/expr_vals, axis=1)
 
   def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes gradient of the expression wrt parameters
@@ -516,27 +525,20 @@ class ProductRatio(Expression) :
      Non-zero gradient is given by the linear coefficients
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         real_vals : a dictionary of parameter name: value pairs
       Returns:
          known gradient, in the form { par_name: dN/dpar }
     """
-    rel_grad_nom = self.prod_relative_gradient(pars, reals, real_vals, self.numerator  , raise_div_by_zero=False)
-    rel_grad_den = self.prod_relative_gradient(pars, reals, real_vals, self.denominator, raise_div_by_zero=True)
-    return self.value(real_vals)*(rel_grad_nom - rel_grad_den)
-    
-  def prod_relative_hessian(self, pars : dict, reals : dict, real_vals : dict, product : list, raise_div_by_zero : bool= False) -> np.array :
-    val = np.zeros((len(pars), len(pars)))
-    for expr in product :
-      expr_val = real_vals[expr]
-      if expr_val == 0 :
-        if raise_div_by_zero :
-          raise ZeroDivisionError("Division by '%s' == 0." % expr)
-        else :
-          continue
-      rel_hess = reals[expr].hessian (pars, reals, real_vals)/expr_val
-      rel_grad = reals[expr].gradient(pars, reals, real_vals)/expr_val
-      val += rel_hess - rel_grad[:,None]*rel_grad[None,:]
-    return val
+    grad_num = self.prod_gradient(pars, reals, real_vals, self.numerator)
+    grad_den = self.norm_gradient(pars, reals, real_vals, self.denominator)
+    return self.prefactor*grad_num/self.denominator_value(real_vals) - self.value(real_vals)*grad_den
+
+  def norm_hessian(self, pars : dict, reals : dict, real_vals : dict, product : list) -> np.array :
+    if len(product) == 0 : return np.zeros((len(pars), len(pars)))
+    expr_vals = np.array( [ real_vals[expr] for expr in product ] )
+    grad_vals = np.stack([ reals[expr].gradient(pars, reals, real_vals) for expr in product ], axis=1)
+    hess_vals = np.stack( [ reals[expr].hessian(pars, reals, real_vals) for expr in product ], axis=2 )
+    return np.sum((hess_vals - grad_vals[None,:,:]*grad_vals[:,None,:]/expr_vals)/expr_vals, axis=2)
 
   def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes Hessian of the expression wrt parameters
@@ -546,12 +548,12 @@ class ProductRatio(Expression) :
       Returns:
         Hessian matrix
     """
-    rel_hess_nom = self.prod_relative_hessian (pars, reals, real_vals, self.numerator  , raise_div_by_zero=False)
-    rel_hess_den = self.prod_relative_hessian (pars, reals, real_vals, self.denominator, raise_div_by_zero=True)
-    rel_grad_nom = self.prod_relative_gradient(pars, reals, real_vals, self.numerator  , raise_div_by_zero=False)
-    rel_grad_den = self.prod_relative_gradient(pars, reals, real_vals, self.denominator, raise_div_by_zero=True)
-    rel_grad_ratio = rel_grad_nom - rel_grad_den
-    return self.value(real_vals)*(rel_hess_nom - rel_hess_den + rel_grad_ratio[:,None]*rel_grad_ratio[None,:])
+    hess_num = self.norm_hessian (pars, reals, real_vals, self.numerator  )
+    hess_den = self.norm_hessian (pars, reals, real_vals, self.denominator)
+    grad_num = self.norm_gradient(pars, reals, real_vals, self.numerator  )
+    grad_den = self.norm_gradient(pars, reals, real_vals, self.denominator)
+    grad_dif = grad_num - grad_den
+    return self.value(real_vals)*(hess_num - hess_den + grad_dif[:,None]*grad_dif[None,:])
 
   def replace(self, name : str, value : float, reals : dict) -> float :
     """Replaces parameter 'name' by a numberical value
@@ -626,7 +628,11 @@ class ProductRatio(Expression) :
       Returns:
         The object description
     """
-    return '*'.join([ str(self.prefactor) ] + self.numerator) + '(' +  '*'.join(self.denominator) + ')'
+    num = '*'.join([ str(self.prefactor) ] + self.numerator)
+    den = '*'.join(self.denominator)
+    if den == '' : return num
+    if num == '' : return '1/(%s)' % den
+    return '(%s)/(%s)' % (num, den)
 
 
 # -------------------------------------------------------------------------
@@ -703,7 +709,7 @@ class Exponential(Expression) :
   """Class representing a linear combination of parameters
 
   Attributes:
-     coeffs (dict) : dict with the format { par_name : par_coeff }
+     coeffs (dict) : dict with the format { par_name : par_coeff } 
                           mapping parameter names to their coefficients
                           in the linear combination
   """
@@ -712,9 +718,9 @@ class Exponential(Expression) :
 
   def __init__(self, name : str = '', exponent : str = '') :
     """Create a new Exponential object
-
+    
     Args:
-      exponent : name of the expression specifying the exponent
+      exponent : name of the expression specifying the exponent 
     """
     super().__init__(name)
     self.exponent = exponent
@@ -762,7 +768,7 @@ class Exponential(Expression) :
     """Replaces parameter 'name' by a numberical value
 
        All instances of the parameter 'name'
-       should be replaced by 'value'. This expression should
+       should be replaced by 'value'. This expression should 
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
        If this makes the expression trivial, the resulting
@@ -812,3 +818,5 @@ class Exponential(Expression) :
         The object description
     """
     return 'exp(%s)' % self.exponent
+
+
