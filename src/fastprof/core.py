@@ -436,7 +436,7 @@ class Model (Serializable) :
     self.poi_initial_values = np.array([ poi.initial_value for poi in self.pois.values() ], dtype=float)
     self.np_nominal_values  = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations      = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
-    self.nominal_pars = Parameters(self.poi_initial_values, self.np_nominal_values, self)
+    self.nominal_pars = Parameters(self.poi_initial_values, np.zeros(len(self.nps)), self)
     for p, par in enumerate(self.nps.values()) :
       if par.constraint is not None :
         self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
