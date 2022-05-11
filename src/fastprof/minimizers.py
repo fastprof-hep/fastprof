@@ -279,7 +279,7 @@ class POIMinimizer :
       Returns:
         self
     """
-    self.init_pois = model.nominal_pars.clone() if init_pars is None else init_pars.clone()
+    self.init_pois = model.ref_pars.clone() if init_pars is None else init_pars.clone()
     if hypo is not None :
       for par, val in hypo.items() : self.init_pois[par] = val
     self.bounds = { poi.name : ParBound(poi.name, poi.min_value, poi.max_value) for poi in model.pois.values() }
