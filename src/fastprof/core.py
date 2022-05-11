@@ -642,7 +642,8 @@ class Model (Serializable) :
          Expected event yields per bin
     """
     ntot = self.n_exp(pars).sum(axis=0)
-    return ntot if floor is None else np.maximum(ntot, floor)
+    if floor is not None : ntot[:self.nbins_poisson] = np.maximum(ntot[:self.nbins_poisson], floor)
+    return ntot
 
   def nll(self, pars : Parameters, data : 'Data', offset : bool = True, floor : bool = None, no_constraints : bool = False) -> float :
     """Returns the negative log-likelihood value for a given parameter set and dataset
@@ -658,7 +659,7 @@ class Model (Serializable) :
          data   : an observed dataset
          offset : if True, use offsetting to reduce floating-point precision issues
          floor  : if a positive number is provided, will check for negative event yields
-                  and replace them with the floor value
+                  in Poisson channels and replace them with the floor value
          no_constraints : omit the penalty terms from the constraint in the computation.
       Returns:
          The negative log-likelihood value
