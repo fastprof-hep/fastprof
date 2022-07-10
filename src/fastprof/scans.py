@@ -118,7 +118,8 @@ class Scan1D (Scan) :
     Returns:
     """
     hypos, values = self.points()
-    return self.interpolate_minima(hypos, values, order)
+    found_minima = self.interpolate_minima(hypos, values, order)
+    return found_minima if len(found_minima) > 0 else np.array([ values[np.argmin(hypos)] ])
     
   def points(self, with_errors = False) -> tuple :
     """Collect the raster information into a set of points
@@ -266,9 +267,9 @@ class UpperLimitScan (Scan1D):
     found_crossings = self.crossings(1 - self.cl, order, log_scale, with_errors)
     if len(found_crossings) == 0 :
       print("No crossings found for %s = %g vs. %s." % (self.cl_name, self.cl, self.poi.name))
-      return None
+      return (None, None, None)
     if len(found_crossings) > 1 :
-      print('Multiple crossings found at the %s = %g level vs. %s, returning the first one' % (self.ts_name, self.ts_level, self.poi.name))
+      print('Multiple crossings found at the %s = %g level vs. %s, returning the first one' % (self.cl_name, self.cl, self.poi.name))
     if print_result : print(self.description(found_crossings[0]))
     return found_crossings[0]
 
