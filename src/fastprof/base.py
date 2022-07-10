@@ -54,7 +54,7 @@ class Serializable :
         raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
     return self.load_dict(sdict)
 
-  def save(self, filename, flavor : str = None) :
+  def save(self, filename, flavor : str = None, mode : str = 'w') :
     """Save the object to a markup file
 
       Args:
@@ -66,7 +66,7 @@ class Serializable :
     """
     if flavor is None : flavor = self.guess_flavor(filename, 'json')
     sdict = self.dump_dict()
-    with open(filename, 'w') as fd :
+    with open(filename, mode) as fd :
       if flavor == 'json' : return json.dump(sdict, fd, ensure_ascii=True, indent=3)
       if flavor == 'yaml' : return yaml.dump(sdict, fd, sort_keys=False, default_flow_style=None, width=10000)
       raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
