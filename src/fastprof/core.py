@@ -1150,14 +1150,39 @@ class Model (Serializable) :
       Returns:
         The object description
     """
-    s = 'POIs :'
-    for poi in self.pois.values() : s += '\n  - %s' % str(poi)
-    s += '\nNPs :'
-    for par in self.nps.values() : s += '\n  - %s' % str(par)
-    s += '\nChannels :'
-    for channel in self.channels.values() : s += '\n  - %s' % str(channel)
-    return s
+    return 'Model ' + self.string_repr(verbosity = 1)
 
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    rep = '%s%s' % (pre_indent, self.name)
+    if verbosity > 0 : rep += '\n'
+    rep += '\n%sParameters of interest' % pre_indent
+    if verbosity == 0 :
+      rep += ' : ' + ', '.join([ par.string_repr(verbosity) for par in self.pois.values() ])
+    else :
+      for par in self.pois.values() :
+        rep += '\n - ' + par.string_repr(verbosity, indent='  ')
+    if verbosity > 0 : rep += '\n'
+    rep += '\n%sNuisance parameters' % pre_indent
+    if verbosity == 0 :
+      rep += '    : ' + ', '.join([ par.string_repr(verbosity) for par in self.nps.values() ])
+    else :
+      for par in self.nps.values() :
+        rep += '\n - ' + par.string_repr(verbosity, indent='   ')
+    if verbosity > 0 : rep += '\n'
+    rep += '\n%sAuxiliary observables' % pre_indent
+    if verbosity == 0 :
+      rep += '  : ' + ', '.join([ par.string_repr(verbosity) for par in self.aux_obs.values() ])
+    else :
+      for par in self.aux_obs.values() :
+        rep += '\n - ' + par.string_repr(verbosity, indent='   ')
+    if verbosity > 0 : rep += '\n'
+    rep += '\n%sChannels' % pre_indent
+    if verbosity == 0 :
+      rep += ' : ' + ', '.join([ channel.string_repr(verbosity) for channel in self.channels.values() ])
+    else :
+      for channel in self.channels.values() :
+        rep += '\n - ' + channel.string_repr(verbosity, indent='   ')
+    return rep
 
 # -------------------------------------------------------------------------
 class Data (Serializable) :
@@ -1319,8 +1344,21 @@ class Data (Serializable) :
       Returns:
         The object description
     """
-    s = ''
-    s += 'counts  = ' + str(self.counts)  + '\n'
-    s += 'aux_obs = ' + str(self.aux_obs) + '\n'
-    return s
+    return 'Data ' + self.string_repr(verbosity = 1)
+
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    rep = '%s (model : %s), counts = %g, aux_obs = %s' % (pre_indent,  self.model.name, np.sum(self.counts), str(self.aux_obs))
+    if verbosity >= 1 :
+      rep = '%s (model : %s)' % (pre_indent,  self.model.name)
+      rep += '\n'
+      rep += '\n%sCounts' % pre_indent
+      for channel_name, channel in self.model.channels.items() :
+        offset = self.model.channel_offsets[channel_name]
+        counts = self.counts[offset:offset + channel.nbins()]
+        rep += '\n%s - channel %s : %s = %s' % (pre_indent, channel_name, 'total counts' if verbosity == 1 else 'counts', str(np.sum(counts)) if verbosity == 1 else str(counts))
+      rep += '\n'
+      rep += '\n%sAuxiliary observables' % pre_indent
+      for aux_name, aux_val in zip(self.model.aux_obs, self.aux_obs) :
+        rep += '\n%s - %s = %g' % (pre_indent, aux_name, aux_val)
+    return rep
   

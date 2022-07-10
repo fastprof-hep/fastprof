@@ -9,7 +9,6 @@ and optionally  a dataset (`--data-file` argument).
 __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
-import fastprof as fp
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from fastprof import Model, Data, OptiMinimizer, NPMinimizer, QMuTildaCalculator, PlotResults
 from fastprof_utils import process_setvals, process_setranges
@@ -26,7 +25,7 @@ def make_parser() :
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"       , type=str  , required=True   , help="Name of markup file defining model")
   parser.add_argument("-d", "--data-file"        , type=str  , default=''      , help="Name of markup file defining the dataset (optional, otherwise taken from model file)")
-  parser.add_argument("-v", "--verbosity"        , type = int, default=0       , help="Verbosity level")
+  parser.add_argument("-v", "--verbosity"        , type = int, default=1       , help="Verbosity level")
   return parser
 
 def run(argv = None) :
@@ -45,7 +44,10 @@ def run(argv = None) :
   else :
     data = Data(model).load(options.model_file)
 
-  fp.print_model(model, verbosity=options.verbosity)
-  #if data is not None : fp.print_data(data)
+  print('Model ' + model.string_repr(verbosity=options.verbosity))
+  if data is not None : 
+    print('\n============================\n')
+    print('Data ' + data.string_repr(verbosity=options.verbosity))
+
 
 if __name__ == '__main__' : run()
