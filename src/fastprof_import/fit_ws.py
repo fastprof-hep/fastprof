@@ -105,9 +105,9 @@ def run(argv = None) :
   ws = f.Get(options.ws_name)
   if not ws : raise KeyError('Workspace %s not found in file %s.' % (options.ws_name, options.ws_file))
 
-  if options.setval   != '' : process_setvals  (options.setval  , ws)
-  if options.setconst != '' : process_setconsts(options.setconst, ws)
-  if options.setrange != '' : process_setranges(options.setrange, ws)
+  if options.setval   != '' : process_setvals  (options.setval  , ws=ws)
+  if options.setconst != '' : process_setconsts(options.setconst, ws=ws)
+  if options.setrange != '' : process_setranges(options.setrange, ws=ws)
 
   mconfig = ws.obj(options.model_config_name)
   if not mconfig : raise KeyError('Model config %s not found in workspace.' % options.model_config_name)
