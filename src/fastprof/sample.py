@@ -296,9 +296,9 @@ class Sample(Serializable) :
   def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
     rep = self.name
     if verbosity >= 1 :
-      rep += ', norm = %s (nominal = %s)' % (str(self.norm), str(self.nominal_norm))
+      rep += ', norm = %s (nominal norm = %s), nominal yield = %g' % (str(self.norm), str(self.nominal_norm), np.sum(self.nominal_yields))
     if verbosity >= 2 :
-      rep += ', nominal yields : '
+      rep += ', norm = %s (nominal norm = %s), nominal yields : ' % (str(self.norm), str(self.nominal_norm))
       for i, y in enumerate(self.nominal_yields) :
         rep += '\n%s o bin %2d : %g' % (pre_indent, i, y)
     return rep
