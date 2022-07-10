@@ -52,12 +52,16 @@ def run(argv = None) :
   if options.min_np_impact is not None :
     NPPruner(model, options.verbosity).prune(options.min_np_impact)
 
-  model.save('%s.json' % options.output_file)
-
   if options.data_file :
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
     if options.verbosity >= 1 : print('Using dataset stored in file %s.' % options.data_file)
-    data.save('%s_data.json' % options.output_file)
+  else :
+    data = Data(model).load(options.model_file)
+
+  if data is not None :
+    data.save_with_model('%s.json' % options.output_file)
+  else :
+    model.save('%s.json' % options.output_file)
 
 if __name__ == '__main__' : run()
