@@ -79,8 +79,13 @@ class Channel(Serializable) :
       Returns:
         The object description
     """
-    s = "Channel '%s'" % self.name
-    for sample in self.samples.values() : s += '\n    o ' + str(sample)
+    return 'Channel ' + self.string_repr(verbosity = 1)
+
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    s = '%s%s' % (pre_indent,  channel.name)
+    if verbosity >= 1 :
+      s += ' : %g bins (%s)' % channel.nbins()
+    for sample in self.samples.values() : rep += '\n%s  o Sample ' % pre_indent + sample.string_repr(verbosity, pre_indent=pre_indent+'    ', indent=indent)
     return s
 
   def load_dict(self, sdict : dict) -> 'Channel' :
@@ -254,6 +259,18 @@ class BinnedRangeChannel(Channel) :
       bin_data['hi_edge'] = bin_spec['hi_edge']
       bin_data['counts'] = int(counts[b])
       sdict['bins'].append(bin_data)
+
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    rep = '%s%s' % (pre_indent,  self.name)
+    unit = ' %s' % self.obs_unit if self.obs_unit is not None and self.obs_unit != '' else ''
+    if verbosity == 1 :
+      rep += ' : %g bins from %s = %g%s to %g%s' % (self.nbins(), self.obs_name, self.bins[0]['lo_edge'], unit, self.bins[-1]['hi_edge'], unit)
+    elif verbosity >= 2 :
+        rep += ' : %g bins along observable %s' % (self.nbins(), self.obs_name)
+        for i, b in enumerate(self.bins) :
+          rep += '\n%sbin %2d : [ %g%s, %g%s ]' % (pre_indent + indent, i, b['lo_edge'], unit, b['hi_edge'], unit)
+    for sample in self.samples.values() : rep += '\n%s  o Sample ' % pre_indent + sample.string_repr(verbosity, pre_indent=pre_indent+'    ', indent=indent)
+    return rep
 
 
 # -------------------------------------------------------------------------
@@ -442,6 +459,16 @@ class MultiBinChannel(Channel) :
       bin_data['counts'] = int(counts[b])
       sdict['bins'].append(bin_data)
 
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    rep = '%s%s' % (pre_indent,  self.name)
+    if verbosity == 1 :
+      rep += ' : %g bins (%s)' % (self.nbins(), ','.join(self.bins))
+    elif verbosity >= 2 :
+      rep += ' : %g bins : '
+      for i, b in enumerate(self.bins) :
+        rep += '\n%sbin%d : %s' % (pre_indent + indent, i, b)
+    for sample in self.samples.values() : rep += '\n%s  o Sample ' % pre_indent + sample.string_repr(verbosity, pre_indent=pre_indent+'    ', indent=indent)
+    return rep
 
 # -------------------------------------------------------------------------
 class GaussianChannel(Channel) :

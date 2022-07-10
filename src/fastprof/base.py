@@ -225,11 +225,19 @@ class ModelPOI(Serializable) :
       Returns:
         The object description
     """
-    s = "parameter '%s' :" % self.name
-    s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
-    if self.initial_value is not None : s += ' init = %g' % self.initial_value
-    if self.unit is not None : s += ' %s' % self.unit
-    return s
+    return 'POI ' + self.string_repr(verbosity = 1)
+
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
+    rep = '%s%s' % (pre_indent,  self.name)
+    if verbosity == 1 :
+      rep += ' = %g%s (min = %g%s, max = %g%s)' % (self.initial_value, unit, self.min_value, unit, self.max_value, unit)
+    elif verbosity >= 2 :
+      rep += '\n%sinitial_value = %g%s' % (pre_indent + indent, self.initial_value, unit)
+      rep += '\n%smin_value = %g%s' % (pre_indent + indent, self.min_value, unit)
+      rep += '\n%smax_value = %g%s' % (pre_indent + indent, self.max_value, unit)
+    return rep
+
 
   def load_dict(self, sdict) :
     """load object information from a dictionary of markup data
@@ -287,10 +295,18 @@ class ModelAux(Serializable) :
       Returns:
         The object description
     """
-    s = "auxiliary observable '%s'" % self.name
-    if self.min_value is not None and self.max_value is not None :
-      s +=' (min = %g, max = %g)' % (self.min_value, self.max_value)
+    return 'aux_obs ' + self.string_repr(verbosity = 1)
+
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
+    s = '%s%s' % (pre_indent,  self.name)
+    if verbosity == 1 :
+      s += ' (min = %g%s, max = %g%s)' % (self.min_value, unit, self.max_value, unit)
+    elif verbosity >= 2 :
+      s += '\n%smin_value = %5g%s' % (pre_indent + indent, self.min_value, unit)
+      s += '\n%smax_value = %5g%s' % (pre_indent + indent, self.max_value, unit)
     return s
+
 
   def load_dict(self, sdict) :
     """load object information from a dictionary of markup data
@@ -421,8 +437,18 @@ class ModelNP(Serializable) :
       Returns:
         The object description
     """
-    s = "Nuisance parameter '%s' : nominal = %g, variation = %g, " % (self.name, self.nominal_value, self.variation)
-    s += 'constraint = %g' % self.constraint if self.constraint is not None else 'free parameter'
+    return 'NP ' + self.string_repr(verbosity = 1)
+
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
+    constraint = ' constrained to %s with σ = %g%s' % (self.aux_obs, self.constraint, unit) if self.aux_obs is not None else ' free parameter'
+    s = '%s%s' % (pre_indent,  self.name)
+    if verbosity == 1 :
+      s += ' = %g +/- %g%s%s' % (self.nominal_value, self.variation, unit, constraint)
+    elif verbosity >= 2 :
+      s += '\n%snominal_value = %g%s' % (pre_indent + indent, self.nominal_value, self.unit)
+      s += '\n%svariation = %g%s' % (pre_indent + indent, self.variation, self.unit)
+      s += '\n%sconstraint = %s' % (pre_indent + indent, constraint)
     return s
 
   def load_dict(self, sdict) :

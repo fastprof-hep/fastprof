@@ -291,8 +291,17 @@ class Sample(Serializable) :
       Returns:
         The object description
     """
-    s = "Sample '%s', norm = %s (nominal = %s)" % (self.name, str(self.norm), str(self.nominal_norm))
-    return s
+    return 'Sample ' + self.string_repr(verbosity = 1)
+
+  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+    rep = self.name
+    if verbosity >= 1 :
+      rep += ', norm = %s (nominal = %s)' % (str(self.norm), str(self.nominal_norm))
+    if verbosity >= 2 :
+      rep += ', nominal yields : '
+      for i, y in enumerate(self.nominal_yields) :
+        rep += '\n%s o bin %2d : %g' % (pre_indent, i, y)
+    return rep
 
   def load_dict(self, sdict) -> 'Sample' :
     """Load object information from a dictionary of markup data

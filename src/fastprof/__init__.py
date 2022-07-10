@@ -12,6 +12,7 @@ from .fit_data        import POIHypo, FitParameter, FitResult, Raster, PLRData
 from .calculators     import TMuCalculator, QMuCalculator, QMuTildaCalculator
 from .model_tools     import ModelMerger, ModelReparam, NPPruner, SamplePruner, ChannelMerger, ParBound
 from .plot_tools      import PlotNPs, PlotResults
+from .print_tools     import print_model
 from .scans           import UpperLimitScan, PLRScan1D, PLRScan2D
 
 import numpy as np
