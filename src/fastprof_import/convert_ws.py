@@ -137,10 +137,10 @@ def run(argv = None) :
   # 2 - Update parameter values and constness as specified in options
   # -----------------------------------------------------------------
 
-  if options.setval   != '' : process_setvals  (options.setval  , ws)
-  if options.setconst != '' : process_setconsts(options.setconst, ws, const=True)
-  if options.setfree  != '' : process_setconsts(options.setfree , ws, const=False)
-  if options.setrange != '' : process_setranges(options.setrange, ws)
+  if options.setval   != '' : process_setvals  (options.setval  , ws=ws)
+  if options.setconst != '' : process_setconsts(options.setconst, ws=ws, const=True)
+  if options.setfree  != '' : process_setconsts(options.setfree , ws=ws, const=False)
+  if options.setrange != '' : process_setranges(options.setrange, ws=ws)
 
 
   # 3 - Define the primary dataset
@@ -157,10 +157,10 @@ def run(argv = None) :
   data = None
   if options.data_name != '' :
     data = ws.data(options.data_name)
-    if data == None :
+    if data is None :
       ds = [ d.GetName() for d in ws.allData() ]
       raise KeyError('Dataset %s not found in workspace. Available datasets are: %s' % (options.data_name, ', '.join(ds)))
-  elif options.asimov != None :
+  elif options.asimov is not None :
     data = make_asimov(mconfig, options.asimov)
   else:
     raise ValueError('ERROR: no dataset was specified either using --data-name or --asimov')
@@ -278,9 +278,9 @@ def run(argv = None) :
   else :
     unbinned_data = data
 
-  if options.refit != None :
+  if options.refit is not None :
     saves = process_setvals(options.refit, ws)
-    print('=== Refitting PDF to specified dataset with under the hypothesis :')
+    print('=== Refitting PDF to specified dataset under the hypothesis :')
     for (var, val, save_val) in saves :
       print("INFO :   %s=%g" % (var.GetName(), val))
       var.setConstant()
@@ -367,6 +367,7 @@ def run(argv = None) :
       poi_spec['unit'] = poi.getUnit()
       poi_spec['min_value'] = poi.getMin()
       poi_spec['max_value'] = poi.getMax()
+      poi_spec['initial_value'] = poi.getVal()
       poi_specs.append(poi_spec)
     model_dict['POIs'] = poi_specs
     # NPs
