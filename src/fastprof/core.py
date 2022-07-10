@@ -1309,6 +1309,10 @@ class Data (Serializable) :
       aux_data = { 'name' : par.aux_obs, 'value' : par.unscaled_value(self.aux_obs[p]) }
       sdict['data']['aux_obs'].append(aux_data)
 
+  def save_with_model(self, filename, flavor : str = None) :
+    self.model.save(filename, flavor)
+    self.save(filename, flavor, mode='a')
+
   def __str__(self) -> str :
     """Provides a description string
 
