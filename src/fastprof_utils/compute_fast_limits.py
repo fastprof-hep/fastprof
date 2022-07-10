@@ -91,7 +91,7 @@ def run(argv = None) :
   options = parser.parse_args(argv)
   if not options :
     parser.print_help()
-    sys.exit(0)
+    return 0
 
   if options.show_timing : start_time = time.time()
 
@@ -214,10 +214,10 @@ def run(argv = None) :
 
   faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
 
-  scan_asy_fast_clsb = UpperLimitScan(faster, 'pv'          , name='Asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
-  scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='Sampling   , fast model', cl=options.cl, cl_name='CL_{s+b}')
-  scan_asy_fast_cls  = UpperLimitScan(faster, 'cls'         , name='Asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
-  scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='Sampling   , fast model', cl=options.cl, cl_name='CL_s' )
+  scan_asy_fast_clsb = UpperLimitScan(faster, 'pv'          , name='CLsb, asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
+  scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='CLsb, sampling   , fast model', cl=options.cl, cl_name='CL_{s+b}')
+  scan_asy_fast_cls  = UpperLimitScan(faster, 'cls'         , name='CL_s, asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
+  scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='CL_s, sampling   , fast model', cl=options.cl, cl_name='CL_s' )
 
   limit_asy_fast_clsb = scan_asy_fast_clsb.limit(print_result=True)
   limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_errors=True)
@@ -277,5 +277,7 @@ def run(argv = None) :
 
   with open(results_file, 'w') as fd:
     json.dump(jdict, fd, ensure_ascii=True, indent=3)
-
+  
+  return 0
+  
 if __name__ == '__main__' : run()
