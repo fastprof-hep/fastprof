@@ -59,7 +59,7 @@ def run(argv = None) :
 
   model = Model.create(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  if options.channel is not None and not options.channel in model.channels() : raise KeyError('Channel %s not found in model.' % options.channel)
+  if options.channel is not None and not options.channel in model.channels : raise KeyError('Channel %s not found in model.' % options.channel)
 
   if options.data_file is not None :
     data = Data(model).load(options.data_file)
@@ -123,17 +123,20 @@ def run(argv = None) :
 
   plt.ion()
   if not options.residuals :
-    model.plot(pars, figsize=(width, height), data=data, labels=options.variations is None, stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
+    model.plot(pars, figsize=(width, height), data=data, labels=options.variations is None, channel_names=options.channel,
+               stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
     if options.plot_without is not None or options.plot_alone is not None :
-      model.plot(pars, canvas=fig1, only=options.plot_alone, exclude=options.plot_without, labels=options.variations is None, stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
+      model.plot(pars, canvas=fig1, only=options.plot_alone, exclude=options.plot_without, labels=options.variations is None, channel_names=options.channel,
+                 stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
     if xmin is not None : plt.xlim(xmin, xmax)
     if ymin is not None : plt.ylim(ymin, ymax)
   else :
     fig1, ax1 = plt.subplots(nrows=2, ncols=1, figsize=(width, height), dpi=96)
-    model.plot(pars, data=data, canvas=ax1[0], stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
+    model.plot(pars, data=data, canvas=ax1[0], stack=options.stack, logy=options.log_scale, channel_names=options.channel, bin_width=options.bin_width)
     if xmin is not None : ax1[0].set_xlim(xmin, xmax)
     if ymin is not None : ax1[0].set_ylim(ymin, ymax)
-    model.plot(pars, data=data, canvas=ax1[1], residuals=options.residuals, labels=options.variations is None, stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
+    model.plot(pars, data=data, canvas=ax1[1], residuals=options.residuals, labels=options.variations is None, channel_names=options.channel,
+               stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
   if options.output_file is not None : plt.savefig(options.output_file)
 
   variations = None
