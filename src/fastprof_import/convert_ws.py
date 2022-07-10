@@ -410,6 +410,7 @@ def run(argv = None) :
       channel_spec['bins'] = bin_specs
       sample_specs = []
       for sample in channel.samples :
+        if np.count_nonzero(sample.nominal_yields) == 0 : continue
         sample_spec = {}
         sample_spec['name'] = sample.name
         if sample.normpar is not None and (pois.find(sample.normpar.GetName()) or nps.find(sample.normpar.GetName())) :
