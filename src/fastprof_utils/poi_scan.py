@@ -95,11 +95,17 @@ def run(argv = None) :
 
     if not do_computation : # check that the loaded data is for the correct set of hypos
       if len(raster.plr_data) != len(hypos) :
-        raise KeyError("ERROR : cannot load from file '%s' which defines %d hypotheses when we need %d." % (raster_file, len(raster.plr_data), len(hypos)))
+        if options.overwrite :
+          do_computation = True
+        else :
+          raise KeyError("ERROR : cannot load from file '%s' which defines %d hypotheses when we need %d." % (raster_file, len(raster.plr_data), len(hypos)))
       for hypo in hypos :
         match = next((loaded_hypo for loaded_hypo in raster.plr_data if loaded_hypo == hypo), None)
         if match is None :
-          raise KeyError("ERROR: data for hypothesis '%s' not found in file '%s'." % (str(hypo), raster_file))
+          if options.overwrite :
+            do_computation = True
+          else :
+            raise KeyError("ERROR: data for hypothesis '%s' not found in file '%s'." % (str(hypo), raster_file))
   else :
     hypos = [ hypo for hypo in raster.plr_data ]
 
