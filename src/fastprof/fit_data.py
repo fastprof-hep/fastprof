@@ -61,6 +61,12 @@ class POIHypo(Serializable) :
     """
     return self.pars[par]
 
+  def __eq__(self, other) :
+    return self.pars == other.pars
+
+  def __hash__(self) :
+    return hash(tuple(self.pars))
+
   def keys(self)   : return self.pars.keys()
   def values(self) : return self.pars.values()
   def items(self)  : return self.pars.items()
@@ -424,7 +430,7 @@ class Raster(Serializable) :
     super().__init__()
     self.name = name
     self.model = model
-    self.plr_data = plr_data if plr_data != None else {}
+    self.plr_data = plr_data if plr_data is not None else {}
     self.use_global_best_fit = use_global_best_fit
     self.fill_missing = fill_missing
     if filename is not None : self.load_with_asimov(filename, 'asimov') if load_asimov is not None else self.load(filename)
