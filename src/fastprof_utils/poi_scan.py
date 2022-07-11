@@ -26,9 +26,10 @@ def make_parser() :
   parser.add_argument("-m", "--model-file"    , type=str  , required=True    , help="Name of markup file defining model")
   parser.add_argument("-d", "--data-file"     , type=str  , default=None     , help="Use the dataset stored in the specified markup file")
   parser.add_argument("-a", "--asimov"        , type=str  , default=None     , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
-  parser.add_argument("-y", "--hypos"         , type=str  , required=True    , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
+  parser.add_argument("-y", "--hypos"         , type=str  , default=None     , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
   parser.add_argument("-c", "--cl"            , type=str  , default="1"      , help="Confidence levels at which to compute the limit, either integers (nsigmas) or floats (CL)")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True    , help="Name of output file")
+  parser.add_argument("-x", "--overwrite"     , action='store_true'          , help="Allow overwriting output file")
   parser.add_argument("-b", "--best-fit-mode" , type=str  , default='single' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
   parser.add_argument("-r", "--setrange"      , type=str  , default=None     , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1        , help="Number of iterations to perform for NP computation")
@@ -78,38 +79,50 @@ def run(argv = None) :
     data = Data(model).load(options.model_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
 
-  try :
-    hypos = [ POIHypo(setval_dict) for setval_dict in process_setval_list(options.hypos, model) ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError("Could not parse list of hypothesis values '%s' : expected #-separated list of variable assignments" % options.hypos)
-  pois = Raster.have_compatible_pois(hypos)
-  if pois is None : raise ValueError("Hypotheses '%s' are not compatible (different POIs or different POI ordering)." % options.hypos)
-  if options.verbosity > 1 : 
-    print('Will scan the following hypotheses : \n- %s' % '\n- '.join([str(hypo) for hypo in process_setval_list(options.hypos, model)]))
-
-  # Compute the tmu values
-  calc = TMuCalculator(OptiMinimizer(niter=options.iterations, verbosity=options.verbosity).set_pois(model))
-  if options.verbosity > 1 : 
-    prof_pois = set(calc.minimizer.free_pois()) - set(pois)
-    if len(prof_pois) > 0 : print('Will profile over POI(s) %s.' % ','.join(prof_pois)) 
-  if len(pois) > 2 : raise ValueError('Currently not supporting more than 2 POIs for this operation')
-  print('Producing PLR scan with POI(s) %s, bounds %s.' % (str(pois), str(calc.minimizer.bounds)))
   do_computation = True
+  raster = Raster('fast', model=model)
   try :
-    raster = Raster('fast', model=model)
-    raster.load(raster_file)
-    do_computation = False
+    if raster.load(raster_file) : do_computation = False
   except FileNotFoundError :
     pass
-  
-  if options.show_timing : comp_start_time = time.time()
+
+  if options.hypos is not None :
+    try :
+      hypos = [ POIHypo(setval_dict) for setval_dict in process_setval_list(options.hypos, model) ]
+    except Exception as inst :
+      print(inst)
+      raise ValueError("Could not parse list of hypothesis values '%s' : expected #-separated list of variable assignments" % options.hypos)
+
+    if not do_computation : # check that the loaded data is for the correct set of hypos
+      if len(raster.plr_data) != len(hypos) :
+        raise KeyError("ERROR : cannot load from file '%s' which defines %d hypotheses when we need %d." % (raster_file, len(raster.plr_data), len(hypos)))
+      for hypo in hypos :
+        match = next((loaded_hypo for loaded_hypo in raster.plr_data if loaded_hypo == hypo), None)
+        if match is None :
+          raise KeyError("ERROR: data for hypothesis '%s' not found in file '%s'." % (str(hypo), raster_file))
+  else :
+    hypos = [ hypo for hypo in raster.plr_data ]
+
+  pois = Raster.have_compatible_pois(hypos)
+  if pois is None : raise ValueError("Hypotheses '%s' are not compatible (different POIs or different POI ordering)." % ', '.join([str(hypo) for hypo in hypos]))
+  if options.verbosity > 1 : 
+    print('Will scan the following hypotheses : \n- %s' % '\n- '.join([str(hypo) for hypo in hypos]))
+
+
+  # Compute the tmu values
 
   if do_computation :
+    calc = TMuCalculator(OptiMinimizer(niter=options.iterations, verbosity=options.verbosity).set_pois(model))
+    if options.verbosity > 1 : 
+      prof_pois = set(calc.minimizer.free_pois()) - set(pois)
+      if len(prof_pois) > 0 : print('Will profile over POI(s) %s.' % ','.join(prof_pois)) 
+    if len(pois) > 2 : raise ValueError('Currently not supporting more than 2 POIs for this operation')
+    print('Producing PLR scan with POI(s) %s, bounds %s.' % (str(pois), str(calc.minimizer.bounds)))
+
+    if options.show_timing : comp_start_time = time.time()
     raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity, free_fit=options.best_fit_mode)
     raster.save(raster_file)
-
-  if options.show_timing : comp_stop_time = time.time()
+    if options.show_timing : comp_stop_time = time.time()
 
   if not options.batch_mode : raster.print(keys=[ 'tmu' ], verbosity=options.verbosity + 1)
   sdict = {}
@@ -173,7 +186,7 @@ def run(argv = None) :
   if options.show_timing :
     stop_time = time.time()
     print("##           Setup time : %g s" % (comp_start_time - start_time))
-    print("##     Computation time : %g s" % (comp_stop_time - comp_start_time))
+    if do_computation : print("##     Computation time : %g s" % (comp_stop_time - comp_start_time))
     print("## Post-processing time : %g s" % (stop_time - comp_stop_time))
 
   with open(results_file, 'w') as fd:
