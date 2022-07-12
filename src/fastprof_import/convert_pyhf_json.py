@@ -1,48 +1,10 @@
 #! /usr/bin/env python
 
 __doc__ = """
-*Convert a ROOT workspace into fastprof markup format*
+*Convert a pyhf workspace into fastprof markup format*
 
-The script takes as input a ROOT workspace, and converts the contents
-into the definition file of a linear model, as follows:
-
-* The model POIs and NPs are taken from the ModelConfig file.
-
-* The model PDF is also taken from the ModelConfig. Two cases are currently
-  implemented:
-  
-  * *The PDF is a `RooAddPdf`*: the components of the sum are then 
-    used to define the samples of a single channel. The channel
-    observable is taken from the PDF, and the binning from the `-b` option.
-      
-  * *The PDF is a `RooSimultaneous`* : the states of the PDF are taken
-    to correspond each to a separate channel. Each channel must have a 
-    PDF of *RooAddPdf* type, which is then treated as above.
-
-* Nominal yields in each bin are computed from integrating the PDF of each
-  sample in each channel.
-
-* Linear impacts are computed by changing the values of the NPs as 
-  specified by the `--variations` option. By default :math:`\pm 1 \sigma`
-  variations are used. The impact on each sample are separated by setting
-  the normalizations of all but one to zero for each in turn. Variations
-  which are present when all normalizations are set to 0 are assigned to
-  the default sample, specified by the `--default-sample` option.
-
-* NP central values and uncertainties taken from directly from the workspace,
-  or from a fit to data (`--data-file` option) or to an Asimov dataset
-  (`--asimov` option). The same applied to the POI value used to define
-  the nominal yields. If the POI value leads to a normalization of 0, the POI
-  is instead set to twice its uncertainty.
-  
-* Prior to computations, the model can be adjusted using the `--setval`,
-  `--setconst` and `--setrange` options, which set respectively the value,
-  constness and range of model parameters.
-
-The output is a single markup file which defines the model as well as the 
-dataset if one was specified. A validation file is also produced if the 
-`--validation-output` option was set: this contains information that can be
-used to assess if the linearity assumption is valid for the model.
+The script takes as input a pyhf workspace, and converts the contents
+into the definition file of a linear model.
 """
 __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
@@ -129,6 +91,15 @@ def run(argv = None) :
   if not 'channels' in pyhf_model :
     raise KeyError('ERROR: could not read channel information from model.')
 
+  def add_impact(modifier_name, impact) :
+    if not modifier_name in fastprof_model['NPs'] and not modifier_name in fastprof_model['POIs'] :
+        fastprof_model['NPs'][modifier_name] = { 'name' : modifier_name, 'nominal_value' : 0, 'constraint' : 1, 'aux_obs' : 'aux_' + modifier_name }
+    if np.any([ imp["+1"]*imp["-1"] > 0 for imp in impact ]) : 
+      print("WARNING: +1σ and -1σ impacts for '%s' in sample '%s' of channel '%s' (%s) have the same sign, setting to default." % (modifier_name, sample['name'], channel['name'], str(impact)))
+      impact = [ { "+1" : 0.0, "-1" : 0.0 } ]
+    if len(impact) == 1 : impact = impact[0]
+    sample['impacts'][modifier_name] = impact
+
   for pyhf_channel in pyhf_model['channels'] :
     channel = {}
     try :
@@ -136,53 +107,41 @@ def run(argv = None) :
       nbins = len(pyhf_channel['samples'][0]['data'])
       if nbins == 1 :
         channel['type'] = 'bin'
-        channel['samples'] = []
-        for pyhf_sample in pyhf_channel['samples'] :
-          sample = {}
-          nominal_yields = pyhf_sample['data'][0]
-          sample['name'] = pyhf_sample['name']
-          sample['nominal_yields'] = [ nominal_yields ]
-          normfactors = [ modifier['name'] for modifier in pyhf_sample['modifiers'] if modifier['type'] == 'normfactor' ]
-          if len(normfactors) > 1 : raise("Sample '%s' has %d normfactors, can only handle one -- exiting." % (sample['name'], len(normfactors)))
-          if len(normfactors) == 1 :
-            #sample['norm_type'] = 'parameter'
-            sample['nominal_norm'] = 1 # FIXME: put the nominal POI or NP value here inste
-            sample['norm'] = normfactors[0]
-          #else :
-          #  sample['norm_type'] = 'number'
-          #  sample['norm'] = 1
-          sample['impacts'] = {} 
-          for modifier in pyhf_sample['modifiers'] :
-            if not modifier['name'] in fastprof_model['NPs'] and not modifier['name'] in fastprof_model['POIs'] :
-              fastprof_model['NPs'][modifier['name']] = { 'name' : modifier['name'], 'nominal_value' : 0, 'constraint' : 1, 'aux_obs' : 'aux_' + modifier['name'] }
-            if modifier['name'] in normfactors : continue
-            if modifier['type'] == 'lumi' :
-              #impact = { "+1" : +1, "-1" : -1 }
-              impact = { "+1" : 1.0, "-1" : -1.0 }
-            elif modifier['type'] == 'normsys' :
-              impact = { "+1" : modifier['data']['hi'] - 1, "-1" : modifier['data']['lo'] - 1 }
-            elif modifier['type'] == 'histosys' :
-              impact = { "+1" : modifier['data']['hi_data'][0]/nominal_yields - 1, "-1" : modifier['data']['lo_data'][0]/nominal_yields - 1 }
-            elif modifier['type'] == 'shapesys' :
-              sigma = modifier['data'][0]/nominal_yields
-              if sigma > 0 :
-                fastprof_model['NPs'][modifier['name']]['nominal_value'] = 1
-                fastprof_model['NPs'][modifier['name']]['constraint'] = sigma
-                impact = { "+1" : 1.0, "-1" : -1.0 }
-              else :
-                del fastprof_model['NPs'][modifier['name']]
-            else :
-              raise ValueError("Unknown modifier type '%s' in channel '%s'." % (modifier['type'], pyhf_channel['name']))
-            if impact["+1"]*impact["-1"] > 0 : 
-              print("WARNING: +1 sigma and -1 sigma impacts for '%s' in sample '%s' of channel '%s' (%g, %g) have the same sign, setting to default." % (modifier['name'], sample['name'], channel['name'], impact["+1"], impact["-1"]))
-              #impact = { "+1" : 0.0, "-1" : 0.0 }
-            sample['impacts'][modifier['name']] = impact
-          channel['samples'].append(sample)
       else :
-        raise TypeError("Conversion of multi-bin channels is not yet implemented, cannot handle channel '%s' with %d bins." % (pyhf_channel['name'], nbins))
-        # TODO: implement fully multi-bin channels, and treat single-bin case as a special case (do everything the multi-bin way, then simplify to single-bin if nbins=1) 
-        #for par in fastprof_model['NPs'] :
-        #  if 'aux_obs' in par : 
+        channel['type'] = 'multi_bin'
+        channel['bins'] = []
+      channel['samples'] = []
+      for pyhf_sample in pyhf_channel['samples'] :
+        sample = {}
+        nominal_yields = pyhf_sample['data']
+        if channel['type'] == 'multi_bin' and len(channel['bins']) == 0 : channel['bins'] = [ 'bin%d' % b for b in range(0, len(nominal_yields)) ]
+        sample['name'] = pyhf_sample['name']
+        sample['nominal_yields'] = nominal_yields
+        normfactors = [ modifier['name'] for modifier in pyhf_sample['modifiers'] if modifier['type'] == 'normfactor' ]
+        if len(normfactors) > 1 : raise("Sample '%s' has %d normfactors, can only handle one -- exiting." % (sample['name'], len(normfactors)))
+        if len(normfactors) == 1 :
+          #sample['norm_type'] = 'parameter'
+          sample['nominal_norm'] = 1 # FIXME: put the nominal POI or NP value here instead
+          sample['norm'] = normfactors[0]
+        sample['impacts'] = {} 
+        for modifier in pyhf_sample['modifiers'] :
+          if modifier['name'] in normfactors : continue
+          if modifier['type'] == 'lumi' :
+            impact = [ { "+1" : 1.0, "-1" : -1.0 } ]
+            add_impact(modifier['name'], impact)
+          elif modifier['type'] == 'normsys' :
+            impact = [ { "+1" : modifier['data']['hi'] - 1, "-1" : modifier['data']['lo'] - 1 } ]
+            add_impact(modifier['name'], impact)
+          elif modifier['type'] == 'histosys' :
+            impact = [ { "+1" : hi/y - 1, "-1" : lo/y - 1 } for y, hi, lo in zip(nominal_yields, modifier['data']['hi_data'], modifier['data']['lo_data']) ]
+            add_impact(modifier['name'], impact)
+          elif modifier['type'] == 'shapesys' or modifier['type'] == 'staterror' :
+            for b, (y, sigma) in enumerate(zip(nominal_yields, modifier['data'])) :
+              impact = [ { "+1" : sigma/y if b == b2 else 0, "-1" : -sigma/y if b == b2 else 0 } for b2 in range(0, len(nominal_yields)) ]
+              add_impact('%s_bin%d' % (modifier['name'], b), impact)
+          else :
+            raise ValueError("Unknown modifier type '%s' in channel '%s'." % (modifier['type'], pyhf_channel['name']))
+        channel['samples'].append(sample)
     except Exception as inst :
       print(inst)
       raise KeyError("ERROR: could not read model information for channel '%s.'" % pyhf_channel['name'])
@@ -192,7 +151,12 @@ def run(argv = None) :
     fastprof_data['channels'] = []
     for pyhf_channel in pyhf_model['observations'] :
       try :
-        fastprof_data['channels'].append({ 'name' : pyhf_channel['name'], 'counts' : pyhf_channel['data'][0] })
+        if len(pyhf_channel['data']) == 1 :
+          fastprof_data['channels'].append({'name' : pyhf_channel['name'],
+                                            'counts' : pyhf_channel['data'][0] })
+        else :
+          fastprof_data['channels'].append({'name' : pyhf_channel['name'],
+                                            'bins' : [ { 'name' : 'bin%d' % b, 'counts' : c } for b, c in enumerate(pyhf_channel['data']) ]})
       except Exception as inst :
         print(inst)
         raise KeyError("ERROR: could not read data information for channel '%s.'" % pyhf_channel['name'])
@@ -210,5 +174,5 @@ def run(argv = None) :
     if options.markup == 'json' : return json.dump(sdict, fd, ensure_ascii=True, indent=3)
     if options.markup == 'yaml' : return yaml.dump(sdict, fd, sort_keys=False, default_flow_style=None, width=10000)
     raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % options.markup)
-  
+
 if __name__ == '__main__' : run()
