@@ -150,14 +150,19 @@ class Serializable :
     if types == [ np.ndarray, list ] : val = np.array(val, dtype=float)
     return val
 
-  def unnumpy(self, obj) :
+  @staticmethod
+  def unnumpy(obj) :
     if isinstance(obj, np.int64) : return int(obj)
     if isinstance(obj, np.float64) : return float(obj)
     if isinstance(obj, np.ndarray) or isinstance(obj, list) : 
-      return [ self.unnumpy(element) for element in obj ]
+      return [ Serializable.unnumpy(element) for element in obj ]
     if isinstance(obj, dict) :
-      return { key : self.unnumpy(value) for key, value in obj.items() }
+      return { key : Serializable.unnumpy(value) for key, value in obj.items() }
     return obj
+  
+  @staticmethod
+  def good_float(value) :
+    return value if value is not None else float('nan')
 
   @abstractmethod
   def load_dict(self, sdict: dict) -> 'Serializable' :
@@ -301,10 +306,10 @@ class ModelAux(Serializable) :
     unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
     s = '%s%s' % (pre_indent,  self.name)
     if verbosity == 1 :
-      s += ' (min = %g%s, max = %g%s)' % (self.min_value, unit, self.max_value, unit)
+      s += ' (min = %g%s, max = %g%s)' % (self.good_float(self.min_value), unit, self.good_float(self.max_value), unit)
     elif verbosity >= 2 :
-      s += '\n%smin_value = %5g%s' % (pre_indent + indent, self.min_value, unit)
-      s += '\n%smax_value = %5g%s' % (pre_indent + indent, self.max_value, unit)
+      s += '\n%smin_value = %5g%s' % (pre_indent + indent, self.good_float(self.min_value), unit)
+      s += '\n%smax_value = %5g%s' % (pre_indent + indent, self.good_float(self.max_value), unit)
     return s
 
 
