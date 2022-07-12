@@ -1,9 +1,9 @@
 #! /usr/bin/env python
 
 __doc__ = """
-*Convert a pyhf workspace into fastprof markup format*
+*Convert a pyhf json file into fastprof markup format*
 
-The script takes as input a pyhf workspace, and converts the contents
+The script takes as input a pyhf JSON file, and converts the contents
 into the definition file of a linear model.
 """
 __author__ = "N. Berger <Nicolas.Berger@cern.ch"
