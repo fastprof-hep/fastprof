@@ -1103,6 +1103,8 @@ class Model (Serializable) :
         channel = SingleBinChannel()
       elif dict_channel['type'] == BinnedRangeChannel.type_str :
         channel = BinnedRangeChannel()
+      elif dict_channel['type'] == MultiBinChannel.type_str :
+        channel = MultiBinChannel()
       elif dict_channel['type'] == GaussianChannel.type_str :
         channel = GaussianChannel()
       else :
