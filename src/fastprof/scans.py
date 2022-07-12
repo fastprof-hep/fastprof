@@ -98,11 +98,11 @@ class Scan1D (Scan) :
     """
     if not with_errors :
       hypos, values = self.points(with_errors)       
-      return self.interpolate_crossings(hypos, values, pv_level, order, log_scale)
+      return self.interpolate_crossings(hypos, values, pv_level, order, log_scale, self.name)
     hypos, (values_nom, values_up, values_dn) = self.points(with_errors)
-    crossings_nom = self.interpolate_crossings(hypos, values_nom, pv_level, order, log_scale)
-    crossings_up  = self.interpolate_crossings(hypos, values_up , pv_level, order, log_scale)
-    crossings_dn  = self.interpolate_crossings(hypos, values_dn , pv_level, order, log_scale)
+    crossings_nom = self.interpolate_crossings(hypos, values_nom, pv_level, order, log_scale, self.name)
+    crossings_up  = self.interpolate_crossings(hypos, values_up , pv_level, order, log_scale, self.name)
+    crossings_dn  = self.interpolate_crossings(hypos, values_dn , pv_level, order, log_scale, self.name)
     if len(crossings_up) != len(crossings_nom) : raise ValueError('Number of +1sigma crossings (%d) does not match the number of nominal crossings (%d).' % (len(crossings_up), len(crossings_nom)))
     if len(crossings_dn) != len(crossings_nom) : raise ValueError('Number of -1sigma crossings (%d) does not match the number of nominal crossings (%d).' % (len(crossings_dn), len(crossings_nom)))
     return [ (crossing_nom, crossing_up, crossing_dn) for crossing_nom, crossing_up, crossing_dn in zip(crossings_nom, crossings_up, crossings_dn) ]
@@ -118,7 +118,7 @@ class Scan1D (Scan) :
     Returns:
     """
     hypos, values = self.points()
-    found_minima = self.interpolate_minima(hypos, values, order)
+    found_minima = self.interpolate_minima(hypos, values, order, self.name)
     return found_minima if len(found_minima) > 0 else np.array([ values[np.argmin(hypos)] ])
     
   def points(self, with_errors = False) -> tuple :
@@ -151,7 +151,8 @@ class Scan1D (Scan) :
     spl = self.spline(order)
     return (grid, spl(grid))
 
-  def interpolate_crossings(self, xs : list, ys : list, target : float, order : int = 3, log_scale : bool = True) -> list :
+  @classmethod
+  def interpolate_crossings(cls, xs : list, ys : list, target : float, order : int = 3, log_scale : bool = True, name : str = '') -> list :
     """Perform a one-dimensional interpolation between points to find crossing positions
 
     Takes 2 lists of same size, corresponding to the `x` and `y`
@@ -184,20 +185,21 @@ class Scan1D (Scan) :
       interp_ys.append(value)
       interp_xs.append(x)
     if len(interp_xs) < 2 :
-      print('Cannot interpolate using %d point(s) while computing %s, giving up.' % (len(interp_xs), self.name))
+      print('Cannot interpolate using %d point(s) while computing %s, giving up.' % (len(interp_xs), name))
       return None
     if len(interp_xs) < order + 1 :
       order = len(interp_xs) - 1
-      print('Reducing interpolation order to %d to match the number of available points while computing %s.' % (order, self.name))
+      print('Reducing interpolation order to %d to match the number of available points while computing %s.' % (order, name))
     spline = scipy.interpolate.InterpolatedUnivariateSpline(interp_xs, interp_ys, k=order)
     if order == 3 :
       roots = spline.roots()
     else :
-      print('Root-finding not supported yet for non-cubic splines, failing in computation %s.' % self.name)
+      print('Root-finding not supported yet for non-cubic splines, failing in computation %s.' % name)
       return []
     return roots
 
-  def interpolate_minima(self, xs : list, ys : list, order : int = 4) -> list :
+  @classmethod
+  def interpolate_minima(cls, xs : list, ys : list, order : int = 4, name : str = '') -> list :
     """Perform a one-dimensional interpolation between points to find crossing positions
 
     Takes 2 lists of same size, corresponding to the `x` and `y`
@@ -220,17 +222,17 @@ class Scan1D (Scan) :
       The list of interpolated solutions
     """
     if len(xs) < 2 :
-      print('Cannot interpolate using %d point(s) while computing %s, giving up.' % (len(xs), self.name))
+      print('Cannot interpolate using %d point(s) while computing %s, giving up.' % (len(xs), name))
       return None
     if len(xs) < order + 1 :
       order = len(xs) - 1
-      print('Reducing interpolation order to %d to match the number of available points while computing %s.' % (order, self.name))
+      print('Reducing interpolation order to %d to match the number of available points while computing %s.' % (order, name))
     spline = scipy.interpolate.InterpolatedUnivariateSpline(xs, ys, k=order)
     if order == 4 :
       derivative = spline.derivative()
       roots = derivative.roots()
     else :
-      print('Min-finding not supported yet for non-quartic splines, failing in computation %s.' % self.name)
+      print('Min-finding not supported yet for non-quartic splines, failing in computation %s.' % name)
       return []
     return roots
 
