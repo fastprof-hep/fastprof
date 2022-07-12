@@ -82,12 +82,12 @@ class Channel(Serializable) :
     return 'Channel ' + self.string_repr(verbosity = 1)
 
   def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
-    s = '%s%s' % (pre_indent,  channel.name)
+    rep = '%s%s' % (pre_indent,  self.name)
     if verbosity >= 1 :
-      s += ' : %g bins (%s)' % channel.nbins()
+      rep += ' : %g bins' % self.nbins()
     if verbosity > 0 :
       for sample in self.samples.values() : rep += '\n%s  o Sample ' % pre_indent + sample.string_repr(verbosity, pre_indent=pre_indent+'    ', indent=indent)
-    return s
+    return rep
 
   def load_dict(self, sdict : dict) -> 'Channel' :
     """Load object information from a dictionary of markup data
