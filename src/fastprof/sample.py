@@ -199,7 +199,9 @@ class Sample(Serializable) :
     max_impact = 100
     # Shortcut for the case of only 1 variation
     if len(self.pos_vars[par]) == 1 :
+      #print('== sample', self.name, ', par', par, 'pos var', self.pos_vars[par][0], 'log' if is_log else 'linear', 'impact =', self.pos_imps[par][0])
       pos_coeffs = [ self.pos_imps[par][0]/self.pos_vars[par][0] if not is_log else np.log(np.maximum(np.minimum(1 + self.pos_imps[par][0], max_impact), 1/max_impact))/self.pos_vars[par][0] ]
+      #print('== sample', self.name, ', par', par, 'neg var', self.neg_vars[par][0], 'log' if is_log else 'linear', 'impact =', self.neg_imps[par][0])
       neg_coeffs = [ self.neg_imps[par][0]/self.neg_vars[par][0] if not is_log else np.log(np.maximum(np.minimum(1 + self.neg_imps[par][0], max_impact), 1/max_impact))/self.neg_vars[par][0] ]
       return np.array(pos_coeffs), np.array(neg_coeffs)
     # Otherwise go the longer route of interpolation between multiple variations

@@ -62,13 +62,14 @@ class NPMinimizer :
   """
   optimize_einsum = True
   
-  def __init__(self, data : Data) :
+  def __init__(self, data : Data, verbosity : int = 0) :
     """Initialize the NPMinimizer object
 
       Args:
          data     : the dataset used for the NLL computation
     """
     self.data = data
+    self.verbosity = verbosity
     self.min_pars = None
     self.min_deltas = None
 
@@ -99,6 +100,14 @@ class NPMinimizer :
     # print('njpb', p_pois, q_pois, p_gaus, q_gaus, model.constraint_hessian, model.constraint_hessian.dot(hypo.nps - self.data.aux_obs))
     p = p_pois + p_gaus + model.constraint_hessian
     q = q_pois + q_gaus + model.constraint_hessian.dot(hypo.nps - self.data.aux_obs)
+    if self.verbosity > 4 :
+      print('== NPMinimizer: using profile matrices')
+      print('P_pois = \n', p_pois)
+      print('P_gaus = \n', p_gaus)
+      print('C      = \n', model.constraint_hessian)
+      print('Q_pois = \n', q_pois)
+      print('Q_gaus = \n', q_gaus)
+      print('C.daux = \n', model.constraint_hessian.dot(hypo.nps - self.data.aux_obs))
     return (p,q)
 
   def pq_einsum_poisson(self, n_nom : np.ndarray, obs : np.ndarray, impacts : np.ndarray) -> (np.ndarray, np.ndarray) :
@@ -117,6 +126,12 @@ class NPMinimizer :
     delta_obs = t_nom - obs
     ratio_nom = n_nom / t_nom
     ratio_impacts = np.einsum('ki,kia->ia', ratio_nom, impacts, optimize=self.optimize_einsum)
+    if self.verbosity > 5 :
+      print('== NPMinimizer: using Poisson profile matrices')
+      print('t_nom = \n', t_nom)
+      print('delta_obs = \n', delta_obs)
+      print('ratio_nom = \n', ratio_nom)
+      print('ratio_impacts = \n', ratio_impacts)
     q = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=self.optimize_einsum)
     p = np.einsum('i,ia,ib->ab', obs, ratio_impacts, ratio_impacts, optimize=self.optimize_einsum)
     if self.data.model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
@@ -163,11 +178,15 @@ class NPMinimizer :
     if not isinstance(hypo, Parameters) :
       hypo = Parameters(hypo, model=model).set_from_aux(self.data)
     self.p, self.q = self.pq_einsum(hypo)
+    if self.verbosity > 3 :
+      print('== NPMinimizer: profiling using')
+      print('P = \n', self.p)
+      print('Q = \n', self.q)
     d = np.linalg.det(self.p)
     if abs(d) < (1E-3)**self.q.size :
-      print('Linear system has an ill-conditioned coefficient matrix (det=%g), returning null result' % d)
+      print('== Linear system has an ill-conditioned coefficient matrix (det=%g), returning null result' % d)
       print('Profiling at hypothesis', hypo)
-      print(self.p)
+      print('P = \n', self.p)
       deltas = np.zeros(self.data.model.nnps)
     else :
       # all of the lines below should give the same results
@@ -177,6 +196,11 @@ class NPMinimizer :
     nps = hypo.nps - deltas
     self.min_deltas = Parameters(hypo.pois, deltas, self.data.model)
     self.min_pars   = Parameters(hypo.pois, nps   , self.data.model)
+    if self.verbosity > 2 :
+      print('== NPMinimizer:')
+      print('for hypo = ', hypo)
+      print('obtained deltas = ', deltas)
+      print('profiled nps = ', nps)
     return self.min_pars
 
   def profile_nll(self, hypo : Parameters, floor : float = None) -> float :
@@ -318,7 +342,7 @@ class POIMinimizer :
       Returns:
          best-fit parameters
     """
-    self.np_min = NPMinimizer(data)
+    self.np_min = NPMinimizer(data, verbosity=self.verbosity)
     self.min_pars = hypo
     for i in range(0, self.niter) :
       self.np_min.profile(self.min_pars)
@@ -535,7 +559,7 @@ class OptiMinimizer (POIMinimizer) :
       #print('njpb pois = ', pois, type(pois))
       update_current_hypo(pois)
       self.profile_nps(current_hypo, data)
-      if self.verbosity > 2 : print('== OptMinimizer: eval at %s -> %g' % (str(pois), self.min_nll))
+      if self.verbosity > 2 : print('== OptMinimizer: eval at %s -> %g%s' % (str(pois), self.min_nll, ' with parameters' if self.verbosity > 3 else ''))
       if self.verbosity > 3 : print(current_hypo)
       if self.verbosity > 4 : print(self.min_pars)
       return self.min_nll

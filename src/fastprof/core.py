@@ -580,11 +580,25 @@ class Model (Serializable) :
         delta = np.tensordot(self.pos_impact_coeffs, pos_vdm, axes=2) + np.tensordot(self.neg_impact_coeffs, neg_vdm, axes=2)
       else :
         delta = np.tensordot(self.pos_impact_coeffs[:,:,:,0], pos_np, axes=1) + np.tensordot(self.neg_impact_coeffs[:,:,:,0], neg_np, axes=1)
+      if self.verbosity > 2 :
+        print('== k_exp eval:')
+        print('delta = ', delta)
+        if self.verbosity > 3 :
+          print('pos_impact_coeffs = ', self.pos_impact_coeffs[:,:,:,0])
+          print('neg_impact_coeffs = ', self.neg_impact_coeffs[:,:,:,0])
+          print('pos_np = ', pos_np)
+          print('neg_np = ', neg_np)
       if self.use_linear_nps :
         return 1 + delta
       else :
         return np.exp(delta)
     else :
+      if self.verbosity > 2 :
+        print('== k_exp eval [sym impacts]:')
+        print('delta = ', self.sym_impact_coeffs.dot(pars.nps))
+        if self.verbosity > 3 :
+          print('sym_impact_coeffs = ', self.sym_impact_coeffs)
+          print('pars.nps = ', pars.nps)
       if self.use_linear_nps :
         return 1 + self.sym_impact_coeffs.dot(pars.nps)
       else :
