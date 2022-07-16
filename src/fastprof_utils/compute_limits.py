@@ -68,6 +68,7 @@ def make_parser() :
   parser.add_argument("-%", "--print-freq"    , type=int  , default=1000  , help="Verbosity level")
   parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Use the dataset stored in the specified markup file")
   parser.add_argument("-a", "--asimov"        , type=str  , default=None  , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
+  parser.add_argument(      "--linear-nps"    , action='store_true'       , help="Use linear NP impact")
   parser.add_argument("-i", "--iterations"    , type=int  , default=1     , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"    , type=float, default=None  , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"        , type=float, default=None  , help="Cutoff to regularize the impact of NPs")
@@ -90,7 +91,7 @@ def run(argv = None) :
     parser.print_help()
     sys.exit(0)
 
-  model = Model.create(options.model_file)
+  model = Model.create(options.model_file, use_linear_nps=options.linear_nps, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if not options.regularize is None : model.set_gamma_regularization(options.regularize)
   if not options.cutoff is None : model.cutoff = options.cutoff

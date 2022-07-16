@@ -1041,7 +1041,7 @@ class Model (Serializable) :
     return self.generate_asimov(self.expected_pars(pois, minimizer))
 
   @staticmethod
-  def create(filename : str, verbosity : int = 0, flavor : str = None) -> 'Model' :
+  def create(filename : str, verbosity : int = 0, flavor : str = None, use_linear_nps : bool = False) -> 'Model' :
     """Shortcut method to instantiate a model from a markup file
 
       Same behavior as creating a default model and loading from the file,
@@ -1054,7 +1054,7 @@ class Model (Serializable) :
       Returns:
          The created model
     """
-    return Model(verbosity=verbosity).load(filename, flavor=flavor)
+    return Model(use_linear_nps=use_linear_nps, verbosity=verbosity).load(filename, flavor=flavor)
 
   @staticmethod
   def create_from_dict(sdict : dict, verbosity : int = 0) -> 'Model' :

@@ -38,6 +38,7 @@ def make_parser() :
   parser.add_argument("-a", "--asimov"           , type=str  , default=None    , help="Use an Asimov dataset for the specified POI values (format: 'poi1=xx,poi2=yy'")
   parser.add_argument("-r", "--setrange"         , type=str  , default=None    , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
   parser.add_argument(      "--method"           , type=str  , default='scalar', help="Method to use for minimization (default: 'scalar' for 1D, 'L-BFGS-B' for >1D")
+  parser.add_argument(      "--linear-nps"       , action='store_true'         , help="Use linear NP impact")
   parser.add_argument("-i", "--iterations"       , type=int  , default=1       , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"       , type=float, default=None    , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"           , type=float, default=None    , help="Cutoff to regularize the impact of NPs")
@@ -59,7 +60,7 @@ def run(argv = None) :
 
   if options.show_timing : start_time = time.time()
 
-  model = Model.create(options.model_file, verbosity=options.verbosity)
+  model = Model.create(options.model_file, use_linear_nps=options.linear_nps, verbosity=options.verbosity)
   if model == None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if options.regularize is not None : model.set_gamma_regularization(options.regularize)
   if options.cutoff is not None : model.cutoff = options.cutoff
