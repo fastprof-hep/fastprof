@@ -1326,7 +1326,7 @@ class Data (Serializable) :
       if par.aux_obs is None :
         aux_obs_values.append(0)
         continue
-      if not par.aux_obs in data_aux_obs : raise('Auxiliary observable %s defined in model, but not provided in the data' % par.aux_obs)
+      if not par.aux_obs in data_aux_obs : raise ValueError('Auxiliary observable %s defined in model, but not provided in the data' % par.aux_obs)
       aux_obs_values.append(par.scaled_value(data_aux_obs[par.aux_obs]))
     self.set_aux_obs(np.array(aux_obs_values, dtype=float))
     return self
