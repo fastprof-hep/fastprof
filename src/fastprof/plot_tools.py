@@ -52,9 +52,9 @@ class PlotResults :
 
   def make_canvas(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
     if not fig :
-      plt.figure(figsize=figsize)
+      self.figure = plt.figure(figsize=figsize)
     else :
-      plt.figure(canvas.number)
+      self.figure = plt.figure(canvas.number)
 
   def plot_correlation(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
     self.make_canvas(figsize, fig)
@@ -101,36 +101,60 @@ class PlotImpacts :
   
   def make_canvas(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
     if not fig :
-      plt.figure(figsize=figsize)
+      self.figure = plt.figure(figsize=figsize)
     else :
-      plt.figure(canvas.number)
+      self.figure = plt.figure(canvas.number)
 
-  def plot(self, prefit : bool = True, postfit : bool =True, impacts : bool = True, figsize : tuple = (10,10), fig : plt.Figure = None) :
+  def plot(self, n_max : int = 20, figsize : tuple = (10,10), fig : plt.Figure = None) :
     self.make_canvas(figsize, fig)
-    self.plot_impacts(prefit=prefit, postfit=postfit)
-    self.plot_pulls()
+    ax_impc = self.figure.subplots()
+    ax_pull = plt.twiny()
+    impacts = self.impacts()
+    for i in impacts : print("%20s : pull = %+.4f, impact = %+g %+g" % (i, impacts[i][2], impacts[i][1], impacts[i][0]))
+    impacts = self.plot_impacts(ax_impc, impacts, n_max)
+    self.plot_pulls(ax_pull, impacts, n_max)
     plt.tight_layout()
 
-  def plot_impacts(self, prefit : bool = True, postfit : bool = True) :
-    pass # for now
+  def plot_impacts(self, ax, impacts : dict, n_max : int = 20) :
+    names = [ name for name in impacts ][:n_max]
+    pos_impacts = [ impact[1] for impact in impacts.values() ][:n_max]
+    neg_impacts = [ impact[0] for impact in impacts.values() ][:n_max]
+    indices = np.arange(len(names) + 1, 0, -1)
+    ax.fill_betweenx(indices, np.zeros(len(names) + 1), [0] + pos_impacts, step='pre', clim=(0, len(names)), color='r', alpha=0.15)
+    ax.fill_betweenx(indices, np.zeros(len(names) + 1), [0] + neg_impacts, step='pre', clim=(0, len(names)), color='b', alpha=0.15)
+    xmax = max(abs(ax.get_xlim()[0]), abs(ax.get_xlim()[1]))
+    ax.set_xlim(-xmax, xmax)
+    plt.yticks(ticks=indices + 0.5, labels=[''] + names)
+    return impacts
 
-  def impacts(self, is_postfit : bool = True) :
+  def plot_pulls(self,ax, impacts : dict, n_max : int = 20) :
+    names = [ name for name in impacts ][:n_max]
+    values = [ impact[2] for impact in impacts.values() ][:n_max]
+    errors = np.ones(len(names))
+    indices = np.arange(len(names), 0, -1)
+    ax.errorbar(x=values, y=indices + 0.5, xerr=errors, fmt='ko')
+    ax.set_xlim(-3, 3)
+
+  def impacts(self, pars : list = None) :
     impacts = []
     self.minimizer.minimize(self.data)
     min_pars = self.minimizer.min_pars.clone()
-    if is_postfit : errors = self.data.model.parabolic_errors(min_pars, self.data)
-    for p, par in enumerate(self.data.model.nps.values()) :
+    par_names = pars if pars is not None else self.data.model.nps.keys()
+    for p, par_name in enumerate(par_names) :
+      par = self.data.model.nps[par_name]
       sys.stderr.write("\rProcessing NP %4d of %4d [%30s]" % (p+1, len(self.data.model.nps), par.name[:30]))
-      var = errors[par.name] if is_postfit else 1
-      pruned_aux_obs = np.delete(self.data.aux_obs, p)
+      var = 1
+      pruned_aux_obs = np.delete(self.data.aux_obs, self.data.model.np_indices[par_name])
       #print(par.name, par.aux_obs, len(self.data.aux_obs), len(pruned_aux_obs))
-      posvar_model = NPPruner(self.data.model).remove_nps({ par.name : min_pars[par.name] + var }, clone_model=True)
+      posvar_model = NPPruner(self.data.model).remove_nps({ par.name : par.unscaled_value(min_pars[par.name] + var) }, clone_model=True)
       pos_minimizer = self.minimizer.clone(posvar_model.ref_pars.clone())
       pos_minimizer.minimize(self.data.clone(posvar_model, aux_obs=pruned_aux_obs))
-      negvar_model = NPPruner(self.data.model).remove_nps({ par.name : min_pars[par.name] - var }, clone_model=True)
+      negvar_model = NPPruner(self.data.model).remove_nps({ par.name : par.unscaled_value(min_pars[par.name] - var) }, clone_model=True)
       neg_minimizer = self.minimizer.clone(negvar_model.ref_pars.clone())
       neg_minimizer.minimize(self.data.clone(negvar_model, aux_obs=pruned_aux_obs))
-      impacts.append((par.name, pos_minimizer.min_pars[self.poi] - min_pars[self.poi], neg_minimizer.min_pars[self.poi] - min_pars[self.poi]))
+      impacts.append((par.name, pos_minimizer.min_pars[self.poi] - min_pars[self.poi],
+                      neg_minimizer.min_pars[self.poi] - min_pars[self.poi],
+                      min_pars[par.name]))
     sys.stderr.write("\n")
-    return { trip[0] : (trip[1], trip[2]) for trip in sorted(impacts, key=lambda trip: (trip[1] - trip[2])/2) }  
+    return { trip[0] : (trip[1], trip[2], trip[3]) for trip in sorted(impacts, key=lambda trip: abs(trip[1] - trip[2])/2, reverse=True) }  
  
