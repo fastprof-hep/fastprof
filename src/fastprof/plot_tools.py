@@ -3,6 +3,7 @@ Utility classes for model operations
 
 """
 import re
+import sys
 import math
 import numpy as np
 import itertools
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 
 from .core  import Model, Data, Parameters
 from .minimizers import POIMinimizer, OptiMinimizer
+from .model_tools import NPPruner
 
 # -------------------------------------------------------------------------
 class PlotNPs :
@@ -114,19 +116,21 @@ class PlotImpacts :
 
   def impacts(self, is_postfit : bool = True) :
     impacts = []
-    self.minimizer.minimize(data)
+    self.minimizer.minimize(self.data)
     min_pars = self.minimizer.min_pars.clone()
-    if is_postfit : errors = self.data.model.parabolic_errors(min_pars, data)
-
-    for par in self.data.model.nps :
+    if is_postfit : errors = self.data.model.parabolic_errors(min_pars, self.data)
+    for p, par in enumerate(self.data.model.nps.values()) :
+      sys.stderr.write("\rProcessing NP %4d of %4d [%30s]" % (p+1, len(self.data.model.nps), par.name[:30]))
       var = errors[par.name] if is_postfit else 1
-      posvar_model = NPPruner(model).remove_nps([ par.name ], { par.name : min_pars[par.name] + var })
-      self.minimizer.minimize(data.clone(posvar_model))
-      posvar_min_pars = self.minimizer.min_pars.clone()
-      negvar_model = NPPruner(model).remove_nps([ par.name ], { par.name : min_pars[par.name] - var })
-      self.minimizer.minimize(data.clone(negvar_model))
-      negvar_min_pars = self.minimizer.min_pars.clone()
-      impacts.append((par.name, posvar_min_pars[self.poi] - min_pars[self.poi], negvar_min_pars[self.poi] - min_pars[self.poi]))
-      
+      pruned_aux_obs = np.delete(self.data.aux_obs, p)
+      #print(par.name, par.aux_obs, len(self.data.aux_obs), len(pruned_aux_obs))
+      posvar_model = NPPruner(self.data.model).remove_nps({ par.name : min_pars[par.name] + var }, clone_model=True)
+      pos_minimizer = self.minimizer.clone(posvar_model.ref_pars.clone())
+      pos_minimizer.minimize(self.data.clone(posvar_model, aux_obs=pruned_aux_obs))
+      negvar_model = NPPruner(self.data.model).remove_nps({ par.name : min_pars[par.name] - var }, clone_model=True)
+      neg_minimizer = self.minimizer.clone(negvar_model.ref_pars.clone())
+      neg_minimizer.minimize(self.data.clone(negvar_model, aux_obs=pruned_aux_obs))
+      impacts.append((par.name, pos_minimizer.min_pars[self.poi] - min_pars[self.poi], neg_minimizer.min_pars[self.poi] - min_pars[self.poi]))
+    sys.stderr.write("\n")
     return { trip[0] : (trip[1], trip[2]) for trip in sorted(impacts, key=lambda trip: (trip[1] - trip[2])/2) }  
  
