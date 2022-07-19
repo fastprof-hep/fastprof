@@ -877,9 +877,7 @@ class Model (Serializable) :
     if logy: canvas.set_yscale('log')
     if isinstance(pars, dict) : pars = Parameters(pars, model=self)
     xvals = [ (grid[i] + grid[i+1])/2 for i in range(0, len(grid) - 1) ]
-    start = self.channel_offsets[channel.name]
-    stop  = start + channel.nbins()
-    nexp = self.n_exp(pars)[:, start:stop]
+    nexp = self.channel_n_exp(pars=pars, channel=channel.name)
     tot_exp = nexp.sum(axis=0)
     if only is not None :
       samples = []
@@ -1349,8 +1347,7 @@ class Data (Serializable) :
     sdict['data']['channels'] = []
     for channel_name, channel in self.model.channels.items() :
       channel_data = {}
-      offset = self.model.channel_offsets[channel_name]
-      channel.save_data_dict(channel_data, self.counts[offset:offset + channel.nbins()])
+      channel.save_data_dict(channel_data, self.model.channel_n_exp(nexp=self.counts, channel=channel_name))
       sdict['data']['channels'].append(channel_data)
     sdict['data']['aux_obs'] = []
     for p, par in enumerate(self.model.nps.values()) :
@@ -1378,8 +1375,7 @@ class Data (Serializable) :
       rep += '\n'
       rep += '\n%sCounts' % pre_indent
       for channel_name, channel in self.model.channels.items() :
-        offset = self.model.channel_offsets[channel_name]
-        counts = self.counts[offset:offset + channel.nbins()]
+        counts = self.model.channel_n_exp(nexp=self.counts, channel=channel_name)
         rep += '\n%s - channel %s : %s = %s' % (pre_indent, channel_name, 'total counts' if verbosity == 1 else 'counts', str(np.sum(counts)) if verbosity == 1 else str(counts))
       rep += '\n'
       rep += '\n%sAuxiliary observables' % pre_indent

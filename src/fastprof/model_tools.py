@@ -310,10 +310,10 @@ class ChannelMerger :
     merged_added = False
     for channel in self.model.channels :
       if channel not in self.channels_to_merge :
-        merged_counts.extend(data.counts[self.model.channel_offsets[channel]:self.model.channel_offsets[channel] + self.model.channels[channel].nbins()])
+        merged_counts.extend(self.model.channel_n_exp(nexp=data.counts, channel=channel))
       elif not merged_added :
         for merged_channel in self.channels_to_merge : 
-          merged_counts.extend(data.counts[self.model.channel_offsets[merged_channel]:self.model.channel_offsets[merged_channel] + self.model.channels[merged_channel].nbins()])
+          merged_counts.extend(self.model.channel_n_exp(nexp=data.counts, channel=channel))
         merged_added = True
     return Data(merged_model, merged_counts, data.aux_obs)
       
