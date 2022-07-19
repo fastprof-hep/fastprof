@@ -47,7 +47,7 @@ def run(argv = None) :
 
   if options.nps is not None :
     nps = options.nps.replace(' ', '').replace('\n', '').split(',')
-    NPPruner(model, options.verbosity).remove_nps(nps)
+    NPPruner(model, options.verbosity).remove_nps({ par : None for par in nps })
   
   if options.min_np_impact is not None :
     NPPruner(model, options.verbosity).prune(options.min_np_impact)
