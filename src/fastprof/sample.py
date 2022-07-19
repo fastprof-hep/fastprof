@@ -8,6 +8,7 @@ from .base import Serializable
 from .norms import Norm
 import numpy as np
 from abc import abstractmethod
+import copy
 
 
 # -------------------------------------------------------------------------
@@ -73,6 +74,9 @@ class Sample(Serializable) :
     self.neg_vars = {}
     self.pos_imps = {}
     self.neg_imps = {}
+
+  def clone(self) :
+    return Sample(self.name, self.norm, self.nominal_norm, np.array(self.nominal_yields), copy.deepcopy(self.impacts))
 
   def set_np_data(self, nps : list, reals : dict, real_vals : dict, variation : float = 1, verbosity : int = 0) :
     """Post-initialization update based on model NPs

@@ -8,7 +8,7 @@ from .base import Serializable
 from .sample import Sample
 import numpy as np
 from abc import abstractmethod
-
+import copy
 
 
 # -------------------------------------------------------------------------
@@ -49,6 +49,7 @@ class Channel(Serializable) :
     """
     self.name = name
     self.samples = samples if samples is not None else {}
+
 
   @abstractmethod
   def nbins(self) -> int :
@@ -176,6 +177,11 @@ class BinnedRangeChannel(Channel) :
     self.obs_name = obs_name
     self.obs_unit = obs_unit
 
+  def clone(self) :
+    return BinnedRangeChannel(self.name, copy.deepcopy(self.bins), self.obs_name, self.obs_unit,
+                              { sample.name : sample.clone() for sample in self.samples.values() })
+
+
   def nbins(self) -> int :
     """Returns the number of bins in the channel
 
@@ -296,6 +302,9 @@ class SingleBinChannel(Channel) :
     """
     super().__init__(name, samples)
 
+  def clone(self) :
+    return SingleBinChannel(self.name, { sample.name : sample.clone() for sample in self.samples.values() })
+
   def nbins(self) -> int :
     """Returns the number of bins in the channel
 
@@ -383,6 +392,9 @@ class MultiBinChannel(Channel) :
     """
     super().__init__(name, samples)
     self.bins = bins if bins is not None else {}
+
+  def clone(self) :
+    return MultiBinChannel(self.name, copy.deepcopy(self.bins), { sample.name : sample.clone() for sample in self.samples.values() })
 
   def nbins(self) -> int :
     """Returns the number of bins in the channel
@@ -505,6 +517,10 @@ class GaussianChannel(Channel) :
         raise inst
     else :
       self.hessian = None
+
+  def clone(self) :
+    return GaussianChannel(self.name, copy.deepcopy(self.bins), { sample.name : sample.clone() for sample in self.samples },
+                           np.array(self.hessian) if self.hessian is not None else None, np.array(covariance) if self.covariance is not None else None)
 
   def nbins(self) -> int :
     """Returns the number of bins in the channel

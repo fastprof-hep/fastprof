@@ -410,7 +410,7 @@ class Model (Serializable) :
     self.set_internal_vars()
 
   def clone(self, set_internal_vars : bool = True) :
-    clone = Model(name=self.name, pois=self.pois, nps=self.nps, aux_obs=self.aux_obs, channels=self.channels,
+    clone = Model(name=self.name, pois=self.pois, nps=self.nps, aux_obs=self.aux_obs, channels={ channel.name : channel.clone() for channel in self.channels.values() },
                   expressions=self.expressions, use_asym_impacts=self.use_asym_impacts, use_linear_nps=self.use_linear_nps,
                   use_simple_sym_impacts=self.use_simple_sym_impacts, use_lognormal_terms=self.use_lognormal_terms, variations=self.variations,
                   verbosity=self.verbosity)
