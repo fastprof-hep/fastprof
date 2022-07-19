@@ -508,8 +508,9 @@ class OptiMinimizer (POIMinimizer) :
     self.force_num_jac = force_num_jac
     self.np_min = None
 
-  def clone(self) :
-    return OptiMinimizer(self.method, self.init_pois.clone() if self.init_pois is not None else None, copy.deepcopy(self.bounds), self.niter, self.floor, self.rebound, self.alt_method, self.verbosity)
+  def clone(self, init_pois : Parameters = None) :
+    init_poi_arg = init_pois if init_pois is not None else self.init_pois.clone() if self.init_pois is not None else None
+    return OptiMinimizer(self.method, init_poi_arg, copy.deepcopy(self.bounds), self.niter, self.floor, self.rebound, self.alt_method, self.verbosity)
 
   def minimize(self, data : Data, init_pars : Parameters = None) -> float :
     """Minimization over POIs
