@@ -158,7 +158,7 @@ def run(argv = None) :
       # Plot results
       if not options.batch_mode :
         #poi_scan.plot(plt, marker='b', linestyle=linestyle, label='PRL_smooth', smooth=100)
-        poi_scan.plot(plt, linestyle=linestyle, label='Profile likelihood', smooth=100)
+        poi_scan.plot(plt, linestyle=linestyle, label='tmu interpolation', smooth=100)
         poi_scan.plot(plt, marker=options.marker, linestyle='None')
         plt.ylim(0, None)
         plt.axhline(y=poi_scan.ts_level, color='k', linestyle='dotted')
