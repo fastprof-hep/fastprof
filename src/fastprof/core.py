@@ -644,6 +644,12 @@ class Model (Serializable) :
     if self.cutoff == 0 : return nnom*k
     return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
 
+  def channel_n_exp(self, nexp : np.array = None, pars : Parameters = None, channel : str = None, sample : str = None) -> np.array :
+    if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
+    nexpval = nexp if nexp is not None else self.n_exp(pars)
+    chanexp = nexpval[:, self.channel_offsets[channel] : self.channel_offsets[channel] + self.channels[channel].nbins()]
+    return chanexp if sample is None else chanexp[list(self.channels[channel].samples.keys()).index(sample)]
+
   def tot_bin_exp(self, pars, floor = None) -> np.array :
     """Returns the total expected event yields for a given parameter value
 
@@ -1234,8 +1240,10 @@ class Data (Serializable) :
     self.set_counts(counts if counts is not None else [])
     self.set_aux_obs(aux_obs if aux_obs is not None else [])
 
-  def clone(self, model : Model = None) :
-    return Data(model=model if model is not None else self.model, counts=self.counts, aux_obs=self.aux_obs)
+  def clone(self, model : Model = None, counts : np.array = None, aux_obs : np.array = None) :
+    return Data(model=model if model is not None else self.model,
+                counts=counts if counts is not None else np.array(self.counts),
+                aux_obs=aux_obs if aux_obs is not None else np.array(self.aux_obs))
 
   def set_counts(self, counts) -> 'Data' :
     """Sets the observed bin counts to the specified values
