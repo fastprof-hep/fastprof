@@ -5,6 +5,7 @@ Utility classes for model operations
 import re
 import sys
 import math
+import json
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
@@ -105,20 +106,25 @@ class PlotImpacts :
     else :
       self.figure = plt.figure(canvas.number)
 
-  def plot(self, n_max : int = 20, figsize : tuple = (10,10), fig : plt.Figure = None) :
+  def plot(self, n_max : int = 20, figsize : tuple = (10,10), fig : plt.Figure = None, output : str = None) :
     self.make_canvas(figsize, fig)
     ax_impc = self.figure.subplots()
     ax_pull = plt.twiny()
     impacts = self.impacts()
-    for i in impacts : print("%20s : pull = %+.4f, impact = %+g %+g" % (i, impacts[i][2], impacts[i][1], impacts[i][0]))
+    for impact in impacts.values() : print("%20s : pull = %+.4f, impact = %+g %+g" % (impact['name'], impact['best_fit'], impact['pos_impact'], impact['neg_impact']))
     impacts = self.plot_impacts(ax_impc, impacts, n_max)
     self.plot_pulls(ax_pull, impacts, n_max)
     plt.tight_layout()
+    if output is not None :
+      plt.savefig(output + '_impacts.png')
+      plt.savefig(output + '_impacts.pdf')
+      with open(output + '_impacts.json', 'w') as fd :
+        json.dump(impacts, fd, ensure_ascii=True, indent=3)
 
   def plot_impacts(self, ax, impacts : dict, n_max : int = 20) :
     names = [ name for name in impacts ][:n_max]
-    pos_impacts = [ impact[1] for impact in impacts.values() ][:n_max]
-    neg_impacts = [ impact[0] for impact in impacts.values() ][:n_max]
+    pos_impacts = [ impact['pos_impact'] for impact in impacts.values() ][:n_max]
+    neg_impacts = [ impact['neg_impact'] for impact in impacts.values() ][:n_max]
     indices = np.arange(len(names) + 1, 0, -1)
     ax.fill_betweenx(indices, np.zeros(len(names) + 1), [0] + pos_impacts, step='pre', clim=(0, len(names)), color='r', alpha=0.15)
     ax.fill_betweenx(indices, np.zeros(len(names) + 1), [0] + neg_impacts, step='pre', clim=(0, len(names)), color='b', alpha=0.15)
@@ -129,7 +135,7 @@ class PlotImpacts :
 
   def plot_pulls(self,ax, impacts : dict, n_max : int = 20) :
     names = [ name for name in impacts ][:n_max]
-    values = [ impact[2] for impact in impacts.values() ][:n_max]
+    values = [ impact['best_fit'] for impact in impacts.values() ][:n_max]
     errors = np.ones(len(names))
     indices = np.arange(len(names), 0, -1)
     ax.errorbar(x=values, y=indices + 0.5, xerr=errors, fmt='ko')
@@ -152,9 +158,10 @@ class PlotImpacts :
       negvar_model = NPPruner(self.data.model).remove_nps({ par.name : par.unscaled_value(min_pars[par.name] - var) }, clone_model=True)
       neg_minimizer = self.minimizer.clone(negvar_model.ref_pars.clone())
       neg_minimizer.minimize(self.data.clone(negvar_model, aux_obs=pruned_aux_obs))
-      impacts.append((par.name, pos_minimizer.min_pars[self.poi] - min_pars[self.poi],
-                      neg_minimizer.min_pars[self.poi] - min_pars[self.poi],
-                      min_pars[par.name]))
+      impacts.append({ 'name' : par.name,
+                      'pos_impact' : pos_minimizer.min_pars[self.poi] - min_pars[self.poi],
+                      'neg_impact' : neg_minimizer.min_pars[self.poi] - min_pars[self.poi],
+                      'best_fit' : min_pars[par.name] })
     sys.stderr.write("\n")
-    return { trip[0] : (trip[1], trip[2], trip[3]) for trip in sorted(impacts, key=lambda trip: abs(trip[1] - trip[2])/2, reverse=True) }  
+    return { data['name'] : data for data in sorted(impacts, key=lambda data: abs(data['pos_impact'] - data['neg_impact'])/2, reverse=True) }  
  
