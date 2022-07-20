@@ -95,7 +95,7 @@ def run(argv = None) :
 
   if options.show_timing : start_time = time.time()
 
-  model = Model.create(options.model_file)
+  model = Model.create(options.model_file, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if not options.regularize is None : model.set_gamma_regularization(options.regularize)
   if not options.cutoff is None : model.cutoff = options.cutoff
@@ -172,78 +172,78 @@ def run(argv = None) :
   if options.show_timing : comp_stop_time = time.time()
 
   faster.print(verbosity = options.verbosity)
-  if options.ntoys == 0 : return
-
-  if options.seed != None : np.random.seed(options.seed)
-  niter = options.iterations
-  samplers_clsb = []
-  samplers_cl_b = []
-  
-  # Disabling optimization actually speeds up processing in some cases (small matrices ?)
-  # NPMinimizer.optimize_einsum = False
-  
-  calc.minimizer.set_pois(model)
-  print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(calc.minimizer.init_pois.dict(pois_only=True)), str(calc.minimizer.bounds), niter))
-
-  for fast_plr_data in faster.plr_data.values() :
-    test_hypo = fast_plr_data.hypo
-    gen_hypo = fast_plr_data.full_hypo
-    tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
-    gen0_hypo = gen_hypo.clone().set(model.poi(0).name, 0)
-    clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
-    cl_b = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo)
-    samplers_clsb.append(clsb)
-    samplers_cl_b.append(cl_b)
-
-  opti_samples = CLsSamples( \
-    Samples(samplers_clsb, options.output_file), \
-    Samples(samplers_cl_b, options.output_file + '_clb')) \
-    .generate_and_save(options.ntoys, break_locks=options.break_locks)
-
-  if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
-
-  for plr_data in faster.plr_data.values() :
-    plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
-    plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
-    plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo, plr_data.pvs['pv'], with_error=True)
-
-  if options.bands :
-    sampling_bands = opti_samples.bands(options.bands)
-    for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-      for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands[band]) : plr_data.pvs['sampling_cls_%+d' % band] = band_point
-
-  faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
-
   scan_asy_fast_clsb = UpperLimitScan(faster, 'pv'          , name='CLsb, asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
-  scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='CLsb, sampling   , fast model', cl=options.cl, cl_name='CL_{s+b}')
   scan_asy_fast_cls  = UpperLimitScan(faster, 'cls'         , name='CL_s, asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
-  scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='CL_s, sampling   , fast model', cl=options.cl, cl_name='CL_s' )
-
   limit_asy_fast_clsb = scan_asy_fast_clsb.limit(print_result=True)
-  limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_errors=True)
   limit_asy_fast_cls  = scan_asy_fast_cls .limit(print_result=True)
-  limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, with_errors=True)
 
-  if options.bands :
-    scan_sampling_cls_bands = {}
-    limit_sampling_cls_bands = {}
-    for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-      scan_sampling_cls_bands[band] = UpperLimitScan(faster, 'sampling_cls_%+d' % band, name='Expected limit band, fast model, %+d sigma band' % band)
-      limit_sampling_cls_bands[band] = scan_sampling_cls_bands[band].limit(print_result=True)
+  if options.ntoys > 0 :
+    if options.seed != None : np.random.seed(options.seed)
+    niter = options.iterations
+    samplers_clsb = []
+    samplers_cl_b = []
+    
+    # Disabling optimization actually speeds up processing in some cases (small matrices ?)
+    # NPMinimizer.optimize_einsum = False
+    
+    calc.minimizer.set_pois(model)
+    print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(calc.minimizer.init_pois.dict(pois_only=True)), str(calc.minimizer.bounds), niter))
+  
+    for fast_plr_data in faster.plr_data.values() :
+      test_hypo = fast_plr_data.hypo
+      gen_hypo = fast_plr_data.full_hypo
+      tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
+      gen0_hypo = gen_hypo.clone().set(model.poi(0).name, 0)
+      clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
+      cl_b = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo)
+      samplers_clsb.append(clsb)
+      samplers_cl_b.append(cl_b)
+  
+    opti_samples = CLsSamples( \
+      Samples(samplers_clsb, options.output_file), \
+      Samples(samplers_cl_b, options.output_file + '_clb')) \
+      .generate_and_save(options.ntoys, break_locks=options.break_locks)
+  
+    if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
+
+    for plr_data in faster.plr_data.values() :
+      plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
+      plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
+      plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo, plr_data.pvs['pv'], with_error=True)
+
+    if options.bands :
+      sampling_bands = opti_samples.bands(options.bands)
+      for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+        for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands[band]) : plr_data.pvs['sampling_cls_%+d' % band] = band_point
+
+    faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
+
+    scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='CLsb, sampling   , fast model', cl=options.cl, cl_name='CL_{s+b}')
+    scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='CL_s, sampling   , fast model', cl=options.cl, cl_name='CL_s' )
+    limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_errors=True)
+    limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, with_errors=True)
+
+    if options.bands :
+      scan_sampling_cls_bands = {}
+      limit_sampling_cls_bands = {}
+      for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+        scan_sampling_cls_bands[band] = UpperLimitScan(faster, 'sampling_cls_%+d' % band, name='Expected limit band, fast model, %+d sigma band' % band)
+        limit_sampling_cls_bands[band] = scan_sampling_cls_bands[band].limit(print_result=True)
 
   # Plot results
   if not options.batch_mode :
     plt.ion()
     fig1 = plt.figure(1)
-    scan_sampling_clsb.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
+    if options.ntoys > 0 : scan_sampling_clsb.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
     scan_asy_fast_clsb.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
 
     fig2 = plt.figure(2)
-    if options.bands :
-      opti_samples.plot_bands(options.bands)
-    scan_sampling_cls.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
+    if options.ntoys > 0 : 
+      if options.bands :
+        opti_samples.plot_bands(options.bands)
+      scan_sampling_cls.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
     scan_asy_fast_cls.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
@@ -256,18 +256,21 @@ def run(argv = None) :
   jdict['cl'] = options.cl
   jdict['poi_name'] = model.poi(0).name
   jdict['poi_unit'] = model.poi(0).unit
-  jdict['limit_sampling_CLs']    = limit_sampling_cls[0]
-  jdict['limit_sampling_CLs_up'] = limit_sampling_cls[1]
-  jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[2]
+  if options.ntoys > 0 : 
+    jdict['limit_sampling_CLs']    = limit_sampling_cls[0]
+    jdict['limit_sampling_CLs_up'] = limit_sampling_cls[1]
+    jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[2]
   jdict['limit_asymptotics_CLs'] = limit_asy_fast_cls
-  jdict['limit_sampling_CLsb']    = limit_sampling_clsb[0]
-  jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[1]
-  jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[2]
+  if options.ntoys > 0 : 
+    jdict['limit_sampling_CLsb']    = limit_sampling_clsb[0]
+    jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[1]
+    jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[2]
   jdict['limit_asymptotics_CLsb'] = limit_asy_fast_clsb
 
-  if options.bands :
-    for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-      jdict['limit_sampling_CLs_expected_band_%+d' % band] = limit_sampling_cls_bands[band]
+  if options.ntoys > 0 : 
+    if options.bands :
+      for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
+        jdict['limit_sampling_CLs_expected_band_%+d' % band] = limit_sampling_cls_bands[band]
 
   if options.show_timing :
     stop_time = time.time()
