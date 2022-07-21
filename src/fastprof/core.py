@@ -647,8 +647,8 @@ class Model (Serializable) :
   def channel_n_exp(self, nexp : np.array = None, pars : Parameters = None, channel : str = None, sample : str = None) -> np.array :
     if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
     nexpval = nexp if nexp is not None else self.n_exp(pars)
-    chanexp = nexpval[:, self.channel_offsets[channel] : self.channel_offsets[channel] + self.channels[channel].nbins()]
-    return chanexp if sample is None else chanexp[list(self.channels[channel].samples.keys()).index(sample)]
+    if sample is not None : nexpval = nexpval[list(self.channels[channel].samples.keys()).index(sample)]
+    return nexpval[self.channel_offsets[channel] : self.channel_offsets[channel] + self.channels[channel].nbins()]
 
   def tot_bin_exp(self, pars, floor = None) -> np.array :
     """Returns the total expected event yields for a given parameter value
