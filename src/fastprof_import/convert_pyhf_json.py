@@ -74,6 +74,7 @@ def run(argv = None) :
     for par_spec in config['parameters'] :
       if par_spec['name'] in fastprof_model['POIs'] : continue
       constraint = par_spec['sigmas'][0] if 'sigmas' in par_spec else None
+      variation = constraint if constraint is not None else 1
       nominal_value = 0
       if 'aux_data' in par_spec :
         nominal_value = par_spec['aux_data'][0] 
@@ -81,6 +82,7 @@ def run(argv = None) :
         nominal_value = par_spec['inits'][0] 
       np_spec = { 'name' : par_spec['name'], 'nominal_value' : nominal_value }
       if constraint is not None :
+        np_spec['variation'] = variation
         np_spec['constraint'] = constraint
         np_spec['aux_obs'] = 'aux_' + par_spec['name']
       fastprof_model['NPs'][par_spec['name']] = np_spec
@@ -91,9 +93,11 @@ def run(argv = None) :
   if not 'channels' in pyhf_model :
     raise KeyError('ERROR: could not read channel information from model.')
 
+  pyhf_meas = { entry['name'] : entry for entry in pyhf_model['measurements'][0]['config']['parameters'] }
+
   def add_impact(modifier_name, impact) :
     if not modifier_name in fastprof_model['NPs'] and not modifier_name in fastprof_model['POIs'] :
-        fastprof_model['NPs'][modifier_name] = { 'name' : modifier_name, 'nominal_value' : 0, 'constraint' : 1, 'aux_obs' : 'aux_' + modifier_name }
+      fastprof_model['NPs'][modifier_name] = { 'name' : modifier_name, 'nominal_value' : 0, 'constraint' : 1, 'aux_obs' : 'aux_' + modifier_name }
     if np.any([ imp["+1"]*imp["-1"] > 0 for imp in impact ]) : 
       print("WARNING: +1σ and -1σ impacts for '%s' in sample '%s' of channel '%s' (%s) have the same sign, setting to default." % (modifier_name, sample['name'], channel['name'], str(impact)))
       impact = [ { "+1" : 0.0, "-1" : 0.0 } ]
@@ -127,7 +131,8 @@ def run(argv = None) :
         for modifier in pyhf_sample['modifiers'] :
           if modifier['name'] in normfactors : continue
           if modifier['type'] == 'lumi' :
-            impact = [ { "+1" : 1.0, "-1" : -1.0 } ]
+            lumi_impact = pyhf_meas[modifier['name']]['sigmas'][0]
+            impact = [ { "+1" : lumi_impact, "-1" : -lumi_impact } ]
             add_impact(modifier['name'], impact)
           elif modifier['type'] == 'normsys' :
             impact = [ { "+1" : modifier['data']['hi'] - 1, "-1" : modifier['data']['lo'] - 1 } ]

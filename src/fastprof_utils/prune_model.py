@@ -13,6 +13,7 @@ import numpy as np
 import json
 
 from fastprof import Model, Data, NPPruner, SamplePruner
+from .tools import process_setvals
 
 
 ####################################################################################################################################
@@ -46,8 +47,8 @@ def run(argv = None) :
     SamplePruner(model, options.verbosity).prune(options.min_sample_signif)
 
   if options.nps is not None :
-    nps = options.nps.replace(' ', '').replace('\n', '').split(',')
-    NPPruner(model, options.verbosity).remove_nps({ par : None for par in nps })
+    par_dict = process_setvals(options.nps, model)
+    NPPruner(model, options.verbosity).remove_nps(par_dict)
   
   if options.min_np_impact is not None :
     NPPruner(model, options.verbosity).prune(options.min_np_impact)
