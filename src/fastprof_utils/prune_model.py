@@ -25,7 +25,7 @@ def make_parser() :
   parser.add_argument("-m", "--model-file"        , type=str  , required=True    , help="Name of markup file defining model")
   parser.add_argument("-d", "--data-file"         , type=str  , default=None     , help="Use the dataset stored in the specified markup file")
   parser.add_argument("-o", "--output-file"       , type=str  , required=True    , help="Name of output file")
-  parser.add_argument("-p", "--nps"               , type=str  , default=None     , help="List of NPs to prune")
+  parser.add_argument("-p", "--nps"               , type=str  , default=None     , help="List of NPs to prune (par1=val1,par2=val2...)")
   parser.add_argument("-i", "--min-np-impact"     , type=float, default=None     , help="Prune away NPs with an impact below the specified threshold")  
   parser.add_argument("-z", "--min-sample-signif" , type=float, default=None     , help="Prune away samples with significance below the specified threshold")  
   parser.add_argument("-v", "--verbosity"         , type=int  , default=0        , help="Verbosity level")
