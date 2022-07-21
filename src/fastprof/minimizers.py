@@ -614,7 +614,7 @@ class OptiMinimizer (POIMinimizer) :
       self.cormat = (self.covmat.T / self.errors).T / self.errors
     return self.min_nll
 
-  def tmu(self, hypo : Parameters, data : Data, init_hypo : Parameters = None) -> float :
+  def tmu(self, hypo : dict, data : Data, init_hypo : Parameters = None) -> float :
     """Computes the :math:`t_{\mu}` profile-likelihood ratio (PLR) test statistic
 
       This method overrides the default in :class:`POIMinimizer` by adding
