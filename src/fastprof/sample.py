@@ -278,7 +278,7 @@ class Sample(Serializable) :
          normalization factor value
     """
     norm_grad = self.norm.gradient(pois, reals, real_vals)
-    return self.nominal_yields[:,None]*norm_grad/self.nominal_norm if norm_grad is not None else None    
+    return self.nominal_yields[:,None]*norm_grad/self.nominal_norm if norm_grad is not None else None  
 
   def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes the overall normalization factor
