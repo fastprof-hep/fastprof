@@ -141,9 +141,10 @@ class TestStatisticCalculator :
     Returns:
       an object containing the PLR information
     """
-    fast_plr_data = self.compute_fast_plr(hypo, data, full_hypo, name)
+    poi_hypo = POIHypo(hypo) if isinstance(hypo, dict) else hypo
+    fast_plr_data = self.compute_fast_plr(poi_hypo, data, full_hypo, name)
     asimov = data.model.generate_expected(0, NPMinimizer(data))
-    asimov_plr_data = self.compute_fast_plr(hypo, asimov, full_hypo, 'fast_asimov')
+    asimov_plr_data = self.compute_fast_plr(poi_hypo, asimov, full_hypo, 'fast_asimov')
     fast_plr_data.set_asimov(asimov_plr_data)
     self.fill_pv(fast_plr_data)
     return fast_plr_data
