@@ -95,10 +95,11 @@ class PlotResults :
 
 class PlotImpacts :
 
-  def __init__(self, poi, data, minimizer : POIMinimizer = None) :
+  def __init__(self, poi, data, minimizer : POIMinimizer = None, verbosity : int = 0) :
     self.data = data
     self.poi = poi
     self.minimizer = minimizer if minimizer is not None else OptiMinimizer()
+    self.verbosity = verbosity
   
   def make_canvas(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
     if not fig :
@@ -148,20 +149,25 @@ class PlotImpacts :
     par_names = pars if pars is not None else self.data.model.nps.keys()
     for p, par_name in enumerate(par_names) :
       par = self.data.model.nps[par_name]
-      sys.stderr.write("\rProcessing NP %4d of %4d [%30s]" % (p+1, len(self.data.model.nps), par.name[:30]))
+      if self.verbosity == 0 :
+        sys.stderr.write("\rProcessing NP %4d of %4d [%30s]" % (p+1, len(self.data.model.nps), par.name[:30]))
       var = 1
       pruned_aux_obs = np.delete(self.data.aux_obs, self.data.model.np_indices[par_name])
-      #print(par.name, par.aux_obs, len(self.data.aux_obs), len(pruned_aux_obs))
-      posvar_model = NPPruner(self.data.model).remove_nps({ par.name : par.unscaled_value(min_pars[par.name] + var) }, clone_model=True)
+      posvar_model = NPPruner(self.data.model, self.verbosity).remove_nps({ par.name : par.unscaled_value(min_pars[par.name] + var) }, clone_model=True)
       pos_minimizer = self.minimizer.clone(posvar_model.ref_pars.clone())
       pos_minimizer.minimize(self.data.clone(posvar_model, aux_obs=pruned_aux_obs))
-      negvar_model = NPPruner(self.data.model).remove_nps({ par.name : par.unscaled_value(min_pars[par.name] - var) }, clone_model=True)
+      negvar_model = NPPruner(self.data.model, self.verbosity).remove_nps({ par.name : par.unscaled_value(min_pars[par.name] - var) }, clone_model=True)
       neg_minimizer = self.minimizer.clone(negvar_model.ref_pars.clone())
       neg_minimizer.minimize(self.data.clone(negvar_model, aux_obs=pruned_aux_obs))
+      if self.verbosity > 0 :
+        print("Parameter %s : %s = %g (nominal), %s = %g (%+g), %s = %g (%+g)" % (par.name,
+                                                                                  self.poi, min_pars[self.poi],
+                                                                                  self.poi, pos_minimizer.min_pars[self.poi], +var,
+                                                                                  self.poi, neg_minimizer.min_pars[self.poi], -var))
       impacts.append({ 'name' : par.name,
                       'pos_impact' : pos_minimizer.min_pars[self.poi] - min_pars[self.poi],
                       'neg_impact' : neg_minimizer.min_pars[self.poi] - min_pars[self.poi],
                       'best_fit' : min_pars[par.name] })
-    sys.stderr.write("\n")
+    if self.verbosity == 0 : sys.stderr.write("\n")
     return { data['name'] : data for data in sorted(impacts, key=lambda data: abs(data['pos_impact'] - data['neg_impact'])/2, reverse=True) }  
  
