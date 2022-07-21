@@ -409,8 +409,9 @@ class Model (Serializable) :
     self.verbosity = verbosity
     self.set_internal_vars()
 
-  def clone(self, set_internal_vars : bool = True) :
-    clone = Model(name=self.name, pois=self.pois, nps=self.nps, aux_obs=self.aux_obs, channels={ channel.name : channel.clone() for channel in self.channels.values() },
+  def clone(self, name : str = None, set_internal_vars : bool = True) :
+    clone = Model(name=name if name is not None else self.name, pois=self.pois, nps=self.nps, aux_obs=self.aux_obs,
+                  channels={ channel.name : channel.clone() for channel in self.channels.values() },
                   expressions=self.expressions, use_asym_impacts=self.use_asym_impacts, use_linear_nps=self.use_linear_nps,
                   use_simple_sym_impacts=self.use_simple_sym_impacts, use_lognormal_terms=self.use_lognormal_terms, variations=self.variations,
                   verbosity=self.verbosity)
@@ -644,7 +645,7 @@ class Model (Serializable) :
     if self.cutoff == 0 : return nnom*k
     return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
 
-  def channel_n_exp(self, nexp : np.array = None, pars : Parameters = None, channel : str = None, sample : str = None) -> np.array :
+  def channel_n_exp(self, pars : Parameters = None, nexp : np.array = None, channel : str = None, sample : str = None) -> np.array :
     if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
     nexpval = nexp if nexp is not None else self.n_exp(pars)
     if sample is not None : nexpval = nexpval[list(self.channels[channel].samples.keys()).index(sample)]
