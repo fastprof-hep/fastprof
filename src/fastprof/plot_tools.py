@@ -146,7 +146,7 @@ class PlotImpacts :
     impacts = []
     self.minimizer.minimize(self.data)
     min_pars = self.minimizer.min_pars.clone()
-    if self.verbosity > 2 :
+    if self.verbosity > 3 :
       with open('_impact_test_best_fit.json', 'w') as fd :
         json.dump(min_pars.dict(), fd, ensure_ascii=True, indent=3)
     par_names = pars if pars is not None else self.data.model.nps.keys()
@@ -167,7 +167,7 @@ class PlotImpacts :
                                                                                   self.poi, min_pars[self.poi],
                                                                                   self.poi, pos_minimizer.min_pars[self.poi], +var,
                                                                                   self.poi, neg_minimizer.min_pars[self.poi], -var))
-      if self.verbosity > 2 :
+      if self.verbosity > 3 :
         with open('_impact_test_pos_%s.json' % par_name, 'w') as fd :
           json.dump(pos_minimizer.min_pars.dict(), fd, ensure_ascii=True, indent=3)
         with open('_impact_test_neg_%s.json' % par_name, 'w') as fd :
