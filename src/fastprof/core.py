@@ -731,16 +731,17 @@ class Model (Serializable) :
       grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
-                         for s in range(0, self.max_nsamples) ]) 
+                         for s in range(0, self.max_nsamples) ])
+      if np.any(np.isnan(grads)) : return None
       gtot = grads.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois)
       ntot = self.tot_bin_exp(pars) # shape = (n_bins)
       # broadcast ntot and data.counts to match gtot, sum over bins
-      ratio = (data.counts/ntot)[:, None] if gtot > 0 else 0
+      ratio = (data.counts/ntot)[:, None] if np.all(ntot != 0) else 0
       return np.sum(gtot - gtot*ratio, axis=0)
     except Exception as inst:
-      #print('Exception in gradient computation: ', Exception, inst)
-      #import traceback
-      #print(traceback.format_exc())
+      print('Exception in gradient computation: ', Exception, inst)
+      import traceback
+      print(traceback.format_exc())
       return None
 
   def hessian(self, pars : Parameters, data : 'Data') -> np.ndarray :
