@@ -640,7 +640,8 @@ class Model (Serializable) :
     """
     real_vals = self.real_vals(pars)
     nnom = np.stack([ np.concatenate([ self.samples[(channel_name, s)].yields(real_vals) if s < len(channel.samples) else np.zeros(channel.nbins()) \
-                      for channel_name, channel in self.channels.items()]) for s in range(0, self.max_nsamples) ]) 
+                      for channel_name, channel in self.channels.items()]) for s in range(0, self.max_nsamples) ])
+    if self.verbosity > 3 : print(nnom)
     k = self.k_exp(pars)
     if self.cutoff == 0 : return nnom*k
     return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
@@ -1085,11 +1086,11 @@ class Model (Serializable) :
       Returns:
         self
     """
-    self.name = self.load_field('name', sdict, '', str)
     if not 'model'    in sdict : raise KeyError("No 'model' section in specified markup file")
     if not 'POIs'     in sdict['model'] : raise KeyError("No 'POIs' section in specified markup file")
     if not 'channels' in sdict['model'] : raise KeyError("No 'channels' section in specified markup file")
     if self.verbosity > 1 : print('Loading parameters')
+    self.name = self.load_field('name', sdict['model'], '', str)
     self.pois = {}
     for dict_poi in sdict['model']['POIs'] :
       poi = ModelPOI()
