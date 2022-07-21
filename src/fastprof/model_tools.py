@@ -180,7 +180,7 @@ class NPPruner :
     return self.remove_nps({ par : None for par in pruned_nps })
 
   def remove_nps(self, par_values : dict, clone_model : bool = False) :
-    model = self.model.clone(set_internal_vars=False) if clone_model else self.model
+    model = self.model.clone(set_internal_vars=False, name=self.model.name + '_pruned') if clone_model else self.model
     for np_name in par_values :
       if np_name in model.nps :
         selected_names = [ np_name ]
@@ -202,8 +202,11 @@ class NPPruner :
               if self.verbosity > 0 : print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, value, sample.name, channel.name))
               sample.norm = NumberNorm(value)
             else :
+              if self.verbosity > 0 : print("Applying %s=%g to the nominal yields of sample '%s' of channel '%s'." % (selected_name, value, sample.name, channel.name))
+              if self.verbosity > 1 : print('Old yields :\n', sample.nominal_yields)
               sample.nominal_yields = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
-            if selected_name in sample.impacts : sample.impacts.pop(selected_name)
+              if self.verbosity > 1 : print('New yields :\n', sample.nominal_yields)
+              if selected_name in sample.impacts : sample.impacts.pop(selected_name)
         # TODO: should also check expressions
     model.set_internal_vars()
     return model
