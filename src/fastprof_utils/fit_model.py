@@ -83,7 +83,7 @@ def run(argv = None) :
 
   if options.hypo is not None :
     try :
-      hypo_pars = process_setvals(options.hypo, model)
+      hypo_vals = process_setvals(options.hypo, model)
     except Exception as inst :
       print(inst)
       raise ValueError("ERROR : invalid POI specification string '%s'." % options.hypo)
@@ -143,14 +143,14 @@ def run(argv = None) :
     #print(opti.result)
     #print(inst)
   if options.hypo is not None :
-    tmu = opti.tmu(hypo_pars, data)
-    print('\n== Profile-likelihood ratio tmu = %g for hypothesis' % tmu, hypo_pars.dict(pois_only=True))
+    tmu = opti.tmu(hypo_vals, data)
+    print('\n== Profile-likelihood ratio tmu = %g for hypothesis' % tmu, hypo_vals)
     print('-- Profiled NP values :\n' + str(opti.hypo_pars))
     if len(model.pois) == 1 :
       print('\n== Computing the q~mu test statistic')
       asimov = model.generate_expected(0, NPMinimizer(data))
       calc = QMuTildaCalculator(opti)
-      plr_data = calc.compute_fast_q(hypo_pars, data)
+      plr_data = calc.compute_fast_q(hypo_vals, data)
       print('best-fit %s = % g' % (model.poi(0).name, opti.free_pars.pois[0]))
       print('tmu         = % g' % plr_data.test_statistics['tmu'])
       print('q~mu        = % g' % plr_data.test_statistics['q~mu'])
