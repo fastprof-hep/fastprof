@@ -28,6 +28,7 @@ def make_parser() :
   parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
   parser.add_argument("-m", "--measurement"      , type=int  , default=0        , help="Index of measurement config to use [default: 0, the first one]")
   parser.add_argument(      "--markup"           , type=str  , default='json'   , help="Output markup flavor (supported : 'json', 'yaml')")
+  parser.add_argument("-k", "--keep-same-sign"   , action="store_true"          , help="Keep same-sign impacts")
   parser.add_argument("-v", "--verbosity"        , type=int  , default=0        , help="Verbosity level")
   return parser
 
@@ -95,14 +96,26 @@ def run(argv = None) :
 
   pyhf_meas = { entry['name'] : entry for entry in pyhf_model['measurements'][0]['config']['parameters'] }
 
-  def add_impact(modifier_name, impact) :
+  def add_impact(sample, modifier_name, impact) :
     if not modifier_name in fastprof_model['NPs'] and not modifier_name in fastprof_model['POIs'] :
       fastprof_model['NPs'][modifier_name] = { 'name' : modifier_name, 'nominal_value' : 0, 'constraint' : 1, 'aux_obs' : 'aux_' + modifier_name }
     if np.any([ imp["+1"]*imp["-1"] > 0 for imp in impact ]) : 
-      print("WARNING: +1σ and -1σ impacts for '%s' in sample '%s' of channel '%s' (%s) have the same sign, setting to default." % (modifier_name, sample['name'], channel['name'], str(impact)))
-      impact = [ { "+1" : 0.0, "-1" : 0.0 } ]
+      if options.keep_same_sign :
+        impact = [ { "+1" : imp["+1"], "-1" : -imp["-1"] } if abs(imp["+1"]) > abs(imp["-1"]) else { "+1" : -imp["+1"], "-1" : imp["-1"] } for imp in impact ]
+      else :
+        print("WARNING: +1σ and -1σ impacts for '%s' in sample '%s' of channel '%s' (%s) have the same sign, setting to default." % (modifier_name, sample['name'], channel['name'], str(impact)))
+        impact = [ { "+1" : 0.0, "-1" : 0.0 } ]
     if len(impact) == 1 : impact = impact[0]
+    if modifier_name in sample['impacts'] :
+      prev_impact = sample['impacts'][modifier_name]
+      if isinstance(prev_impact, dict) and not isinstance(impact, dict) : prev_impact = [ prev_impact ] * len(impact)
+      if isinstance(impact, dict) and not isinstance(prev_impact, dict) : impact = [ impact ] * len(impact)
+      if isinstance(prev_impact, dict) :
+        impact = { "+1" : prev_impact["+1"] + impact["+1"], "-1" : prev_impact["-1"] + impact["-1"] }
+      else :
+        impact = [ { "+1" : pi["+1"] + ci["+1"], "-1" : pi["-1"] + ci["-1"] } for pi, ci in zip(prev_impact, impact) ]
     sample['impacts'][modifier_name] = impact
+
 
   for pyhf_channel in pyhf_model['channels'] :
     channel = {}
@@ -116,6 +129,7 @@ def run(argv = None) :
         channel['bins'] = []
       channel['samples'] = []
       for pyhf_sample in pyhf_channel['samples'] :
+        if options.verbosity > 2 : print('** Channel %s, sample %s' % (pyhf_channel['name'], pyhf_sample['name']))
         sample = {}
         nominal_yields = pyhf_sample['data']
         if channel['type'] == 'multi_bin' and len(channel['bins']) == 0 : channel['bins'] = [ 'bin%d' % b for b in range(0, len(nominal_yields)) ]
@@ -133,19 +147,28 @@ def run(argv = None) :
           if modifier['type'] == 'lumi' :
             lumi_impact = pyhf_meas[modifier['name']]['sigmas'][0]
             impact = [ { "+1" : lumi_impact, "-1" : -lumi_impact } ]
-            add_impact(modifier['name'], impact)
+            if options.verbosity > 2 : print('  Parameter %s of type %s : lumi_impact = %g' % (modifier['name'], modifier['type'], lumi_impact))
+            add_impact(sample, modifier['name'], impact)
           elif modifier['type'] == 'normsys' :
             impact = [ { "+1" : modifier['data']['hi'] - 1, "-1" : modifier['data']['lo'] - 1 } ]
-            add_impact(modifier['name'], impact)
+            if options.verbosity > 2 : print('  Parameter %s of type %s : impact_up = %s' % (modifier['name'], modifier['type'],
+                                                                                                     str(modifier['data']['hi'])))
+            add_impact(sample, modifier['name'], impact)
           elif modifier['type'] == 'histosys' :
             impact = [ { "+1" : hi/y - 1, "-1" : lo/y - 1 } for y, hi, lo in zip(nominal_yields, modifier['data']['hi_data'], modifier['data']['lo_data']) ]
-            add_impact(modifier['name'], impact)
+            if options.verbosity > 2 : print('  Parameter %s of type %s : impact_up = %s / %s = %s' % (modifier['name'], modifier['type'],
+                                                                                                     str(modifier['data']['hi_data']),
+                                                                                                     str(nominal_yields), str(impact)))
+            add_impact(sample, modifier['name'], impact)
           elif modifier['type'] == 'shapesys' or modifier['type'] == 'staterror' :
             for b, (y, sigma) in enumerate(zip(nominal_yields, modifier['data'])) :
               impact = [ { "+1" : sigma/y if b == b2 else 0, "-1" : -sigma/y if b == b2 else 0 } for b2 in range(0, len(nominal_yields)) ]
-              add_impact('%s_bin%d' % (modifier['name'], b), impact)
+              if options.verbosity > 2 : print('  Parameter %s of type %s : impact = %s / %s = %s' % (('%s_bin%d' % (modifier['name'], b)), modifier['type'],
+                                                                                                      str(modifier['data']), str(nominal_yields), str(impact)))
+              add_impact(sample, '%s_bin%d' % (modifier['name'], b), impact)
           else :
             raise ValueError("Unknown modifier type '%s' in channel '%s'." % (modifier['type'], pyhf_channel['name']))
+          if options.verbosity > 3 : print(sample)
         channel['samples'].append(sample)
     except Exception as inst :
       print(inst)
