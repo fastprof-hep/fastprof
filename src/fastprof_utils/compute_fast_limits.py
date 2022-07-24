@@ -143,10 +143,10 @@ def run(argv = None) :
 
   if options.test_statistic == 'q~mu' :
     if len(model.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-    calc = QMuTildaCalculator(OptiMinimizer())
+    calc = QMuTildaCalculator(OptiMinimizer(), verbosity=options.verbosity)
   elif options.test_statistic == 'q_mu' :
     if len(model.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-    calc = QMuCalculator(OptiMinimizer())
+    calc = QMuCalculator(OptiMinimizer(), verbosity=options.verbosity)
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
 

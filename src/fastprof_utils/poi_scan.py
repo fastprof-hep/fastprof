@@ -119,7 +119,7 @@ def run(argv = None) :
   # Compute the tmu values
 
   if do_computation :
-    calc = TMuCalculator(OptiMinimizer(niter=options.iterations, verbosity=options.verbosity).set_pois(model))
+    calc = TMuCalculator(OptiMinimizer(niter=options.iterations, verbosity=options.verbosity).set_pois(model), verbosity=options.verbosity)
     if options.verbosity > 1 : 
       prof_pois = set(calc.minimizer.free_pois()) - set(pois)
       if len(prof_pois) > 0 : print('Will profile over POI(s) %s.' % ','.join(prof_pois)) 
@@ -127,7 +127,7 @@ def run(argv = None) :
     print('Producing PLR scan with POI(s) %s, bounds %s.' % (str(pois), str(calc.minimizer.bounds)))
 
     if options.show_timing : comp_start_time = time.time()
-    raster = calc.compute_fast_results(hypos, data, verbosity=options.verbosity, free_fit=options.best_fit_mode)
+    raster = calc.compute_fast_results(hypos, data, free_fit=options.best_fit_mode)
     raster.save(raster_file)
     if options.show_timing : comp_stop_time = time.time()
 

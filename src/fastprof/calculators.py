@@ -49,15 +49,17 @@ class TestStatisticCalculator :
   Attributes:
     minimizer (POIMinimizer) : a minimizer object
       (see :mod:`minimizers.py`).
+    verbosity : the levelf of verbosity of the output (0 or 1 currently)
   """
 
-  def __init__(self, minimizer : POIMinimizer) :
+  def __init__(self, minimizer : POIMinimizer, verbosity : int = 0) :
     """Initialize the `TestStatisticCalculator` object
 
     Args:
       minimizer : a minimizer algorithm.
     """
     self.minimizer = minimizer
+    self.verbosity = verbosity
 
   @classmethod
   def pois(cls, plr_data : PLRData) -> str  :
@@ -142,8 +144,11 @@ class TestStatisticCalculator :
       an object containing the PLR information
     """
     poi_hypo = POIHypo(hypo) if isinstance(hypo, dict) else hypo
+    if self.verbosity >= 2 : print('Computing data PLR')
     fast_plr_data = self.compute_fast_plr(poi_hypo, data, full_hypo, name)
+    if self.verbosity >= 2 : print('Generating Asimov')
     asimov = data.model.generate_expected(0, NPMinimizer(data))
+    if self.verbosity >= 2 : print('Computing Asimov PLR')
     asimov_plr_data = self.compute_fast_plr(poi_hypo, asimov, full_hypo, 'fast_asimov')
     fast_plr_data.set_asimov(asimov_plr_data)
     self.fill_pv(fast_plr_data)
@@ -162,7 +167,7 @@ class TestStatisticCalculator :
     """
     for plr_data in raster.plr_data.values() : self.fill_pv(plr_data)
 
-  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast', verbosity : int = 0) -> Raster :
+  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast') -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Builds a raster object with the same hypothesis points as the one
@@ -173,7 +178,6 @@ class TestStatisticCalculator :
       hypos  : a list of POIHypo objects (or just POI dicts)
       data   : the input dataset
       name   : name of the output :class:`PLRData` objects
-      verbosity : the levelf of verbosity of the output (0 or 1 currently)
     Returns:
       a raster object containing the fast PLR and p-value results
     """
@@ -181,7 +185,7 @@ class TestStatisticCalculator :
     start_time = timer()
     for i, hypo in enumerate(hypos) :
       if isinstance(hypo, dict) : hypo = POIHypo(hypo)
-      if verbosity > 1 :
+      if self.verbosity >= 1 :
         print('Processing hypothesis point %d of %d : %s %s' % (i+1, len(hypos), str(hypo), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
       fast_plr_data[hypo] = self.compute_fast_q(hypo, data, full_hypos[hypo] if hypo in full_hypos else None, '%s_%g' % (name, i))
     fast = Raster(name, fast_plr_data, model=data.model)
@@ -214,13 +218,13 @@ class TMuCalculator(TestStatisticCalculator) :
   the :mod:`test_statistics.py` module.
   """
 
-  def __init__(self, minimizer : POIMinimizer) :
+  def __init__(self, minimizer : POIMinimizer, verbosity : int = 0) :
     """Initialize the `TMuCalculator` object
 
     Args:
       minimizer : a minimizer algorithm.
     """
-    super().__init__(minimizer)
+    super().__init__(minimizer, verbosity)
 
   @classmethod
   def make_q(cls, plr_data : PLRData) -> TMu :
@@ -255,7 +259,7 @@ class TMuCalculator(TestStatisticCalculator) :
       raise(inst)
     return self
 
-  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast', free_fit : str = 'all', verbosity : int = 0) -> Raster :
+  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast', free_fit : str = 'all') -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Reimplements the general method since it can be done more simply for t_mu
@@ -264,7 +268,6 @@ class TMuCalculator(TestStatisticCalculator) :
       raster    : a raster object
       data      : the input dataset
       name      : name of the output :class:`PLRData` objects
-      verbosity : the levelf of verbosity of the output (0 or 1 currently)
       free_fit  : can be 'all' (default, same as general method), 'single' (do a single
                   fit near the best fixed fit) of 'best_fixed_fit' (just take the best fixed fit) 
     Returns:
@@ -276,7 +279,7 @@ class TMuCalculator(TestStatisticCalculator) :
     fixed_pars = {}
     start_time = timer()
     for i, hypo in enumerate(hypos) :
-      if verbosity >= 1 :
+      if self.verbosity >= 1 :
         print('Processing hypothesis point %d of %d : %s %s' % (i+1, len(hypos), str(hypo), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
       full_hypo = full_hypos[hypo] if hypo in full_hypos else None
       plr_data = PLRData(name, hypo, full_hypo=full_hypo, model=data.model)
@@ -293,17 +296,17 @@ class TMuCalculator(TestStatisticCalculator) :
         plr_data.free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
       fast_plr_data[hypo] = plr_data
     stop_time = timer()
-    if verbosity >= 1 : print('Processed %d hypothesis points in %g s (%g s/point)' % (len(hypos), (stop_time - start_time), (stop_time - start_time)/len(hypos)))
+    if self.verbosity >= 1 : print('Processed %d hypothesis points in %g s (%g s/point)' % (len(hypos), (stop_time - start_time), (stop_time - start_time)/len(hypos)))
     if free_fit == 'single' or free_fit == 'best_fixed_fit' :
       best_fixed = min(fast_plr_data.items(), key=lambda plr_data : plr_data[1].hypo_fit.nll)
       if free_fit == 'best_fixed_fit' :
         common_free_fit = FitResult('free_fit', fixed_pars[best_fixed[0]], best_fixed[1].hypo_fit.nll, model=data.model)
       else :
         start_time = timer()
-        if verbosity >= 1 : print('Performing global free-POI fit at hypothesis %s' % best_fixed[0])
+        if self.verbosity >= 1 : print('Performing global free-POI fit at hypothesis %s' % best_fixed[0])
         self.minimizer.set_pois(data.model, hypo=best_fixed[0])
         if self.minimizer.minimize(data) is None : return None
-        if verbosity >= 1 : print('Performed free-POI fit in %g s' % (timer() - start_time))
+        if self.verbosity >= 1 : print('Performed free-POI fit in %g s' % (timer() - start_time))
         common_free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)
       for hypo in hypos :
         fast_plr_data[hypo].free_fit = common_free_fit
@@ -323,13 +326,13 @@ class QMuCalculator(TestStatisticCalculator) :
   the :mod:`test_statistics.py` module.
   """
 
-  def __init__(self, minimizer : POIMinimizer) :
+  def __init__(self, minimizer : POIMinimizer, verbosity : int = 0) :
     """Initialize the `QMuCalculator` object
 
     Args:
       minimizer : a minimizer algorithm.
     """
-    super().__init__(minimizer)
+    super().__init__(minimizer, verbosity)
 
   @classmethod
   def make_q(cls, plr_data : PLRData) -> QMu :
@@ -378,13 +381,13 @@ class QMuTildaCalculator(TestStatisticCalculator) :
   the :math:`\tilde)q}_{\mu}` test statistic defined
   in the :mod:`test_statistics.py` module.
   """
-  def __init__(self, minimizer) :
+  def __init__(self, minimizer, verbosity : int = 0) :
     """Initialize the `QMuTildaCalculator` object
 
     Args:
       minimizer : a minimizer algorithm.
     """
-    super().__init__(minimizer)
+    super().__init__(minimizer, verbosity)
     self.qs = []
 
   @classmethod
