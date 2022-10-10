@@ -649,8 +649,13 @@ class Model (Serializable) :
   def channel_n_exp(self, pars : Parameters = None, nexp : np.array = None, channel : str = None, sample : str = None) -> np.array :
     if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
     nexpval = nexp if nexp is not None else self.n_exp(pars)
-    if sample is not None : nexpval = nexpval[list(self.channels[channel].samples.keys()).index(sample)]
-    return nexpval[self.channel_offsets[channel] : self.channel_offsets[channel] + self.channels[channel].nbins()]
+    if sample is not None :
+      nexpval = nexpval[list(self.channels[channel].samples.keys()).index(sample)]
+    if len(nexpval.shape) == 1 :
+      return nexpval[self.channel_offsets[channel] : self.channel_offsets[channel] + self.channels[channel].nbins()]
+    else :
+      return nexpval[:, self.channel_offsets[channel] : self.channel_offsets[channel] + self.channels[channel].nbins()]
+      
 
   def tot_bin_exp(self, pars, floor = None) -> np.array :
     """Returns the total expected event yields for a given parameter value
@@ -871,7 +876,7 @@ class Model (Serializable) :
     elif isinstance(channel, SingleBinChannel) :
       grid = [0,1]
     elif isinstance(channel, MultiBinChannel) :
-      grid = [0, channel.nbins()]
+      grid = np.linspace(0, channel.nbins(), channel.nbins() + 1)
     else :
       raise ValueError("Channel '%s' is of an unsupported type" % channel.name)
     if canvas is None : 
@@ -916,7 +921,7 @@ class Model (Serializable) :
         if isinstance(channel, BinnedRangeChannel)  and bin_width is not None : yvals *= bin_corrs
         canvas.hist(xvals, weights=yvals, bins=grid, histtype='step', linestyle=line_style, fill=True, label=list(channel.samples)[sample])
     if data is not None :
-      counts = np.array(data.counts[start:stop])
+      counts = self.channel_n_exp(nexp=data.counts, channel=channel.name)
       yerrs = [ math.sqrt(n) if n > 0 else 0 for n in counts ]
       yvals = counts if not residuals else np.zeros(channel.nbins())
       if isinstance(channel, BinnedRangeChannel) and bin_width is not None : 
@@ -929,7 +934,7 @@ class Model (Serializable) :
         vpars = pars.clone()
         vpars.set(v[0], v[1])
         col = 'r' if len(v) < 3 else v[2]
-        nexp = self.n_exp(vpars)[:, start:stop]
+        nexp = self.channel_n_exp(pars=vpars, channel=channel.name)
         if only is None and exclude is None :
           subtract = np.zeros(nexp.shape[1])
         else :
