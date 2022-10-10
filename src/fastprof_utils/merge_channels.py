@@ -40,6 +40,7 @@ def run(argv = None) :
   model = Model.create(options.model_file, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
 
+  data = None
   if options.data_file :
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)

@@ -273,11 +273,12 @@ class ChannelMerger :
         all_impacts = []
         for channel in self.channels_to_merge :
           chan = self.model.channels[channel]
-          impact = {"+1" : 0, "-1" : 0}
+          impact = [{"+1" : 0, "-1" : 0}]
           if merged_sample.name in chan.samples :
             sample = self.model.channels[channel].samples[merged_sample.name]
-            if par in sample.impacts : impact = sample.impacts[par] 
-          all_impacts.append(impact)
+            if par in sample.impacts : impact = sample.impacts[par]
+            if isinstance(impact, dict) : impact = [ impact ]
+          all_impacts.extend(impact)
         merged_sample.impacts[par] = list(itertools.chain(all_impacts))
     if self.obs_bins is None :
       merged_bins = []
@@ -299,11 +300,11 @@ class ChannelMerger :
         merged_channels[channel.name] = channel
       elif not merged_added :
         if self.obs_bins is None :
-          merged_channels[self.merged_name] = MultiBinChannel(self.merged_name, merged_bins, merged_samples)
+          merged_channels[self.merged_name] = MultiBinChannel(self.merged_name, merged_bins, self.merged_samples)
         else :
           merged_channels[self.merged_name] = BinnedRangeChannel(self.merged_name, merged_bins, self.obs_name, self.obs_unit, self.merged_samples)    
         merged_added = True
-    return Model(self.model.name, self.model.pois, self.model.nps, self.model.aux_obs, merged_channels,
+    return Model(self.model.name, self.model.pois, self.model.nps, self.model.aux_obs, merged_channels, self.model.expressions,
                  self.model.use_asym_impacts, self.model.use_linear_nps, self.model.use_simple_sym_impacts,
                  self.model.use_lognormal_terms, self.model.variations, self.model.verbosity)
   
@@ -316,7 +317,7 @@ class ChannelMerger :
         merged_counts.extend(self.model.channel_n_exp(nexp=data.counts, channel=channel))
       elif not merged_added :
         for merged_channel in self.channels_to_merge : 
-          merged_counts.extend(self.model.channel_n_exp(nexp=data.counts, channel=channel))
+          merged_counts.extend(self.model.channel_n_exp(nexp=data.counts, channel=merged_channel))
         merged_added = True
     return Data(merged_model, merged_counts, data.aux_obs)
       
