@@ -1,1 +1,1 @@
-../utils/compute_limits.py
+../src/fastprof_utils/compute_limits.py

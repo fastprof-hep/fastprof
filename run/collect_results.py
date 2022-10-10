@@ -1,1 +1,1 @@
-../utils/collect_results.py
+../src/fastprof_utils/collect_results.py

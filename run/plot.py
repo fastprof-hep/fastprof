@@ -1,1 +1,1 @@
-../utils/plot.py
+../src/fastprof_utils/plot.py

@@ -1,1 +1,1 @@
-../utils/dump_debug.py
+../src/fastprof_utils/dump_debug.py

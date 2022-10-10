@@ -1,1 +1,1 @@
-../utils/dump_samples.py
+../src/fastprof_utils/dump_samples.py
