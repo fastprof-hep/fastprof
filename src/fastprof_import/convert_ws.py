@@ -8,19 +8,26 @@ into the definition file of a linear model, as follows:
 
 * The model POIs and NPs are taken from the ModelConfig file.
 
-* The model PDF is also taken from the ModelConfig. Two cases are currently
+* The model PDF is also taken from the ModelConfig. Several cases are currently
   implemented:
   
-  * *The PDF is a `RooAddPdf`*: the components of the sum are then 
-    used to define the samples of a single channel. The channel
-    observable is taken from the PDF, and the binning from the `-b` option.
+  * *The model is unbinned*: The channel observable is taken from the PDF,
+    and the binning from the `-b` option.
+  
+    * If the PDF is a `RooAddPdf`, the components of the sum are 
+      used to define the samples of a single channel. 
       
-  * *The PDF is a `RooSimultaneous`* : the states of the PDF are taken
-    to correspond each to a separate channel. Each channel must have a 
-    PDF of *RooAddPdf* type, which is then treated as above.
+    * If the PDF is a `RooSimultaneous`, the states of the PDF are taken
+      to correspond each to a separate channel. Each channel must have a 
+      PDF of *RooAddPdf* type, which is then treated as above.
+      
+  * *The model is binned* : the channel PDF must then be a RooPoisson, 
+    with an expected yield given by a RooAddition. The samples are given
+    from the terms in the RooAddition.
 
-* Nominal yields in each bin are computed from integrating the PDF of each
-  sample in each channel.
+* Nominal yields in each bin are computed either from integrating the PDF of each
+  sample in each channel, for the unbinned case, or taking the Poisson yield
+  for the binned case.
 
 * Linear impacts are computed by changing the values of the NPs as 
   specified by the `--variations` option. By default :math:`\pm 1 \sigma`
@@ -70,7 +77,7 @@ def make_parser() :
   parser.add_argument("-c", "--channels"         , type=str  , default=None     , help="Names of the model channels, in the form c1,c2,..., in the same order as the RooSimPdf components")
   parser.add_argument("-s", "--samples"          , type=str  , default=None     , help="Names of the model samples, in the form c1:s1:p1,..., with c1 a channel name, s1 the sample name, and p1 its normpar name")
   parser.add_argument(      "--default-sample"   , type=str  , default=None     , help="Names of the model samples, in the form s1,s2,..., in the same order as the RooAddPdf components")
-  parser.add_argument("-b", "--binning"          , type=str  , required=True    , help="Binning used, in the form xmin:xmax:nbins[:log]~...")
+  parser.add_argument("-b", "--binning"          , type=str  , default=None     , help="Binning used for unbinned models, in the form xmin:xmax:nbins[:log]~...")
   parser.add_argument("-e", "--epsilon"          , type=float, default=1        , help="Scale factor applied to uncertainties for impact computations")
   parser.add_argument("-=", "--setval"           , type=str  , default=''       , help="List of variable value changes, in the form var1=val1,var2=val2,...")
   parser.add_argument("-k", "--setconst"         , type=str  , default=''       , help="List of variables to set constant")
@@ -107,23 +114,24 @@ def run(argv = None) :
   # ---------------------------------------------------------
 
   bins = []
-  try:
-    binspecs = options.binning.split('~')
-    for binspec in binspecs :
-      add_last = False
-      binspec_fields = binspec.split(':')
-      if binspec_fields[2][-1] == '+' :
-        add_last = True
-        binspec_fields[2] = binspec_fields[2][:-1]
-      nbins = int(binspec_fields[2])
-      if len(binspec_fields) == 4 and binspec_fields[3] == 'log' :
-        bins.extend(np.logspace(1, math.log(float(binspec_fields[1]))/math.log(float(binspec_fields[0])), nbins, add_last, float(binspec_fields[0])))
-      else :
-        bins.extend(np.linspace(float(binspec_fields[0]), float(binspec_fields[1]), nbins, add_last))
-  except Exception as inst :
-    print(inst)
-    raise ValueError('Invalid bin specification %s : the format should be xmin:xmax:nbins[:log]' % options.binning)
-  nbins = len(bins) - 1
+  if options.binning is not None :
+    try:
+      binspecs = options.binning.split('~')
+      for binspec in binspecs :
+        add_last = False
+        binspec_fields = binspec.split(':')
+        if binspec_fields[2][-1] == '+' :
+          add_last = True
+          binspec_fields[2] = binspec_fields[2][:-1]
+        nbins = int(binspec_fields[2])
+        if len(binspec_fields) == 4 and binspec_fields[3] == 'log' :
+          bins.extend(np.logspace(1, math.log(float(binspec_fields[1]))/math.log(float(binspec_fields[0])), nbins, add_last, float(binspec_fields[0])))
+        else :
+          bins.extend(np.linspace(float(binspec_fields[0]), float(binspec_fields[1]), nbins, add_last))
+    except Exception as inst :
+      print(inst)
+      raise ValueError('Invalid bin specification %s : the format should be xmin:xmax:nbins[:log]' % options.binning)
+    nbins = len(bins) - 1
 
   f = ROOT.TFile(options.ws_file)
   if not f or not f.IsOpen() :
@@ -216,13 +224,13 @@ def run(argv = None) :
       raise ValueError('Invalid channel name specification %s : should be of the form index1:name1,index2:name2,...' % options.channels)
 
   channels = []
-
+  core_pdf = None
   for component in main_pdf.getComponents() :
     if isinstance(component, ROOT.RooSimultaneous) :
+      core_pdf = component
       cat = component.indexCat()
       for i in range(0, cat.size()) :
         channel = WSChannel()
-        channel.type = 'binned_range'
         channel_name = cat.lookupType(i).GetName()
         if len(user_channels) > 0 and not str(i) in user_channels and not channel_name in user_channels : continue
         channel.pdf = component.getPdf(channel_name)
@@ -232,8 +240,8 @@ def run(argv = None) :
         channels.append(channel)
       break
     elif isinstance(component, ROOT.RooAddPdf) :
+      core_pdf = component
       channel = WSChannel()
-      channel.type = 'binned_range'
       channel.pdf = component
       channel.name = user_channels[0] if 0 in user_channels else component.GetName()
       channel.cat = None
@@ -258,13 +266,16 @@ def run(argv = None) :
       print(inst)
       raise ValueError('Invalid sample normpar name specification %s : should be of the form chan1:samp1:par1,chan2:samp2:par2,...' % options.samples)
     for (channel_name, sample_name), normpar_name in normpar_names.items() :
-      normpar = ws.var(normpar_name)
-      if normpar == None : raise ValueError("Normalization parameter '%s' not found in workspace (was for sample '%s' of channel '%s')." % (normpar_name, sample_name, channel_name))
+      if normpar_name != '' :
+        normpar = ws.var(normpar_name)
+        if normpar == None : raise ValueError("Normalization parameter '%s' not found in workspace (was for sample '%s' of channel '%s')." % (normpar_name, sample_name, channel_name))
+      else :
+        normpar = None
       if not channel_name in normpars : normpars[channel_name] = {}
       normpars[channel_name][sample_name] = normpar
   
   for channel in channels :
-    fill_channel(channel, pois, aux_obs, mconfig, normpars, options)
+    fill_channel(channel, pois, aux_obs, mconfig, normpars, options, bins)
 
   # 7 - Fill the model information
   # ------------------------------
@@ -300,16 +311,28 @@ def run(argv = None) :
         if sample.normpar is not None and sample.normpar.getMin() > 0 : sample.normpar.setMin(0) # allow setting variable to 0
         # If a normpar is zero, we cannot get the expected nominal_yields for this component. In this case, fit an Asimov and set the parameter at the +2sigma level
       for sample in channel.samples : 
-        if sample.normpar is not None and sample.normpar.getVal() == 0 : zero_normpars.append(sample.normpar)
+        if sample.normpar is not None and sample.normpar.getVal() == 0 and sample.normpar not in zero_normpars :
+          zero_normpars.append(sample.normpar)
     if len(zero_normpars) > 0 :
       ws.saveSnapshot('nominalNPs', nps)
-      asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
+      if core_pdf is None :
+        asimov_mconfig = mconfig
+        asimov_pdf = pdf
+      else :
+        core_pdf.Print()
+        asimov_pdf = core_pdf
+        asimov_mconfig = ROOT.RooStats.ModelConfig(mconfig)
+        asimov_mconfig.SetPdf(core_pdf)
+      asimov = ROOT.RooStats.AsymptoticCalculator.MakeAsimovData(asimov_mconfig, ROOT.RooArgSet(), ROOT.RooArgSet())
       print('=== Determining POI uncertainty using an Asimov dataset with parameters :')
       for par in zero_normpars :
         par.setConstant(False)
         print('===   %s=%g' % (par.GetName(), par.getVal()))
-      nps.Print('V')
+      print("INFO : fit initial state = ")
+      asimov_pdf.getVariables().Print('V')
       fit(main_pdf, asimov, robust=True)
+      print("INFO : fit final state = ")
+      asimov_pdf.getVariables().Print('V')
       # The S/B should be adjusted to the expected sensitivity value to get
       # reliable uncertainties on signal NPs. Choose POI = 2*uncertainty or this.
       ws.loadSnapshot('nominalNPs')
@@ -318,6 +341,7 @@ def run(argv = None) :
         if par.getVal() == 0 :
           raise ValueError('ERROR : normalization parameter %s is exactly 0, cannot extract sample nominal_yields' % par.GetName())
         print('=== Set POI nominal value to %s = %g' % (par.GetName(), par.getVal()))
+      asimov_pdf.getVariables().Print('V')
 
     for par in nuis_pars :
       par.nominal = par.obj.getVal()
@@ -342,13 +366,16 @@ def run(argv = None) :
 
     # Fill the channel information
     for i, channel in enumerate(channels) :
-      fill_channel_yields(channel, i, len(channels), bins, nuis_pars, variations, options, validation_points)
+      fill_channel_yields(channel, i, len(channels), nuis_pars, variations, options, validation_points)
 
     if options.packing_tolerance is not None :
       for channel in channels :
         for sample in channel.samples :
+          new_impacts = {}
           for par_name in sample.impacts :
-            sample.impacts[par_name] = pack(sample.impacts[par_name], options.packing_tolerance, options.digits)
+            impact = pack(sample.impacts[par_name], options.packing_tolerance, options.digits)
+            if impact is not None : new_impacts[par_name] = impact
+          sample.impacts = new_impacts
 
 
   # 8 - Fill model markup
@@ -399,15 +426,16 @@ def run(argv = None) :
       channel_spec = {}
       channel_spec['name'] = channel.name
       channel_spec['type'] = channel.type
-      bin_specs = []
-      for b in range(0, nbins) :
-        bin_spec = {}
-        bin_spec['lo_edge'] = float(bins[b])
-        bin_spec['hi_edge'] = float(bins[b+1])
-        bin_specs.append(bin_spec)
-      channel_spec['obs_name'] = channel.obs.GetTitle().replace('#','\\')
-      channel_spec['obs_unit'] = channel.obs.getUnit()
-      channel_spec['bins'] = bin_specs
+      if channel.type == 'binned_range' :
+        bin_specs = []
+        for b in range(0, len(channel.bins) - 1) :
+          bin_spec = {}
+          bin_spec['lo_edge'] = float(bins[b])
+          bin_spec['hi_edge'] = float(bins[b+1])
+          bin_specs.append(bin_spec)
+        channel_spec['obs_name'] = channel.obs.GetTitle().replace('#','\\')
+        channel_spec['obs_unit'] = channel.obs.getUnit()
+        channel_spec['bins'] = bin_specs
       sample_specs = []
       for sample in channel.samples :
         if np.count_nonzero(sample.nominal_yields) == 0 : continue
@@ -436,20 +464,23 @@ def run(argv = None) :
     channel_datum = {}
     channel_datum['name'] = channel.name
     channel_datum['type'] = channel.type
-    channel_datum['obs_name'] = channel.obs.GetTitle().replace('#','\\')
-    channel_datum['obs_unit'] = channel.obs.getUnit()
-    bin_array = array.array('d', bins)
-    hist = ROOT.TH1D('%s_hist' % channel.name, 'Data histogram for channel %s' % channel.name, nbins, bin_array)
-    unbinned_data.fillHistogram(hist, ROOT.RooArgList(channel.obs), '' if channel.cat is None else '%s==%d' % (channel.cat.GetName(), channel.index))
-    #hist.SaveAs('%s_hist.root' % channel.name)
-    bin_specs = []
-    for b in range(0, nbins) :
-      bin_spec = {}
-      bin_spec['lo_edge'] = float(bins[b])
-      bin_spec['hi_edge'] = float(bins[b+1])
-      bin_spec['counts'] = hist.GetBinContent(b+1)
-      bin_specs.append(bin_spec)
-    channel_datum['bins'] = bin_specs
+    if channel.type == 'binned_range' :
+      channel_datum['obs_name'] = channel.obs.GetTitle().replace('#','\\')
+      channel_datum['obs_unit'] = channel.obs.getUnit()
+      bin_array = array.array('d', bins)
+      hist = ROOT.TH1D('%s_hist' % channel.name, 'Data histogram for channel %s' % channel.name, nbins, bin_array)
+      unbinned_data.fillHistogram(hist, ROOT.RooArgList(channel.obs), '' if channel.cat is None else '%s==%d' % (channel.cat.GetName(), channel.index))
+      #hist.SaveAs('%s_hist.root' % channel.name)
+      bin_specs = []
+      for b in range(0, nbins) :
+        bin_spec = {}
+        bin_spec['lo_edge'] = float(bins[b])
+        bin_spec['hi_edge'] = float(bins[b+1])
+        bin_spec['counts'] = hist.GetBinContent(b+1)
+        bin_specs.append(bin_spec)
+      channel_datum['bins'] = bin_specs
+    else :
+      channel_datum['counts'] = data.get(channel.index).getRealValue(channel.obs.GetName())
     channel_data.append(channel_datum)
   data_dict['channels'] = channel_data
   # Aux obs
@@ -497,7 +528,23 @@ def run(argv = None) :
 
 
 # ---------------------------------------------------------------------
-def fill_channel(channel, pois, aux_obs, mconfig, normpars, options) :
+def set_sample_normpar(sample, normvar, normpars, pois) :
+  sample.normpar = None
+  if isinstance(normvar, ROOT.RooRealVar) :
+    sample.normpar = normvar
+  else :
+    poi_candidates = normvar.getVariables().selectCommon(pois)
+    if poi_candidates.getSize() == 1 :
+      sample.normpar = ROOT.RooArgList(poi_candidates).at(0)
+    else :
+      print("Normalization of sample '%s' depends on multiple POIs:" % sample.name)
+      normvar.Print()
+      poi_candidates.Print()
+  if sample.normpar == None :
+    raise ValueError('Cannot identify normalization variable for sample %s, please specify manually. Known specifications are : \n%s' % (sample.name, str(normpars)))
+
+
+def fill_channel(channel, pois, aux_obs, mconfig, normpars, options, bins) :
   
   if options.verbosity > 0 : print("Creating channel '%s' from PDF '%s'" % (channel.name, channel.pdf.GetName()))
   if isinstance(channel.pdf, ROOT.RooProdPdf) :
@@ -518,11 +565,18 @@ def fill_channel(channel, pois, aux_obs, mconfig, normpars, options) :
   channel.obs = ROOT.RooArgList(channel_obs).at(0)
   if options.data_only : return channel
 
+  if channel.name in normpars : user_samples.update(normpars[channel.name])
+  if isinstance(channel.pdf, ROOT.RooPoisson) :
+    channel.type = 'bin'
+    channel.bins = [ 'min', 'max' ]
+    channel.expected_yield = channel.pdf.getMean()
+  else :
+    channel.type = 'binned_range'
+    channel.bins = bins
+
   channel.samples = []
   channel.default_sample = None # the sample to which unassigned variations will be associated (e.g. spurious signal, not scaled by any sample normpars)
-
   user_samples = normpars[''] if '' in normpars else {}
-  if channel.name in normpars : user_samples.update(normpars[channel.name])
   if len(user_samples) > 0 :
     for user_sample in user_samples :
       sample = WSSample()
@@ -531,25 +585,22 @@ def fill_channel(channel, pois, aux_obs, mconfig, normpars, options) :
       if sample.name == options.default_sample : channel.default_sample = sample
       channel.samples.append(sample)
   else :
-    for i in range(0, channel.pdf.pdfList().getSize()) :
-      sample = WSSample()
-      sample.name = channel.pdf.pdfList().at(i).GetName()
-      sample.normpar = None
-      normvar = channel.pdf.coefList().at(i)
-      if isinstance(normvar, ROOT.RooRealVar) :
-        sample.normpar = normvar
-      else :
-        poi_candidates = normvar.getVariables().selectCommon(pois)
-        if poi_candidates.getSize() == 1 :
-          sample.normpar = ROOT.RooArgList(poi_candidates).at(0)
-        else :
-          print("Normalization of sample '%s' depends on multiple POIs:" % sample.name)
-          normvar.Print()
-          poi_candidates.Print()
-      if sample.normpar == None :
-        raise ValueError('Cannot identify normalization variable for sample %s, please specify manually. Known specifications are : \n%s' % (sample.name, str(normpars)))
-      if sample.name == options.default_sample : channel.default_sample = sample
-      channel.samples.append(sample)  
+    if isinstance(channel.pdf, ROOT.RooPoisson) : # binned case
+      if not isinstance(expected_yield, ROOT.RooAddition) :
+        raise TypeError("Binned channel '%s' has an expected yield that is not of the expected RooAddition type." % (channel.name))
+      for i in range(0, channel.expected_yield.list().getSize()) :
+        sample = WSSample()
+        sample.name = channel.expected_yield.list().at(i).GetName()
+        set_sample_normpar(sample, channel.expected_yield.list().at(i), normpars, pois)
+    elif isinstance(channel.pdf, ROOT.RooAddPdf) : # unbinned case
+      for i in range(0, channel.pdf.pdfList().getSize()) :
+        sample = WSSample()
+        sample.name = channel.pdf.pdfList().at(i).GetName()
+        set_sample_normpar(sample, channel.pdf.coefList().at(i), normpars, pois)
+        if sample.name == options.default_sample : channel.default_sample = sample
+        channel.samples.append(sample)  
+    else :
+      raise TypeError("Channel '%s' uses unsupported PDF type '%s'." % (channel.name, channel.pdf.IsA().GetName()))        
   if channel.default_sample is None : 
     default_sample = WSSample()
     default_sample.name = 'unassigned_background'
@@ -559,7 +610,10 @@ def fill_channel(channel, pois, aux_obs, mconfig, normpars, options) :
   return channel
 
 def integral(channel) :
-  return (channel.pdf.expectedEvents(0) if channel.normalized_integral else 1)*channel.bin_integral.getVal()
+  if isinstance(channel.pdf, ROOT.RooPoisson) :
+    return channel.expected_yield.getVal()
+  else :
+    return (channel.pdf.expectedEvents(0) if channel.normalized_integral else 1)*channel.bin_integral.getVal()
 
 def save_normpars(channel) :
   for sample in channel.samples :
@@ -592,9 +646,10 @@ def fill_yields(channel, key) :
   channel.default_sample.yields[key] += n_unassigned
   #for sample in channel.samples : print('yield', key, sample.name, sample.yields[key], n_unassigned)
 
-def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, variations, options, validation_points) :
+
+def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations, options, validation_points) :
   if options.verbosity > 0 : print('=== Processing channel %s (%d of %d)' % (channel.name, channel_index, nchannels))
-  nbins = len(bins) - 1
+  nbins = len(channel.bins) - 1
   if options.validation_output is not None :
     channel.valid_data = {}
     for par in nuis_pars :
@@ -617,14 +672,15 @@ def fill_channel_yields(channel, channel_index, nchannels, bins, nuis_pars, vari
   if options.verbosity > 0 : print('=== Nominal NP values :')
   for par in nuis_pars : par.obj.Print()
   for i in range(0, nbins) :
-    print('=== Bin [%g, %g] (%d of %d)' % (bins[i], bins[i+1], i, nbins))
-    #sys.stderr.write("\rProcessing bin %d of %d in channel '%s' (%d of %d)" % (i+1, nbins, channel.name, channel_index + 1, nchannels))
-    #sys.stderr.flush()
-    xmin = bins[i]
-    xmax = bins[i + 1]
-    channel.obs.setRange('bin_%d' % i, xmin, xmax)
-    create_bin_integral(channel, i)
-    #ROOT.SetOwnership(channel.bin_integral, True) # needed ?
+    if not isinstance(channel.bins[i], str) : # unbinned case
+      print('=== Bin [%g, %g] (%d of %d)' % (channel.bins[i], channel.bins[i+1], i, nbins))
+      #sys.stderr.write("\rProcessing bin %d of %d in channel '%s' (%d of %d)" % (i+1, nbins, channel.name, channel_index + 1, nchannels))
+      #sys.stderr.flush()
+      xmin = channel.bins[i]
+      xmax = channel.bins[i + 1]
+      channel.obs.setRange('bin_%d' % i, xmin, xmax)
+      create_bin_integral(channel, i)
+      #ROOT.SetOwnership(channel.bin_integral, True) # needed ?
     set_normpars(channel)
     #print('Nominal pars:')
     #print('-------------')
@@ -710,6 +766,13 @@ def pack(impacts, tolerance=1E-5, num_digits=7) :
   if num_digits is not None :
     for key in average :
       average[key] = trim_float(average[key], num_digits)
+  if pack_ok : 
+    is_null = True
+    for key in average :
+      if abs(average[key]) > tolerance :
+        is_null = False
+        break
+    if is_null : return None
   return average if pack_ok else impacts
 
 if __name__ == '__main__' : run()

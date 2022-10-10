@@ -120,11 +120,9 @@ def make_binned(dataset, rebinnings) :
 
 
 def fit(pdf, dataset, robust = False, n_max = 3, ref_nll = 0, silent=True) :
-  print("INFO : fit initial state = ")
-  pdf.getVariables().Print('V')
   result = pdf.fitTo(dataset, ROOT.RooFit.Offset(), ROOT.RooFit.SumW2Error(False), ROOT.RooFit.Minimizer('Minuit2', 'migrad'), ROOT.RooFit.Hesse(True),
                      ROOT.RooFit.Save(), ROOT.RooFit.Verbose(not silent), ROOT.RooFit.PrintLevel(-1 if silent else 1))
-  if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) :
+  if robust and (result.status() != 0 or abs(result.minNll() - ref_nll) > 1) and n_max > 0 :
     return fit(pdf, dataset, robust, n_max - 1, result.minNll())
   else :
     return result
