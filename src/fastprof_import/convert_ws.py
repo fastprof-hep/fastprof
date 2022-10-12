@@ -345,6 +345,13 @@ def run(argv = None) :
 
     for par in nuis_pars :
       par.nominal = par.obj.getVal()
+      # This is subtle:
+      # - For free parameters (without a Gaussian aux measurement), we can take the error as the variation, since this is more
+      #   representative of the typical range of variation
+      # - However we *cannot* do this for constrained parameters: in this case the error is a combination of the aux measurement
+      #   and the main one; we could still take the error as the variation, but then one would have to be careful to set the
+      #   constraint to the correct value (i.e. not constraint = variation!). Safer to set 1 in this case, which is normally
+      #   the value that defines the aux measurement (we could also look it up in the PDF, in principle...)
       if par.is_free :
         par.error = par.obj.getError()
         if par.error <= 0 :
