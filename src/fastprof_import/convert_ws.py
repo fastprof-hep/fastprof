@@ -523,6 +523,9 @@ def run(argv = None) :
     for channel in channels :
       channel_valid = {}
       for par in nuis_pars : 
+        for i, sample in enumerate(channel.samples) :
+          if np.count_nonzero(sample.nominal_yields) == 0 :
+            channel.valid_data[par.name] = np.concatenate([channel.valid_data[par.name][:i], channel.valid_data[par.name][i+1:]])
         channel_valid[par.name] = channel.valid_data[par.name].tolist()
       valid_lists[channel.name] = channel_valid
     if options.validation_output != '' :
