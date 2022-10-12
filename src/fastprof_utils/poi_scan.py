@@ -47,7 +47,7 @@ def make_parser() :
 def run(argv = None) :
   parser = make_parser()
   options = parser.parse_args(argv)
-  if not options :
+  if options is None :
     parser.print_help()
     sys.exit(0)
 
