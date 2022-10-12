@@ -345,7 +345,7 @@ def run(argv = None) :
 
     for par in nuis_pars :
       par.nominal = par.obj.getVal()
-      # This is subtle:
+      # This is subtle: 
       # - For free parameters (without a Gaussian aux measurement), we can take the error as the variation, since this is more
       #   representative of the typical range of variation
       # - However we *cannot* do this for constrained parameters: in this case the error is a combination of the aux measurement
@@ -674,7 +674,7 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
     sample.yields = {}
     sample.impacts = {}
     for par in nuis_pars : sample.impacts[par.name] = []
-  if options.verbosity > 0 :
+  if options.verbosity > 0 : 
     print('=== Nominal NP values (%d):' % len(nuis_pars))
     for par in nuis_pars : par.obj.Print()
   for i in range(0, nbins) :
@@ -688,7 +688,7 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
       create_bin_integral(channel, i)
       #ROOT.SetOwnership(channel.bin_integral, True) # needed ?
     set_normpars(channel)
-    if options.verbosity > 2 :
+    if options.verbosity > 2 : 
       print('Normpar values:')
       for sample in channel.samples :
         if sample.normpar is not None : print(sample.normpar.GetName(), '=', sample.normpar.getVal())
@@ -718,7 +718,7 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
         for sample in channel.samples : 
           sample.impact = (sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1 if sample.yields['nominal'] != 0 else 0
           sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
-          if options.verbosity > 2 :
+          if options.verbosity > 2 : 
             print('-- sample %10s, parameter %-10s (%g %+g * %g) impact = %g (mod %g vs. ref %g)' % (sample.name, par.name, par.nominal, variation, delta, sample.impact, sample.yields['var'], sample.yields['nominal']))
           elif options.verbosity > 1 :
             print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
