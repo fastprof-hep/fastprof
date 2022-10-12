@@ -45,8 +45,8 @@ class ValidationData (Serializable) :
     self.model = model
     if filename != '' : self.load(filename)
 
-  def load_jdict(self, jdict) :
-    self.poi        = jdict[self.model.poi(0).name]
+  def load_dict(self, jdict) :
+    self.poi_value  = jdict[self.model.poi(0).name]
     self.points     = jdict['points']
     self.variations = {}
     for chan in self.model.channels :
@@ -70,7 +70,8 @@ def make_parser() :
   parser.add_argument("-v", "--validation-file", type=str  , default=None , help="Name of markup file containing validation data (default: <model_file>_validation.json)")
   parser.add_argument("-c", "--channel"        , type=str  , default=None , help="Name of selected channel (default: first one in the model)")
   parser.add_argument("-s", "--sample"         , type=str  , default=None , help="Name of selected sample (default: first one in the channel)")
-  parser.add_argument("-b", "--bins"           , type=str  , required=True, help="List of bins for which to plot validation data")
+  parser.add_argument("-b", "--bins"           , type=str  , default=None , help="List of bins for which to plot validation data")
+  parser.add_argument("-p", "--nps"            , type=str  , default=None , help="List of nuisance parameters to plot (default: all)")
   parser.add_argument("-y", "--yrange"         , type=str  , default=''   , help="Vertical range for variations, in the form min,max")
   parser.add_argument(      "--cutoff"         , type=float, default=None , help="Cutoff to regularize the impact of NPs")
   parser.add_argument(      "--inversion-plots", action='store_true'      , help="Only plot variations, not inversion impact")
@@ -88,7 +89,7 @@ def run(argv = None) :
     sys.exit(0)
 
   try :
-    bins = [ int(b) for b in options.bins.split(',') ]
+    bins = [ int(b) for b in options.bins.split(',') ] if options.bins is not None else [ 0 ]
   except Exception as inst :
     print(inst)
     raise ValueError('Invalid bin specification %s : the format should be bin1,bin2,...' % options.bins)
@@ -121,36 +122,45 @@ def run(argv = None) :
   else :
     split_name = os.path.splitext(options.model_file)
     validation_file = split_name[0] + '_validation' + split_name[1]
-
+  print("Loading from '%s'" % validation_file)
   data = ValidationData(model, validation_file)
-  print('Validating for POI value %s = %g' % (model.poi(0).name, data.poi))
+  poi_name = model.poi(0).name
+  print('Validating for POI value %s = %g' % (poi_name, data.poi_value))
   plt.ion()
-  nplots = model.nnps
+  
+  if options.nps is None :
+    nps = list(model.nps.keys())
+  else :
+    nps = options.nps.split(',')
+
+  nplots = len(nps)
   nc = math.ceil(math.sqrt(nplots))
   nr = math.ceil(nplots/nc)
 
   cont_x = np.linspace(data.points[0], data.points[-1], 100)
 
-  pars = model.expected_pars(data.poi)
-  channel_offset = model.channel_offsets[channel.name]
-  sample_index = model.sample_indices[sample.name]
-  nexp0 = model.n_exp(pars)[sample_index, channel_offset:channel_offset + channel.nbins()]
+  nexp0 = model.channel_n_exp(pars=model.expected_pars(data.poi_value), channel=channel.name, sample=sample.name)
   ax_vars = []
   ax_invs = []
 
+  sample_index = list(channel.samples.keys()).index(sample.name)
+
   def nexp_var(pars, par, x) :
-    return model.n_exp(pars.set(par, x))[sample_index, channel_offset:channel_offset + channel.nbins()]
+    return model.channel_n_exp(pars=pars.set(par, x), channel=channel.name, sample=sample.name)
 
   for b in bins :
     fig = plt.figure(figsize=(8, 8), dpi=96)
-    fig.suptitle('Linearity checks for sample %s, bin [%g, %g]'  % (sample.name, channel.bins[b]['lo_edge'], channel.bins[b]['hi_edge']))
+    if options.bins is not None :
+      fig.suptitle('Linearity checks for sample %s, bin [%g, %g]'  % (sample.name, channel.bins[b]['lo_edge'], channel.bins[b]['hi_edge']))
+    else :
+      fig.suptitle('Linearity checks for sample %s'  % sample.name)
     gs = gridspec.GridSpec(nrows=nr, ncols=nc, wspace=0.3, hspace=0.3, top=0.9, bottom=0.05, left=0.1, right=0.95)
-    for i, par in enumerate(model.nps.keys()) :
+    for i, par in enumerate(nps) :
       if options.inversion_plots :
         sgs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs[i//nc, i % nc], wspace=0.1, hspace=0.1)
       else :
         sgs = [ gs[i//nc, i % nc] ]
-      pars = model.expected_pars(data.poi)
+      pars = model.expected_pars(data.poi_value)
       model.use_linear_nps = True
       vars_lin = [ nexp_var(pars, par, x)[b]/nexp0[b] - 1 for x in cont_x ]
       rvar_lin = [ -((nexp_var(pars, par, x)[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
@@ -161,9 +171,9 @@ def run(argv = None) :
       ax_var = fig.add_subplot(sgs[0])
       ax_var.set_title(par)
       ax_var.plot(data.points, data.variations[channel.name][par][sample_index, b, :] - 1, 'ko')
-      ax_var.plot([0], [0], 's', marker='o', color='purple')
-      ax_var.plot(sample.pos_vars[par], sample.pos_imps[par][:,b], 's', marker='o', color='red')
-      ax_var.plot(sample.neg_vars[par], sample.neg_imps[par][:,b], 's', marker='o', color='red')
+      ax_var.plot([0], [0], marker='o', color='purple')
+      ax_var.plot(sample.pos_vars[par], sample.pos_imps[par][:,b], marker='o', color='red')
+      ax_var.plot(sample.neg_vars[par], sample.neg_imps[par][:,b], marker='o', color='red')
       ax_var.plot(cont_x, vars_lin, 'r--')
       ax_vars.append(ax_var)
       if not options.no_nli : ax_var.plot(cont_x, vars_nli, 'b')
@@ -174,7 +184,7 @@ def run(argv = None) :
         ax_inv.plot(cont_x, rvar_nli, 'b')
         if options.inv_range : ax_inv.set_ylim(-options.inv_range, 0)
         ax_invs.append(ax_inv)
-    fig.canvas.set_window_title('Linearity checks for sample %s, bin  %g' % (sample.name, b))
+    #fig.canvas.set_window_title('Linearity checks for sample %s, bin  %g' % (sample.name, b))
 
     if options.output_file != '' :
       if options.output_file is not None :
