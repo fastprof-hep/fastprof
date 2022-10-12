@@ -71,7 +71,7 @@ class POIHypo(Serializable) :
   def values(self) : return self.pars.values()
   def items(self)  : return self.pars.items()
 
-  def load_dict(self, sdict : dict) -> 'FitResult' :
+  def load_dict(self, sdict : dict) -> 'POIHypo' :
     """Loads the object data
 
     Args:
@@ -177,7 +177,7 @@ class FitResult(Serializable) :
 
   Attributes:
     name    (str)   : a name for the object
-    fitpars (dict)  : the best-fit parameters in { name: FitParameter } format
+    fitpars (dict)  : the best-fit parameters in { name: FitParameter } format (NPs in unscaled form).
     nll     (float) : the best-fit NLL value
     model   (Model) : the statistical model
   """
@@ -197,7 +197,7 @@ class FitResult(Serializable) :
     super().__init__()
     self.name = name
     self.fitpars = {}
-    if not fitpars is None and not model is None :
+    if fitpars is not None and model is not None :
       for name in model.pois : self.fitpars[name] = FitParameter(name, value=fitpars[name])
       for name in model.nps  : self.fitpars[name] = FitParameter(name, value=model.nps[name].unscaled_value(fitpars[name]))
     if hypo is not None :
