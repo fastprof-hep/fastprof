@@ -41,7 +41,7 @@ def make_parser() :
   parser.add_argument("-y", "--y-range"     , type=str  , default=None  , help="Y-axis range, in the form min,max")
   parser.add_argument("-l", "--log-scale"   , action='store_true'       , help="Use log scale for plotting")
   parser.add_argument("-b", "--bin-width"   , type=float, default=None  , help="Bin width to use for y-scale normalization")
-  parser.add_argument("-s", "--stack"       , action='store_true'       , help="Use log scale for plotting")
+  parser.add_argument("-s", "--stack"       , action='store_true'       , help="Show all samples in a stack")
   parser.add_argument(      "--profile"     , action='store_true'       , help="Perform a conditional fit for the provided POI value before plotting")
   parser.add_argument(      "--variations"  , type=str  , default=None  , help="Plot variations for parameters par1=val1[:color],par2=val2[:color]... or a single value for all parameters")
   parser.add_argument("-r", "--residuals"   , action='store_true'       , help="Show model - data residuals in an inset plot")
@@ -123,19 +123,19 @@ def run(argv = None) :
 
   plt.ion()
   if not options.residuals :
-    model.plot(pars, figsize=(width, height), data=data, labels=options.variations is None, channel_names=options.channel,
+    fig, axs = model.plot(pars, figsize=(width, height), data=data, labels=options.variations is None, channel_names=options.channel,
                stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
     if options.plot_without is not None or options.plot_alone is not None :
-      model.plot(pars, canvas=fig1, only=options.plot_alone, exclude=options.plot_without, labels=options.variations is None, channel_names=options.channel,
+      model.plot(pars, canvas=(fig, axs), only=options.plot_alone, exclude=options.plot_without, labels=options.variations is None, channel_names=options.channel,
                  stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
     if xmin is not None : plt.xlim(xmin, xmax)
     if ymin is not None : plt.ylim(ymin, ymax)
   else :
-    fig1, ax1 = plt.subplots(nrows=2, ncols=1, figsize=(width, height), dpi=96)
-    model.plot(pars, data=data, canvas=ax1[0], stack=options.stack, logy=options.log_scale, channel_names=options.channel, bin_width=options.bin_width)
-    if xmin is not None : ax1[0].set_xlim(xmin, xmax)
-    if ymin is not None : ax1[0].set_ylim(ymin, ymax)
-    model.plot(pars, data=data, canvas=ax1[1], residuals=options.residuals, labels=options.variations is None, channel_names=options.channel,
+    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(width, height), dpi=96)
+    model.plot(pars, data=data, canvas=(fig, axs[0]), stack=options.stack, logy=options.log_scale, channel_names=options.channel, bin_width=options.bin_width)
+    if xmin is not None : axs[0].set_xlim(xmin, xmax)
+    if ymin is not None : axs[0].set_ylim(ymin, ymax)
+    model.plot(pars, data=data, canvas=(fig, axs[1]), residuals=options.residuals, labels=options.variations is None, channel_names=options.channel,
                stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
   if options.output_file is not None : plt.savefig(options.output_file)
 
@@ -183,7 +183,7 @@ def run(argv = None) :
       if xmin is not None : ax.set_xlim(xmin, xmax)
       if ymin is not None : ax.set_ylim(ymin, ymax)
   elif variations is not None :
-    model.plot(pars, variations=variations, figsize=(width, height))
+    model.plot(pars, variations=variations, canvas=(fig,axs))
     if options.plot_without is not None or options.plot_alone is not None :
       model.plot(pars, variations=variations, only=options.plot_alone, exclude=options.plot_without)
     if options.log_scale : plt.yscale('log')
