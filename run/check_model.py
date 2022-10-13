@@ -1,1 +1,1 @@
-../utils/check_model.py
+../src/fastprof_utils/check_model.py

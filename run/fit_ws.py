@@ -1,1 +1,1 @@
-../root_import/fit_ws.py
+../src/fastprof_import/fit_ws.py
