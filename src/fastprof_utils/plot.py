@@ -145,7 +145,7 @@ def run(argv = None) :
   if options.variations is not None :
     # First try the comma-separated format
     try:
-      float(options.variations)
+      var_val = float(options.variations)
       variations = 'all'
     except :
       pass
@@ -176,9 +176,9 @@ def run(argv = None) :
     fig_nps, ax_nps = plt.subplots(nrows=n1, ncols=n2, figsize=(width, height), dpi=96)
     for i in range(len(model.nps), n1*n2) : fig_nps.delaxes(ax_nps.flatten()[i])
     for par, ax in zip(model.nps, ax_nps.flatten()) :
-      model.plot(pars, data=data, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=ax)
+      model.plot(pars, data=data, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=(fig_nps, ax))
       if options.plot_without is not None or options.plot_alone is not None :
-        model.plot(pars, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=ax, only=options.plot_alone, exclude=options.plot_without)
+        model.plot(pars, variations = [ (par, var_val, 'r'), (par, -var_val, 'g') ], canvas=(fig_nps, ax), only=options.plot_alone, exclude=options.plot_without)
       if options.log_scale : ax.set_yscale('log')
       if xmin is not None : ax.set_xlim(xmin, xmax)
       if ymin is not None : ax.set_ylim(ymin, ymax)
