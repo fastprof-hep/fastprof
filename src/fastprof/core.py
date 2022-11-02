@@ -605,6 +605,10 @@ class Model (Serializable) :
       else :
         return np.exp(np.log(1 + self.sym_impact_coeffs).dot(pars.nps))
 
+  def cut_k_exp(self, pars) :
+    k = self.k_exp(pars)
+    return k if self.cutoff == 0 else (1 + self.cutoff*np.tanh((k-1)/self.cutoff))
+
   def real_vals(self, pars) :
     """Returns a full dictionary of parameter values, including expressions
 
@@ -642,9 +646,7 @@ class Model (Serializable) :
     nnom = np.stack([ np.concatenate([ self.samples[(channel_name, s)].yields(real_vals) if s < len(channel.samples) else np.zeros(channel.nbins()) \
                       for channel_name, channel in self.channels.items()]) for s in range(0, self.max_nsamples) ])
     if self.verbosity > 3 : print(nnom)
-    k = self.k_exp(pars)
-    if self.cutoff == 0 : return nnom*k
-    return nnom*(1 + self.cutoff*np.tanh((k-1)/self.cutoff))
+    return nnom*self.cut_k_exp(pars)
 
   def channel_n_exp(self, pars : Parameters = None, nexp : np.array = None, channel : str = None, sample : str = None) -> np.array :
     if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
@@ -737,20 +739,17 @@ class Model (Serializable) :
       # where i runs over bins, s over samples, G^(a)_i is the `tot_grads` object,
       # N_i the nexp and n_i the observed counts.
       real_vals = self.real_vals(pars)
-      # rel_grads: shape = (n_samples, n_pois).
-      # This is the relative gradient on the norm only (norm_only=True, relative=True) since
-      # this can then be multiplied by self.n_exp(pars) to get the NP effects as well.
-      rel_grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals,
-                                                                                       norm_only=True, relative=True)
-                                              if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
-                                              for channel_name, channel in self.channels.items()])
-                             for s in range(0, self.max_nsamples) ])
-      nexps = self.n_exp(pars)                        # shape = (n_samples, n_bins)
-      grads = rel_grads[:, None, :]*nexps[:, :, None] # shape = (n_samples, n_bins, n_pois)
-      tot_nexps = np.sum(nexps, axis=0)               # shape = (n_bins)
-      tot_grads = np.sum(grads, axis=0)               # shape = (n_bins, n_pois)
-      tot_rel_grads = np.divide(tot_grads, tot_nexps[:, None], out=np.zeros_like(tot_grads), where=tot_nexps[:, None]!=0)
-      return np.sum(tot_grads - tot_rel_grads*data.counts[:, None], axis=0)
+      nexps = self.n_exp(pars) # shape = (n_samples, n_bins)
+      # grads: shape = (n_samples, n_pois).
+      # This is the gradient of the expected yields, modified with the NP effects
+      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
+                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
+                                          for channel_name, channel in self.channels.items()])
+                             for s in range(0, self.max_nsamples) ])*self.cut_k_exp(pars)[:, :, None]
+      ntots = np.sum(nexps, axis=0)  # shape = (n_bins)
+      gtots = np.sum(grads, axis=0)  # shape = (n_bins, n_pois)
+      gdivs = np.divide(gtots, ntots[:, None], out=np.zeros_like(gtots), where=ntots[:, None]!=0)
+      return np.sum(gtots - gdivs*data.counts[:, None], axis=0)
     except Exception as inst:
       print('Exception in gradient computation: ', Exception, inst)
       import traceback
@@ -775,31 +774,25 @@ class Model (Serializable) :
       # where i runs over bins, s over samples, G^(a)_i is the `tot_rel_grads` object,
       # H^(a,b)_i is the `tot_rel_hesse` object,  and n_i the observed counts.
       real_vals = self.real_vals(pars)
-      # grads: shape = (n_samples, n_pois)
-      # This is the relative gradient on the norm only (norm_only=True, relative=True) since
-      # this can then be multiplied by self.n_exp(pars) to get the NP effects as well.
-      rel_grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals,
-                                                                                   norm_only=True, relative=True)
+      nexps = self.n_exp(pars) # shape = (n_samples, n_bins)
+      # grads: shape = (n_samples, n_pois).
+      # This is the gradient of the expected yields, modified with the NP effects
+      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
-                         for s in range(0, self.max_nsamples) ])
+                             for s in range(0, self.max_nsamples) ])*self.cut_k_exp(pars)[:, :, None]
       # hesse: shape = (n_samples, n_pois, n_pois)
-      # This is the relative Hessian on the norm only (norm_only=True, relative=True) since
-      # this can then be multiplied by self.n_exp(pars) to get the NP effects as well.
-      rel_hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, self.reals, real_vals,
-                                                                                  norm_only=True, relative=True)
+      # This is the Hessian of the expected yields, modified with the NP effects
+      hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, self.reals, real_vals)
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
-                         for s in range(0, self.max_nsamples) ])
-      nexps = self.n_exp(pars)  # shape = (n_samples, n_bins)
-      grads = rel_grads[:, None, :]*nexps[:, :, None] # shape = (n_samples, n_bins, n_pois)
-      hesse = rel_hesse[:, None, :]*nexps[:, :, None] # shape = (n_samples, n_bins, n_pois, n_pois)
-      tot_nexps = np.sum(nexps, axis=0)               # shape = (n_bins)
-      tot_grads = np.sum(grads, axis=0)               # shape = (n_bins, n_pois)
-      tot_hesse = np.sum(hesse, axis=0)               # shape = (n_bins, n_pois, n_pois)
-      tot_rel_grads = np.divide(tot_grads, tot_nexps[:, None], out=np.zeros_like(tot_grads), where=tot_nexps[:, None]!=0)
-      tot_rel_hesse = np.divide(tot_hesse, tot_nexps[:, None, None], out=np.zeros_like(tot_hesse), where=tot_nexps[:, None, None]!=0)
-      return np.sum(tot_hesse - (tot_rel_hesse - tot_rel_grads[:, :, None]*tot_rel_grads[:, None, :])*data.counts[:, None, None], axis=0)
+                         for s in range(0, self.max_nsamples) ])*self.cut_k_exp(pars)[:, :, None, None]
+      ntots = np.sum(nexps, axis=0)  # shape = (n_bins)
+      gtots = np.sum(grads, axis=0)  # shape = (n_bins, n_pois)
+      htots = np.sum(hesse, axis=0)  # shape = (n_bins, n_pois, n_pois)
+      gdivs = np.divide(gtots, ntots[:, None]      , out=np.zeros_like(gtots), where=ntots[:, None]!=0)
+      hdivs = np.divide(htots, ntots[:, None, None], out=np.zeros_like(htots), where=ntots[:, None, None]!=0)
+      return np.sum(htots - (hdivs - gdivs[:, :, None]*gdivs[:, None, :])*data.counts[:, None, None], axis=0)
     except Exception as inst:
       print('Exception in Hessian computation: ', Exception, inst)
       import traceback
