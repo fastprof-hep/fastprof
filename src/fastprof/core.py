@@ -738,11 +738,9 @@ class Model (Serializable) :
                                           for channel_name, channel in self.channels.items()])
                          for s in range(0, self.max_nsamples) ])
       if np.any(np.isnan(grads)) : return None
-      gtot = grads.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois)
-      ntot = self.tot_bin_exp(pars) # shape = (n_bins)
-      # broadcast ntot and data.counts to match gtot, sum over bins
-      ratio = (data.counts/ntot)[:, None] if np.all(ntot != 0) else 0
-      return np.sum(gtot - gtot*ratio, axis=0)
+      nexps = self.n_exp(pars)[:, :, None]  # shape = (n_samples, n_bins, n_pois) after the broadcasting
+      rel_grads = np.divide(grads, nexps, out=np.zeros_like(grads), where=nexps!=0)  # shape = (n_samples, n_bins, n_pois)
+      return np.sum(grads - rel_grads*(data.counts[None, :, None]), axis=(0,1))
     except Exception as inst:
       print('Exception in gradient computation: ', Exception, inst)
       import traceback
@@ -773,18 +771,24 @@ class Model (Serializable) :
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
                          for s in range(0, self.max_nsamples) ])
-      gtot = grads.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois)
-      htot = hesse.sum(axis=0) # sum over n_samples: shape = (n_bins, n_pois, n_pois)
-      ntot = self.tot_bin_exp(pars) # shape = (n_bins)
-      # broadcast ntot and data.counts to match dtot, sum over bins
-      ratio = (data.counts/ntot)[:, None, None]
-      return np.sum(htot - htot*ratio + gtot[:, None, :]*gtot[:, :, None]*ratio/ntot[:, None, None], axis=0)
-    except:
+      nexpg = self.n_exp(pars)[:, :, None]  # shape = (n_samples, n_bins, n_pois) after the broadcasting
+      nexph = nexpg[:, :, :, None]          # shape = (n_samples, n_bins, n_pois, n_pois) after the broadcasting
+      rel_grads = np.divide(grads, nexpg, out=np.zeros_like(grads), where=nexpg!=0)  # shape = (n_samples, n_bins, n_pois)
+      rel_hesse = np.divide(hesse, nexph, out=np.zeros_like(hesse), where=nexph!=0)  # shape = (n_samples, n_bins, n_pois, n_pois)
+      return np.sum(hesse - (rel_grads[:, :, None, :]*rel_grads[:, :, :, None] - rel_hesse)*data.counts[None, :, None, None], axis=(0,1))
+    except Exception as inst:
+      print('Exception in Hessian computation: ', Exception, inst)
+      import traceback
+      print(traceback.format_exc())
       return None
 
   def covariance_matrix(self, pars : Parameters, data : 'Data') -> np.ndarray :
     hess = self.hessian(pars, data)
-    return np.linalg.inv(hess)
+    print('njpb_hess', hess)
+    try:
+      return np.linalg.inv(hess)
+    except np.linalg.LinAlgError :
+      return None
 
   def parabolic_errors(self, pars : Parameters = None, data : 'Data' = None, covmat : np.array = None) -> np.ndarray :
     cov = covmat if covmat is not None else self.covariance_matrix(pars, data)
