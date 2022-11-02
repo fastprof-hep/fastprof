@@ -256,7 +256,7 @@ For completeness, we start with an asymptotic computation using the command
 .. code-block:: console
 
   ./compute_fast_limits.py -m inputs/simple_counting.json \
-         -y nsig=0.5:nsig=1:nsig=1.5:nsig=2:nsig=2.5:nsig=3:nsig=3.5:nsig=4:nsig=5:nsig=6 \
+         -y "nsig=0.5|nsig=1|nsig=1.5|nsig=2|nsig=2.5|nsig=3|nsig=3.5|nsig=4|nsig=5|nsig=6" \
          -o simple_counting_asymptotics.json
 
 The command takes as input a list of hypotheses (`-y` or `--hypos` option) and an output file (`-o` option), and produces the following output::
@@ -284,7 +284,7 @@ The toys-based limit is run using the same command as above except for an additi
 .. code-block:: console
 
   python -i  ./compute_fast_limits.py -m inputs/simple_counting.json \
-         -y nsig=0.5:nsig=1:nsig=1.5:nsig=2:nsig=2.5:nsig=3:nsig=3.5:nsig=4:nsig=5:nsig=6 \  
+         -y "nsig=0.5|nsig=1|nsig=1.5|nsig=2|nsig=2.5|nsig=3|nsig=3.5|nsig=4|nsig=5|nsig=6" \
          -n 10000 -o simple_counting_toys -b 2
 
 The `-b 2` option specifies that the 1 and :math:`2\sigma` bands should be shown on the plots produced. After a few minutes of processing, the output should be as follows:::
@@ -329,7 +329,7 @@ Note that if the command is interrupted and restarted, the sampling distribution
 
   python -i  ./compute_fast_limits.py -m inputs/simple_counting.json \
          -d inputs/simple_counting_n1.json \
-         -y nsig=0.5:nsig=1:nsig=1.5:nsig=2:nsig=2.5:nsig=3:nsig=3.5:nsig=4:nsig=5:nsig=6 \
-         -n 10000 -o simple_counting_toys -b 2
+         -y "nsig=0.5|nsig=1|nsig=1.5|nsig=2|nsig=2.5|nsig=3|nsig=3.5|nsig=4|nsig=5|nsig=6" \
+         -n 10000 -o simple_counting_toys -b 2 -x
 
-should immediately return the toys-based limit (4 events).
+should immediately return the toys-based limit (4 events). Note the `-x` (or `--overwrite`) option which instructs the script to re-run the computation and overwrite the results from the previous run. If this is not passed, the script will by default simply read the results from the previous run instead of performing the full computation again.
