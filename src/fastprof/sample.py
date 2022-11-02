@@ -269,8 +269,13 @@ class Sample(Serializable) :
     """
     return self.normalization(real_vals)*self.nominal_yields
 
-  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes the overall normalization factor
+  def gradient(self, pois : dict, reals : dict, real_vals : dict, norm_only : bool = False, relative : bool = False) -> np.array :
+    """Computes the gradient of the sample yields. 
+    
+       If `norm_only` is true, only the normalization part is
+       returned -- i.e. this is not multiplied into the 
+       expected yields. If `relative` is true, then the result
+       is divided by the normalization for the same poi values.
 
       Args:
          pars_dict : a dictionary of parameter name: value pairs
@@ -278,10 +283,18 @@ class Sample(Serializable) :
          normalization factor value
     """
     norm_grad = self.norm.gradient(pois, reals, real_vals)
-    return self.nominal_yields[:,None]*norm_grad/self.nominal_norm if norm_grad is not None else None  
+    if norm_grad is None : return None
+    rel_factor = self.norm.value(real_vals) if relative else self.nominal_norm
+    norm_grad_rel = norm_grad/rel_factor if rel_factor != 0 else np.zeros_like(norm_grad)
+    return norm_grad_rel if norm_only else self.nominal_yields[:,None]*norm_grad_rel
 
-  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes the overall normalization factor
+  def hessian(self, pois : dict, reals : dict, real_vals : dict, norm_only : bool = False, relative : bool = False) -> np.array :
+    """Computes the Hessian of the sample yields
+
+       If `norm_only` is true, only the normalization part is
+       returned -- i.e. this is not multiplied into the 
+       expected yields. If `relative` is true, then the result
+       is divided by the normalization for the same poi values.
 
       Args:
          pars_dict : a dictionary of parameter name: value pairs
@@ -289,7 +302,10 @@ class Sample(Serializable) :
          normalization factor value
     """
     norm_hess = self.norm.hessian(pois, reals, real_vals)
-    return self.nominal_yields[:,None,None]*norm_hess/self.nominal_norm if norm_hess is not None else None
+    if norm_hess is None : return None
+    rel_factor = self.norm.value(real_vals) if relative else self.nominal_norm
+    norm_hess_rel = norm_hess/rel_factor if rel_factor != 0 else np.zeros_like(norm_hess)
+    return norm_hess_rel if norm_only else self.nominal_yields[:, None, None]*norm_hess_rel
 
   def __str__(self) -> str :
     """Provides a description string
