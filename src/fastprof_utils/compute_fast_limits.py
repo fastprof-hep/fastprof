@@ -63,7 +63,7 @@ def make_parser() :
   parser = ArgumentParser("compute_limits_fast.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of markup file defining model")
-  parser.add_argument("-y", "--hypos"         , type=str  , required=True , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
+  parser.add_argument("-y", "--hypos"         , type=str  , required=True , help="List of POI hypothesis values (poi1=val1,poi2=val2|...)")
   parser.add_argument("-n", "--ntoys"         , type=int  , default=0     , help="Number of pseudo-datasets to produce")
   parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="Seed to use for random number generation")
   parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Confidence level at which to compute the limit")
@@ -77,6 +77,7 @@ def make_parser() :
   parser.add_argument(      "--bounds"        , type=str  , default=None  , help="Parameter bounds in the form name1=[min]#[max],name2=[min]#[max],...")
   parser.add_argument("-t", "--test-statistic", type=str  , default='q~mu', help="Test statistic to use")
   parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
+  parser.add_argument("-x", "--overwrite"     , action='store_true'       , help="Allow overwriting output file")
   parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
   parser.add_argument("-b", "--bands"         , type=int  , default=None  , help="Number of bands to show")
   parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
@@ -107,7 +108,7 @@ def run(argv = None) :
     hypos = [ POIHypo(setval_dict) for setval_dict in process_setval_list(options.hypos, model) ]
   except Exception as inst :
     print(inst)
-    raise ValueError("Could not parse list of hypothesis values '%s' : expected colon-separated list of variable assignments" % options.hypos)
+    raise ValueError("Could not parse list of hypothesis values '%s' : expected |-separated list of variable assignments" % options.hypos)
 
   if options.data_file :
     data = Data(model).load(options.data_file)
@@ -161,6 +162,10 @@ def run(argv = None) :
     do_computation = False
   except FileNotFoundError :
     pass
+
+  if not do_computation and options.overwrite :
+    print("INFO: will recompute results and overwrite output file '%s' as requested." % raster_file)
+    do_computation = True
 
   if options.show_timing : comp_start_time = time.time()
 
