@@ -731,16 +731,26 @@ class Model (Serializable) :
          Values of the derivatives of the negative log-likelihood wrt the POIs.
     """
     try :
+      # The NLL is a sum of Poisson terms, each one with an nexp given by a sum over samples
+      # This means we can get the gradient using the formula
+      # dNLL/dmu_a = sum_i (G^(a)_i - n_i G^(a)_i)
+      # where i runs over bins, s over samples, G^(a)_i is the `tot_grads` object,
+      # N_i the nexp and n_i the observed counts.
       real_vals = self.real_vals(pars)
-      # grads is an array of shape (n_samples, n_bins, n_pois)
-      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
-                                          if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
-                                          for channel_name, channel in self.channels.items()])
-                         for s in range(0, self.max_nsamples) ])
-      if np.any(np.isnan(grads)) : return None
-      nexps = self.n_exp(pars)[:, :, None]  # shape = (n_samples, n_bins, n_pois) after the broadcasting
-      rel_grads = np.divide(grads, nexps, out=np.zeros_like(grads), where=nexps!=0)  # shape = (n_samples, n_bins, n_pois)
-      return np.sum(grads - rel_grads*(data.counts[None, :, None]), axis=(0,1))
+      # rel_grads: shape = (n_samples, n_pois).
+      # This is the relative gradient on the norm only (norm_only=True, relative=True) since
+      # this can then be multiplied by self.n_exp(pars) to get the NP effects as well.
+      rel_grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals,
+                                                                                       norm_only=True, relative=True)
+                                              if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
+                                              for channel_name, channel in self.channels.items()])
+                             for s in range(0, self.max_nsamples) ])
+      nexps = self.n_exp(pars)                        # shape = (n_samples, n_bins)
+      grads = rel_grads[:, None, :]*nexps[:, :, None] # shape = (n_samples, n_bins, n_pois)
+      tot_nexps = np.sum(nexps, axis=0)               # shape = (n_bins)
+      tot_grads = np.sum(grads, axis=0)               # shape = (n_bins, n_pois)
+      tot_rel_grads = np.divide(tot_grads, tot_nexps[:, None], out=np.zeros_like(tot_grads), where=tot_nexps[:, None]!=0)
+      return np.sum(tot_grads - tot_rel_grads*data.counts[:, None], axis=0)
     except Exception as inst:
       print('Exception in gradient computation: ', Exception, inst)
       import traceback
@@ -751,7 +761,6 @@ class Model (Serializable) :
     """Returns the Hessian matrix of the negative log-likelihood wrt the POIs
 
       Output format: 2D np.ndarray of size `npois` x `npois`.
-      TODO : update to the new POI scheme, code below is obsolete
 
       Args:
          pars : parameter values at which to compute the likelihood
@@ -760,22 +769,37 @@ class Model (Serializable) :
          Hessian matrix of the negative log-likelihood wrt the POIs.
     """
     try :
+      # The NLL is a sum of Poisson terms, each one with an nexp given by a sum over samples
+      # This means we can get the Hessian using the formula
+      # dNLL/(dmu_a dmu_b) = sum_i ( H^(a,b)_i - n_i*( H^(a,b)_i - G^(a)_i*G^(a)_i ))
+      # where i runs over bins, s over samples, G^(a)_i is the `tot_rel_grads` object,
+      # H^(a,b)_i is the `tot_rel_hesse` object,  and n_i the observed counts.
       real_vals = self.real_vals(pars)
-      # grads is an array of shape (n_samples, n_bins, n_pois)
-      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
+      # grads: shape = (n_samples, n_pois)
+      # This is the relative gradient on the norm only (norm_only=True, relative=True) since
+      # this can then be multiplied by self.n_exp(pars) to get the NP effects as well.
+      rel_grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals,
+                                                                                   norm_only=True, relative=True)
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
                          for s in range(0, self.max_nsamples) ])
-      # hesse is an array of shape (n_samples, n_bins, n_pois, n_pois)
-      hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, self.reals, real_vals)
+      # hesse: shape = (n_samples, n_pois, n_pois)
+      # This is the relative Hessian on the norm only (norm_only=True, relative=True) since
+      # this can then be multiplied by self.n_exp(pars) to get the NP effects as well.
+      rel_hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, self.reals, real_vals,
+                                                                                  norm_only=True, relative=True)
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
                          for s in range(0, self.max_nsamples) ])
-      nexpg = self.n_exp(pars)[:, :, None]  # shape = (n_samples, n_bins, n_pois) after the broadcasting
-      nexph = nexpg[:, :, :, None]          # shape = (n_samples, n_bins, n_pois, n_pois) after the broadcasting
-      rel_grads = np.divide(grads, nexpg, out=np.zeros_like(grads), where=nexpg!=0)  # shape = (n_samples, n_bins, n_pois)
-      rel_hesse = np.divide(hesse, nexph, out=np.zeros_like(hesse), where=nexph!=0)  # shape = (n_samples, n_bins, n_pois, n_pois)
-      return np.sum(hesse - (rel_grads[:, :, None, :]*rel_grads[:, :, :, None] - rel_hesse)*data.counts[None, :, None, None], axis=(0,1))
+      nexps = self.n_exp(pars)  # shape = (n_samples, n_bins)
+      grads = rel_grads[:, None, :]*nexps[:, :, None] # shape = (n_samples, n_bins, n_pois)
+      hesse = rel_hesse[:, None, :]*nexps[:, :, None] # shape = (n_samples, n_bins, n_pois, n_pois)
+      tot_nexps = np.sum(nexps, axis=0)               # shape = (n_bins)
+      tot_grads = np.sum(grads, axis=0)               # shape = (n_bins, n_pois)
+      tot_hesse = np.sum(hesse, axis=0)               # shape = (n_bins, n_pois, n_pois)
+      tot_rel_grads = np.divide(tot_grads, tot_nexps[:, None], out=np.zeros_like(tot_grads), where=tot_nexps[:, None]!=0)
+      tot_rel_hesse = np.divide(tot_hesse, tot_nexps[:, None, None], out=np.zeros_like(tot_hesse), where=tot_nexps[:, None, None]!=0)
+      return np.sum(tot_hesse - (tot_rel_hesse - tot_rel_grads[:, :, None]*tot_rel_grads[:, None, :])*data.counts[:, None, None], axis=0)
     except Exception as inst:
       print('Exception in Hessian computation: ', Exception, inst)
       import traceback
@@ -784,7 +808,6 @@ class Model (Serializable) :
 
   def covariance_matrix(self, pars : Parameters, data : 'Data') -> np.ndarray :
     hess = self.hessian(pars, data)
-    print('njpb_hess', hess)
     try:
       return np.linalg.inv(hess)
     except np.linalg.LinAlgError :
