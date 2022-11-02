@@ -185,7 +185,7 @@ def run(argv = None) :
   elif variations is not None :
     model.plot(pars, variations=variations, canvas=(fig,axs))
     if options.plot_without is not None or options.plot_alone is not None :
-      model.plot(pars, variations=variations, only=options.plot_alone, exclude=options.plot_without)
+      model.plot(pars, variations=variations, only=options.plot_alone, exclude=options.plot_without, canvas=(fig,axs))
     if options.log_scale : plt.yscale('log')
     if options.output_file is not None :
       split_name = os.path.splitext(options.output_file)
