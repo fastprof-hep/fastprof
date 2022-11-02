@@ -6,26 +6,31 @@ default:
     - python3 -V
     - source ./setup.sh
 
+fit_covmat:
+  script:
+    - testing/fit_covmat/run.sh > out.log
+    - testing/fit_covmat/diff.sh out.log testing/fit_covmat/ref.log
+
 single_bin_limit:
-  script:       
+  script:
     - testing/single_bin_limit/run.sh > out.log
     - testing/single_bin_limit/diff.sh out.log testing/single_bin_limit/ref.log
-    
+
 multi_channel_limit:
   script:
     - testing/multi_channel_limit/run.sh > out.log
     - testing/multi_channel_limit/diff.sh out.log testing/multi_channel_limit/ref.log
-    
+
 poi_scan_1d:
   script:
     - testing/poi_scan_1d/run.sh > out.log
     - testing/poi_scan_1d/diff.sh out.log testing/poi_scan_1d/ref.log
-    
+
 poi_scan_2d:
   script:
     - testing/poi_scan_2d/run.sh > out.log
     - testing/poi_scan_2d/diff.sh out.log testing/poi_scan_2d/ref.log
-    
+
 poi_scan_timing:
   script:
     - testing/poi_scan_timing/run.sh > out.log
