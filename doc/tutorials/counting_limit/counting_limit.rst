@@ -91,7 +91,7 @@ The options are as follows:
 
 * `-o` (`--output-name`) specifies the name of the output graphics file.
 
-The command You should see the following 
+The command should produce the image below: 
 
 .. image:: outputs/simple_counting.png
     :width:  70%
