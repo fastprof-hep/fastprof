@@ -103,27 +103,32 @@ def run(argv = None) :
     output_data = {}
     output_data['min_nll'] = min_nll
     output_data['min_pars'] = min_pars.dict()
-  covariance = model.covariance_matrix(min_pars, data)
-  errors = model.parabolic_errors(covmat=covariance)
-  correlation = model.correlation_matrix(covmat=covariance)
-  print('\n== POI values :')
-  for par in model.pois.keys() :
-    print('%-20s = %10g +/- %10g' % (par, min_pars[par], errors[par]))
+  try:
+    covariance = model.covariance_matrix(min_pars, data)
+    errors = model.parabolic_errors(covmat=covariance)
+    correlation = model.correlation_matrix(covmat=covariance)
+    print('\n== POI values :')
+    for par in model.pois.keys() :
+      print('%-20s = %10g +/- %10g' % (par, min_pars[par], errors[par]))
+      if options.output_file is not None :
+        output_data[par] = {}
+        output_data[par]['best_fit_value'] = min_pars[par]
+        output_data[par]['uncertainty'] = errors[par]
+    print('\n== Correlation matrix [%s]:' % ' '.join(model.pois.keys()))
+    print(correlation)
     if options.output_file is not None :
-      output_data[par] = {}
-      output_data[par]['best_fit_value'] = min_pars[par]
-      output_data[par]['uncertainty'] = errors[par]
-  print('\n== Correlation matrix [%s]:' % ' '.join(model.pois.keys()))
-  print(correlation)
-  if options.output_file is not None :
-    output_data['correlation_matrix'] = correlation.tolist()
-    plotter = PlotResults(min_pars, data)
-    plotter.plot_best_fit(sym_errors=errors)
-    plt.savefig('%s_results.png' % options.output_file)
-    plotter.plot_covariance()
-    plt.savefig('%s_covariance.png' % options.output_file)
-    plotter.plot_correlation()
-    plt.savefig('%s_correlation.png' % options.output_file)
+      output_data['correlation_matrix'] = correlation.tolist()
+      plotter = PlotResults(min_pars, data)
+      plotter.plot_best_fit(sym_errors=errors)
+      plt.savefig('%s_results.png' % options.output_file)
+      plotter.plot_covariance()
+      plt.savefig('%s_covariance.png' % options.output_file)
+      plotter.plot_correlation()
+      plt.savefig('%s_correlation.png' % options.output_file)
+  except Exception as inst :
+    print('(No covariance information available in optimizer result)')
+    print(opti.result)
+    print(inst)
   #try :
     #covariance = opti.result.hess_inv.todense()
     #errors = np.sqrt(np.diag(covariance))
@@ -138,10 +143,6 @@ def run(argv = None) :
         #output_data[p]['uncertainty'] = errors[i]
     #print('\n== Correlation matrix [%s]:' % ' '.join(model.pois.keys()))
     #print(correlation)
-  #except Exception as inst :
-    #print('(No covariance information available in optimizer result)')
-    #print(opti.result)
-    #print(inst)
   if options.hypo is not None :
     tmu = opti.tmu(hypo_vals, data)
     print('\n== Profile-likelihood ratio tmu = %g for hypothesis' % tmu, hypo_vals)
