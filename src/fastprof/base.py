@@ -468,10 +468,11 @@ class ModelNP(Serializable) :
     self.name = self.load_field('name', sdict, '', str)
     self.unit = self.load_field('unit', sdict, '', str)
     self.nominal_value = self.load_field('nominal_value', sdict, 0, [int, float])
-    self.variation = self.load_field('variation', sdict, 1, [int, float])
+    self.variation = self.load_field('variation', sdict, None, [int, float])
     self.constraint = self.load_field('constraint', sdict, None)
+    if self.variation is None :
+      self.variation = self.constraint if self.constraint is not None else 1
     if self.constraint is not None :
-      if self.variation is None : self.variation = float(self.constraint)
       self.aux_obs = self.load_field('aux_obs', sdict, None, str)
     else :
       self.aux_obs = None
