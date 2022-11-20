@@ -23,7 +23,7 @@ def process_setvals(setvals, ws = None, model = None, init_pars = None) :
         print('Setting %s = %g' % (var, float(val)))
       else :
         save_val = None
-      output.append((var, float(val), save_val))
+      output.append((ws.var(var), float(val), save_val))
   except Exception as inst :
     print(inst)
     raise ValueError("ERROR : invalid variable assignment string '%s'." % setvals)
