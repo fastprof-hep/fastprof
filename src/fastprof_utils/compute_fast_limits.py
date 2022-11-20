@@ -127,7 +127,7 @@ def run(argv = None) :
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
     print('Using dataset stored in file %s.' % options.model_file)
 
-  gen_bounds = []
+  par_bounds = []
   if options.bounds :
     bound_specs = options.bounds.split(',')
     try :
@@ -135,9 +135,9 @@ def run(argv = None) :
         var_range = spec.split('=')
         range_spec = var_range[1].split(':')
         if len(range_spec) == 2 :
-          gen_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
+          par_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
         elif len(range_spec) == 1 :
-          gen_bounds.append(ParBound(var_range[0], float(range_spec[0]), float(range_spec[0]))) # case of fixed parameter
+          par_bounds.append(ParBound(var_range[0], float(range_spec[0]), float(range_spec[0]))) # case of fixed parameter
     except Exception as inst:
       print(inst)
       raise ValueError('Could not parse parameter bound specification "%s", expected in the form name1=[min]#[max],name2=[min]#[max],...' % options.bounds)
@@ -150,6 +150,11 @@ def run(argv = None) :
     calc = QMuCalculator(OptiMinimizer(verbosity=options.verbosity), verbosity=options.verbosity)
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
+  
+  calc.minimizer.set_pois(model)
+  for bound in par_bounds :
+    print('Overriding bound %s by user-provided %s' % (str(calc.minimizer.bounds[bound.par]), str(bound)))
+  calc.minimizer.set_pois(model, bounds=par_bounds)
 
   # Check the fastprof CLs against the ones in the reference: in principle this should match well,
   # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
@@ -189,9 +194,7 @@ def run(argv = None) :
     samplers_cl_b = []
     
     # Disabling optimization actually speeds up processing in some cases (small matrices ?)
-    # NPMinimizer.optimize_einsum = False
-    
-    calc.minimizer.set_pois(model)
+    # NPMinimizer.optimize_einsum = False    
     print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(calc.minimizer.init_pois.dict(pois_only=True)), str(calc.minimizer.bounds), niter))
   
     for fast_plr_data in faster.plr_data.values() :
@@ -199,8 +202,8 @@ def run(argv = None) :
       gen_hypo = fast_plr_data.full_hypo
       tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
       gen0_hypo = gen_hypo.clone().set(model.poi(0).name, 0)
-      clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
-      cl_b = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo)
+      clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=par_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
+      cl_b = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=par_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo)
       samplers_clsb.append(clsb)
       samplers_cl_b.append(cl_b)
   
