@@ -422,11 +422,9 @@ class ParBound :
       a description string
     """
     if self.is_fixed() : return 'fixed at %g' % self.min_value
-    smin = '%s >= %g' % (self.par, self.min_value) if self.min_value != None else ''
-    smax = '%s <= %g' % (self.par, self.max_value) if self.max_value != None else ''
-    if smin == '' : return smax
-    if smax == '' : return smin
-    return smin + ' and ' + smax
+    if self.max_value is not None and self.min_value is None : return '%s <= %g' % (self.par, self.max_value)
+    if self.min_value is not None and self.max_value is None: return '%s >= %g' % (self.par, self.min_value)
+    return '%g <= %s <= %g' % (self.min_value, self.par, self.max_value)
 
   def __repr__(self) -> str:
     """Provides a description string for the object
