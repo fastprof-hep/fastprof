@@ -83,10 +83,10 @@ def run(argv = None) :
 
   if options.test_statistic == 'q~mu' :
     if len(raster.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-    calc = QMuTildaCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model))
+    calc = QMuTildaCalculator(OptiMinimizer(niter=options.iterations).set_pois(model))
   elif options.test_statistic == 'q_mu' :
     if len(raster.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
-    calc = QMuCalculator(OptiMinimizer(niter=options.iterations).set_pois_from_model(model))
+    calc = QMuCalculator(OptiMinimizer(niter=options.iterations).set_pois(model))
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
   calc.fill_all_pv(raster)
