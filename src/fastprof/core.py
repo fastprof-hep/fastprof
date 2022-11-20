@@ -853,7 +853,7 @@ class Model (Serializable) :
 
   def plot(self, pars : Parameters, data : 'Data' = None, channel_names : str = None, only : list = None, exclude : list = None,
            variations : list = None, residuals : bool = False, canvas : tuple = (None, None), labels : bool = True, stack : bool = False, figsize=(8,6),
-           bin_width : float = None, logy : bool = False) :
+           bin_width : float = None, logy : bool = False, legend : bool = True) :
     """Plot the expected event yields and optionally data as well
 
       The plot is performed for a single model, which must be of `binned_range` type.
@@ -882,13 +882,13 @@ class Model (Serializable) :
       nrows = int(math.sqrt(nchan))
       ncols = int(nchan/nrows + 0.5)
       if canvas == (None, None) : 
-        fig, axs = plt.subplots(nrows, ncols, figsize=figsize)
+        fig, axs = plt.subplots(nrows, ncols, figsize=figsize, dpi=100, constrained_layout=True)
       else :
         fig, axs = canvas
       if not isinstance(axs, list) : axs = np.array([ axs ])
       for ax in axs.flatten()[nchan:] : ax.set_visible(False)
       for channel, ax in zip(channel_names, axs.flatten()[:nchan]) :
-        self.plot(pars=pars, data=data, channel_names=channel, only=only, exclude=exclude, variations=variations, residuals=residuals, canvas=(fig, ax), labels=labels, stack=stack, bin_width=bin_width, logy=logy)
+        self.plot(pars=pars, data=data, channel_names=channel, only=only, exclude=exclude, variations=variations, residuals=residuals, canvas=(fig, ax), labels=labels, stack=stack, bin_width=bin_width, logy=logy, legend=legend)
       fig.tight_layout()
       return fig, axs
     if not channel_names in self.channels : raise KeyError('ERROR: Channel %s is not defined.' % channel_names)
@@ -903,8 +903,7 @@ class Model (Serializable) :
     else :
       raise ValueError("Channel '%s' is of an unsupported type" % channel.name)
     if canvas == (None, None) : 
-      fig = plt.figure(figsize=figsize)
-      axs = plt.axes()
+      fig, axs = plt.subplots(figsize=figsize, dpi=100, constrained_layout=True)
     else :
       fig, axs = canvas
     if logy: axs.set_yscale('log')
@@ -968,7 +967,7 @@ class Model (Serializable) :
         tot_exp = nexp.sum(axis=0) - subtract
         if isinstance(channel, BinnedRangeChannel) and bin_width is not None : tot_exp *= bin_corrs
         axs.hist(xvals, weights=tot_exp, bins=grid, histtype='step',color=col, linestyle=line_style, label='%s=%+g' %(v[0], v[1]) if labels else None)
-    if labels : axs.legend().set_zorder(100)
+    if legend and labels : axs.legend().set_zorder(100)
     axs.set_title(channel.name)
     if isinstance(channel, BinnedRangeChannel) :
       axs.set_xlabel(channel.obs_name + ((' ['  + channel.obs_unit + ']') if channel.obs_unit != '' else ''))
