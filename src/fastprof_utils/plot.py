@@ -31,7 +31,7 @@ def make_parser() :
   parser = ArgumentParser("plot.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"  , type=str  , required=True , help="Name of markup file defining model")
-  parser.add_argument("-c", "--channel"     , type=str  , default=None  , help="Name of selected channel (default: first one in the model)")
+  parser.add_argument("-c", "--channel"     , type=str  , default=None  , help="Name of selected channel(s) (default: first one in the model)")
   parser.add_argument("-i", "--plot-alone"  , type=str  , default=None  , help="Name of samples to plot by itself in a second (dashed) model line")
   parser.add_argument("-e", "--plot-without", type=str  , default=None  , help="Name of samples to exclude in a second (dashed) model line")
   parser.add_argument("-p", "--setval"      , type=str  , default=None  , help="Parameter values, in the form par1=val1,par2=val2,...")
@@ -43,10 +43,12 @@ def make_parser() :
   parser.add_argument("-b", "--bin-width"   , type=float, default=None  , help="Bin width to use for y-scale normalization")
   parser.add_argument("-s", "--stack"       , action='store_true'       , help="Show all samples in a stack")
   parser.add_argument(      "--profile"     , action='store_true'       , help="Perform a conditional fit for the provided POI value before plotting")
+  parser.add_argument(      "--no-legend"   , action='store_true'       , help="If specified, omit legend")
   parser.add_argument(      "--variations"  , type=str  , default=None  , help="Plot variations for parameters par1=val1[:color],par2=val2[:color]... or a single value for all parameters")
   parser.add_argument("-r", "--residuals"   , action='store_true'       , help="Show model - data residuals in an inset plot")
   parser.add_argument("-o", "--output-file" , type=str  , default=None  , help="Output file name")
   parser.add_argument("-w", "--window"      , type=str  , default="8x8" , help="Window size (format: (width)x(height) )")
+  parser.add_argument("-t", "--style"       , type=str  , default=None  , help="List of styles to apply (comma-separated)")
   parser.add_argument("-v", "--verbosity"   , type=int  , default=0     , help="Verbosity level")
   return parser
 
@@ -57,9 +59,12 @@ def run(argv = None) :
     parser.print_help()
     return
 
+  if options.style is not None : plt.style.use(options.style.split(','))
   model = Model.create(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  if options.channel is not None and not options.channel in model.channels : raise KeyError('Channel %s not found in model.' % options.channel)
+  channels = options.channel.split(',') if options.channel is not None else None
+  for channel in channels :
+    if channel not in model.channels : raise KeyError("Channel '%s' not found in model. Defined channels are: %s." % (channel, ', '.join(model.channels.keys())))
 
   if options.data_file is not None :
     data = Data(model).load(options.data_file)
@@ -92,7 +97,7 @@ def run(argv = None) :
       print('Minimum: nll = %g @ parameter values : %s' % (mini.min_nll, mini.min_pars))
       pars = mini.min_pars
   elif data is not None and options.profile :
-    mini = OptiMinimizer().set_pois_from_model(model)
+    mini = OptiMinimizer().set_pois(model)
     mini.minimize(data)
     pars = mini.min_pars
   else :
@@ -121,22 +126,20 @@ def run(argv = None) :
       print(inst)
       raise ValueError('Invalid Y-axis range specification %s, expected y_min,y_max' % options.y_range)
 
-  plt.ion()
   if not options.residuals :
-    fig, axs = model.plot(pars, figsize=(width, height), data=data, labels=options.variations is None, channel_names=options.channel,
-               stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
+    fig, axs = model.plot(pars, figsize=(width, height), data=data, labels=options.variations is None, channel_names=channels,
+               stack=options.stack, logy=options.log_scale, bin_width=options.bin_width, legend=not options.no_legend)
     if options.plot_without is not None or options.plot_alone is not None :
-      model.plot(pars, canvas=(fig, axs), only=options.plot_alone, exclude=options.plot_without, labels=options.variations is None, channel_names=options.channel,
-                 stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
+      model.plot(pars, canvas=(fig, axs), only=options.plot_alone, exclude=options.plot_without, labels=options.variations is None, channel_names=channels, stack=options.stack, logy=options.log_scale, bin_width=options.bin_width, legend=not options.no_legend)
     if xmin is not None : plt.xlim(xmin, xmax)
     if ymin is not None : plt.ylim(ymin, ymax)
   else :
-    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(width, height), dpi=96)
-    model.plot(pars, data=data, canvas=(fig, axs[0]), stack=options.stack, logy=options.log_scale, channel_names=options.channel, bin_width=options.bin_width)
+    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(width, height), dpi=600)
+    model.plot(pars, data=data, canvas=(fig, axs[0]), stack=options.stack, logy=options.log_scale, channel_names=channels, bin_width=options.bin_width, legend=not options.no_legend)
     if xmin is not None : axs[0].set_xlim(xmin, xmax)
     if ymin is not None : axs[0].set_ylim(ymin, ymax)
-    model.plot(pars, data=data, canvas=(fig, axs[1]), residuals=options.residuals, labels=options.variations is None, channel_names=options.channel,
-               stack=options.stack, logy=options.log_scale, bin_width=options.bin_width)
+    model.plot(pars, data=data, canvas=(fig, axs[1]), residuals=options.residuals, labels=options.variations is None, channel_names=channels,
+               stack=options.stack, logy=options.log_scale, bin_width=options.bin_width, legend=not options.no_legend)
   if options.output_file is not None : plt.savefig(options.output_file)
 
   variations = None
@@ -182,6 +185,16 @@ def run(argv = None) :
       if options.log_scale : ax.set_yscale('log')
       if xmin is not None : ax.set_xlim(xmin, xmax)
       if ymin is not None : ax.set_ylim(ymin, ymax)
+  #if variations == 'all' :
+    #all_variations = []
+    #for par in model.nps : all_variations.extend( [ (par, var_val, 'r'), (par, -var_val, 'g') ] )
+    #model.plot(pars, variations=all_variations, canvas=(fig,axs))
+    #if options.plot_without is not None or options.plot_alone is not None :
+      #model.plot(pars, variations=all_variations, only=options.plot_alone, exclude=options.plot_without, canvas=(fig,axs))
+    #if options.log_scale : plt.yscale('log')
+    #if options.output_file is not None :
+      #split_name = os.path.splitext(options.output_file)
+      #plt.savefig(split_name[0] + '_all_variations' + split_name[1])
   elif variations is not None :
     model.plot(pars, variations=variations, canvas=(fig,axs))
     if options.plot_without is not None or options.plot_alone is not None :
