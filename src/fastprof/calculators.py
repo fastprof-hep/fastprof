@@ -284,8 +284,8 @@ class TMuCalculator(TestStatisticCalculator) :
       full_hypo = full_hypos[hypo] if hypo in full_hypos else None
       plr_data = PLRData(name, hypo, full_hypo=full_hypo, model=data.model)
       hypo_minimizer = self.minimizer.clone()
-      self.minimizer.set_pois(data.model, init_pars=full_hypo, bounds=self.minimizer.bounds, hypo=hypo.pars, fix_hypo=False)
-      hypo_minimizer.set_pois(data.model, init_pars=full_hypo, bounds=self.minimizer.bounds, hypo=hypo.pars, fix_hypo=True)
+      self.minimizer.set_pois(data.model, init_pars=full_hypo, hypo=hypo.pars, fix_hypo=False)
+      hypo_minimizer.set_pois(data.model, init_pars=full_hypo, bounds=self.minimizer.bounds.values(), hypo=hypo.pars, fix_hypo=True)
       # Hypo fit
       if hypo_minimizer.minimize(data) is None : return None
       fixed_pars[hypo] = hypo_minimizer.min_pars
@@ -304,7 +304,7 @@ class TMuCalculator(TestStatisticCalculator) :
       else :
         start_time = timer()
         if self.verbosity >= 1 : print('Performing global free-POI fit at hypothesis %s' % best_fixed[0])
-        self.minimizer.set_pois(data.model, bounds=self.minimizer.bounds, hypo=best_fixed[0])
+        self.minimizer.set_pois(data.model, bounds=self.minimizer.bounds.values(), hypo=best_fixed[0])
         if self.minimizer.minimize(data) is None : return None
         if self.verbosity >= 1 : print('Performed free-POI fit in %g s' % (timer() - start_time))
         common_free_fit = FitResult('free_fit', self.minimizer.min_pars, self.minimizer.min_nll, model=data.model)

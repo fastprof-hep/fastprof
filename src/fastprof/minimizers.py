@@ -376,8 +376,8 @@ class POIMinimizer :
     """
     if isinstance(init_hypo, (int, float)) : init_hypo = Parameters(init_hypo, model=data.model)
     hypo_minimizer = self.clone()
+    self.set_pois(data.model, init_pars=init_hypo, hypo=hypo, fix_hypo=False)
     hypo_minimizer.set_pois(data.model, init_pars=init_hypo, bounds=self.bounds.values(), hypo=hypo, fix_hypo=True)
-    self.set_pois(data.model, init_pars=init_hypo, bounds=self.bounds.values(), hypo=hypo, fix_hypo=False)
     # Hypo fit
     if hypo_minimizer.minimize(data) is None : return None
     self.hypo_nll = hypo_minimizer.min_nll
@@ -447,7 +447,7 @@ class ScanMinimizer (POIMinimizer) :
          best-fit parameters
     """
     if init_pars is not None or self.init_pois is None or self.bounds is None :
-      self.set_pois(data.model, init_pars, bounds=self.bounds.values())
+      self.set_pois(data.model, init_pars)
     self.nlls = np.zeros(self.scan_pois.size)
     for i in range(0, len(self.scan_pois)) :
       scan_hypo = init_hypo.clone().set_poi(self.scan_pois[i])
@@ -540,7 +540,7 @@ class OptiMinimizer (POIMinimizer) :
          best-fit parameters
     """
     if init_pars is not None or self.init_pois is None or self.bounds is None :
-      self.set_pois(data.model, init_pars, bounds=self.bounds.values())
+      self.set_pois(data.model, init_pars)
     current_hypo = self.init_pois.clone()
     free_indices = [ i for i, bound in enumerate(self.bounds.values()) if bound.is_free() ]
     x0     = [ self.init_pois[bound.par] for bound in self.bounds.values() if bound.is_free() ]
