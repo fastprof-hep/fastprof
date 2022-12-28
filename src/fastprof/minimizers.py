@@ -376,7 +376,7 @@ class POIMinimizer :
     """
     if isinstance(init_hypo, (int, float)) : init_hypo = Parameters(init_hypo, model=data.model)
     hypo_min = self.clone()
-    self.set_pois    (data.model, init_pars=init_hypo, bounds=self.bounds.values(), hypo=hypo, fix_hypo=False)
+    self.set_pois(data.model, init_pars=init_hypo, bounds=self.bounds.values() if self.bounds is not None else None, hypo=hypo, fix_hypo=False)
     hypo_min.set_pois(data.model, init_pars=init_hypo, bounds=self.bounds.values(), hypo=hypo, fix_hypo=True)
     # Hypo fit
     if hypo_min.minimize(data) is None : return None
