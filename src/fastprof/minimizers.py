@@ -375,14 +375,14 @@ class POIMinimizer :
          best-fit parameters
     """
     if isinstance(init_hypo, (int, float)) : init_hypo = Parameters(init_hypo, model=data.model)
-    hypo_minimizer = self.clone()
-    self.set_pois(data.model, init_pars=init_hypo, hypo=hypo, fix_hypo=False)
-    hypo_minimizer.set_pois(data.model, init_pars=init_hypo, bounds=self.bounds.values(), hypo=hypo, fix_hypo=True)
+    hypo_min = self.clone()
+    self.set_pois    (data.model, init_pars=init_hypo, bounds=self.bounds.values(), hypo=hypo, fix_hypo=False)
+    hypo_min.set_pois(data.model, init_pars=init_hypo, bounds=self.bounds.values(), hypo=hypo, fix_hypo=True)
     # Hypo fit
-    if hypo_minimizer.minimize(data) is None : return None
-    self.hypo_nll = hypo_minimizer.min_nll
-    self.hypo_pars = hypo_minimizer.min_pars
-    self.hypo_deltas = hypo_minimizer.np_min.min_deltas
+    if hypo_min.minimize(data) is None : return None
+    self.hypo_nll = hypo_min.min_nll
+    self.hypo_pars = hypo_min.min_pars
+    self.hypo_deltas = hypo_min.np_min.min_deltas
     # Free fit
     if self.minimize(data) is None : return None
     self.free_nll = self.min_nll
