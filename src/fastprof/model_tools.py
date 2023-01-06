@@ -181,6 +181,8 @@ class NPPruner :
 
   def remove_nps(self, par_values : dict, clone_model : bool = False) :
     model = self.model.clone(set_internal_vars=False, name=self.model.name + '_pruned') if clone_model else self.model
+    pars = model.ref_pars.clone()
+    removed = []
     for np_name in par_values :
       if np_name in model.nps :
         selected_names = [ np_name ]
@@ -191,23 +193,29 @@ class NPPruner :
       for selected_name in selected_names :
         par = model.nps[selected_name]
         value = par_values[selected_name] if selected_name in par_values and par_values[selected_name] is not None else par.nominal_value
-        if par.aux_obs : model.aux_obs.pop(par.aux_obs)
-        pars = model.ref_pars.clone()
         pars[selected_name] = value
-        nexp = model.n_exp(pars)
-        model.nps.pop(selected_name)
+        if self.verbosity > 0 : print("Applying %s=%g" % (selected_name, value))
+        removed.append(par)
         for channel in model.channels.values() :
           for s, sample in enumerate(channel.samples.values()) :
             if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
               if self.verbosity > 0 : print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, value, sample.name, channel.name))
               sample.norm = NumberNorm(value)
             else :
-              if self.verbosity > 0 : print("Applying %s=%g to the nominal yields of sample '%s' of channel '%s'." % (selected_name, value, sample.name, channel.name))
-              if self.verbosity > 1 : print('Old yields :\n', sample.nominal_yields)
-              sample.nominal_yields = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
-              if self.verbosity > 1 : print('New yields :\n', sample.nominal_yields)
               if selected_name in sample.impacts : sample.impacts.pop(selected_name)
         # TODO: should also check expressions
+    nexp = model.n_exp(pars)
+    if self.verbosity > 1 : print('Old pars :\n', model.ref_pars)
+    if self.verbosity > 1 : print('New pars :\n', pars)
+    for channel in model.channels.values() :
+      for s, sample in enumerate(channel.samples.values()) :
+        if self.verbosity > 0 : print("Applying changes to the nominal yields of sample '%s' of channel '%s'." % (sample.name, channel.name))
+        if self.verbosity > 1 : print('Old yields :\n', sample.nominal_yields)
+        sample.nominal_yields = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
+        if self.verbosity > 1 : print('New yields :\n', sample.nominal_yields)
+    for par in removed :
+      if par.aux_obs : model.aux_obs.pop(par.aux_obs)
+      model.nps.pop(par.name)
     model.set_internal_vars()
     return model
 
