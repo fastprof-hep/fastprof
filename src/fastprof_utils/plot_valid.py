@@ -77,6 +77,9 @@ def make_parser() :
   parser.add_argument(      "--inversion-plots", action='store_true'      , help="Only plot variations, not inversion impact")
   parser.add_argument("-i", "--inv-range"      , type=float, default=None , help="Vertical range for inversion impact")
   parser.add_argument(      "--no-nli"         , action='store_true'      , help="Only plot linear reference")
+  parser.add_argument(      "--no-title"       , action='store_true'      , help="Omit the plot title")
+  parser.add_argument(      "--symmetric"      , action='store_true'      , help="Show symmetric impacts")
+  parser.add_argument("-t", "--style"          , type=str  , default=None , help="List of styles to apply (comma-separated)")
   parser.add_argument("-o", "--output-file"    , type=str  , default=None , help="Output file name")
   return parser
 
@@ -88,6 +91,7 @@ def run(argv = None) :
     parser.print_help()
     sys.exit(0)
 
+  if options.style is not None : plt.style.use(options.style.split(','))
   try :
     bins = [ int(b) for b in options.bins.split(',') ] if options.bins is not None else [ 0 ]
   except Exception as inst :
@@ -104,6 +108,7 @@ def run(argv = None) :
   model = Model().load(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if not options.cutoff is None : model.cutoff = options.cutoff
+  if options.symmetric : model.use_asym_impacts = False
 
   if options.channel != None :
     channel = model.channel(options.channel)
@@ -149,11 +154,12 @@ def run(argv = None) :
     return model.channel_n_exp(pars=pars.set(par, x), channel=channel.name, sample=sample.name)
 
   for b in bins :
-    fig = plt.figure(figsize=(8, 8), dpi=96)
-    if options.bins is not None :
-      fig.suptitle('Linearity checks for sample %s, bin [%g, %g]'  % (sample.name, channel.bins[b]['lo_edge'], channel.bins[b]['hi_edge']))
-    else :
-      fig.suptitle('Linearity checks for sample %s'  % sample.name)
+    fig = plt.figure()
+    if not options.no_title :
+      if options.bins is not None :
+        fig.suptitle('Linearity checks for sample %s, bin [%g, %g]'  % (sample.name, channel.bins[b]['lo_edge'], channel.bins[b]['hi_edge']))
+      else :
+        fig.suptitle('Linearity checks for sample %s'  % sample.name)
     gs = gridspec.GridSpec(nrows=nr, ncols=nc, wspace=0.3, hspace=0.3, top=0.9, bottom=0.05, left=0.1, right=0.95)
     for i, par in enumerate(nps) :
       if options.inversion_plots :
@@ -169,14 +175,16 @@ def run(argv = None) :
       rvar_nli = [ -((nexp_var(pars, par, x)[b] - nexp0[b])/nexp0[b])**2 for x in cont_x ]
 
       ax_var = fig.add_subplot(sgs[0])
-      ax_var.set_title(par)
-      ax_var.plot(data.points, data.variations[channel.name][par][sample_index, b, :] - 1, 'ko')
+      ax_var.plot(data.points, data.variations[channel.name][par][sample_index, b, :] - 1, 'ko', label='Full model impact')
       ax_var.plot([0], [0], marker='o', color='purple')
       ax_var.plot(sample.pos_vars[par], sample.pos_imps[par][:,b], marker='o', color='red')
       ax_var.plot(sample.neg_vars[par], sample.neg_imps[par][:,b], marker='o', color='red')
-      ax_var.plot(cont_x, vars_lin, 'r--')
+      ax_var.plot(cont_x, vars_lin, 'r--', label='Linear impact')
+      if not options.no_nli : ax_var.plot(cont_x, vars_nli, 'b', label='Non-linear impact')
+      ax_var.legend(title=par)
+      ax_var.set_xlabel('Normalized parameter value')
+      ax_var.set_ylabel('Relative impact on bin yield')
       ax_vars.append(ax_var)
-      if not options.no_nli : ax_var.plot(cont_x, vars_nli, 'b')
       if options.yrange : ax_var.set_ylim(y_min, y_max)
       if options.inversion_plots :
         ax_inv = fig.add_subplot(sgs[1], sharex=ax_var)
