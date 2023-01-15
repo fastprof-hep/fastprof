@@ -6,11 +6,7 @@
 
   * :class:`ModelAux`, representing an *auxiliary observable* (aux. obs.) of the model
 
-  * :class:`Channel`, defining a measurement region*
-
-  * :class:`Sample` objects, each defining a contribution to a channel.
-
-  All the classes support loading from / saving to markup files. The basic mechanism for this is implemented in the :class:`Serializable` base class from which they all derive.
+  All the classes support loading from / saving to markup files. The basic mechanism for this I/O is implemented in the :class:`Serializable` base class from which they all derive. The JSON and YAML markup formats are supported.
 """
 
 import numpy as np
@@ -35,7 +31,7 @@ class Serializable :
   def __init__(self) :
     pass
 
-  def load(self, filename : str, flavor : str = None) :
+  def load(self, filename : str, flavor : str = None) -> 'Serializable' :
     """Load the object from a markup file
 
       Args:
@@ -54,12 +50,13 @@ class Serializable :
         raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
     return self.load_dict(sdict)
 
-  def save(self, filename, flavor : str = None, payload : dict = None) :
+  def save(self, filename, flavor : str = None, payload : dict = None) -> 'Serializable' :
     """Save the object to a markup file
 
       Args:
-        filename: name of the file to load from
-        flavor  : input markup flavor (currently supported: 'json' [default], 'yaml')      
+        filename: name of the file to save to
+        flavor  : input markup flavor (currently supported: 'json' [default], 'yaml')
+        payload : the data that should be saved
 
       Returns:
         Serializable: self
@@ -71,25 +68,26 @@ class Serializable :
       if flavor == 'yaml' : return yaml.dump(sdict, fd, sort_keys=False, default_flow_style=None, width=10000)
       raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
 
-  def guess_flavor(self, filename, default) :
+  def guess_flavor(self, filename, default) -> str :
     """Save the object to a markup file
 
       Args:
         filename: name of the file to load from
-        default : return value if guessing is unsuccessful      
+        default : return value if the guessing is unsuccessful
 
       Returns:
-        str: the markup flavor 
+        str: the markup flavor (currently 'json' or 'yaml')
     """
     if filename[-4:] == 'json' : return 'json'
     if filename[-4:] == 'yaml' : return 'yaml'
     return default
     
-  def load_markup(self, data : str, flavor : str = 'json') :
+  def load_markup(self, data : str, flavor : str = 'json') -> 'Serializable' :
     """Load the object from a markup string
 
       Args:
-        data: markup data to load, in string format
+        data  : markup data to load, in string format
+        flavor: input markup flavor (currently supported: 'json' [default], 'yaml')
 
       Returns:
         Serializable: self
@@ -105,6 +103,9 @@ class Serializable :
   def dump_markup(self, flavor : str = 'json') -> str :
     """Dumps the object as a markup string
 
+      Args:
+        flavor: input markup flavor (currently supported: 'json' [default], 'yaml')
+
       Returns:
         str: the markup string encoding the object contents
     """
@@ -113,7 +114,7 @@ class Serializable :
     if flavor == 'yaml' : return yaml.dump(sdict, sort_keys=False, default_flow_style=None, width=10000)
     raise KeyError("Unknown markup flavor '%s',  so far only 'json' or 'yaml' are supported" % flavor)
 
-  def dump_dict(self) :
+  def dump_dict(self) -> dict :
     """Dumps the object as a dictionary of markup data
 
       Returns:
@@ -125,14 +126,14 @@ class Serializable :
 
   @classmethod
   def load_field(cls, key : str, dic : dict, default = None, types : list = []) :
-    """Load an field from a dictionary of markup data
+    """Load information from a dictionary of markup data, using a provided key
 
       If the key is not present, or if the value type is not among the
       ones listed in `types`, then `default` is returned instead.
 
       Args:
          key    : key to look up in the dictionary
-         dict   : dictionary object in which to look up the key
+         dic    : dictionary object in which to look up the key
          default: default value to return if `key` is absent in `dic`, or the return type is not listed (default: None)
          types  : list of strings giving allowed return types (default: [], allows all types)
 
@@ -151,7 +152,20 @@ class Serializable :
     return val
 
   @staticmethod
-  def unnumpy(obj) :
+  def unnumpy(obj : np.ndarray) -> list :
+    """Process numpy data to make it serializable
+
+      numpy objects such as np.ndarray cannot be serialized to markup
+      as-is and need tobe converted (e.g. arrays to lists). This function
+      performs this conversion recursively on arrays and dicts containing
+      arrays.
+
+      Args:
+         obj : object to convert
+
+      Returns:
+        (depends): the same object in serializable form
+    """
     if isinstance(obj, np.int64) : return int(obj)
     if isinstance(obj, np.float64) : return float(obj)
     if isinstance(obj, np.ndarray) or isinstance(obj, list) : 
@@ -161,7 +175,15 @@ class Serializable :
     return obj
   
   @staticmethod
-  def good_float(value) :
+  def good_float(value : float) -> float :
+    """Replace `None` values by a `NaN` to make it serializable
+
+      Args:
+         value : object to convert
+
+      Returns:
+        float: the same object in serializable form
+    """
     return value if value is not None else float('nan')
 
   @abstractmethod
@@ -169,7 +191,7 @@ class Serializable :
     """Abstract method to load information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing markup data
+        sdict: a dictionary containing markup data
 
       Returns:
         self
@@ -181,10 +203,7 @@ class Serializable :
     """Abstract method to save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing markup data
-
-      Returns:
-         None
+         sdict: a dictionary containing markup data
     """
     pass
 
@@ -194,8 +213,10 @@ class ModelPOI(Serializable) :
   """Class representing a POI of the model
 
   Stores the information relevant for POIs (see attributes),
-  implements markup loading/saving through Serializable
+  implements markup loading/saving through the :class:`Serializable`
   base class.
+  This class represents the POI specification and does not
+  store the POI value, uncertainties, etc. 
 
   Attributes:
      name          (str)   : the name of the parameter
@@ -206,7 +227,7 @@ class ModelPOI(Serializable) :
   """
 
   def __init__(self, name : str = '', min_value : float = None, max_value : float = None,
-               initial_value : float = None, unit : str = '', value : float = None, error : float = None) :
+               initial_value : float = None, unit : str = '') :
     """Initialize object attributes
 
       Missing arguments are set to None.
@@ -224,15 +245,27 @@ class ModelPOI(Serializable) :
     self.initial_value = initial_value
     self.unit = unit
 
-  def __str__(self) :
-    """Provides a description string
+  def __str__(self) -> str :
+    """Return a description string
 
       Returns:
-        The object description
+        str: the object description
     """
     return 'POI ' + self.string_repr(verbosity = 1)
 
-  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+  def string_repr(self, verbosity : int = 1, pre_indent : str = '', indent : str = '   ') -> str :
+    """Return a string representation of the object
+
+      Same as __str__ but with options
+
+      Args:
+        verbosity : verbosity of the output
+        pre_indent: number of indentation spaces to add to all lines
+        indent    : number of indentation spaces to add to fields of this object
+
+      Returns:
+        str: the object description
+    """
     unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
     rep = '%s%s' % (pre_indent,  self.name)
     if verbosity == 1 :
@@ -244,11 +277,11 @@ class ModelPOI(Serializable) :
     return rep
 
 
-  def load_dict(self, sdict) :
+  def load_dict(self, sdict) -> 'ModelPOI' :
     """load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing markup data
+        sdict: a dictionary containing markup data
 
       Returns:
         ModelPOI: self
@@ -264,7 +297,7 @@ class ModelPOI(Serializable) :
     """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing markup data
+         sdict: a dictionary containing markup data
     """
     sdict['name']      = self.name
     if self.min_value is not None : sdict['min_value'] = self.unnumpy(self.min_value)
@@ -279,8 +312,10 @@ class ModelAux(Serializable) :
 
   Stores the information relevant for the auxiliary observables
   that provide a constraint on some model NPs (see attributes).
-  Implements markup loading/saving through Serializable
+  Implements markup loading/saving through the :class:`Serializable`
   base class.
+  This class represents the aux. obs specification and does not
+  store the its value.
 
   Attributes:
     name          (str)   : the name of the aux. obs.
@@ -296,13 +331,25 @@ class ModelAux(Serializable) :
     self.max_value = max_value
 
   def __str__(self) -> str :
-    """Provides a description string
+    """Return a description string
       Returns:
-        The object description
+        the object description
     """
     return 'aux_obs ' + self.string_repr(verbosity = 1)
 
-  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+  def string_repr(self, verbosity : int = 1, pre_indent : str = '', indent : str = '   ') -> str :
+    """Return a string representation of the object
+
+      Same as __str__ but with options
+
+      Args:
+        verbosity : verbosity of the output
+        pre_indent: number of indentation spaces to add to all lines
+        indent    : number of indentation spaces to add to fields of this object
+
+      Returns:
+        str: the object description
+    """
     unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
     s = '%s%s' % (pre_indent,  self.name)
     if verbosity == 1 :
@@ -313,14 +360,14 @@ class ModelAux(Serializable) :
     return s
 
 
-  def load_dict(self, sdict) :
-    """load object information from a dictionary of markup data
+  def load_dict(self, sdict) -> 'ModelAux' :
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing markup data
+        sdict: a dictionary containing markup data
 
       Returns:
-        ModelAux: self
+        self
     """
     self.name = self.load_field('name', sdict, '', str)
     self.unit = self.load_field('unit', sdict, '', str)
@@ -332,7 +379,7 @@ class ModelAux(Serializable) :
     """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing markup data
+         sdict: a dictionary containing markup data
     """
     sdict['name'] = self.name
     sdict['unit'] = self.unit
@@ -345,16 +392,18 @@ class ModelNP(Serializable) :
   """Class representing a NP of the model
 
   Stores the information relevant for NPs (see attributes),
-  implements markup loading/saving through Serializable
+  implements markup loading/saving through the :class:`Serializable`
   base class.
+  This class represents the NP specification and does not
+  store its value, uncertainties, etc. 
 
-  The NPs have two representations:
+  NPs have two representations:
 
   * Their original representation in the full model, with a nominal value
     given by the `nominal_value` attribute and a variations given by the
     `variations` attribute
 
-  * A `scaled` representation In the linearized model (see :class:`Model`),
+  * A *scaled* representation in the linearized model (see :class:`Model`),
     where their values represent pulls : the nominal is 0, and 1 represents
     a :math:`1\sigma` deviation from the nominal
 
@@ -366,14 +415,15 @@ class ModelNP(Serializable) :
     nominal_value  (float) : the reference value of the parameter used to compute nominal sample yields
     variation      (float) : the uncertainty on the parameter value
     constraint     (float) : the value of the width of the constraint Gaussian,
-                             in "unscaled" units (same as `nominal_value` and `variation`)
-                             for constrained NPs (otherwise None).
+                             for constrained NPs (otherwise None). The value is
+                             in *unscaled* units (same as `nominal_value` and `variation`)
     aux_obs        (:class:`ModelAux`) : pointer to the corresponding aux. obs. object,
                                          for constrained NPs.
     unit           (str)   : the unit in which the parameter is expressed
 """
 
-  def __init__(self, name = '', nominal_value = 0, variation = 1, constraint = None, aux_obs = None, unit : str = None) :
+  def __init__(self, name = '', nominal_value : float = 0, variation : float = 1,
+               constraint : float = None, aux_obs : float = None, unit : str = None) :
     self.name = name
     self.unit = unit
     self.nominal_value = nominal_value
@@ -381,70 +431,83 @@ class ModelNP(Serializable) :
     self.constraint = constraint
     self.aux_obs = aux_obs
 
-  def is_free(self) :
-    """specifies if an NP is free (unconstrained) or constrained by an aux.obs
+  def is_free(self) -> bool :
+    """Returns if an NP is free (unconstrained) or constrained by an aux. obs.
 
       Returns:
          bool: True for a free parameter, False for a constrained one
     """
     return self.constraint is None
 
-  def unscaled_value(self, scaled_value) :
-    """computes the unscaled value of a NP, for a given scaled value
+  def unscaled_value(self, scaled_value : float) -> float :
+    """Returns the unscaled value of a NP, for a given scaled value
 
-      See the class description (:class:`ModelNP`) for an explanation of scaled/unscaled.
+      See the class description (:class:`ModelNP`) for an explanation of scaled vs. unscaled.
 
       Args:
-        scaled_value (float): the scaled value of the NP
+        scaled_value: the scaled value of the NP
       Returns:
-         float: the corresponding unscaled value
+        the corresponding unscaled value
     """
     return self.nominal_value + scaled_value*self.variation
 
-  def scaled_value(self, unscaled_value) :
-    """computes the scaled value of a NP, for a given unscaled value
+  def scaled_value(self, unscaled_value : float) -> float :
+    """Returns the scaled value of a NP, for a given unscaled value
 
-      See the class description (:class:`ModelNP`) for an explanation of scaled/unscaled.
+      See the class description (:class:`ModelNP`) for an explanation of scaled vs. unscaled.
 
       Args:
-        unscaled_value (float): the unscaled value of the NP
+        unscaled_value: the unscaled value of the NP
       Returns:
-         float: the corresponding scaled value
+        the corresponding scaled value
     """
     return (unscaled_value - self.nominal_value)/self.variation
 
   def scaled_constraint(self) -> float :
-    """computes the scaled value of the NP constraint
+    """Returns the scaled value of the NP constraint
 
       See the class description (:class:`ModelNP`) for an explanation of scaled/unscaled.
 
       Returns:
-        The scaled constraint value
+        the scaled constraint value
     """
     return self.constraint/self.variation
 
-  def generate_aux(self, value) :
-    """randomly generate an aux. obs value for this NP
+  def generate_aux(self, value : float) -> float :
+    """Randomly generate an aux. obs value for this NP
 
-      Constrained NPs represent the mean of a Gaussian of width `constraint`
+      Constrained NPs represent the mean of a Gaussian of width `constraint`.
+      The function generates a random value in this distribution.
 
       Args:
-        unscaled_value (float): the unscaled value of the NP
+        value : the unscaled value of the NP
       Returns:
-         float: the corresponding scaled value
+        a random value for the aux. obs.
     """
     if self.constraint is None : return 0
     return np.random.normal(value, self.constraint)
 
   def __str__(self) -> str :
-    """Provides a description string
+    """Return a description string
 
       Returns:
         The object description
     """
     return 'NP ' + self.string_repr(verbosity = 1)
 
-  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+  def string_repr(self, verbosity : int = 1, pre_indent : str = '', indent : str = '   ') -> str :
+    """Return a string representation of the object
+
+      Same as __str__ but with options
+
+      Args:
+        verbosity : verbosity of the output
+        pre_indent: number of indentation spaces to add to all lines
+        indent    : number of indentation spaces to add to fields of this object
+
+      Returns:
+        str: the object description
+    """
     unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
     constraint = ' constrained to %s with σ = %g%s' % (self.aux_obs, self.constraint, unit) if self.aux_obs is not None else ' free parameter'
     s = '%s%s' % (pre_indent,  self.name)
@@ -457,13 +520,13 @@ class ModelNP(Serializable) :
     return s
 
   def load_dict(self, sdict) :
-    """load object information from a dictionary of markup data
+    """Load object information from a dictionary of markup data
 
       Args:
-        sdict: A dictionary containing markup data
+        sdict: a dictionary containing markup data
 
       Returns:
-        ModelNP: self
+        self
     """
     self.name = self.load_field('name', sdict, '', str)
     self.unit = self.load_field('unit', sdict, '', str)
@@ -482,7 +545,7 @@ class ModelNP(Serializable) :
     """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing markup data
+         sdict: a dictionary containing markup data
     """
     sdict['name'] = self.name
     if self.unit != '' : sdict['unit'] = self.unit
