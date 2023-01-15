@@ -1353,7 +1353,7 @@ class Data (Serializable) :
         channel = next(dict_channel for dict_channel in sdict['data']['channels'] if dict_channel['name'] == name)
       except:
         raise ValueError("Model channel '%s' not found in specified markup file." % name)
-      model_channel.load_data_dict(channel, self.counts[offset:offset + model_channel.nbins()])
+      model_channel.load_dataset_dict(channel, self.counts[offset:offset + model_channel.nbins()])
       offset += model_channel.nbins()
     if 'aux_obs' in sdict['data'] :
       data_aux_obs = { aux_obs['name'] : aux_obs['value'] for aux_obs in sdict['data']['aux_obs'] }
