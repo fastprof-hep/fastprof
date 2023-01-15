@@ -101,7 +101,7 @@ def run(argv = None) :
     mini.minimize(data)
     pars = mini.min_pars
   else :
-    pars = model.initial_pars()
+    pars = model.ref_pars
 
   try:
     width, height = tuple( [ float(dim) for dim in options.window.split('x') ] )

@@ -18,8 +18,6 @@ The code is organized around the following classes:
        * A number of samples, represented by :class:`fastprof.elements.Sample` objects, each defining a
          contribution to the expected bin yields.
 
-    * The :class:`fastprof.elements.Sample` objects store their nominal bin yields, an overall normalization and variations as a function of the NPs
-
   * :class:`Parameters` : a class storing a set of values for model POIs and NPs.
 
   * :class:`Data` : a class storing the observed data: the observed bin yields for each channel and the auxiliary observables for each NP.
@@ -62,15 +60,17 @@ class Parameters :
 
       The POIs can be provided in a number of formats:
 
-      * A single number, for a model with a single POI
-
       * An np.ndarray of POI values, with parameter values provided in the
         same order as they appear in the model.
 
       * A dict of POI name : value pairs with one entry for each model POI.
 
+      * A single number, for a model with a single POI
+
       NPs are optional; they can be provided as a single number or a np.ndarray
       as for POIS, and will otherwise default to 0.
+      
+      In all cases, the inputs are copied locally.
 
       Args:
         pois             : float-array of POI values
@@ -108,7 +108,7 @@ class Parameters :
     """Clone a Parameters object
 
       Performs a deep-copy operation at the required level: deep-copy
-      the np.arrays, but shallow-copy the model pointer
+      the np.ndarray objects, but shallow-copy the model pointer
 
       Returns:
         the new clone
@@ -119,7 +119,7 @@ class Parameters :
     """Provides a description string
 
       Returns:
-        The object description
+        the object description
     """
     s = ''
     if self.model is None :
@@ -187,7 +187,7 @@ class Parameters :
       Args:
         par : name of a parameter (either POI or NP)
         val : parameter value to set
-        unscaled : for NPs, interpret `val` as a `scaled` (False) or `unscaled` (True) value,
+        unscaled : for NPs, interpret `val` as a *scaled* (False) or *unscaled* (True) value,
                    see the description of :class:`fastprof.elements.ModelNP` for details
       Returns:
         self
@@ -204,8 +204,8 @@ class Parameters :
   def __setitem__(self, par : str, val : float) -> 'Parameters' :
     """Implement setting parameters using pars['parname'] = 3.14 syntax, for both POIs and NPs
 
-      For NPs, `val` is considered to be a `scaled` value (use :meth:`Parameters.set` to
-      set `unscaled` values.
+      For NPs, `val` is considered to be a *scaled* value (use :meth:`Parameters.set` to
+      set *unscaled* values.
 
       Args:
         par : name of a parameter (either POI or NP)
@@ -215,7 +215,7 @@ class Parameters :
     """
     return self.set(par, val)
 
-  def unscaled_nps(self) -> np.array :
+  def unscaled_nps(self) -> np.ndarray :
     """Returns an np.array of the unscaled values of all NPs
 
       Returns:
@@ -242,7 +242,7 @@ class Parameters :
 
       Args:
         nominal_nps : set NPs to their nominal values
-        unscaled_nps : specifies whether to use the `unscaled` (True) or `scaled` (False)
+        unscaled_nps : specifies whether to use the *unscaled* (True) or *scaled* (False)
                       value for NPs.
         pois_only : only include POIs
 
@@ -275,7 +275,7 @@ class Parameters :
       Args:
         dic : a dictionary containing parameter name : value pairs
         unscaled_nps : specifies whether NP values in `dic` should be
-          considered as `unscaled` (True) or `scaled` (False).
+          considered as *unscaled* (True) or *scaled* (False).
 
       Returns:
         self
@@ -305,59 +305,63 @@ class Model (Serializable) :
   """Class representing the statistical model
 
   The class provides a description of the full statistical model, consisting
-  in
+  in:
 
-  * Measurement regions, described by :class:`fastprof.elements.Channel` objects
+  * Measurement regions, described by :class:`fastprof.channels.Channel` objects
 
-  * Model parameters, split into POIs (:class:`fastprof.elements.ModelPOI` objects)
-    and NPs (:class:`fastprof.elements.ModelNP` objects).
+  * Model parameters, split into POIs (:class:`fastprof.base.ModelPOI` objects)
+    and NPs (:class:`fastprof.base.ModelNP` objects).
 
   The main purpose of the class is to store the inputs to the fast likelihood
   maximization algorithm of :class:`NPMinimizer`. For this purpose, the
-  structures provided by the :class:`fastprof.elements.Channel` and :class:`fastprof.elements.Sample` classes are
+  structures provided by the :class:`fastprof.channels.Channel` and :class:`fastprof.samples.Sample` classes are
   flattened into a number of np.array objects. These use a simplified description
   of measurement bins, in which the bins for all the channels are concatenated into
   a single large collection of size `nbins`. The `channel_offsets` attribute provides
   the indices of the first bin of each channel within this larger bin array.
   Other arrays store the expected event yields for each sample, and their variations
   as a function of the NPs.
-
+  
+  The model depends on the POI through the normalization factors of each channel sample.
+  These factors can be a single POI, or an `expressions` representing a function of one or more POIs.
+  These expressions derive from :class:`fastprof.expressions.Expression`.
+  
   The model functionality is mainly accessed through the :meth:`Model.n_exp` method, which
   returns the expected event yield for a given set of parameter values `pars`, and the
   :meth:`Model.nll` method, which return the negative log-likelihood value.
 
   Attributes:
-     pois (dict): the model POIs (as a dict mapping POI name to :class:`fastprof.elements.ModelPOI` object)
-     nps  (dict): the model NPs (as a dict mapping NP name to :class:`fastprof.elements.ModelNP` object)
+     name (str) : the name of the model
+     pois (dict): the model POIs (as a dict mapping POI name to :class:`fastprof.base.ModelPOI` object)
+     nps  (dict): the model NPs (as a dict mapping NP name to :class:`fastprof.base.ModelNP` object)
      aux_obs (dict): the model auxiliary observables that constrain the NPs
-        (as a dict mapping aux. obs. name to :class:`fastprof.elements.ModelAux` object)
+        (as a dict mapping aux. obs. name to :class:`fastprof.base.ModelAux` object)
      npois (int): number of model pois
      nnps (int): number of model NPs
      nauxs (int): number of model auxiliary observables
-     channels (dict): the model channels (as a dict mapping channel name to :class:`fastprof.elements.Channel` object)
-     samples (dict): the the model samples, compiled over all channels (as a dict mapping sample name
-        to :class:`fastprof.elements.Sample` object)
-     sample_indices (dict): maps sample name to its index in `samples` (which is an ordered dict)
-     nbins (int): total number of measurement bins, compiled over channels
-     channel_offsets (dict): maps channel name to the index of the first bin for this sample, among the list
-       (of size `nbins`) concatenating the measurement bins of each channel.
+     channels (dict): the model channels (as a dict mapping channel name to :class:`fastprof.channels.Channel` object)
+     samples (dict): the the model samples, compiled over all channels (as a dict mapping (sample name, sample index in channel)
+        to :class:`fastprof.sample.Sample` object)
+     max_nsamples (int) : largest number of samples among the channels. This defines the `nsamples` dimension
+       of the objects below, e.g. NP impact matrices.
+     expressions (dict) : the POI expressions (as a dict mapping expression name to :class:`fastprof.expressions.Expression` object)
+     reals (dict) : real values,i.e. POIs ans expressions (as a dict mapping its name to its object)
+     nbins (int): total number of measurement bins, summing over all channels
+     channel_offsets (dict): maps channel name to the index of the first bin of this channel in the overall bin list.
+       (of size `nbins`).
      nominal_yields (np.array): expected event yields for each sample, as a 2D array of size
        `nsamples` x `nbins`.
-     pos_impacts (np.array): array of the per-sample event yield variations for positive NP values, as
+     pos_impact_coeffs (np.array): array of the per-sample event yield variations for positive NP values, as
         a 3D array of size `nsamples` x `nbins` x `nnps`.
-     neg_impacts (np.array): array of the per-sample event yield variations for negative NP values, as
+     neg_impact_coeffs (np.array): array of the per-sample event yield variations for negative NP values, as
         a 3D array of size `nsamples` x `nbins` x `nnps`.
-     sym_impacts (np.array): array of symmetrized per-sample event yield variations, as
+     sym_impact_coeffs (np.array): array of symmetrized per-sample event yield variations, as
         a 3D array of size `nsamples` x `nbins` x `nnps`. The variations are computed as the average of
         the positive and negative impacts.
-     log_pos_impacts (np.array): array of the logs of the per-sample event yield variations for positive NP values, as
-        a 3D array of size `nsamples` x `nbins` x `nnps`.
-     log_neg_impacts (np.array): array of the logs of the per-sample event yield variations for negative NP values, as
-        a 3D array of size `nsamples` x `nbins` x `nnps`.
-     log_sym_impacts (np.array): array of the logs of the symmetrized per-sample event yield variations, as
-        a 3D array of size `nsamples` x `nbins` x `nnps`.
      constraint_hessian (np.array): inverse of the covariance matrix of the NP constraint Gaussian
      np_nominal_values (np.array): nominal values of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
+     ref_pars (Parameters) : reference values of the parameters : initial value of the POIs and nominal value of the NPs
+     ref_yields (np.ndarray) : Bin yields computed at the reference values of the parameters specified in `ref_pars`.
      np_variations (np.array): variations of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
      use_asym_impacts (bool): use asymmetric impact terms when computing yield variation (True, default), or
         use symmetrized impacts instead (False).
@@ -368,13 +372,22 @@ class Model (Serializable) :
      use_lognormal_terms (bool): include the derivatives of the exponential terms in the NP minimization
         procedure (True) or not (False, default).
      cutoff (float): regularization term that caps the relative variations in event yields
+     variations (list) : list of NP variations to use (default: [-1, 1])
+     verbosity (int) : verbosity level of the output
+     poi_indices (dict) : dict mapping POI name to POI index in the np.ndarrays used in the :class:`Parameters` class.
+     np_indices (dict) : dict mapping NP name to NP index in the np.ndarrays used in the :class:`Parameters` class.
+     poisson_channels (dict) : channels of *Poisson* type (everything but :class:`fastprof.channels.GaussianChannel` classes now)
+     gaussian_channels (dict) : channels of *Gaussian* type (of class :class:`fastprof.channels.GaussianChannel`)
+     nbins_poisson (int) : number of bins in the Poisson-type channels (coming first in the channel list)
+     nbins_gaussian (int) : number of bins in the Gaussian-type channels (coming last in the channel list)
+     poi_hessian (np.ndarray) : overall Hessian of the Gaussian-type channels
   """
 
   def __init__(self, name : str = '', pois : dict = None, nps : dict = None, aux_obs : dict = None, channels : dict = None,
                expressions : dict = None, use_asym_impacts : bool = True, use_linear_nps : bool = False,
                use_simple_sym_impacts : bool = True, use_lognormal_terms : bool = False, variations : list = None,
                verbosity : int = 0) :
-    """Initialize Model object
+    """Initialize a Model object
 
       Args:
         pois     : the model POIs, as a dict mapping POI names to :class:`fastprof.elements.ModelPOI` objects
@@ -382,11 +395,12 @@ class Model (Serializable) :
         aux_obs  : the model aux. obs., as a dict mapping names to :class:`fastprof.elements.ModelAux` objects
         channels : the model channels, as a dict mapping channel names to :class:`fastprof.elements.Channel` objects
         expressions      : the model expressions as a dict mapping names to :class:`fastprof.elements.Expression` objects
-        use_asym_impacts : option to use symmetric or asymmetric NP impacts (see class description, default: True)
-        use_linear_nps   : option to use the linear or exp form of NP impact on yields (see class description, default: False)
+        use_asym_impacts : option to use assymmetric (True) or symmetric (False) NP impacts (see class description, default: True)
+        use_linear_nps   : option to use the linear (True) or exp (False) form of NP impact on yields (see class description, default: False)
         use_simple_sym_impacts : option to use `sym_impacts` for the linear impacts (see :meth:`Model.linear_impacts`, default: True)
         use_lognormal_terms : option to include exp derivatives when minimizing nll (see class description, default: False)
         variations : list of NP variations to consider (default: None -- use 1 and the largest available other one)
+        verbosity : verbosity level of the output
     """
     super().__init__()
     self.name = name
@@ -410,7 +424,19 @@ class Model (Serializable) :
     self.set_internal_vars()
 
   def clone(self, name : str = None, set_internal_vars : bool = True) :
-    clone = Model(name=name if name is not None else self.name, pois=self.pois, nps=self.nps, aux_obs=self.aux_obs,
+     """Return a clone of the model
+
+      All internal model information (arrays, expressionschannels, samples) are deep-copied
+      in the cloning to ensure that the clone is independent of the original.
+      Information on the POIs, NPs and Auxs is not clone as this information
+      should be the same for all models.
+      All model options are set to the same as in the original model.
+
+      Args:
+        name : the name of the new model
+        set_internal_vars : if True, run the :meth:`Model.set_internal_vars` function
+    """
+   clone = Model(name=name if name is not None else self.name, pois=self.pois, nps=self.nps, aux_obs=self.aux_obs,
                   channels={ channel.name : channel.clone() for channel in self.channels.values() },
                   expressions=self.expressions, use_asym_impacts=self.use_asym_impacts, use_linear_nps=self.use_linear_nps,
                   use_simple_sym_impacts=self.use_simple_sym_impacts, use_lognormal_terms=self.use_lognormal_terms, variations=self.variations,
@@ -419,12 +445,12 @@ class Model (Serializable) :
     return clone
 
   def set_internal_vars(self) :
-    """Private method to initialize internal attributes
+    """Initialize internal storage
 
-      The Model class contains both primary atttributes and secondary
-      attributes that are pre-computed from the primary ones to speed
-      up computations later. The primary->secondary computation is
-      performed by this method, which is called from both
+      The Model class contains both primary atttributes set in __init__ 
+      but also secondary attributes that are pre-computed from the 
+      primary ones to speed up computations later. The primary->secondary
+      computation is performed by this method, which is called from both
       :meth:`Model.__init__` and :meth:`Model.load_dict`.
     """
     self.npois = len(self.pois)
@@ -434,10 +460,10 @@ class Model (Serializable) :
     self.np_indices = {}
     self.reals = { **{ poi : SingleParameter(poi) for poi in self.pois}, **{ par : SingleParameter(par) for par in self.nps}, **self.expressions }
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
-    self.poi_initial_values = np.array([ poi.initial_value for poi in self.pois.values() ], dtype=float)
+    poi_initial_values = np.array([ poi.initial_value for poi in self.pois.values() ], dtype=float)
     self.np_nominal_values  = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
     self.np_variations      = np.array([ par.variation     for par in self.nps.values() ], dtype=float)
-    self.ref_pars = Parameters(self.poi_initial_values, np.zeros(len(self.nps)), self)
+    self.ref_pars = Parameters(poi_initial_values, np.zeros(len(self.nps)), self)
     for p, par in enumerate(self.nps.values()) :
       if par.constraint is not None :
         self.constraint_hessian[p,p] = 1/par.scaled_constraint()**2
@@ -499,13 +525,13 @@ class Model (Serializable) :
     if self.verbosity > 0 : sys.stderr.write('\n')
     self.ref_yields = self.n_exp(self.ref_pars)
 
-  def poi(self, index : str) -> ModelPOI :
-    """Returns a POI object by index
+  def poi(self, index : int) -> ModelPOI :
+    """Return a POI object by index
 
       Args:
          index : the index of the POI
       Returns:
-         a POI object
+         the POI object, or `None` if `index` is invalid
     """
     pois = list(self.pois.values())
     return pois[index] if index < len(pois) else None
@@ -516,22 +542,22 @@ class Model (Serializable) :
       Args:
          name : a channel name
       Returns:
-         The channel object of that name
+         The channel object of that name, or `None` if not found
     """
     return self.channels[name] if name in self.channels else None
 
   def expression(self, name : str) -> Expression :
-    """Returns an expression object by name
+    """Return an expression object by name
 
       Args:
          name : an expression name
       Returns:
-         The expression object of that name
+         The expression object of that name, or `None` if not found
     """
     return self.expressions[name] if name in self.expressions else None
 
   def all_pars(self) -> dict :
-    """Returns all model parameters
+    """Return all model parameters
 
       Returns:
          A dictionary of parameter name : object pairs containing
@@ -546,7 +572,7 @@ class Model (Serializable) :
     """Set the value of the constraint on a NP
 
       If `par` is set to `None`, set the constraint on all NPs.
-      See the documentation of :class:`fastprof.elements.ModelNP` for more details
+      See the documentation of :class:`fastprof.base.ModelNP` for more details
       on constraints
 
       Args:
@@ -558,7 +584,7 @@ class Model (Serializable) :
     self.set_internal_vars()
 
   def k_exp(self, pars : Parameters) -> np.array :
-    """Returns the modifier to event yields due to NPs
+    """Return the modifier to event yields due to NPs
 
       The expected event yield is modified by the NPs in a way
       that depends on the modeling options (see the documentation of
@@ -570,7 +596,7 @@ class Model (Serializable) :
       Args:
          pars : a set of parameter values (only the NP values are used)
       Returns:
-         Event yield modifiers
+         The event yield modifiers
     """
     if self.use_asym_impacts :
       pos_np = np.maximum(pars.nps, 0)
@@ -609,8 +635,8 @@ class Model (Serializable) :
     k = self.k_exp(pars)
     return k if self.cutoff == 0 else (1 + self.cutoff*np.tanh((k-1)/self.cutoff))
 
-  def real_vals(self, pars) :
-    """Returns a full dictionary of parameter values, including expressions
+  def real_vals(self, pars : Parameters) -> dict :
+    """Return a full dictionary of parameter values, including expressions
 
        Parameters are internally stored as :class:`Parameters` objects, but
        to evaluate the NLL it is more convenient to have simple name:value
@@ -629,7 +655,7 @@ class Model (Serializable) :
     return vals
 
   def n_exp(self, pars : Parameters) -> np.array :
-    """Returns the expected event yields for a given parameter value
+    """Return the expected event yields for a given parameter value
 
     The expected yields correspond to the nominal yields for each sample,
     corrected for the overall normalization terms (function of the POIs)
@@ -640,7 +666,7 @@ class Model (Serializable) :
       Args:
          pars: a set of parameter values
       Returns:
-         Expected event yields per sample per bin
+         expected event yields per sample per bin
     """
     real_vals = self.real_vals(pars)
     nnom = np.stack([ np.concatenate([ self.samples[(channel_name, s)].yields(real_vals) if s < len(channel.samples) else np.zeros(channel.nbins()) \
@@ -649,7 +675,28 @@ class Model (Serializable) :
     return nnom*self.cut_k_exp(pars)
 
   def channel_n_exp(self, pars : Parameters = None, nexp : np.array = None, channel : str = None, sample : str = None) -> np.array :
-    if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
+     """Return the expected event yields for a given channel
+
+      
+      If only `pars` is provided, will return the expected yields for these parameter
+      values but only for the bins in the channel specified by `channel` (whereas
+      meth:`Model.n_exp` returns the expected yields for all bins.
+      
+      If `nexp` is provided, ignores `pars` and instead truncates these expected yields
+      to only the bins in `channel`.
+      
+      If `sample` is provided, additionally truncates the output to only the expected
+      yield for this sample (`sample` should be the name of a sample in `channel`)
+      
+      Args:
+         pars: a set of parameter values
+         nexp: an array of event yields, with dimensions`nbins` x `nsamples`
+         channel: the name of a model channel
+         sample: the name of a sample in `channel`
+      Returns:
+         expected event yields per sample per bin
+    """
+   if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
     nexpval = nexp if nexp is not None else self.n_exp(pars)
     if sample is not None :
       nexpval = nexpval[list(self.channels[channel].samples.keys()).index(sample)]
@@ -659,23 +706,24 @@ class Model (Serializable) :
       return nexpval[:, self.channel_offsets[channel] : self.channel_offsets[channel] + self.channels[channel].nbins()]
       
 
-  def tot_bin_exp(self, pars, floor = None) -> np.array :
-    """Returns the total expected event yields for a given parameter value
+  def tot_bin_exp(self, pars : Parameters, floor : float = None) -> np.array :
+    """Return the total expected event yields for given parameter values
 
       Same as :meth:`Model.n_exp`, except that the yields are summed over
       all samples. They are provided as a 1D np.array of size `nbins`.
 
       Args:
          pars: a set of parameter values
+         floor: optional minimal value to use for each yield (default: None)
       Returns:
-         Expected event yields per bin
+         expected event yields per bin
     """
     ntot = self.n_exp(pars).sum(axis=0)
     if floor is not None : ntot[:self.nbins_poisson] = np.maximum(ntot[:self.nbins_poisson], floor)
     return ntot
 
   def nll(self, pars : Parameters, data : 'Data', offset : bool = True, floor : bool = None, no_constraints : bool = False) -> float :
-    """Returns the negative log-likelihood value for a given parameter set and dataset
+    """Return the negative log-likelihood value for a given parameter set and dataset
 
       If the `offset` argument is `True` (default), the nll is computed relatively
       to the case where all yields are nominal. This leads to smaller nll values,
@@ -687,9 +735,9 @@ class Model (Serializable) :
          pars   : a set of parameter values
          data   : an observed dataset
          offset : if True, use offsetting to reduce floating-point precision issues
-         floor  : if a positive number is provided, will check for negative event yields
-                  in Poisson channels and replace them with the floor value
-         no_constraints : omit the penalty terms from the constraint in the computation.
+         floor  : if a positive number is provided, will replace yields lower than the
+                  floor by the floor itsel (to avoid e.g. negative yields in Poisson channels).
+         no_constraints : if `True`, omit the penalty terms from the constraint in the computation.
       Returns:
          The negative log-likelihood value
     """
@@ -722,7 +770,7 @@ class Model (Serializable) :
       return np.Infinity
 
   def gradient(self, pars : Parameters, data : 'Data') -> np.ndarray :
-    """Returns the derivatives of the negative log-likelihood wrt the POIs
+    """Return the derivatives of the negative log-likelihood wrt the POIs
 
       Output format: 1D np.ndarray of size `npois`.
 
@@ -757,7 +805,7 @@ class Model (Serializable) :
       return None
 
   def hessian(self, pars : Parameters, data : 'Data') -> np.ndarray :
-    """Returns the Hessian matrix of the negative log-likelihood wrt the POIs
+    """Return the Hessian matrix of the negative log-likelihood wrt the POIs
 
       Output format: 2D np.ndarray of size `npois` x `npois`.
 
@@ -800,6 +848,17 @@ class Model (Serializable) :
       return None
 
   def covariance_matrix(self, pars : Parameters, data : 'Data') -> np.ndarray :
+    """Return the covariance matrix of the POIs
+
+      Computes the covariance matrix of the POIs at the value specified
+      by `pars`, in the fit of the model to `data`.
+
+      Args:
+         pars : parameter values at which to compute the covariance
+         data : observed dataset for which to compute the likelihood
+      Returns:
+         the covariance matrix of the POIs
+    """
     hess = self.hessian(pars, data)
     try:
       return np.linalg.inv(hess)
@@ -807,11 +866,33 @@ class Model (Serializable) :
       return None
 
   def parabolic_errors(self, pars : Parameters = None, data : 'Data' = None, covmat : np.array = None) -> np.ndarray :
+    """Return the parabolic uncertaintiees of the POIs
+
+      Extract the parabolic uncertainties of the POIs
+      from the diagonal of the covariance matrix. 
+
+      Args:
+         pars : parameter values at which to compute the covariance
+         data : observed dataset for which to compute the likelihood
+      Returns:
+         the parabolic uncertaintiees of the POIs
+    """
     cov = covmat if covmat is not None else self.covariance_matrix(pars, data)
     errors = np.sqrt(cov.diagonal())
     return { poi : errors[i] for i, poi in enumerate(self.pois) }
 
   def correlation_matrix(self, pars : Parameters = None, data : 'Data' = None, covmat : np.array = None) -> np.ndarray :
+    """Return the correlation matrix of the POIs
+
+      Compute the correlation matrix of the POIs from their
+      covariance matrix.
+
+      Args:
+         pars : parameter values at which to compute the covariance
+         data : observed dataset for which to compute the likelihood
+      Returns:
+         the correlation matrix of the POIs
+    """
     cov = covmat if covmat is not None else self.covariance_matrix(pars, data)
     errors = np.sqrt(cov.diagonal())
     return (cov.T / errors).T / errors
@@ -854,8 +935,13 @@ class Model (Serializable) :
   def plot(self, pars : Parameters, data : 'Data' = None, channel_names : str = None, only : list = None, exclude : list = None,
            variations : list = None, residuals : bool = False, canvas : tuple = (None, None), labels : bool = True, stack : bool = False, figsize=(8,6),
            bin_width : float = None, logy : bool = False, legend : bool = True) :
-    """Plot the expected event yields and optionally data as well
+    """Plot the expected event yields, and optionally the data as well
 
+      The plot is performed for the channel(s) specified by `channel_names`, or all channels
+      if `None` is passed (default). Each channel is plotted on a separate subplot. If
+      a figure is provided by `canvas`, this is used for plotting, otherwise a new figure is 
+      created with dimention `figsize`.
+      
       The plot is performed for a single model, which must be of `binned_range` type.
       The event yields are plotted as a histogram, as a function of the channel
       observable.
@@ -870,9 +956,15 @@ class Model (Serializable) :
          exclude    : list of sample names to exclude from the plot
          variations : list of NP variations to plot, as a list of (str, float) pairs
                       providing the NP name and the value to set.
-         residuals  : if True,  plot the data-model differences
-         canvas     : a matplotlib (fig, axs) pair on which to plot (if None, a new set is created)
-         labels     : if True (default), add labels to the legend 
+         residuals  : if `True`, plot the data-model differences in a lower panel.
+         stack      : if `True`, plot the samples stacked on top of each other.
+         canvas     : a matplotlib (fig, axs) pair on which to plot (if None, a new figure is created)
+         figsize    : the size of the figure to create, as a (size_x, size_y) tuple (default: (8,6))
+         bin_width  : bin width to normalize the yields to, in case of channels with unequal bins
+                      if not specified, plot unnormalized bin yields.
+         logy       : if `True`, use a logarithmic scale on the Y axis
+         legend     : if `True` (default), add a legend to the plot
+         labels     : if `True` (default), add labels to the legend 
     """
     if not isinstance(only, list)    and only    is not None : only = [ only ]
     if not isinstance(exclude, list) and exclude is not None : exclude = [ exclude ]
@@ -980,17 +1072,17 @@ class Model (Serializable) :
     #plt.bar(np.linspace(0,self.sig.size - 1,self.sig.size), self.n_exp(pars), width=1, edgecolor='b', color='', linestyle='dashed')
 
   def expected_pars(self, pois : dict, minimizer : 'NPMinimizer' = None) -> Parameters :
-    """Assigns NP values to a set of POI values
+    """Return a :class:`Parameters` object for a set of POI values
 
       By default, returns a :class:`Parameters` object with the POI values
-      defined by the `pois` arg, and the NPs set to 0. If a dataset is 
-      provided, will set the NPs to their profiled values.
+      defined by the `pois` arg, and the NPs set to 0. If a minimizer is 
+      provided, set the NPs to their profiled values.
       The `pois` arg can also be a class:`Parameters` object, from which
       the POI values will be taken (and the NP values ignored).
 
       Args:
          pois : A dict of POI name : value pairs, or a class:`Parameters` object.
-         data (optional) : dataset to use for the profiling
+         minimizer : an optional minimizer object
       Returns:
          Object containing the POI values and associated NP values.
     """
@@ -998,26 +1090,6 @@ class Model (Serializable) :
       pars = pois
     else :
       pars = Parameters(pois, model=self)
-    if minimizer is not None :
-      return minimizer.profile(pars)
-    else :
-      return pars
-
-  def initial_pars(self, minimizer : 'NPMinimizer' = None) -> Parameters :
-    """Assigns NP values to a set of POI values
-
-      By default, returns a :class:`Parameters` object with the POI values
-      defined by the `pois` arg, and the NPs set to 0. If a dataset is 
-      provided, will set the NPs to their profiled values.
-      The `pois` arg can also be a class:`Parameters` object, from which
-      the POI values will be taken (and the NP values ignored).
-
-      Args:
-         minimizer (optional) : dataset to use for the profiling
-      Returns:
-         Object containing the POI values and associated NP values.
-    """
-    pars = Parameters({ poi.name : poi.initial_value for poi in self.pois.values() }, model=self)
     if minimizer is not None :
       return minimizer.profile(pars)
     else :
@@ -1034,7 +1106,7 @@ class Model (Serializable) :
       Args:
          pars : a set of model parameter values
       Returns:
-         A randomly-generated dataset
+         a randomly-generated dataset
     """
     if not isinstance(pars, Parameters) : pars = Parameters(pars, model=self)
     ntot = self.tot_bin_exp(pars)
@@ -1055,12 +1127,12 @@ class Model (Serializable) :
       Args:
          pars : a set of model parameter values
       Returns:
-         An Asimov dataset
+         an Asimov dataset
     """
     if not isinstance(pars, Parameters) : pars = Parameters(pars, model=self)
     return Data(self).set_data(self.tot_bin_exp(pars), pars.nps)
 
-  def generate_expected(self, pois, minimizer = None) :
+  def generate_expected(self, pois : dict, minimizer : 'NPMinimizer' = None) :
     """Generate an Asimov dataset for expected parameter values
 
       Same functionality as :meth:`Model.generate_asimov`, but with
@@ -1068,11 +1140,10 @@ class Model (Serializable) :
       same way as described for :meth:`Model.expected_pars`.
 
       Args:
-         pois : A dict of POI name : value pairs, or a class:`Parameters` object.
-         minimizer (optional) : NP minimizer algorithm used to compute NP profile values
-         data (optional) : dataset to use for the profiling
+         pois : a dict of POIs { name : value } pairs, or a class:`Parameters` object.
+         minimizer : an optional minimizer used to compute NP profile values
       Returns:
-         An Asimov dataset
+         an Asimov dataset
     """
     return self.generate_asimov(self.expected_pars(pois, minimizer))
 
@@ -1087,8 +1158,9 @@ class Model (Serializable) :
          filename : name of a markup file containing the model definition
          verbosity: level of verbosity (0=minimal)
          flavor   : input markup flavor (currently supported: 'json' [default], 'yaml')
+         use_linear_nps: if `True`, use linear NP impacts (see :meth:`Model.__init__`)
       Returns:
-         The created model
+         the created model
     """
     return Model(use_linear_nps=use_linear_nps, verbosity=verbosity).load(filename, flavor=flavor)
 
@@ -1103,7 +1175,7 @@ class Model (Serializable) :
          sdict : a dictionary containing the model definition
          verbosity: level of verbosity (0=minimal)
       Returns:
-         The created model
+         the created model
     """
     return Model(verbosity=verbosity).load_dict(sdict)
 
@@ -1181,7 +1253,7 @@ class Model (Serializable) :
     """Save information to a dictionary of markup data
 
       Args:
-         sdict: A dictionary containing markup data
+         sdict: a dictionary containing markup data
     """
     sdict['model'] = {}
     sdict['model']['name'] = self.name
@@ -1200,7 +1272,7 @@ class Model (Serializable) :
     """Provides a description string
 
       Returns:
-        The object description
+        the object description
     """
     return 'Model ' + self.string_repr(verbosity = 1)
 
@@ -1242,7 +1314,7 @@ class Data (Serializable) :
 
   Stores a complete dataset:
 
-  * A list of observed bin yields
+  * A list of observed bin yields (also including observable values for Gaussian channels)
 
   * Observed values for the auxiliary observables.
 
@@ -1276,10 +1348,10 @@ class Data (Serializable) :
                 aux_obs=aux_obs if aux_obs is not None else np.array(self.aux_obs))
 
   def set_counts(self, counts) -> 'Data' :
-    """Sets the observed bin counts to the specified values
+    """Set the observed bin counts
 
       Args:
-         counts  : observed bin counts to set to
+         counts : new observed bin counts
       Returns:
          self
     """
@@ -1296,10 +1368,10 @@ class Data (Serializable) :
     return self
 
   def set_aux_obs(self, aux_obs = []) :
-    """Sets the aux. obs. to the specified values
+    """Set the aux. obs.
 
       Args:
-         aux_obs : aux. obs. values to set to
+         aux_obs : new aux. obs. values
       Returns:
          self
     """
@@ -1323,11 +1395,11 @@ class Data (Serializable) :
     return self
 
   def set_data(self, counts, aux_obs) :
-    """Sets both the observed bin counts and aux. obs. to the specified values
+    """Set both the observed bin counts and aux. obs.
 
       Args:
-         counts  : observed bin counts to set to
-         aux_obs : aux. obs. values to set to
+         counts  : new observed bin counts
+         aux_obs : newaux. obs. values
       Returns:
          self
     """
@@ -1393,10 +1465,10 @@ class Data (Serializable) :
     self.save(filename, flavor, payload=sdict)
 
   def __str__(self) -> str :
-    """Provides a description string
+    """Provide a description string
 
       Returns:
-        The object description
+        the object description
     """
     return 'Data ' + self.string_repr(verbosity = 1)
 
