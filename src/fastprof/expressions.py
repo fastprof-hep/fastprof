@@ -1,3 +1,32 @@
+"""Module containing the expression classes
+
+Expressions are functions of model POIs that are used to define
+the normalization factors of the model samples. These factors can be
+single POIs, or model complex expressions. In each case, the expression
+must be evaluated and als define closed-form gradients and hessians that
+can be used to help with minimization and error propagation.
+
+The following classes are defined:
+
+  * :class:`Expression` : the base class defining the overall structure. It derives from
+    :class:`fastprof.base.Serializable` in order to benefit from markup I/O functionality
+    
+  * :class:`Number` : an expression defined as a single real number.
+  
+  * :class:`SingleParameter` : an expression defined as a single POI.
+  
+  * :class:`LinearCombination` : the linear combination of  multiple
+    POIs or expressions.
+
+  * :class:`ProductRatio` : the product and ratio of  multiple POIs or
+    expressions, in the form `(p1*p2*p3*...)/(q1*q2*q3*...)`.
+
+  * :class:`Exponential` : the the exponential of a POI or expression.
+
+  * :class:`Formula` : an expression defined by a generic formula, currently
+    not fully implemented.
+"""
+
 from .base import Serializable
 import numpy as np
 from abc import abstractmethod
