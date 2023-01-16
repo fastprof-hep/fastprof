@@ -675,7 +675,7 @@ class Model (Serializable) :
     return nnom*self.cut_k_exp(pars)
 
   def channel_n_exp(self, pars : Parameters = None, nexp : np.array = None, channel : str = None, sample : str = None) -> np.array :
-     """Return the expected event yields for a given channel
+    """Return the expected event yields for a given channel
 
       
       If only `pars` is provided, will return the expected yields for these parameter
@@ -696,7 +696,7 @@ class Model (Serializable) :
       Returns:
          expected event yields per sample per bin
     """
-   if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
+    if nexp is None and pars is None : raise ValueError("ERROR: must specify either 'pars' or 'nexp' for expected yields.")
     nexpval = nexp if nexp is not None else self.n_exp(pars)
     if sample is not None :
       nexpval = nexpval[list(self.channels[channel].samples.keys()).index(sample)]
