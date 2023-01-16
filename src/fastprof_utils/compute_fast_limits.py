@@ -114,10 +114,11 @@ def run(argv = None) :
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
     print('Using dataset stored in file %s.' % options.data_file)
-  elif options.asimov != None :
+  elif options.asimov is not None :
     try:
       sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
-      data = model.generate_expected(sets)
+      sets_dict = { name : value for name, value in sets }
+      data = model.generate_expected(sets_dict)
     except Exception as inst :
       print(inst)
       raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
