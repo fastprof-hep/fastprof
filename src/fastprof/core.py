@@ -424,7 +424,7 @@ class Model (Serializable) :
     self.set_internal_vars()
 
   def clone(self, name : str = None, set_internal_vars : bool = True) :
-     """Return a clone of the model
+    """Return a clone of the model
 
       All internal model information (arrays, expressionschannels, samples) are deep-copied
       in the cloning to ensure that the clone is independent of the original.
