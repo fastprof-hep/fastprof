@@ -25,6 +25,13 @@ The following classes are defined:
 
   * :class:`Formula` : an expression defined by a generic formula, currently
     not fully implemented.
+
+The evaluation functions make use of 3 main arguments: a list of parameters (`pars`), a
+list of sub-expressions (`reals`) and a dict of { name : value } for all
+the known expressions, including parameters (`real_vals`). Evaluation is recursive, and
+values are entered in `real_vals` as they are computed. The `pars` and `reals` arguments
+are expected as { name: object } dicts since this is how it naturally comes from the
+model, but only the keys are used for now.
 """
 
 from .base import Serializable
@@ -38,8 +45,10 @@ class Expression(Serializable) :
 
   Attributes:
      name (str) : the name of the expression
-  """
 
+    Args:
+        name : the expression name
+  """
   def __init__(self, name : str = '') :
     """Create a new Expression object
     """
@@ -47,59 +56,65 @@ class Expression(Serializable) :
     super().__init__()
 
   @abstractmethod
-  def value(self, pars_dict : dict) -> float :
-    """Computes the expression value
+  def value(self, pars : dict) -> float :
+    """Compute the expression value
+
+      Returns the expression value as a single float
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+         pars : the expression parameters as a dictionary of { name: object } pairs
       Returns:
-         expression value
+         the expression value
     """
     pass
 
   def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes the gradient of the expression wrt parameters
+    """Compute the gradient of the expression wrt parameters
 
-     Non-zero gradient is given by the linear coefficients
+      Returns the gradient of the expression as a 1D array of size len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-         known gradients, in the form { par_name: dN/dpar }
+        gradients wrt parameters
     """
     return None
 
   def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes the Hessian of the expression wrt parameters
+    """Compute the Hessian of the expression wrt parameters
 
-     Non-zero gradient is given by the linear coefficients
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
 
       Args:
-         pars_dict : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-         known gradients, in the form { par_name: dN/dpar }
+        Hessian wrt parameter pairs
     """
     return None
 
   def replace(self, name : str, value : float, reals : dict) -> float :
-    """Replaces parameter 'name' by a numberical value
+    """Replace parameter 'name' by a numberical value
 
-       All instances of the parameter 'name'
-       should be replaced by 'value'. This expression should 
+       Replaces all instances of the parameter 'name'
+       by 'value', as needed for instance if a parameter is set
+       constant to this value. This expression should
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
-       If this makes the expression trivial, the resulting
-       numerical value of the expression is returned. Otherwise,
-       the expession itself is returned.
 
       Args:
          name : the name of the parameter to replace
          value : the value to use as replacement
-         reals : a dict containing all the reals in the model,
+         reals : a dict of all sub-expressions in the model,
                  to recursively propagate the replace call to
                  sub-expressions.
       Returns:
-         self, or just a number if the expression is now trivial
+         the new expression
     """
     raise KeyError("Cannot replace value of parameter '%s' in expression '%s'." % (name, self.name))
 
@@ -115,7 +130,7 @@ class Expression(Serializable) :
     self.name  = sdict['name']
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:
@@ -127,9 +142,13 @@ class Expression(Serializable) :
   def instantiate(cls, sdict, load_data : bool = True) :
     """Instantiate an Expression object from one of the possibilities below.
 
+      Class method used when loading the expressions from markup, to
+      instantiate expressions from type strings specified in the markup.
+
       Args:
          cls: this class
-         sdict: A dictionary containing markup data
+         sdict: dictionary containing markup data
+         load_data: if `True`, also initialize the expression from markup
     """
     if not 'type' in sdict or sdict['type'] == Formula.type_str :
       expression = Formula()
@@ -146,9 +165,10 @@ class Expression(Serializable) :
     if load_data : expression.load_dict(sdict)
     return expression
 
+
 # -------------------------------------------------------------------------
 class Number(Expression) :
-  """Class representing a single number
+  """Expression class representing a (fixed) float value
   """
 
   type_str = 'number'
@@ -161,19 +181,21 @@ class Number(Expression) :
     self.val = value
 
   def value(self, real_vals : dict) -> float :
-    """Computes the expression value
+    """Compute the expression value
+
+      Returns the expression value, in this case the stored float.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+         pars : the expression parameters as a dictionary of { name: object } pairs
       Returns:
-         expression value
+         the expression value
     """
     return self.val
 
   def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
     """Computes gradient of the normalization wrt parameters
 
-     Non-zero gradient is given by the linear coefficients
+      Returns zeros in this case, since the expression is constant.
 
       Args:
          real_vals : a dictionary of parameter name: value pairs
@@ -183,38 +205,46 @@ class Number(Expression) :
     return np.zeros(len(pars))
 
   def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes Hessian of the normalization wrt parameters
+    """Compute the Hessian of the expression wrt parameters
+
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
+
+      Returns zeros in this case, since the expression is constant.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-        Hessian matrix
+        Hessian wrt parameter pairs
     """
     return np.zeros((len(pars), len(pars)))
 
   def replace(self, name : str, value : float, reals : dict) -> float :
-    """Replaces parameter 'name' by a numberical value
+    """Replace parameter 'name' by a numberical value
 
-       All instances of the parameter 'name'
-       should be replaced by 'value'. This expression should 
+       Replaces all instances of the parameter 'name'
+       by 'value', as needed for instance if a parameter is set
+       constant to this value. This expression should
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
-       If this makes the expression trivial, the resulting
-       numerical value of the expression is returned. Otherwise,
-       the expession itself is returned.
+
+       Here just return itself no matter what, since there are
+       no parameters.
 
       Args:
          name : the name of the parameter to replace
          value : the value to use as replacement
-         reals : a dict containing all the reals in the model,
+         reals : a dict of all sub-expressions in the model,
                  to recursively propagate the replace call to
                  sub-expressions.
       Returns:
-         self, or just a number if the expression is now trivial
+         self
     """
     return self
 
-  def load_dict(self, sdict) -> 'Number' :
+  def load_dict(self, sdict : dict) -> 'Number' :
     """Load object information from a dictionary of markup data
 
       Args:
@@ -229,7 +259,7 @@ class Number(Expression) :
     self.val = self.load_field('value', sdict, 0, [int, float])
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:
@@ -240,10 +270,10 @@ class Number(Expression) :
     sdict['value'] = self.val
 
   def __str__(self) -> str :
-    """Provides a description string
+    """Provide a description string
 
       Returns:
-        The object description
+        the object description
     """
     return '%s=%g' % (self.name, self.val)
 
@@ -256,43 +286,60 @@ class SingleParameter(Expression) :
   type_str = 'single_parameter'
 
   def __init__(self, par_name : str = '') :
-    """Create a new LinearCombination object
+    """Create a new SingleParameter object
     
-    #"""
+    """
     super().__init__(par_name)
 
   def value(self, real_vals : dict) -> float :
-    """Computes the expression value
+    """Compute the expression value
+
+      Returns the expression value as a single float, here
+      just the parameter value.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+         pars : the expression parameters as a dictionary of { name: object } pairs
       Returns:
-         expression value
+         the expression value
     """
     if not self.name in real_vals :
         raise KeyError("Cannot evaluate unknown parameter '%s'. Known parameters are as follows: %s" % (self.name, str(real_vals)))
     return real_vals[self.name]
 
   def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the normalization wrt parameters
+    """Compute the gradient of the expression wrt parameters
 
-     Non-zero gradient is given by the linear coefficients
+      Returns the gradient of the expression as a 1D array of size len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
+
+      Here the gradients are just 1 for this parameter and
+      0 otherwise.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-         known gradient, in the form { par_name: dN/dpar }
+        gradients wrt parameters
     """
     if not self.name in pars : return np.zeros(len(pars))
     return np.array([ 1 if par == self.name else 0 for par in pars ])
 
   def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes Hessian of the normalization wrt parameters
+    """Compute the Hessian of the expression wrt parameters
+
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
+
+      Here return just zeros, since second derivatives of a single parameter are
+      always 0.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-        Hessian matrix
+        Hessian wrt parameter pairs
     """
     return np.zeros((len(pars), len(pars)))
 
@@ -303,9 +350,6 @@ class SingleParameter(Expression) :
        should be replaced by 'value'. This expression should 
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
-       If this makes the expression trivial, the resulting
-       numerical value of the expression is returned. Otherwise,
-       the expession itself is returned.
 
       Args:
          name : the name of the parameter to replace
@@ -314,7 +358,7 @@ class SingleParameter(Expression) :
                  to recursively propagate the replace call to
                  sub-expressions.
       Returns:
-         self, or just a number if the expression is now trivial
+         self
     """
     if name == self.name :
       if value is None : raise KeyError("Cannot remove POI '%s' since it must be removed from expression '%s' and no replacement value was provided." % (name, self.name))
@@ -335,7 +379,7 @@ class SingleParameter(Expression) :
       raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], SingleParameter.type_str))
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:
@@ -377,12 +421,20 @@ class LinearCombination(Expression) :
     self.coeffs = coeffs
 
   def value(self, real_vals : dict) -> float :
-    """Computes the expression value
+    """Compute the gradient of the expression wrt parameters
+
+      Returns the gradient of the expression as a 1D array of size len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
+
+      For a linear combination, the gradients are just given by the
+      linear coefficients.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-         expression value
+        gradients wrt parameters
     """
     val = self.nominal_value
     for expr in self.coeffs :
@@ -407,34 +459,37 @@ class LinearCombination(Expression) :
     return val
 
   def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes Hessian of the normalization wrt parameters
+    """Compute the Hessian of the expression wrt parameters
+
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-        Hessian matrix
+        Hessian wrt parameter pairs
     """
     return np.zeros((len(pars), len(pars)))
 
-  def replace(self, name : str, value : float, reals : dict) -> float :
-    """Replaces parameter 'name' by a numberical value
+  def replace(self, name : str, value : float, reals : dict) -> 'LinearCombination' :
+    """Replace parameter 'name' by a numberical value
 
-       All instances of the parameter 'name'
-       should be replaced by 'value'. This expression should 
+       Replaces all instances of the parameter 'name'
+       by 'value', as needed for instance if a parameter is set
+       constant to this value. This expression should
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
-       If this makes the expression trivial, the resulting
-       numerical value of the expression is returned. Otherwise,
-       the expession itself is returned.
 
       Args:
          name : the name of the parameter to replace
          value : the value to use as replacement
-         reals : a dict containing all the reals in the model,
+         reals : a dict of all sub-expressions in the model,
                  to recursively propagate the replace call to
                  sub-expressions.
       Returns:
-         self, or just a number if the expression is now trivial
+         self
     """
     to_remove = []
     for expr in self.coeffs :
@@ -446,7 +501,7 @@ class LinearCombination(Expression) :
     if len(self.coeffs) > 0 : return self
     return self.nominal_value
 
-  def load_dict(self, sdict) -> 'LinearCombination' :
+  def load_dict(self, sdict : dict) -> 'LinearCombination' :
     """Load object information from a dictionary of markup data
 
       Args:
@@ -462,7 +517,7 @@ class LinearCombination(Expression) :
     self.coeffs = self.load_field('coeffs', sdict, {}, dict)
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:
@@ -518,12 +573,14 @@ class ProductRatio(Expression) :
     return np.prod([ real_vals[expr] for expr in self.denominator ])
 
   def value(self, real_vals : dict) -> float :
-    """Computes the expression value
+    """Compute the expression value
+
+      Returns the expression value as a single float
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+         pars : the expression parameters as a dictionary of { name: object } pairs
       Returns:
-         expression value
+         the expression value
     """
     try :
       val = self.prefactor*self.numerator_value(real_vals)/self.denominator_value(real_vals)
@@ -549,14 +606,17 @@ class ProductRatio(Expression) :
     return np.sum(grad_vals/expr_vals, axis=1)
 
   def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the expression wrt parameters
+    """Compute the gradient of the expression wrt parameters
 
-     Non-zero gradient is given by the linear coefficients
+      Returns the gradient of the expression as a 1D array of size len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-         known gradient, in the form { par_name: dN/dpar }
+        gradients wrt parameters
     """
     grad_num = self.prod_gradient(pars, reals, real_vals, self.numerator)
     grad_den = self.norm_gradient(pars, reals, real_vals, self.denominator)
@@ -570,12 +630,17 @@ class ProductRatio(Expression) :
     return np.sum((hess_vals - grad_vals[None,:,:]*grad_vals[:,None,:]/expr_vals)/expr_vals, axis=2)
 
   def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes Hessian of the expression wrt parameters
+    """Compute the Hessian of the expression wrt parameters
+
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-        Hessian matrix
+        Hessian wrt parameter pairs
     """
     hess_num = self.norm_hessian (pars, reals, real_vals, self.numerator  )
     hess_den = self.norm_hessian (pars, reals, real_vals, self.denominator)
@@ -584,25 +649,23 @@ class ProductRatio(Expression) :
     grad_dif = grad_num - grad_den
     return self.value(real_vals)*(hess_num - hess_den + grad_dif[:,None]*grad_dif[None,:])
 
-  def replace(self, name : str, value : float, reals : dict) -> float :
-    """Replaces parameter 'name' by a numberical value
+  def replace(self, name : str, value : float, reals : dict) -> 'ProductRatio' :
+    """Replace parameter 'name' by a numberical value
 
-       All instances of the parameter 'name'
-       should be replaced by 'value'. This expression should 
+       Replaces all instances of the parameter 'name'
+       by 'value', as needed for instance if a parameter is set
+       constant to this value. This expression should
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
-       If this makes the expression trivial, the resulting
-       numerical value of the expression is returned. Otherwise,
-       the expession itself is returned.
 
       Args:
          name : the name of the parameter to replace
          value : the value to use as replacement
-         reals : a dict containing all the reals in the model,
+         reals : a dict of all sub-expressions in the model,
                  to recursively propagate the replace call to
                  sub-expressions.
       Returns:
-         self, or just a number if the expression is now trivial
+         self
     """
     to_remove = []
     for expr in self.numerator :
@@ -639,7 +702,7 @@ class ProductRatio(Expression) :
     self.denominator = self.load_field('denominator', sdict, [],  list)
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:
@@ -664,74 +727,6 @@ class ProductRatio(Expression) :
     return '(%s)/(%s)' % (num, den)
 
 
-# -------------------------------------------------------------------------
-class Formula(Expression) :
-  """Class representing the normalization term of a sample
-     as a formula expression.
-
-  Attributes:
-     formula  (str) : a string defining the normalization term
-                      as a function of the POIs
-  """
-
-  type_str = 'formula'
-
-  def __init__(self, name : str = '', formula : str = '') :
-    """Create a new Formula object
-    
-    Args:
-       formula : the formula expression
-    """
-    super().__init__(name)
-    self.formula = formula
-
-  def value(self, pars_dict : dict) -> float :
-    """Computes the expression value
-
-      Args:
-         pars_dict : a dictionary of parameter name: value pairs
-      Returns:
-         expression value
-    """
-    try:
-      return eval(self.formula, pars_dict)
-    except Exception as inst:
-      print("Error while evaluating normalization formula '%s'." % self.formula)
-      raise(inst)
-
-  def load_dict(self, sdict) -> 'FormulaFunction' :
-    """Load object information from a dictionary of markup data
-
-      Args:
-        sdict: A dictionary containing markup data
-
-      Returns:
-        self
-    """
-    super().load_dict(sdict)
-    if sdict['type'] != FormulaFunction.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], FormulaFunction.type_str))
-    self.formula = self.load_field('formula', sdict, '', str)
-    return self
-
-  def fill_dict(self, sdict) :
-    """Save information to a dictionary of markup data
-
-      Args:
-         sdict: A dictionary containing markup data
-    """
-    super().fill_dict(sdict)
-    sdict['type'] = Formula.type_str
-    sdict['formula'] = self.formula
-
-  def __str__(self) -> str :
-    """Provides a description string
-
-      Returns:
-        The object description
-    """
-    return 'formula[%s]' % self.formula
-
 
 # -------------------------------------------------------------------------
 class Exponential(Expression) :
@@ -755,63 +750,74 @@ class Exponential(Expression) :
     self.exponent = exponent
 
   def value(self, real_vals : dict) -> float :
-    """Computes the expression value
+    """Compute the expression value
+
+      Returns the expression value as a single float
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+         pars : the expression parameters as a dictionary of { name: object } pairs
       Returns:
-         expression value
+         the expression value
     """
     if not self.exponent in real_vals :
       raise KeyError("Cannot evaluate exponential of the unknown expression '%s'. Known expressions are as follows: %s" % (self.exponent, str(real_vals.keys())))
     return np.exp(real_vals[self.exponent])
 
   def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the normalization wrt parameters
+    """Compute the gradient of the expression wrt parameters
 
-     Non-zero gradient is given by the linear coefficients
+      Returns the gradient of the expression as a 1D array of size len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
+
+      For a linear combination, the gradients are just given by the
+      linear coefficients.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-         known gradient, in the form { par_name: dN/dpar }
+        gradients wrt parameters
     """
     if not self.exponent in reals :
       raise KeyError("Cannot compute gradient of the exponential of the unknown expression '%s'. Known expressions are as follows: %s" % (self.exponent, str(reals.keys())))
     return self.value(real_vals)*reals[self.exponent].gradient(pars, reals, real_vals)
 
   def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes Hessian of the normalization wrt parameters
+    """Compute the Hessian of the expression wrt parameters
+
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-        Hessian matrix
+        Hessian wrt parameter pairs
     """
     if not self.exponent in reals :
       raise KeyError("Cannot compute Hessian of the exponential of the unknown expression '%s'. Known expressions are as follows: %s" % (self.exponent, str(reals.keys())))
     grad = reals[self.exponent].gradient(pars, reals, real_vals)
     return self.value(real_vals)*(reals[self.exponent].hessian(pars, reals, real_vals) + np.outer(grad, grad))
 
-  def replace(self, name : str, value : float, reals : dict) -> float :
-    """Replaces parameter 'name' by a numberical value
+  def replace(self, name : str, value : float, reals : dict) -> 'Exponential' :
+    """Replace parameter 'name' by a numberical value
 
-       All instances of the parameter 'name'
-       should be replaced by 'value'. This expression should 
+       Replaces all instances of the parameter 'name'
+       by 'value', as needed for instance if a parameter is set
+       constant to this value. This expression should
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
-       If this makes the expression trivial, the resulting
-       numerical value of the expression is returned. Otherwise,
-       the expession itself is returned.
 
       Args:
          name : the name of the parameter to replace
          value : the value to use as replacement
-         reals : a dict containing all the reals in the model,
+         reals : a dict of all sub-expressions in the model,
                  to recursively propagate the replace call to
                  sub-expressions.
       Returns:
-         self, or just a number if the expression is now trivial
+         self
     """
     return reals[self.exponent].replace(name, value, reals)
 
@@ -830,7 +836,7 @@ class Exponential(Expression) :
     self.exponent = self.load_field('exponent', sdict, '', str)
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:
@@ -849,3 +855,72 @@ class Exponential(Expression) :
     return 'exp(%s)' % self.exponent
 
 
+# -------------------------------------------------------------------------
+class Formula(Expression) :
+  """Class representing the normalization term of a sample
+     as a formula expression.
+
+  Attributes:
+     formula  (str) : a string defining the normalization term
+                      as a function of the POIs
+  """
+
+  type_str = 'formula'
+
+  def __init__(self, name : str = '', formula : str = '') :
+    """Create a new Formula object
+
+    Args:
+       formula : the formula expression
+    """
+    super().__init__(name)
+    self.formula = formula
+
+  def value(self, pars_dict : dict) -> float :
+    """Compute the expression value
+
+      Returns the expression value as a single float
+
+      Args:
+         pars : the expression parameters as a dictionary of { name: object } pairs
+      Returns:
+         the expression value
+    """
+    try:
+      return eval(self.formula, pars_dict)
+    except Exception as inst:
+      print("Error while evaluating normalization formula '%s'." % self.formula)
+      raise(inst)
+
+  def load_dict(self, sdict) -> 'FormulaFunction' :
+    """Load object information from a dictionary of markup data
+
+      Args:
+        sdict: A dictionary containing markup data
+
+      Returns:
+        self
+    """
+    super().load_dict(sdict)
+    if sdict['type'] != FormulaFunction.type_str :
+      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['type'], FormulaFunction.type_str))
+    self.formula = self.load_field('formula', sdict, '', str)
+    return self
+
+  def fill_dict(self, sdict : dict) :
+    """Save information to a dictionary of markup data
+
+      Args:
+         sdict: A dictionary containing markup data
+    """
+    super().fill_dict(sdict)
+    sdict['type'] = Formula.type_str
+    sdict['formula'] = self.formula
+
+  def __str__(self) -> str :
+    """Provide a description string
+
+      Returns:
+        The object description
+    """
+    return 'formula[%s]' % self.formula
