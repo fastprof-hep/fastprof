@@ -154,6 +154,8 @@ class Expression(Serializable) :
       expression = Formula()
     elif sdict['type'] == Number.type_str :
       expression = Number()
+    elif sdict['type'] == SingleParameter.type_str :
+      expression = SingleParameter()
     elif sdict['type'] == LinearCombination.type_str :
       expression = LinearCombination()
     elif sdict['type'] == ProductRatio.type_str :
