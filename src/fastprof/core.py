@@ -145,11 +145,13 @@ class Parameters :
   def __getitem__(self, par : str) -> float :
     """Implement [] lookup of POI and NP names
 
+      Returns *scaled* values of the NPs.
+
       Args:
         par : name of a parameter (either POI or NP)
 
       Returns:
-        The value of the parameter
+        the value of the parameter
     """
     if self.model is None : raise ValueError('Cannot perform operation without a model.')
     if par in self.model.pois : return self.pois[list(self.model.pois).index(par)]
