@@ -106,13 +106,13 @@ def run(argv = None) :
         if spec_names[1] == 'formula' : 
           expr_dict['formula'] = spec_names[2]
         elif spec_names[1] == 'linear_combination' : 
-          expr_dict['pars_coeffs'] = {}
+          expr_dict['coeffs'] = {}
           for pc_spec in spec_names[2].split('#') :
             par_name, coeff_str = pc_spec.split('*')
-            expr_dict['pars_coeffs'][par_name] = float(coeff_str)
+            expr_dict['coeffs'][par_name] = float(coeff_str)
         else :
           raise ValueError("Invalid expression type '%s'." % spec_names[1])
-        expr = Expression.instantiate(expr_dict)
+        expr = Expression.instantiate(expr_dict, load_data=True)
         add_expressions.append(expr)
     except Exception as inst :
       print(inst)
