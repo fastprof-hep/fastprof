@@ -1,16 +1,16 @@
 == OptiMinimizer: cannot use method 'scalar' for multiple POIs, switching to 'L-BFGS-B'.
 
-== Best-fit: nll = -221.674 @ at parameter values =
-POIs : xs1          =   9.9999
-       xs2          =  10.0029
+== Best-fit: nll = -153.025 @ at parameter values =
+POIs : xs1          =   9.9998
+       xs2          =  10.0031
 NPs  : np_lumi      =  -0.0002 (unscaled :      -0.0002)
-       np_eff       =  -0.0009 (unscaled :      -0.0009)
-       np_bkg1      =  -0.0007 (unscaled :      49.9993)
-       np_bkg2      =  -0.0019 (unscaled :      49.9981)
+       np_eff       =  -0.0010 (unscaled :      -0.0010)
+       np_bkg1      =  -0.0001 (unscaled :      49.9993)
+       np_bkg2      =  -0.0004 (unscaled :      49.9979)
 
 == POI values :
-xs1                  =    9.99986 +/-    2.54991
-xs2                  =    10.0029 +/-    2.00035
+xs1                  =     9.9998 +/-    2.54994
+xs2                  =    10.0031 +/-    2.00038
 
 == Correlation matrix [xs1 xs2]:
 [[ 1.     -0.7845]
