@@ -225,8 +225,7 @@
 @          }
 @       ]
 @    }
-@ }Producing PLR scan with POI(s) ['xx1'], bounds {'xs2': 0 <= xs2 <= 20, 'xx1': 0 <= xx1 <= 20}.
-== OptiMinimizer: cannot use method 'scalar' for multiple POIs, switching to 'L-BFGS-B'.
+@ }
 | xx1             | tmu             | pv              
 | 0               | 12.036          | 0.000521827     
 | 1               | 7.777           | 0.00529157      
