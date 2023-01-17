@@ -82,17 +82,15 @@ class Norm(Serializable) :
          cls: this class
          sdict: A dictionary containing markup data
     """
-    norm_type = cls.load_field('norm_type', sdict, '', str)
-    if norm_type == '' :
-      norm = cls.load_field('norm', sdict, None, [int, float, str])
-      if isinstance(norm, (int, float)) or norm is None :
+    norm = cls.load_field('norm', sdict, None, [int, float, str])
+    if isinstance(norm, (int, float)) or norm is None :
+      norm_type = NumberNorm.type_str
+    else :
+      try:
+        float(norm)
         norm_type = NumberNorm.type_str
-      else :
-        try:
-          float(norm)
-          norm_type = NumberNorm.type_str
-        except Exception as inst:
-          norm_type = ExpressionNorm.type_str
+      except Exception as inst:
+        norm_type = ExpressionNorm.type_str
     if norm_type == NumberNorm.type_str :
       norm = NumberNorm()
     elif norm_type == ExpressionNorm.type_str :
@@ -182,8 +180,6 @@ class NumberNorm(Serializable) :
       Returns:
         self
     """
-    if 'norm_type' in sdict and sdict['norm_type'] != NumberNorm.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['norm_type'], NumberNorm.type_str))
     self.norm_value = self.load_field('norm', sdict, '', [int, float, str])
     if self.norm_value == '' : self.norm_value = 1
     if isinstance(self.norm_value, str) :
@@ -196,7 +192,6 @@ class NumberNorm(Serializable) :
       Args:
          sdict: A dictionary containing markup data
     """
-    sdict['norm_type'] = NumberNorm.type_str
     sdict['norm'] = self.unnumpy(self.norm_value)
 
   def __str__(self) -> str :
@@ -289,8 +284,6 @@ class ExpressionNorm(Serializable) :
       Returns:
         self
     """
-    if 'norm_type' in sdict and sdict['norm_type'] != ExpressionNorm.type_str :
-      raise ValueError("Cannot load normalization data defined for type '%s' into object of type '%s'" % (sdict['norm_type'], ExpressionNorm.type_str))
     self.expr_name = self.load_field('norm', sdict, '', str)
     return self
 
@@ -300,7 +293,6 @@ class ExpressionNorm(Serializable) :
       Args:
          sdict: A dictionary containing markup data
     """
-    sdict['norm_type'] = ExpressionNorm.type_str
     sdict['norm'] = self.expr_name
 
   def __str__(self) -> str :
