@@ -8,7 +8,8 @@ from fastprof import Model, ModelPOI
 import numpy as np
 
 
-def process_setvals(setvals : str, model : Model, match_pois : bool = True, match_nps : bool = True, check_val : bool = True) -> dict :
+def process_setvals(setvals : str, model : Model, match_pois : bool = True,
+                    match_nps : bool = True, check_val : bool = True, scale_nps : bool = False) -> dict :
   """Parse a set of model POI value assignments
 
   The input string is expected in the form
@@ -56,7 +57,10 @@ def process_setvals(setvals : str, model : Model, match_pois : bool = True, matc
     except ValueError as inst :
       if check_val : raise ValueError("Invalid numerical value '%s' in assignment to variable(s) '%s'." % (val, var))
       float_val = None
-    for var in matching_all : par_dict[var] = float_val if float_val is not None else val
+    for var in matching_all :
+      if scale_nps and var in matching_nps and float_val is not None :
+        float_val = model.nps[var].scaled_value(float_val) if float_val is not None else None
+      par_dict[var] = float_val if float_val is not None else val
   return par_dict
 
 def process_values_spec(spec : str) :

@@ -47,7 +47,7 @@ def run(argv = None) :
     SamplePruner(model, options.verbosity).prune(options.min_sample_signif)
 
   if options.nps is not None :
-    par_dict = process_setvals(options.nps, model)
+    par_dict = process_setvals(options.nps, model, scale_nps = True)
     NPPruner(model, options.verbosity).remove_nps(par_dict)
   
   if options.min_np_impact is not None :

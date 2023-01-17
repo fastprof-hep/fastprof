@@ -198,11 +198,18 @@ class NPPruner :
         for channel in model.channels.values() :
           for s, sample in enumerate(channel.samples.values()) :
             if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
-              if self.verbosity > 0 : print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % (selected_name, value, sample.name, channel.name))
-              sample.norm = NumberNorm(value)
+              #unscaled_value = par.unscaled_value(value)
+              # We replace by the *nominal* norm, since the effect of the NP will be accounted for
+              # in the nominal_yields below. It would be more elegant to do it the other way, but
+              # One would need to then correct the nexp sample by sample to remove the normalization
+              # effect we apply here, which doesn't seem optimal.
+              if self.verbosity > 0 :
+                print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % 
+                      (selected_name, sample.nominal_norm, sample.name, channel.name))
+              sample.norm = NumberNorm(sample.nominal_norm)
             else :
               if selected_name in sample.impacts : sample.impacts.pop(selected_name)
-        # TODO: should also check expressions
+        # TODO: should also replace by its value in expressions.
     nexp = model.n_exp(pars)
     if self.verbosity > 1 : print('Old pars :\n', model.ref_pars)
     if self.verbosity > 1 : print('New pars :\n', pars)
