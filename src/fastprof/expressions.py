@@ -25,9 +25,9 @@ The following classes are defined:
 
   * :class:`Formula` : an expression defined by a generic formula, currently
     not fully implemented.
-
+    
 The evaluation functions make use of 3 main arguments: a list of parameters (`pars`), a
-list of sub-expressions (`reals`) and a dict of { name : value } for all
+list of sub-expressions (`reals`) and a dict of { name : value } for all 
 the known expressions, including parameters (`real_vals`). Evaluation is recursive, and
 values are entered in `real_vals` as they are computed. The `pars` and `reals` arguments
 are expected as { name: object } dicts since this is how it naturally comes from the
@@ -58,8 +58,8 @@ class Expression(Serializable) :
   @abstractmethod
   def value(self, pars : dict) -> float :
     """Compute the expression value
-
-      Returns the expression value as a single float
+    
+      Returns the expression value as a single float 
 
       Args:
          pars : the expression parameters as a dictionary of { name: object } pairs
@@ -73,7 +73,7 @@ class Expression(Serializable) :
 
       Returns the gradient of the expression as a 1D array of size len(pars).
       The order of the gradients is the same as that of the `pars` arg.
-
+    
       Args:
         pars : expression parameters as a dictionary of { name: object } pairs
         reals: sub-expressions as a dictionary of { name: object } pairs
@@ -102,8 +102,8 @@ class Expression(Serializable) :
     """Replace parameter 'name' by a numberical value
 
        Replaces all instances of the parameter 'name'
-       by 'value', as needed for instance if a parameter is set
-       constant to this value. This expression should
+       by 'value', as needed for instance if a parameter is set 
+       constant to this value. This expression should 
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
 
@@ -184,7 +184,7 @@ class Number(Expression) :
 
   def value(self, real_vals : dict) -> float :
     """Compute the expression value
-
+    
       Returns the expression value, in this case the stored float.
 
       Args:
@@ -227,11 +227,11 @@ class Number(Expression) :
     """Replace parameter 'name' by a numberical value
 
        Replaces all instances of the parameter 'name'
-       by 'value', as needed for instance if a parameter is set
-       constant to this value. This expression should
+       by 'value', as needed for instance if a parameter is set 
+       constant to this value. This expression should 
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
-
+       
        Here just return itself no matter what, since there are
        no parameters.
 
@@ -295,7 +295,7 @@ class SingleParameter(Expression) :
 
   def value(self, real_vals : dict) -> float :
     """Compute the expression value
-
+    
       Returns the expression value as a single float, here
       just the parameter value.
 
@@ -313,10 +313,10 @@ class SingleParameter(Expression) :
 
       Returns the gradient of the expression as a 1D array of size len(pars).
       The order of the gradients is the same as that of the `pars` arg.
-
+      
       Here the gradients are just 1 for this parameter and
       0 otherwise.
-
+    
       Args:
         pars : expression parameters as a dictionary of { name: object } pairs
         reals: sub-expressions as a dictionary of { name: object } pairs
@@ -332,7 +332,7 @@ class SingleParameter(Expression) :
 
       Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
       The order of the gradients is the same as that of the `pars` arg.
-
+      
       Here return just zeros, since second derivatives of a single parameter are
       always 0.
 
@@ -427,10 +427,10 @@ class LinearCombination(Expression) :
 
       Returns the gradient of the expression as a 1D array of size len(pars).
       The order of the gradients is the same as that of the `pars` arg.
-
+      
       For a linear combination, the gradients are just given by the
       linear coefficients.
-
+    
       Args:
         pars : expression parameters as a dictionary of { name: object } pairs
         reals: sub-expressions as a dictionary of { name: object } pairs
@@ -479,8 +479,8 @@ class LinearCombination(Expression) :
     """Replace parameter 'name' by a numberical value
 
        Replaces all instances of the parameter 'name'
-       by 'value', as needed for instance if a parameter is set
-       constant to this value. This expression should
+       by 'value', as needed for instance if a parameter is set 
+       constant to this value. This expression should 
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
 
@@ -576,8 +576,8 @@ class ProductRatio(Expression) :
 
   def value(self, real_vals : dict) -> float :
     """Compute the expression value
-
-      Returns the expression value as a single float
+    
+      Returns the expression value as a single float 
 
       Args:
          pars : the expression parameters as a dictionary of { name: object } pairs
@@ -612,7 +612,7 @@ class ProductRatio(Expression) :
 
       Returns the gradient of the expression as a 1D array of size len(pars).
       The order of the gradients is the same as that of the `pars` arg.
-
+    
       Args:
         pars : expression parameters as a dictionary of { name: object } pairs
         reals: sub-expressions as a dictionary of { name: object } pairs
@@ -655,8 +655,8 @@ class ProductRatio(Expression) :
     """Replace parameter 'name' by a numberical value
 
        Replaces all instances of the parameter 'name'
-       by 'value', as needed for instance if a parameter is set
-       constant to this value. This expression should
+       by 'value', as needed for instance if a parameter is set 
+       constant to this value. This expression should 
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
 
@@ -681,7 +681,7 @@ class ProductRatio(Expression) :
       new_expr = reals[expr].replace(name, value, reals)
       if new_expr != reals[expr] : # i.e. it is now a trivial number
         if new_expr.val == 0 :
-          raise ValueError("Attempting to divide by '%s' == 0 when replacing '%s'=%g in '%s'." % (expr, name, value, self.name))
+          raise ValueError("Attempting to divide by '%s' == 0 when replacing '%s'=%g in '%s'." % (expr, name, value, self.name)) 
         self.prefactor /= new_expr.val
         to_remove.append(expr)
     for expr in to_remove : del self.denominator[expr]
@@ -754,8 +754,8 @@ class Exponential(Expression) :
 
   def value(self, real_vals : dict) -> float :
     """Compute the expression value
-
-      Returns the expression value as a single float
+    
+      Returns the expression value as a single float 
 
       Args:
          pars : the expression parameters as a dictionary of { name: object } pairs
@@ -771,10 +771,10 @@ class Exponential(Expression) :
 
       Returns the gradient of the expression as a 1D array of size len(pars).
       The order of the gradients is the same as that of the `pars` arg.
-
+      
       For a linear combination, the gradients are just given by the
       linear coefficients.
-
+    
       Args:
         pars : expression parameters as a dictionary of { name: object } pairs
         reals: sub-expressions as a dictionary of { name: object } pairs
@@ -808,8 +808,8 @@ class Exponential(Expression) :
     """Replace parameter 'name' by a numberical value
 
        Replaces all instances of the parameter 'name'
-       by 'value', as needed for instance if a parameter is set
-       constant to this value. This expression should
+       by 'value', as needed for instance if a parameter is set 
+       constant to this value. This expression should 
        update itself to remove the dependency on 'name', and
        adjust its own numerical value according to 'value'.
 
@@ -876,7 +876,7 @@ class Formula(Expression) :
 
   def __init__(self, name : str = '', formula : str = '') :
     """Create a new Formula object
-
+    
     Args:
        formula : the formula expression
     """
@@ -885,8 +885,8 @@ class Formula(Expression) :
 
   def value(self, pars_dict : dict) -> float :
     """Compute the expression value
-
-      Returns the expression value as a single float
+    
+      Returns the expression value as a single float 
 
       Args:
          pars : the expression parameters as a dictionary of { name: object } pairs
@@ -931,3 +931,6 @@ class Formula(Expression) :
         The object description
     """
     return 'formula[%s]' % self.formula
+
+
+

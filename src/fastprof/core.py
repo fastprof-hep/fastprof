@@ -345,7 +345,6 @@ class Model (Serializable) :
      max_nsamples (int) : largest number of samples among the channels. This defines the `nsamples` dimension
        of the objects below, e.g. NP impact matrices.
      expressions (dict) : the POI expressions (as a dict mapping expression name to :class:`fastprof.expressions.Expression` object)
-     reals (dict) : real values,i.e. POIs ans expressions (as a dict mapping its name to its object)
      nbins (int): total number of measurement bins, summing over all channels
      channel_offsets (dict): maps channel name to the index of the first bin of this channel in the overall bin list.
        (of size `nbins`).
@@ -458,7 +457,6 @@ class Model (Serializable) :
     self.nauxs = len(self.aux_obs)
     self.poi_indices = {}
     self.np_indices = {}
-    self.reals = { **{ poi : SingleParameter(poi) for poi in self.pois}, **{ par : SingleParameter(par) for par in self.nps}, **self.expressions }
     self.constraint_hessian = np.zeros((self.nnps, self.nnps))
     poi_initial_values = np.array([ poi.initial_value for poi in self.pois.values() ], dtype=float)
     self.np_nominal_values  = np.array([ par.nominal_value for par in self.nps.values() ], dtype=float)
@@ -484,6 +482,7 @@ class Model (Serializable) :
     if list(channels.keys()) != list(self.channels.keys()) :
       if self.verbose > 0 : print('Warning: reordering channels to put Gaussians at the end')
       self.channels = channels
+    reals = self.reals()
     for channel in self.channels.values() :
       if len(channel.samples) > self.max_nsamples : self.max_nsamples = len(channel.samples)
       self.channel_offsets[channel.name] = self.nbins
@@ -492,7 +491,7 @@ class Model (Serializable) :
         self.poi_hessian[offset:offset + channel.nbins(), offset:offset + channel.nbins()] = channel.hessian
       self.nbins += channel.nbins()
       for s, sample in enumerate(channel.samples.values()) :
-        sample.set_np_data(self.nps.values(), self.reals, self.real_vals(self.ref_pars), variation=1, verbosity=self.verbosity)
+        sample.set_np_data(self.nps.values(), reals, self.real_vals(self.ref_pars), variation=1, verbosity=self.verbosity)
         self.samples[(channel.name, s)] = sample
     if self.verbosity > 1 : print('Initializing nominal event yields')
     self.nominal_yields = np.stack([ np.concatenate([ self.samples[(channel.name, s)].nominal_yields if s < len(channel.samples) else np.zeros(channel.nbins()) for channel in self.channels.values()]) for s in range(0, self.max_nsamples) ])      
@@ -567,6 +566,19 @@ class Model (Serializable) :
     for par in self.pois.values() : pars[par.name] = par
     for par in self.nps.values()  : pars[par.name] = par
     return pars
+  
+  def reals(self) -> dict :
+    """Return all model real values
+
+      Returns all the real values in the model, i.e. POIs, NPs and expressions.
+      These are in turns the possible inputs to other expressions.
+
+      Returns:
+         A dictionary of parameter name : object pairs containing
+         all POIs, NPs and expressions
+    """
+    return { **{ poi : SingleParameter(poi) for poi in self.pois}, **{ par : SingleParameter(par) for par in self.nps}, **self.expressions }
+
 
   def set_constraint(self, par : str, val : float) :
     """Set the value of the constraint on a NP
@@ -790,7 +802,7 @@ class Model (Serializable) :
       nexps = self.n_exp(pars) # shape = (n_samples, n_bins)
       # grads: shape = (n_samples, n_pois).
       # This is the gradient of the expected yields, modified with the NP effects
-      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
+      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals(), real_vals)
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
                              for s in range(0, self.max_nsamples) ])*self.cut_k_exp(pars)[:, :, None]
@@ -821,17 +833,18 @@ class Model (Serializable) :
       # dNLL/(dmu_a dmu_b) = sum_i ( H^(a,b)_i - n_i*( H^(a,b)_i - G^(a)_i*G^(a)_i ))
       # where i runs over bins, s over samples, G^(a)_i is the `tot_rel_grads` object,
       # H^(a,b)_i is the `tot_rel_hesse` object,  and n_i the observed counts.
+      reals = self.reals()
       real_vals = self.real_vals(pars)
       nexps = self.n_exp(pars) # shape = (n_samples, n_bins)
       # grads: shape = (n_samples, n_pois).
       # This is the gradient of the expected yields, modified with the NP effects
-      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, self.reals, real_vals)
+      grads = np.stack([ np.concatenate([ self.samples[(channel_name, s)].gradient(self.pois, reals, real_vals)
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
                              for s in range(0, self.max_nsamples) ])*self.cut_k_exp(pars)[:, :, None]
       # hesse: shape = (n_samples, n_pois, n_pois)
       # This is the Hessian of the expected yields, modified with the NP effects
-      hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, self.reals, real_vals)
+      hesse = np.stack([ np.concatenate([ self.samples[(channel_name, s)].hessian(self.pois, reals, real_vals)
                                           if s < len(channel.samples) else np.zeros((channel.nbins(), len(self.pois), len(self.pois)))
                                           for channel_name, channel in self.channels.items()])
                          for s in range(0, self.max_nsamples) ])*self.cut_k_exp(pars)[:, :, None, None]

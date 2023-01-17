@@ -127,7 +127,7 @@ class ModelReparam :
       if not selected_name in self.model.expressions : # if we just replaced this POI by an expression, leave the norms as they are
         self.remove_from_norms(selected_name, values, verbosity)
       for expr in self.model.expressions.values() :
-        value = expr.replace(selected_name, values[selected_name] if selected_name in values else None, self.model.reals)
+        value = expr.replace(selected_name, values[selected_name] if selected_name in values else None, self.model.reals())
         if value != expr : # this is a numerical value, for when the expression has become trivial
           expressions_to_remove.append(expr.name)
           expression_values[expr.name] = value.val
