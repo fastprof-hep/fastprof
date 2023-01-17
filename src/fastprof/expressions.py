@@ -364,7 +364,7 @@ class SingleParameter(Expression) :
     """
     if name == self.name :
       if value is None : raise KeyError("Cannot remove POI '%s' since it must be removed from expression '%s' and no replacement value was provided." % (name, self.name))
-      return value
+      return Number(self.name, value)
     return self
 
   def load_dict(self, sdict) -> 'SingleParameter' :
@@ -497,11 +497,11 @@ class LinearCombination(Expression) :
     for expr in self.coeffs :
       new_expr = reals[expr].replace(name, value, reals)
       if new_expr != reals[expr] : # i.e. it is now a trivial number
-        self.nominal_value += self.coeffs[expr]*new_expr
+        self.nominal_value += self.coeffs[expr]*new_expr.val
         to_remove.append(expr)
     for expr in to_remove : del self.coeffs[expr]
     if len(self.coeffs) > 0 : return self
-    return self.nominal_value
+    return Number(self.name, self.nominal_value)
 
   def load_dict(self, sdict : dict) -> 'LinearCombination' :
     """Load object information from a dictionary of markup data
@@ -672,20 +672,21 @@ class ProductRatio(Expression) :
     to_remove = []
     for expr in self.numerator :
       new_expr = reals[expr].replace(name, value, reals)
-      if new_real != reals[expr] : # i.e. it is now a trivial number
-        self.prefactor *= new_real
+      if new_expr != reals[expr] : # i.e. it is now a trivial number
+        self.prefactor *= new_expr.val
         to_remove.append(expr)
     for expr in to_remove : del self.numerator[expr]
     to_remove = []
     for expr in self.denominator :
       new_expr = reals[expr].replace(name, value, reals)
-      if new_real != reals[expr] : # i.e. it is now a trivial number
-        if expr_val == 0 : raise ValueError("Attempting to divide by '%s' == 0 when replacing '%s'=%g in '%s'." % (expr, name, value, self.name)) 
-        self.prefactor /= new_real
+      if new_expr != reals[expr] : # i.e. it is now a trivial number
+        if new_expr.val == 0 :
+          raise ValueError("Attempting to divide by '%s' == 0 when replacing '%s'=%g in '%s'." % (expr, name, value, self.name))
+        self.prefactor /= new_expr.val
         to_remove.append(expr)
     for expr in to_remove : del self.denominator[expr]
     if len(self.numerator) + len(self.denominator) > 0 : return self
-    return self.prefactor
+    return Number(self.name, self.prefactor)
 
   def load_dict(self, sdict) -> 'ProductRatio' :
     """Load object information from a dictionary of markup data
@@ -821,7 +822,11 @@ class Exponential(Expression) :
       Returns:
          self
     """
-    return reals[self.exponent].replace(name, value, reals)
+    new_exp = reals[self.exponent].replace(name, value, reals)
+    if new_exp != reals[self.exponent] : # the exponent is now a simple number
+      return Number(self.name, np.exp(new_exp.val))
+    else :
+      return self
 
   def load_dict(self, sdict) -> 'Exponential' :
     """Load object information from a dictionary of markup data
