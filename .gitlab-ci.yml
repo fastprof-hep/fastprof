@@ -35,3 +35,8 @@ poi_scan_timing:
   script:
     - testing/poi_scan_timing/run.sh > out.log
     - testing/poi_scan_timing/diff.sh out.log testing/poi_scan_timing/ref.log
+
+reparam:
+  script:
+    - testing/reparam/run.sh > out.log
+    - testing/reparam/diff.sh out.log testing/reparam/ref.log

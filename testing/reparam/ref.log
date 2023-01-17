@@ -1,0 +1,251 @@
+@ {
+@    "model": {
+@       "name": "twin_bins",
+@       "POIs": [
+@          {
+@             "name": "xs2",
+@             "min_value": 0.0,
+@             "max_value": 20,
+@             "initial_value": 1
+@          },
+@          {
+@             "name": "xx1",
+@             "min_value": 0.0,
+@             "max_value": 20.0,
+@             "initial_value": 0.0
+@          }
+@       ],
+@       "NPs": [
+@          {
+@             "name": "np_lumi",
+@             "nominal_value": 0.0,
+@             "variation": 1,
+@             "constraint": 1,
+@             "aux_obs": "aux_lumi"
+@          },
+@          {
+@             "name": "np_eff",
+@             "nominal_value": 0.0,
+@             "variation": 1,
+@             "constraint": 1,
+@             "aux_obs": "aux_eff"
+@          },
+@          {
+@             "name": "np_bkg1",
+@             "nominal_value": 50,
+@             "variation": 5,
+@             "constraint": 5,
+@             "aux_obs": "aux_bkg1"
+@          },
+@          {
+@             "name": "np_bkg2",
+@             "nominal_value": 50,
+@             "variation": 5,
+@             "constraint": 5,
+@             "aux_obs": "aux_bkg2"
+@          }
+@       ],
+@       "expressions": [
+@          {
+@             "name": "totalXS",
+@             "type": "linear_combination",
+@             "nominal_value": 1,
+@             "coeffs": {
+@                "xs2": 1
+@             }
+@          },
+@          {
+@             "name": "totalXX",
+@             "type": "linear_combination",
+@             "nominal_value": 0,
+@             "coeffs": {
+@                "xx1": 2.0,
+@                "xs2": 1.0
+@             }
+@          }
+@       ],
+@       "aux_obs": [
+@          {
+@             "name": "aux_lumi",
+@             "unit": "",
+@             "min_value": -5,
+@             "max_value": 5
+@          },
+@          {
+@             "name": "aux_eff",
+@             "unit": "",
+@             "min_value": -5,
+@             "max_value": 5
+@          },
+@          {
+@             "name": "aux_bkg1",
+@             "unit": "",
+@             "min_value": -5,
+@             "max_value": 5
+@          },
+@          {
+@             "name": "aux_bkg2",
+@             "unit": "",
+@             "min_value": -5,
+@             "max_value": 5
+@          }
+@       ],
+@       "channels": [
+@          {
+@             "name": "SR1",
+@             "type": "bin",
+@             "samples": [
+@                {
+@                   "name": "Signal",
+@                   "norm": "totalXX",
+@                   "nominal_norm": 1,
+@                   "nominal_yields": [
+@                      10.0
+@                   ],
+@                   "impacts": {
+@                      "np_lumi": [
+@                         {
+@                            "+1": 0.02,
+@                            "-1": -0.02
+@                         }
+@                      ],
+@                      "np_eff": [
+@                         {
+@                            "+1": 0.1,
+@                            "-1": -0.1
+@                         }
+@                      ],
+@                      "np_bkg1": {
+@                         "+1": 0.0,
+@                         "-1": -0.0
+@                      },
+@                      "np_bkg2": {
+@                         "+1": 0.0,
+@                         "-1": -0.0
+@                      }
+@                   }
+@                },
+@                {
+@                   "name": "Background",
+@                   "norm": "np_bkg1",
+@                   "nominal_norm": 50,
+@                   "nominal_yields": [
+@                      50
+@                   ],
+@                   "impacts": {
+@                      "np_lumi": [
+@                         {
+@                            "+1": 0,
+@                            "-1": 0
+@                         }
+@                      ],
+@                      "np_eff": [
+@                         {
+@                            "+1": 0,
+@                            "-1": 0
+@                         }
+@                      ],
+@                      "np_bkg1": {
+@                         "+1": 0.1,
+@                         "-1": -0.1
+@                      },
+@                      "np_bkg2": {
+@                         "+1": 0.0,
+@                         "-1": -0.0
+@                      }
+@                   }
+@                }
+@             ]
+@          },
+@          {
+@             "name": "SR2",
+@             "type": "bin",
+@             "samples": [
+@                {
+@                   "name": "Signal",
+@                   "norm": "xs2",
+@                   "nominal_norm": 1,
+@                   "nominal_yields": [
+@                      5.0
+@                   ],
+@                   "impacts": {
+@                      "np_lumi": [
+@                         {
+@                            "+1": 0.02,
+@                            "-1": -0.02
+@                         }
+@                      ],
+@                      "np_eff": [
+@                         {
+@                            "+1": 0.1,
+@                            "-1": -0.1
+@                         }
+@                      ],
+@                      "np_bkg1": {
+@                         "+1": 0.0,
+@                         "-1": -0.0
+@                      },
+@                      "np_bkg2": {
+@                         "+1": 0.0,
+@                         "-1": -0.0
+@                      }
+@                   }
+@                },
+@                {
+@                   "name": "Background",
+@                   "norm": "np_bkg2",
+@                   "nominal_norm": 50,
+@                   "nominal_yields": [
+@                      50
+@                   ],
+@                   "impacts": {
+@                      "np_lumi": [
+@                         {
+@                            "+1": 0,
+@                            "-1": 0
+@                         }
+@                      ],
+@                      "np_eff": [
+@                         {
+@                            "+1": 0,
+@                            "-1": 0
+@                         }
+@                      ],
+@                      "np_bkg1": {
+@                         "+1": 0.0,
+@                         "-1": -0.0
+@                      },
+@                      "np_bkg2": {
+@                         "+1": 0.1,
+@                         "-1": -0.1
+@                      }
+@                   }
+@                }
+@             ]
+@          }
+@       ]
+@    }
+@ }Producing PLR scan with POI(s) ['xx1'], bounds {'xs2': 0 <= xs2 <= 20, 'xx1': 0 <= xx1 <= 20}.
+== OptiMinimizer: cannot use method 'scalar' for multiple POIs, switching to 'L-BFGS-B'.
+| xx1             | tmu             | pv              
+| 0               | 12.036          | 0.000521827     
+| 1               | 7.777           | 0.00529157      
+| 2               | 4.37058         | 0.0365645       
+| 3               | 1.91986         | 0.165872        
+| 4               | 0.469578        | 0.493181        
+| 5               | -7.54251e-06    | 1               
+| 6               | 0.433503        | 0.510275        
+| 7               | 1.65387         | 0.198433        
+| 8               | 3.54382         | 0.0597676       
+| 9               | 6.00104         | 0.0142975       
+| 10              | 8.94424         | 0.00278346      
+| 11              | 12.3134         | 0.000449725     
+| 12              | 16.0672         | 6.11333e-05     
+| 13              | 20.1804         | 7.04706e-06     
+| 14              | 24.6408         | 6.90737e-07     
+| 15              | 29.4472         | 5.74617e-08     
+| 16              | 34.6076         | 4.0333e-09      
+| 17              | 40.1378         | 2.3666e-10      
+| 18              | 46.0602         | 1.14675e-11     
+| 19              | 52.4026         | 4.52126e-13     
+xx1 = 5.0009 +1.53712 -1.45205 @ 68.3% CL
