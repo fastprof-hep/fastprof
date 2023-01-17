@@ -211,6 +211,7 @@ class NPPruner :
               if selected_name in sample.impacts : sample.impacts.pop(selected_name)
         # TODO: should also replace by its value in expressions.
     nexp = model.n_exp(pars)
+    real_vals = model.real_vals(pars)
     if self.verbosity > 1 : print('Old pars :\n', model.ref_pars)
     if self.verbosity > 1 : print('New pars :\n', pars)
     for channel in model.channels.values() :
@@ -218,6 +219,7 @@ class NPPruner :
         if self.verbosity > 0 : print("Applying changes to the nominal yields of sample '%s' of channel '%s'." % (sample.name, channel.name))
         if self.verbosity > 1 : print('Old yields :\n', sample.nominal_yields)
         sample.nominal_yields = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
+        sample.nominal_norm = sample.norm.value(real_vals)
         if self.verbosity > 1 : print('New yields :\n', sample.nominal_yields)
     for par in removed :
       if par.aux_obs : model.aux_obs.pop(par.aux_obs)

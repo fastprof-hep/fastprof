@@ -40,3 +40,8 @@ reparam:
   script:
     - testing/reparam/run.sh > out.log
     - testing/reparam/diff.sh out.log testing/reparam/ref.log
+
+prune_nps:
+  script:
+    - testing/prune_nps/run.sh > out.log
+    - testing/prune_nps/diff.sh out.log testing/prune_nps/ref.log
