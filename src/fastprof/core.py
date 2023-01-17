@@ -1451,7 +1451,7 @@ class Data (Serializable) :
     sdict['data']['channels'] = []
     for channel_name, channel in self.model.channels.items() :
       channel_data = {}
-      channel.save_data_dict(channel_data, self.model.channel_n_exp(nexp=self.counts, channel=channel_name))
+      channel.save_dataset_dict(channel_data, self.model.channel_n_exp(nexp=self.counts, channel=channel_name))
       sdict['data']['channels'].append(channel_data)
     sdict['data']['aux_obs'] = []
     for p, par in enumerate(self.model.nps.values()) :
