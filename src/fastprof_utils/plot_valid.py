@@ -67,7 +67,7 @@ def make_parser() :
   parser = ArgumentParser("plot_valid.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"     , type=str  , required=True, help="Name of markup file defining model")
-  parser.add_argument("-v", "--validation-file", type=str  , default=None , help="Name of markup file containing validation data (default: <model_file>_validation.json)")
+  parser.add_argument("-l", "--validation-file", type=str  , default=None , help="Name of markup file containing validation data (default: <model_file>_validation.json)")
   parser.add_argument("-c", "--channel"        , type=str  , default=None , help="Name of selected channel (default: first one in the model)")
   parser.add_argument("-s", "--sample"         , type=str  , default=None , help="Name of selected sample (default: first one in the channel)")
   parser.add_argument("-b", "--bins"           , type=str  , default=None , help="List of bins for which to plot validation data")
