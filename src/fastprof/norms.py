@@ -1,6 +1,11 @@
 """Module containing the building blocks for fastprof models:
 
   * :class:`Norm` objects, defining the normalization of a sample
+  
+  At the moment two types of norms are defined: :class:`NumberNorm` for normalizations
+  define by a simple real value, and :class:`ExpressionNorm` for a parameter expression
+  (either a single POI or NP, or an expression of these -- see 
+  :class:`fastprof.expressions.Expression`).
 
 """
 
@@ -11,10 +16,9 @@ from abc import abstractmethod
 
 # -------------------------------------------------------------------------
 class Norm(Serializable) :
-  """Class representing the normalization term of a sample
+  """Base class for the normalization term of a sample
   
-  This is the base class for other types of normalization, and
-  also defines a constant normalization 
+  The base class for other types of normalization.
   """
 
   def __init__(self) :
@@ -23,64 +27,80 @@ class Norm(Serializable) :
     pass
   
   def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
-    """provides the NP variations that are implicit in the norm
+    """Provide the NP variations that are implicit in the norm
 
       Args:
-         par       : the nuisance parameter for which to get variations
-         variation : magnitude of the variation, in numbers of sigmas        
+        par       : the nuisance parameter for which to get variations
+        reals     : expressions as a dictionary of { name: object } pairs
+        real_vals : values of all reals and pars, as { name: value} pairs
+        variation : magnitude of the variation, in numbers of sigmas        
+
+      Returns:
+        the relative yield variation for the specified NP variation
     """
     return None
 
   @abstractmethod
   def value(self, real_vals : dict) -> float :
-    """Computes the overall normalization factor
+    """Compute the overall normalization factor
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        real_vals : values of all reals and pars, as { name: value} pairs
       Returns:
          normalization factor value
     """
     pass
 
   
-  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the normalization wrt parameters
+  def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Compute the gradient of the normalization wrt parameters
 
+      Returns the gradient of the expression as a 1D array of size len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
+    
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-         known gradient, in the form { par_name: dN/dpar },
-         or `None` if gradient are not defined
+        gradients wrt parameters
     """
     return None
 
-  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the normalization wrt parameters
+  def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Compute the Hessian of the expression wrt parameters
+
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
-         known gradient, in the form { par_name: dN/dpar },
-         or `None` if gradient are not defined
+        Hessian wrt parameter pairs
     """
     return None
 
   @abstractmethod
   def __str__(self) -> str :
-    """Provides a description string
+    """Provide a description string
 
       Returns:
-        The object description
+        the description string
     """
     pass
 
   @classmethod
-  def instantiate(cls, sdict, load_data : bool = True) :
-    """Instantiate an Expression object from one of the possibilities below.
+  def instantiate(cls, sdict : dict, load_data : bool = True) -> 'Norm' :
+    """Instantiate a Norm object from one of the possibilities below.
+
+      Class method used when loading the norm from markup, to
+      instantiate an object based type strings specified in the markup.
 
       Args:
          cls: this class
-         sdict: A dictionary containing markup data
+         sdict: dictionary containing markup data
+         load_data: if `True`, also initialize the norm from markup
     """
     norm = cls.load_field('norm', sdict, None, [int, float, str])
     if isinstance(norm, (int, float)) or norm is None :
@@ -103,16 +123,16 @@ class Norm(Serializable) :
 
 # -------------------------------------------------------------------------
 class NumberNorm(Serializable) :
-  """Class representing the normalization term of a sample as a float
+  """Class representing the normalization term of a sample as a simple number
 
   Attributes:
-     norm_value (float) : value of the normalization term
+     norm_value (float) : value of the normalization
   """
 
   type_str = 'number'
 
   def __init__(self, norm_value : float = None) :
-    """Create a new Norm object
+    """Create a new NumberNorm object
     
     Args:
       norm_value : normalization value
@@ -120,7 +140,7 @@ class NumberNorm(Serializable) :
     self.norm_value = norm_value
   
   def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
-    """provides the NP variations that are implicit in the norm
+    """Provides the NP variations that are implicit in the norm
 
       This is called only for NPs. If the normalization parameter is an NP,
       then this function will automatically provide the corresponding
@@ -128,9 +148,10 @@ class NumberNorm(Serializable) :
       norm is just a number, so always return None
 
       Args:
-         par       : the nuisance parameter for which to get variations
-         variation : magnitude of the NP variation, in numbers of sigmas
-         normalize : if True, return the variation scaled to a +1sigma effect
+        par       : the nuisance parameter for which to get variations
+        reals     : expressions as a dictionary of { name: object } pairs
+        real_vals : values of all reals and pars, as { name: value} pairs
+        variation : magnitude of the variation, in numbers of sigmas        
 
       Returns:
         the relative yield variation for the specified NP variation
@@ -138,40 +159,49 @@ class NumberNorm(Serializable) :
     return None
 
   def value(self, real_vals : dict) -> float :
-    """Computes the overall normalization factor
+    """Compute the overall normalization factor
 
       Args:
          real_vals : a dictionary of parameter name: value pairs
+      
       Returns:
          normalization factor value
     """
     return self.norm_value
 
-  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the normalization wrt parameters
-      
-      Here the norm is constant so the gradient are all 0.
-      
-      Args:
-         real_vals : a dictionary of parameter name: value pairs
-      Returns:
-        gradient vector, with size len(pois)
-    """
-    return np.zeros(len(pois))
+  def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Compute the gradient of the normalization wrt parameters
 
-  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the normalization wrt parameters
-      
-      Here the norm is constant so the hessian are all 0.
-      
+      Returns the gradient of the expression as a 1D array of size len(pars).
+      Here just return zeros since the norm is a constant number.
+    
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
+      
       Returns:
-        Hessian matrix
+        gradients wrt parameters
     """
-    return np.zeros((len(pois), len(pois)))
+    return np.zeros(len(pars))
 
-  def load_dict(self, sdict) -> 'NumberNorm' :
+  def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Compute the Hessian of the expression wrt parameters
+
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
+      Here just return zeros since the norm is a constant number.
+
+      Args:
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
+      
+      Returns:
+        Hessian wrt parameter pairs
+    """
+    return np.zeros((len(pars), len(pars)))
+
+  def load_dict(self, sdict : dict) -> 'NumberNorm' :
     """Load object information from a dictionary of markup data
 
       Args:
@@ -186,7 +216,7 @@ class NumberNorm(Serializable) :
       raise ValueError("Normalization data for type '%s' is the string '%s', not supported for numerical norms." % (NumberNorm.type_str, self.norm_value))
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:
@@ -195,10 +225,10 @@ class NumberNorm(Serializable) :
     sdict['norm'] = self.unnumpy(self.norm_value)
 
   def __str__(self) -> str :
-    """Provides a description string
+    """Provide a description string
 
       Returns:
-        The object description
+        the description string
     """
     return '%s' % self.norm_value
 
@@ -216,15 +246,15 @@ class ExpressionNorm(Serializable) :
   type_str = 'expression'
 
   def __init__(self, expr_name : str = '') :
-    """Create a new Norm object
+    """Create a new ExpressionNorm object
     
     Args:
-      expr_name : name of the parameter that defines the norm value
+      expr_name : name of the model expression that defines the norm value
     """
     self.expr_name = expr_name
   
   def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
-    """provides the NP variations that are implicit in the norm
+    """Provide the NP variations that are implicit in the norm
 
       This is called only for NPs. If the normalization parameter is an NP,
       then this function will automatically provide the corresponding
@@ -232,9 +262,10 @@ class ExpressionNorm(Serializable) :
       returned, since NP impacts are anyway always linear.
 
       Args:
-         par       : the nuisance parameter for which to get variations
-         variation : magnitude of the NP variation, in numbers of sigmas
-         normalize : if True, return the variation scaled to a +1sigma effect
+        par       : the nuisance parameter for which to get variations
+        reals     : expressions as a dictionary of { name: object } pairs
+        real_vals : values of all reals and pars, as { name: value} pairs
+        variation : magnitude of the variation, in numbers of sigmas        
 
       Returns:
         the relative yield variation for the specified NP variation
@@ -243,10 +274,11 @@ class ExpressionNorm(Serializable) :
     return { '%+g' % variation : rel_var, '%+g' % -variation : -rel_var }
 
   def value(self, real_vals : dict) -> float :
-    """Computes the overall normalization factor
+    """Compute the overall normalization factor
 
       Args:
          real_vals : a dictionary of parameter name: value pairs
+
       Returns:
          normalization factor value
     """
@@ -255,27 +287,41 @@ class ExpressionNorm(Serializable) :
       raise KeyError("Cannot compute normalization as the value of the unknown expression '%s'. Known parameters are as follows: %s" % (self.expr_name, str(real_vals)))
     return real_vals[self.expr_name]
 
-  def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes gradient of the normalization wrt parameters
+  def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Compute the gradient of the normalization wrt parameters
+
+      Returns the gradient of the expression as a 1D array of size len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
+      The computation is delegated to the Expression object.
+    
+      Args:
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
+
+      Returns:
+        gradients wrt parameters
+    """
+    return reals[self.expr_name].gradient(pars, reals, real_vals)
+
+  def hessian(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
+    """Compute the Hessian of the expression wrt parameters
+
+      Returns the Hessian of the expression as a 2D array of size len(pars) x len(pars).
+      The order of the gradients is the same as that of the `pars` arg.
+      The computation is delegated to the Expression object.
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
+
       Returns:
-         known gradient, in the form { expr_name: dN/dpar }
+        Hessian wrt parameter pairs
     """
-    return reals[self.expr_name].gradient(pois, reals, real_vals)
+    return reals[self.expr_name].hessian(pars, reals, real_vals)
 
-  def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes hessian of the normalization wrt parameters
-
-      Args:
-         real_vals : a dictionary of parameter name: value pairs
-      Returns:
-         known gradient, in the form { expr_name: dN/dpar }
-    """
-    return reals[self.expr_name].hessian(pois, reals, real_vals)
-
-  def load_dict(self, sdict) -> 'ExpressionNorm' :
+  def load_dict(self, sdict : dict) -> 'ExpressionNorm' :
     """Load object information from a dictionary of markup data
 
       Args:
@@ -287,7 +333,7 @@ class ExpressionNorm(Serializable) :
     self.expr_name = self.load_field('norm', sdict, '', str)
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:
@@ -296,9 +342,9 @@ class ExpressionNorm(Serializable) :
     sdict['norm'] = self.expr_name
 
   def __str__(self) -> str :
-    """Provides a description string
+    """Provide a description string
 
       Returns:
-        The object description
+        the description string
     """
     return '%s' % self.expr_name

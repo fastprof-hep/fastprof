@@ -1,7 +1,12 @@
 """Module containing the building blocks for fastprof models:
 
-  * :class:`Sample` objects, each defining a contribution to a channel.
-
+  * :class:`Sample` objects, each defining a contribution to a channel from an individual physics process.
+  
+  Each object contains expected event yields and a normalization factor that is an arbitrary
+  function of the model POIs and NPs.
+  
+  The separation between samples is typically based on the need for separate normalization factors
+  (samples with identical scaling factors can be merged without changing the model behavior).
 """
 
 from .base import Serializable
@@ -15,16 +20,15 @@ import copy
 class Sample(Serializable) :
   """Class representing a model sample
 
-  Provides the functionality for HistFactory sample structures,
-  which represent a contribution from a given process to a
-  :class:`Channel` with a given binning.
+  Samples represent the contribution from a given process to a
+  :class:`Channel`.
 
   It provides the following:
 
   * An overall normalization term, which is a function of the
-    model POIs (see :class:`ModelPOI`)
+    model POIs (see :class:`ModelPOI`) and NPs (see :class:`ModelNP`)
 
-  * An expected event yield contribution to each channel bin
+  * An expected event yield for each channel bin
 
   * The relative variation of the per-bin yields with each model NP
     (see :class:`ModelNP`)
@@ -32,9 +36,9 @@ class Sample(Serializable) :
   Attributes:
      name          (str) : the name of the sample
      norm_expr     (str) : a string defining the normalization term
-                           as a function of the POIs
-     nominal_norm  (float) : the nominal value of the normalization term
-                             for which the expected yields correspond
+                           as a function of the POIs and NPs
+     nominal_norm  (float) : the nominal value of the normalization term,
+                             for which the expected yields are given
      nominal_yields (:class:`np.ndarray`) :
           the nominal per-bin yields, provided as an 1D np.array with
           a size equal to the number of channel bins
@@ -76,6 +80,14 @@ class Sample(Serializable) :
     self.neg_imps = {}
 
   def clone(self) :
+    """Return a clone of the object
+
+      Performs a deep-copy of the numpy arrays, but just a shallow copy
+      of the normalization object.
+
+      Returns:
+        the new clone
+    """
     return Sample(self.name, self.norm, self.nominal_norm, np.array(self.nominal_yields), copy.deepcopy(self.impacts))
 
   def set_np_data(self, nps : list, reals : dict, real_vals : dict, variation : float = 1, verbosity : int = 0) :
@@ -125,10 +137,10 @@ class Sample(Serializable) :
       self.impacts[par.name] = imp_impact
 
   def available_variations(self, par : str = None) -> list :
-    """provides the available variations of the per-bin event yields for a given NP
+    """Provide the available variations of the per-bin event yields for a given NP
 
       Args:
-         par       : name of the NP
+         par : name of the NP
       Returns:
         list of available variations
     """
@@ -140,7 +152,7 @@ class Sample(Serializable) :
     return [ +1 if var == 'pos' else -1 if var == 'neg' else float(var) for var in prototype.keys() ]
 
   def impact(self, par : str, variation : float = +1, normalize : bool = False) -> np.array :
-    """provides the relative variations of the per-bin event yields for a given NP
+    """Provide the relative variations of the per-bin event yields for a given NP
 
       Args:
          par       : name of the NP
@@ -171,8 +183,8 @@ class Sample(Serializable) :
     if imp is None : return imp
     return (1 + imp)**(1/variation) - 1 if normalize else imp
 
-  def impact_coefficients(self, par : str, variations = None, is_log : bool = False) -> list :
-    """Returns a parameterization of the impact values for an NP
+  def impact_coefficients(self, par : str, variations : list = None, is_log : bool = False) -> list :
+    """Return a parameterization of the impact values for an NP
 
       Impacts are computed for fixed variations (+1, -1, etc.). In the model,
       an interpolation must be used based on these values. The simplest case
@@ -222,9 +234,9 @@ class Sample(Serializable) :
     return pos_coeffs, neg_coeffs
 
   def interpolate_impact(self, pos : list, impacts : np.array) -> np.array :
-    """Returns polynomial approximant to the impact values
+    """Return a polynomial approximant to the impact values
       Args:
-         pos : list of parameter variation values
+         pos     : list of parameter variation values
          impacts : list of corresponding impacts
       Returns:
          Polynomial coefficients of the interpolation
@@ -234,7 +246,7 @@ class Sample(Serializable) :
     return np.linalg.inv(vdm).dot(impacts)
 
   def sym_impact(self, par : str) -> np.array :
-    """Provides the symmetrized relative variations of the per-bin event yields for a given NP
+    """Provide the symmetrized relative variations of the per-bin event yields for a given NP
 
       Args:
          par : name of the NP
@@ -250,7 +262,7 @@ class Sample(Serializable) :
       return self.impact(par, +1)
 
   def normalization(self, real_vals : dict) -> float :
-    """Computes the overall normalization factor
+    """Compute the overall normalization factor
 
       Args:
          real_vals : a dictionary of parameter name: value pairs
@@ -260,7 +272,7 @@ class Sample(Serializable) :
     return self.norm.value(real_vals)/self.nominal_norm
 
   def yields(self, real_vals : dict) -> np.ndarray :
-    """Computes the scaled yields for a given value of the POIs
+    """Compute the scaled yields for a given value of the POIs
 
       Args:
          real_vals : a dictionary of parameter name: value pairs
@@ -270,7 +282,7 @@ class Sample(Serializable) :
     return self.normalization(real_vals)*self.nominal_yields
 
   def gradient(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes the gradient of the sample yields. 
+    """Compute the gradient of the sample yields. 
     
        If `norm_only` is true, only the normalization part is
        returned -- i.e. this is not multiplied into the 
@@ -287,7 +299,7 @@ class Sample(Serializable) :
     return self.nominal_yields[:,None]*norm_grad/self.nominal_norm
 
   def hessian(self, pois : dict, reals : dict, real_vals : dict) -> np.array :
-    """Computes the Hessian of the sample yields
+    """Compute the Hessian of the sample yields
 
        If `norm_only` is true, only the normalization part is
        returned -- i.e. this is not multiplied into the 
@@ -304,14 +316,26 @@ class Sample(Serializable) :
     return self.nominal_yields[:, None, None]*norm_hess/self.nominal_norm
 
   def __str__(self) -> str :
-    """Provides a description string
+    """Provide a description string
 
       Returns:
         The object description
     """
     return 'Sample ' + self.string_repr(verbosity = 1)
 
-  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+  def string_repr(self, verbosity : int = 1, pre_indent : str = '', indent : str = '   ') :
+    """Return a string representation of the object
+
+      Same as __str__ but with options
+
+      Args:
+        verbosity : verbosity of the output
+        pre_indent: number of indentation spaces to add to all lines
+        indent    : number of indentation spaces to add to fields of this object
+
+      Returns:
+        the object description
+    """
     rep = self.name
     if verbosity == 1 :
       rep += ', norm = %s (nominal norm = %s), nominal yield = %g' % (str(self.norm), str(self.nominal_norm), np.sum(self.nominal_yields))
@@ -321,7 +345,7 @@ class Sample(Serializable) :
         rep += '\n%s o bin %2d : %g' % (pre_indent, i, y)
     return rep
 
-  def load_dict(self, sdict) -> 'Sample' :
+  def load_dict(self, sdict : dict) -> 'Sample' :
     """Load object information from a dictionary of markup data
 
       Args:
@@ -337,7 +361,7 @@ class Sample(Serializable) :
     self.impacts = self.load_field('impacts', sdict, {}, dict)
     return self
 
-  def fill_dict(self, sdict) :
+  def fill_dict(self, sdict : dict) :
     """Save information to a dictionary of markup data
 
       Args:

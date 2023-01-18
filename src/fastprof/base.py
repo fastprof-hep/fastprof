@@ -264,7 +264,7 @@ class ModelPOI(Serializable) :
         indent    : number of indentation spaces to add to fields of this object
 
       Returns:
-        str: the object description
+        the description string
     """
     unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
     rep = '%s%s' % (pre_indent,  self.name)
@@ -348,7 +348,7 @@ class ModelAux(Serializable) :
         indent    : number of indentation spaces to add to fields of this object
 
       Returns:
-        str: the object description
+        the description string
     """
     unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
     s = '%s%s' % (pre_indent,  self.name)
@@ -506,7 +506,7 @@ class ModelNP(Serializable) :
         indent    : number of indentation spaces to add to fields of this object
 
       Returns:
-        str: the object description
+        the description string
     """
     unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
     constraint = ' constrained to %s with σ = %g%s' % (self.aux_obs, self.constraint, unit) if self.aux_obs is not None else ' free parameter'

@@ -105,7 +105,7 @@ class Parameters :
     self.model = model
 
   def clone(self) -> 'Parameters' :
-    """Clone a Parameters object
+    """Return a clone of a Parameters object
 
       Performs a deep-copy operation at the required level: deep-copy
       the np.ndarray objects, but shallow-copy the model pointer
@@ -1291,7 +1291,19 @@ class Model (Serializable) :
     """
     return 'Model ' + self.string_repr(verbosity = 1)
 
-  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+  def string_repr(self, verbosity : int = 1, pre_indent : str = '', indent : str = '   ') -> str :
+    """Return a string representation of the object
+
+      Same as __str__ but with options
+
+      Args:
+        verbosity : verbosity of the output
+        pre_indent: number of indentation spaces to add to all lines
+        indent    : number of indentation spaces to add to fields of this object
+
+      Returns:
+        the object description
+    """
     rep = '%s%s' % (pre_indent, self.name)
     if verbosity > 0 : rep += '\n'
     rep += '\n%sParameters of interest' % pre_indent
@@ -1325,9 +1337,9 @@ class Model (Serializable) :
 
 # -------------------------------------------------------------------------
 class Data (Serializable) :
-  """Class representing a set of observed data
+  """Class representing a dataset
 
-  Stores a complete dataset:
+  Stores the complete dataset information:
 
   * A list of observed bin yields (also including observable values for Gaussian channels)
 
@@ -1358,11 +1370,24 @@ class Data (Serializable) :
     self.set_aux_obs(aux_obs if aux_obs is not None else [])
 
   def clone(self, model : Model = None, counts : np.array = None, aux_obs : np.array = None) :
+    """Return a clone of the object
+
+      Performs a deep-copy of the `counts` and `aux_obs` attributes,
+      or replaces them with the ones provided as arguments (in this
+      case the arguments are not copied).
+
+      Args:
+         model  : new reference model, if provided
+         counts : new observed bin counts, if provided
+         aux_obs: new aux. obs. values, if provided.
+      Returns:
+        the new clone
+    """
     return Data(model=model if model is not None else self.model,
                 counts=counts if counts is not None else np.array(self.counts),
                 aux_obs=aux_obs if aux_obs is not None else np.array(self.aux_obs))
 
-  def set_counts(self, counts) -> 'Data' :
+  def set_counts(self, counts : np.ndarray) -> 'Data' :
     """Set the observed bin counts
 
       Args:
@@ -1382,7 +1407,7 @@ class Data (Serializable) :
       self.counts = np.zeros(self.model.nbins)
     return self
 
-  def set_aux_obs(self, aux_obs = []) :
+  def set_aux_obs(self, aux_obs : np.ndarray = []) -> 'Data' :
     """Set the aux. obs.
 
       Args:
@@ -1409,12 +1434,12 @@ class Data (Serializable) :
       raise ValueError('Cannot set aux obs data from an array of size %d, expecting a size of either %d (aux obs only) or %d (all NPs)' % (len(aux_obs), self.model.nauxs, self.model.nnps))
     return self
 
-  def set_data(self, counts, aux_obs) :
+  def set_data(self, counts : np.ndarray, aux_obs : np.ndarray) -> 'Data' :
     """Set both the observed bin counts and aux. obs.
 
       Args:
          counts  : new observed bin counts
-         aux_obs : newaux. obs. values
+         aux_obs : new aux. obs. values
       Returns:
          self
     """
@@ -1474,7 +1499,16 @@ class Data (Serializable) :
       aux_data = { 'name' : par.aux_obs, 'value' : par.unscaled_value(self.aux_obs[p]) }
       sdict['data']['aux_obs'].append(aux_data)
 
-  def save_with_model(self, filename, flavor : str = None) :
+  def save_with_model(self, filename : str, flavor : str = None) :
+    """Utility function to save model+data information together
+    
+      Saves the information of the dataset together with that
+      of the associated model, in a single markup file
+
+      Args
+        filename: file name to save to
+        flavor: markup flavor (currently either 'json' or 'yaml')
+    """
     sdict = self.model.dump_dict()
     sdict.update(self.dump_dict())
     self.save(filename, flavor, payload=sdict)
@@ -1487,7 +1521,19 @@ class Data (Serializable) :
     """
     return 'Data ' + self.string_repr(verbosity = 1)
 
-  def string_repr(self, verbosity = 1, pre_indent = '', indent = '   ') :
+  def string_repr(self, verbosity : int = 1, pre_indent : str = '', indent : str = '   ') -> str :
+    """Return a string representation of the object
+
+      Same as __str__ but with options
+
+      Args:
+        verbosity : verbosity of the output
+        pre_indent: number of indentation spaces to add to all lines
+        indent    : number of indentation spaces to add to fields of this object
+
+      Returns:
+        the description string
+    """
     rep = '%s (model : %s), counts = %g, aux_obs = %s' % (pre_indent,  self.model.name, np.sum(self.counts), str(self.aux_obs))
     if verbosity >= 1 :
       rep = '%s (model : %s)' % (pre_indent,  self.model.name)

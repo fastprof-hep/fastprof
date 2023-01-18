@@ -143,7 +143,7 @@ class Expression(Serializable) :
     """Instantiate an Expression object from one of the possibilities below.
 
       Class method used when loading the expressions from markup, to
-      instantiate expressions from type strings specified in the markup.
+      instantiate an object from type strings specified in the markup.
 
       Args:
          cls: this class

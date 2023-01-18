@@ -107,7 +107,7 @@ class Channel(Serializable) :
         indent    : number of indentation spaces to add to fields of this object
 
       Returns:
-        str: the object description
+        the description string
     """
     rep = '%s%s' % (pre_indent,  self.name)
     if verbosity >= 1 :
@@ -425,7 +425,7 @@ class BinnedRangeChannel(Channel) :
         indent    : number of indentation spaces to add to fields of this object
 
       Returns:
-        str: the object description
+        the description string
     """
     rep = '%s%s' % (pre_indent,  self.name)
     unit = ' %s' % self.obs_unit if self.obs_unit is not None and self.obs_unit != '' else ''
@@ -567,7 +567,7 @@ class MultiBinChannel(Channel) :
         indent    : number of indentation spaces to add to fields of this object
 
       Returns:
-        str: the object description
+        the description string
     """
     rep = '%s%s' % (pre_indent,  self.name)
     if verbosity == 1 :
