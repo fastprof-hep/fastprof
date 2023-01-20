@@ -47,7 +47,7 @@ class NPMinimizer :
   The class implements NLL minimization for linear parameters, following
   the algorithm described in the package documentation.
 
-  The main inputs to the computation are stored in the likleihood model
+  The main inputs to the computation are stored in the likelihood model
   (class :class:`.core.Model`). The algorithm performs the minimally
   required computations of the quantities that depend on the provided dataset
   and POI values.
@@ -76,11 +76,13 @@ class NPMinimizer :
   def pq_einsum(self, hypo : Parameters) -> (np.ndarray, np.ndarray) :
     """Non-public helper function to compute minimization inputs
 
+      Computes the matrix P and the vector Q that enter into the
+      lienar equation providing the best-fit NP balues
+
       Args:
          hypo : the POI hypothesis at which to perform the minimization
       Returns:
-         The P-matrix and Q-vector that enter the computation
-         of the best-fit NPs
+         the pair (P, Q)
     """
     model = self.data.model
     n_nom = model.n_exp(hypo)
@@ -110,14 +112,22 @@ class NPMinimizer :
       print('C.daux = \n', model.constraint_hessian.dot(hypo.nps - self.data.aux_obs))
     return (p,q)
 
-  def pq_einsum_poisson(self, n_nom : np.ndarray, obs : np.ndarray, impacts : np.ndarray) -> (np.ndarray, np.ndarray) :
-    """Non-public helper function to compute minimization inputs
+  def pq_einsum_poisson(self, n_nom : np.ndarray, obs : np.ndarray,impacts : np.ndarray) -> (np.ndarray, np.ndarray) :
+    """Non-public helper function to compute minimization inputs for Poisson channels
+    
+      The P and Q matrices (see previous method) take separate contributions from
+      channels with Poisson and Gaussian distributions. This function
+      computes the Poisson contributions.
+      
+      The `obs` and `impacts` arguments are passed so that they can be computed
+      only once and then used twice for the Poisson and Gaussian contributions
 
       Args:
          hypo : the POI hypothesis at which to perform the minimization
+         obs : the observed event yields
+         impacts : the NP impact values
       Returns:
-         The P-matrix and Q-vector that enter the computation
-         of the best-fit NPs
+         the pair (P, Q) for Poisson channels
     """
     # i : bin index
     # k,l : sample indices
@@ -138,13 +148,21 @@ class NPMinimizer :
     return (p,q)
 
   def pq_einsum_gaussian(self, n_nom : np.ndarray, obs : np.ndarray, impacts : np.ndarray) -> (np.ndarray, np.ndarray) :
-    """Non-public helper function to compute minimization inputs
+    """Non-public helper function to compute minimization inputs for Gaussian channels
+
+      The P and Q matrices (see previous method) take separate contributions from
+      channels with Poisson and Gaussian distributions. This function
+      computes the Gaussian contributions.
+
+      The `obs` and `impacts` arguments are passed so that they can be computed
+      only once and then used twice for the Poisson and Gaussian contributions
 
       Args:
          hypo : the POI hypothesis at which to perform the minimization
+         obs : the observed event yields
+         impacts : the NP impact values
       Returns:
-         The P-matrix and Q-vector that enter the computation
-         of the best-fit NPs
+         the pair (P, Q) for Gaussian channels
     """
     # i,j : bin indices
     # k,l : sample indices
@@ -163,17 +181,20 @@ class NPMinimizer :
   def profile(self, hypo : Parameters) -> Parameters :
     """Compute the best-fit NP values for a given POI hypothesis
 
-      The hypothesis provided as input can be a :class:`.Parameters`
+      The hypothesis provided as input can be a :class:`Parameters`
       object, or any input that can be used to build one (see
-      :meth:`.Parameters.__init__`).
-      If only POIs are provided, the NPs will be set to the aux. obs.
-      values in the dataset.
+      :meth:`Parameters.__init__`).
+      If only POIs are provided, the NPs will initially be set 
+      to the aux. obs. values in the dataset.
+      
+      The return value is a copy of the input object with NP
+      set to their profile values (best-fit values of the NP for
+      the given POI values)
 
       Args:
          hypo : the POI hypothesis at which to perform the minimization
       Returns:
-         A parameter set with POI values set to the hypothesis and NP
-         values to the corresponding best-fit NPs.
+         the profiled values
     """
     if not isinstance(hypo, Parameters) :
       hypo = Parameters(hypo, model=model).set_from_aux(self.data)
@@ -229,11 +250,11 @@ class POIMinimizer :
   over POIs.
 
   Attributes:
-     init_pois (Parameters) : initial values of the POI minimization
-     bounds    (dict) : Bounds on the POIs, as dict of POI name -> ParBound object
      niter (int) : number of iterations to perform when profiling NPs
      floor (float) : minimal event yield to use in the NLL computation (see
          :meth:`.Model.nll` for details).
+     init_pois (Parameters) : initial values of the POI minimization
+     bounds    (dict) : Bounds on the POIs, as dict of POI name -> ParBound object
      np_min (NPMinimizer) : the NP minimization algorithm
      min_nll (float) : the best-fit NLL stored by :meth:`POIMinimizer.profile_nps`.
      min_pars (Parameters) : the best-fit NPs stored by :meth:`POIMinimizer.profile_nps`.
@@ -247,21 +268,23 @@ class POIMinimizer :
                               by :meth:`POIMinimizer.profile_nps`.
      free_deltas (np.ndarray) : the best-fit deltas of the free-POI fit stored by :meth:`POIMinimizer.tmu`.
                                 (see :meth:`NPMinimizer.profile` for the definition of the deltas)
-     tmu_debug (float) : stores the raw value o `tmu` for debugging purposes
+     tmu_debug (float) : stores the raw value of `tmu` for debugging purposes
 
   """
-  def __init__(self, init_pois : Parameters = None, bounds : dict = None, niter : int = 1, floor : float = None) :
+  def __init__(self, niter : int = 1, floor : float = None) :
     """Initialize the POIMinimizer object
 
       Args:
-         niter : number of iterations to perform when minimizing over NPs
-         floor :  minimal event yield to use in the NLL computation (see
+        init_pois: the initial values of the POIs in the fit
+        bounts: a dict of {(par_name, ParBound} pairs giving the parameter bounds
+        niter : number of iterations to perform when minimizing over NPs
+        floor :  minimal event yield to use in the NLL computation (see
             :meth:`.Model.nll` for details).
     """
-    self.init_pois = init_pois
-    self.bounds = bounds
     self.niter = niter
     self.floor = floor
+    self.init_pois = None
+    self.bounds = None
     self.np_min = None
     self.min_nll = None
     self.min_pars = None
@@ -293,27 +316,33 @@ class POIMinimizer :
     pass
 
   def set_pois(self, model : Model, init_pars : Parameters = None, bounds : list = None,
-               hypo : dict = None, fix_hypo : bool = False) -> 'OptiMinimizer' :
-    """Copy POI information from model
+               hypo : dict = None, fix_hypo : bool = False) -> 'POIMinimizer' :
+    """Set POI information
 
-      Initial value and range information is copied from the contents of
-      the ModelPOI objects in the model.
+      Initial value and range information for the POIs is copied from either
+      the ModelPOI objects in the model, or the provided arguments.
+      If `hypo` is not None, override the POI values by those in the hypo.
+      If `fix_hypo` is True, also set constant the POIs in the hypo.
 
       Args:
         model : the model to copy from
+        init_pars : 
         bounds : a list of ParBounds
       Returns:
         self
     """
+    # take the initial values from `init_pars` if not None, and else from the model `ref_pars`
     self.init_pois = model.ref_pars.clone() if init_pars is None else init_pars.clone()
-    if hypo is not None :
+    if hypo is not None : # overrride the inir_poi values with those in the hypo
       for par, val in hypo.items() : self.init_pois[par] = val
+    # take the bounds from the model
     self.bounds = { poi.name : ParBound(poi.name, poi.min_value, poi.max_value) for poi in model.pois.values() }
+    # and override with the ones provided as argument
     if bounds is not None :
       for bound in bounds : self.bounds[bound.par] = ParBound(bound.par, bound.min_value, bound.max_value)
     if fix_hypo :
-      for poi in hypo : self.bounds[poi] = ParBound(poi, hypo[poi], hypo[poi])
-    for bound in self.bounds.values() :
+      for poi in hypo : self.bounds[poi] = ParBound(poi, hypo[poi], hypo[poi]) # define 0-width bounds for fixed pars
+    for bound in self.bounds.values() : # ensure the initial values are compatible with the bounds
       if not bound.test_value(self.init_pois[bound.par]) :
         print("Warning: resetting initial value of POI '%s' to %g (from %g) to ensure it verifies bound %s." 
               % (bound.par, (bound.min_value + bound.max_value)/2, self.init_pois[bound.par], str(bound)))
@@ -321,9 +350,22 @@ class POIMinimizer :
     return self
 
   def set_constant(self, parvals : dict) :
+    """Set parameters to be constant
+
+      Set the specified parameters to be constant at the 
+      provided values.
+
+      Args:
+        parvals : { par_name :value } pairs providing the parameters and values.
+    """
     for par, val in parvals.items() : self.bounds[par] = ParBound(par, val, val)
 
-  def free_pois(self) :
+  def free_pois(self) -> list :
+    """Provide the list of free parameters
+    
+      Returns :
+        the list of free parameters in the fit
+    """
     if self.init_pois is None : return None
     return [ poi for poi in self.init_pois.model.pois if poi not in self.bounds or not self.bounds[poi].is_fixed() ]
 
@@ -344,7 +386,7 @@ class POIMinimizer :
          hypo : Value of POIs and NPs for which to profile
          data : dataset for which to compute the NLL
       Returns:
-         best-fit parameters
+         the best-fit parameters
     """
     self.np_min = NPMinimizer(data, verbosity=self.verbosity)
     self.min_pars = hypo
@@ -375,8 +417,11 @@ class POIMinimizer :
          best-fit parameters
     """
     if isinstance(init_hypo, (int, float)) : init_hypo = Parameters(init_hypo, model=data.model)
-    hypo_min = self.clone()
+    hypo_min = self.clone() # the minimizer for the hypo fit
+    # Free fit initialization: do not fix the hypo (free hypo POIs)
     self.set_pois(data.model, init_pars=init_hypo, bounds=self.bounds.values() if self.bounds is not None else None, hypo=hypo, fix_hypo=False)
+    # Hypo fit initialization : fix the hypo (fixed hypo POIs)
+    # No need to check `self.bounds` since it was set by the previous command.
     hypo_min.set_pois(data.model, init_pars=init_hypo, bounds=self.bounds.values(), hypo=hypo, fix_hypo=True)
     # Hypo fit
     if hypo_min.minimize(data) is None : return None
@@ -432,6 +477,11 @@ class ScanMinimizer (POIMinimizer) :
       self.pars.append(Parameters(poi, model.aux_obs, model)) # FIXME
 
   def clone(self) :
+    """Clone the minimizer
+
+      Returns:
+         a deep copy of the minimizer
+    """
     return ScanMinimizer(self.model, copy.copy(scan_pois), niter)
 
   def minimize(self, data : Data, init_pars : Parameters = None) -> float :
@@ -488,7 +538,7 @@ class OptiMinimizer (POIMinimizer) :
      verbosity  (int)         : output level
 
   """
-  def __init__(self, method : str = 'scalar', init_pois : Parameters = None, bounds : dict = None, niter : int = 1, floor : float = 1E-7,
+  def __init__(self, method : str = 'scalar', niter : int = 1, floor : float = 1E-7,
                rebound : int = 0, alt_method : str = None, force_num_jac : bool = False, verbosity : int = 0) :
     """Initialize the POIMinimizer object
 
@@ -504,7 +554,7 @@ class OptiMinimizer (POIMinimizer) :
          alt_method : alternate optimization algorithm to apply if the
                       primary one (given by the `method` attribute) fails.
     """
-    super().__init__(init_pois, bounds, niter, floor)
+    super().__init__(niter, floor)
     self.method = method
     self.rebound = rebound
     self.alt_method = alt_method
@@ -512,9 +562,13 @@ class OptiMinimizer (POIMinimizer) :
     self.force_num_jac = force_num_jac
     self.np_min = None
 
-  def clone(self, init_pois : Parameters = None) :
-    init_poi_arg = init_pois if init_pois is not None else self.init_pois.clone() if self.init_pois is not None else None
-    return OptiMinimizer(self.method, init_poi_arg, copy.deepcopy(self.bounds), self.niter, self.floor, self.rebound, self.alt_method, self.verbosity)
+  def clone(self) :
+    """Clone the minimizer
+
+      Returns:
+         a deep copy of the minimizer
+    """
+    return OptiMinimizer(self.method, self.niter, self.floor, self.rebound, self.alt_method, self.verbosity)
 
   def minimize(self, data : Data, init_pars : Parameters = None) -> float :
     """Minimization over POIs
@@ -532,10 +586,9 @@ class OptiMinimizer (POIMinimizer) :
 
       Other methods can be used by changing the `method` parameter.
 
-
       Args:
          data : dataset for which to compute the NLL
-         init_hypo : initial value (of POIs and NPs) for the minimization
+         init_pars : initial value (of POIs and NPs) for the minimization
       Returns:
          best-fit parameters
     """

@@ -90,7 +90,7 @@ class Sampler :
       #print('-- Processing iteration %d of %d %s' % (k, ntoys, descr))
       sys.stderr.write('\rProcessing iteration %d of %d %s' % (k if k < ntoys - 1 else ntoys, ntoys, descr))
 
-  def generate(self, ntoys, hypo_descr : str = None) -> SamplingDistribution :
+  def generate(self, ntoys : int, hypo_descr : str = None) -> SamplingDistribution :
     """Generate a specified number of samples
 
     The function generates toy datasets and performs the computation
@@ -194,9 +194,10 @@ class OptiSampler (Sampler) :
     debug_data (pd.DataFrame) : dataframe containing the debug information.
     minimizer (OptiMinimizer) : the minimizer object
   """
-  def __init__(self, model, test_hypo : Parameters, gen_hypo : Parameters = None, method : str = 'scalar', niter : int = 1, bounds : list = [],
-               print_freq : int = 1000, max_tries : int = 20, tmu_Amu : float = None, tmu_A0 : float = None, floor : float = 1E-7,
-               debug : bool = False) :
+  def __init__(self, model : Model, test_hypo : Parameters, gen_hypo : Parameters = None,
+               method : str = 'scalar', niter : int = 1, bounds : list = [],
+               print_freq : int = 1000, max_tries : int = 20, tmu_Amu : float = None, tmu_A0 : float = None,
+               floor : float = 1E-7, debug : bool = False) :
     """Initialize the OptiSampler object
 
     Args:
@@ -239,7 +240,7 @@ class OptiSampler (Sampler) :
     self.minimizer = OptiMinimizer(self.method, niter=self.niter, floor=self.floor)
     if self.debug : self.minimizer.verbosity = 2
 
-  def compute(self, data, toy_iter) :
+  def compute(self, data : Data, toy_iter : int) -> float :
     """Compute the asymptotic p-value
 
     Compute the asymptotic p-value for a given toy dataset.
@@ -329,7 +330,9 @@ class ScanSampler (Sampler) :
     use_qtilda (bool) : if True, use the :class:`QMuTilda` test statistic,
                         otherwise use :class:`QMu`.
   """
-  def __init__(self, model, test_hypo, scan_mus, gen_hypo = None, print_freq = 1000, tmu_Amu = None, tmu_A0 = None) :
+  def __init__(self, model : Model, test_hypo : Parameters, scan_mus : list,
+               gen_hypo : Parameters = None, print_freq : int = 1000,
+               tmu_Amu : float = None, tmu_A0 : float = None) :
     """Initialize the ScanSampler object
 
     Args:
@@ -355,7 +358,7 @@ class ScanSampler (Sampler) :
     self.tmu_A0 = tmu_A0
     self.use_qtilda = True if tmu_Amu != None and tmu_A0 != None else False
 
-  def compute(self, data, toy_iter) :
+  def compute(self, data : Data, toy_iter : int) -> float :
     """Compute the asymptotic p-value
 
     Compute the asymptotic p-value for a given toy dataset.
@@ -397,7 +400,8 @@ class LimitSampler (Sampler) :
     cl (float) : the CL at which to compute the limit
 """
 
-  def __init__(self, model : Model, gen_hypo : Parameters, limit_calc : 'Calculator', cl : float = 0.95, print_freq : int = 1000) :
+  def __init__(self, model : Model, gen_hypo : Parameters, limit_calc : 'Calculator',
+               cl : float = 0.95, print_freq : int = 1000) :
     """Initialize the LimitSampler object
 
     Args:
@@ -412,7 +416,7 @@ class LimitSampler (Sampler) :
     self.limit_calc = limit_calc
     self.cl = cl
 
-  def compute(self, data, toy_iter) :
+  def compute(self, data : Data, toy_iter : int) -> float :
     """Compute the limit
 
     Compute the limit for a given toy dataset.

@@ -156,7 +156,7 @@ class PlotResults :
     Plots the best-fit values and symmetric (parabolic) errors
     for the specified POIs. The values and errors can be given as
     separate dicts (values and sym_errors); or as a dict of results
-    in the form { par_name : (val, err) }, as in the FitData class.
+    in the form { par_name : (val, err) }, as in the FitResult class.
     The inputs are checked in this order. If none are provided, the
     values from self.pars are used instead.
 
