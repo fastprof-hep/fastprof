@@ -137,13 +137,13 @@ class PlotResults :
     plt.tight_layout()
 
   def plot_covariance(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
-     """Plot the covariance matrix of the POIs
+    """Plot the covariance matrix of the POIs
 
     Args:
       figsize : figure size, as a (size_x, size_y) pair (default: (5,10))
       fig : figure object to use (if None, create a new one)
     """
-   self.make_canvas(figsize, fig)
+    self.make_canvas(figsize, fig)
     img = plt.imshow(self.data.model.covariance_matrix(self.pars, self.data), cmap='seismic')
     self.decorate_with_pois(axes='xy')
     plt.colorbar(img)
@@ -292,7 +292,7 @@ class PlotImpacts :
     ax.set_xlim(-3, 3)
 
   def impacts(self, pars : list = None) :
-     """Compute NP impacts
+    """Compute NP impacts
 
     Computes the impacts of the specified NPs on the
     POI. The results are returned as a dict mapping the 
@@ -305,7 +305,7 @@ class PlotImpacts :
     Returns:
       dict of impact values
     """
-   impacts = []
+    impacts = []
     self.minimizer.minimize(self.data)
     min_pars = self.minimizer.min_pars.clone()
     if self.verbosity > 3 :
