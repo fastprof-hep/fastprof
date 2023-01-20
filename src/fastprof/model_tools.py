@@ -77,24 +77,51 @@ class ModelMerger :
 # -------------------------------------------------------------------------
 class ModelReparam :
   
-  def __init__(self, model) :
-    self.model = model
+  def __init__(self, model, verbosity : int = 0) :
+    """Initialize the object
 
-  def add_pois(self, new_pois : list, verbosity : int = 0) :
+    Args:
+      model (Model) : the model on which to act
+      verbosity (int) : the verbosity of the output
+    """
+    self.model = model
+    self.verbosity = verbosity
+
+  def add_pois(self, new_pois : list) :
+    """Add new POIs to the model
+
+    Args:
+      new_pois : list of :class:`ModelPOI` objects to add to the model
+    """
     for poi in new_pois :
       if poi.name in self.model.pois : 
         raise KeyError("Cannot add POI '%s' to model, a POI with that name is already defined." % poi.name)
-      if verbosity > 0 : print("Adding POI '%s'." % str(poi))
+      if self.verbosity > 0 : print("Adding POI '%s'." % str(poi))
       self.model.pois[poi.name] = poi
 
-  def add_expressions(self, new_expressions : list, verbosity : int = 0) :
+  def add_expressions(self, new_expressions : list) :
+    """Add new Expressions to the model
+
+    Args:
+      new_expressions : list of :class:`Expression` objects to add to the model
+    """
     for expr in new_expressions :
       if expr.name in self.model.expressions : 
         raise KeyError("Cannot add expression '%s' to model, an expression with that name is already defined." % expr.name)
-      if verbosity > 0 : print("Adding expression '%s = %s'." % (expr.name, str(expr)))
+      if self.verbosity > 0 : print("Adding expression '%s = %s'." % (expr.name, str(expr)))
       self.model.expressions[expr.name] = expr
 
-  def update_norms(self, new_norms : dict, verbosity : int = 0) :
+  def update_norms(self, new_norms : dict) :
+    """Update normalization terms
+
+    The norms as provided as a dict mapping (channel_spec, sample_spec)
+    pairs to :class:`Norm` objects.
+    The `channel_spec` and `sample_spec` are strings specifying which channel(s) and sample(s)
+    should be assigned the new norm, and can contain wildcards
+
+    Args:
+      new_norms : dict mapping (channel_spec, sample_spec) pairs to :class:`Norm` objects.
+    """
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :
         matching_norms = []
@@ -107,10 +134,22 @@ class ModelReparam :
         if len(matching_norms) == 0 : continue
         if len(matching_norms) > 1 :
           raise KeyError("Sample '%s' of channel '%s' matches multiple new normalization entries : \n %s" % (sample.name, channel.name, '\n'.join([str(norm) for norm in matching_norms])))
-        if verbosity > 0 : print("Replacing normalization '%s' -> '%s' in sample '%s' of channel '%s'." % (str(sample.norm), str(matching_norms[0]), sample.name, channel.name))
+        if self.verbosity > 0 : print("Replacing normalization '%s' -> '%s' in sample '%s' of channel '%s'." % (str(sample.norm), str(matching_norms[0]), sample.name, channel.name))
         sample.norm = matching_norms[0]
 
-  def remove_pois(self, poi_names : list, values : dict = {}, verbosity : int = 0) :
+  def remove_pois(self, poi_names : list, values : dict = {}) :
+    """Remove POIs from the model
+
+    The POIs are removed from the list of model POIs, and
+    also from the model expressions.
+    They are replaced with a numerical value in each of these.
+    A value must be provided for each POI to remove.
+
+    Args:
+      poi_names : list of names of POIs to remove
+      values : dict of {name :value } pairs providing the values
+               with which to replace each POI.
+    """
     selected_names = []
     for poi_name in poi_names :
       if poi_name in self.model.pois :
@@ -123,9 +162,9 @@ class ModelReparam :
     expressions_to_remove = []
     expression_values = {}
     for selected_name in selected_names :
-      if verbosity > 0 : print("Removing POI '%s'." % selected_name)
+      if self.verbosity > 0 : print("Removing POI '%s'." % selected_name)
       if not selected_name in self.model.expressions : # if we just replaced this POI by an expression, leave the norms as they are
-        self.remove_from_norms(selected_name, values, verbosity)
+        self.remove_from_norms(selected_name, values)
       for expr in self.model.expressions.values() :
         value = expr.replace(selected_name, values[selected_name] if selected_name in values else None, self.model.reals())
         if value != expr : # this is a numerical value, for when the expression has become trivial
@@ -134,7 +173,18 @@ class ModelReparam :
       self.model.pois.pop(selected_name)
     self.remove_expressions(expressions_to_remove, expression_values)
 
-  def remove_expressions(self, expr_names : list, values : dict = {}, verbosity : int = 0) :
+  def remove_expressions(self, expr_names : list, values : dict = {}) :
+    """Remove Expressions from the model
+
+    The expressions are removed from the list of model expressions, and
+    also from other model expressions. A replacement
+    value for the expression must be provided in each case
+
+    Args:
+      expr_names : list of names of POIs to remove
+      values : dict of {name :value } pairs providing the values
+               with which to replace each expression.
+    """
     selected_names = []
     for expr_name in expr_names :
       if expr_name in self.model.expressions :

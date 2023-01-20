@@ -43,7 +43,7 @@ def run(argv = None) :
   model = Model.create(options.model_file, verbosity=options.verbosity)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
 
-  reparam = ModelReparam(model)
+  reparam = ModelReparam(model, verbosity=options.verbosity)
   norms = {}
 
   # load options from JSON file instead of the command line, if specified
@@ -174,11 +174,11 @@ def run(argv = None) :
     remove_pois = [ v.replace(' ', '') for v in options.remove.split(',') ]
 
   if len(add_pois) > 0 :
-    reparam.add_pois(add_pois, verbosity=options.verbosity)
+    reparam.add_pois(add_pois)
   if len(add_expressions) > 0 :
-    reparam.add_expressions(add_expressions, verbosity=options.verbosity)
+    reparam.add_expressions(add_expressions)
   if len(norms) > 0 :
-    reparam.update_norms(norms, verbosity=options.verbosity)
+    reparam.update_norms(norms)
   if len(change_pois) > 0 :
     for poi in change_pois :
       if options.verbosity > 0 : print("Modifying POI '%s', now '%s'." % (poi.name, str(poi)))
@@ -188,7 +188,7 @@ def run(argv = None) :
       if poi not in replacements :
         replacements[poi] = model.pois[poi].initial_value
         if options.verbosity > 0 : print("Using default replacement '%s=%g' when removing POI '%s'." % (poi, replacements[poi], poi))
-    reparam.remove_pois(remove_pois, verbosity=options.verbosity, values=replacements)
+    reparam.remove_pois(remove_pois, values=replacements)
 
   # If we specified a full list of POIs, reorder the POIs to match the list order
   if len(new_pois) > 0 : model.pois = {name : model.pois[name] for name in new_pois}
