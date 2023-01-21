@@ -290,4 +290,4 @@ Producing PLR scan with POI(s) ['xs1', 'xs2'], bounds {'xs1': 0 <= xs1 <= 20, 'x
 | 14              | 13              | 5.32068         | 0.0699246       
 | 14              | 13.5            | 6.11474         | 0.0470111       
 | 14              | 14              | 6.97393         | 0.0305935       
-best-fit value @ xs1=10.0162, xs2=10.0162
+best-fit value @ xs1=10.0162, xs2=10.0239
