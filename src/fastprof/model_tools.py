@@ -8,16 +8,15 @@ Utility classes for model manipulation:
   defined as single bins, but can be better merged into a single `binned_range` channel)
 
 * :class:`ModelReparam`: tool to reparameterize the model (define new model parameters
-  expressions, replace expressions with new ones, etc.)
+  expressions, replace expressions with new ones, etc.).
 
 * :class:`NPPruner`: tool to simplify a model by pruning away nuisance parameters
-  with small impacts
+  with small impacts.
 
 * :class:`SamplePruner`: tool to simplify a model by pruning away samples with negligible
   expected event yields compared to other samples in the same channel.
 
-* :class:`ParBound`: utiliy class defining the bounds of a fit parameter.
-
+* :class:`ParBound`: utility class defining the bounds of a fit parameter.
 """
 
 import re

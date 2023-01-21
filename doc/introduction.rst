@@ -10,9 +10,9 @@ The models differ from the HistFactory baseline by modeling systematics uncertai
 
 These simplified likelihoods can be used as approximations to the exact measurement likelihoods, in particular for two important applications:
 
-  - *For the reuse, reinterpretation and combination of experimental measurements*: these operations are typically CPU-intensive for full likelihoods, especially when many configurations need to be considered -- e.g. when scanning over a large model parameter space. The SLLS formalism preserves the POIs and the nuisance parameters (NPs) of the full likelihood. This allows operations such as reinterpretations and combinations to be performed in the same way as in the original model.
+  - *The reuse, reinterpretation and combination of experimental measurements*: these operations are typically CPU-intensive for full likelihoods, especially when many configurations need to be considered -- e.g. when scanning over a large model parameter space. The SLLS formalism preserves the POIs and the nuisance parameters (NPs) of the full likelihood. This allows operations such as reinterpretations and combinations to be performed in the same way as in the original model.
   
-  - *To determine the sampling distributions of the test statistics using pseudo-data generation*, in the case where the asymptotic formulas presented in Ref. [Asimov]_ are invalid. This is a CPU-intensive task, since the number of pseudo-experiments is typically :math:`O(10^5)` to :math:`O(10^7)` or more. Simplified likelihoods allow a much faster processing of pseudo-experiments, and provide a better approximation of the full model than the asymptotic formulas.
+  - *To sample test statistic distributions*, in cases where the asymptotic formulas presented in Ref. [Asimov]_ are invalid. This is a CPU-intensive task, since the number of pseudo-experiments is typically :math:`O(10^5)` to :math:`O(10^7)` or more. Simplified likelihoods allow a much faster processing of pseudo-experiments, and provide a better approximation of the full model than the asymptotic formulas.
 
 The code provides the following components:
   * A general implementation of SLLS models described in detail in Section [models].
