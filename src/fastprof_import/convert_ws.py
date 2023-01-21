@@ -9,19 +9,19 @@ into the definition file of a linear model, as follows:
 The model POIs and NPs are taken from the `ModelConfig` object. The model PDF is also 
 taken from the `ModelConfig`, and the following cases are currently supported:
   
-   #. The model is *unbinned*: The channel observable is taken from the PDF,
-      and the binning from the `-b` option.
+* The model is *unbinned*: The channel observable is taken from the PDF,
+  and the binning from the `-b` option.
   
-      #. If the PDF is a `RooAddPdf`, the components of the sum are 
-         used to define the samples of a single channel. 
+  * If the PDF is a `RooAddPdf`, the components of the sum are 
+    used to define the samples of a single channel. 
 
-      #. If the PDF is a `RooSimultaneous`, the states of the PDF are taken
-         to correspond each to a separate channel. Each channel must have a 
-         PDF of *RooAddPdf* type, which is then treated as above.
+  * If the PDF is a `RooSimultaneous`, the states of the PDF are taken
+    to correspond each to a separate channel. Each channel must have a 
+    PDF of *RooAddPdf* type, which is then treated as above.
 
-   #. The model is *binned* : the channel PDF must then be a RooPoisson, 
-      with an expected yield given by a RooAddition. The samples are given
-      from the terms in the RooAddition.
+* The model is *binned* : the channel PDF must then be a RooPoisson, 
+  with an expected yield given by a RooAddition. The samples are given
+  from the terms in the RooAddition.
 
 Nominal yields in each bin are computed either from integrating the PDF of each
 sample in each channel, for the unbinned case, or taking the Poisson yield

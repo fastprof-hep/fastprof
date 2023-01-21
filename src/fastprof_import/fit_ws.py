@@ -29,14 +29,14 @@ For the case of a single POI, a single integer can provided as argument. In
 this case, a set of hypotheses appropriate for the setting of an upper limit
 on the POI are defined automatically. This set is defined as follows:
   
-  #. 2/3 of the specified points as used to define a fine grid in the range
-     from :math:`-3\sigma` to :math:`+3\sigma` around the expected limit,
-     where both the expected limit and the value of :math:`\sigma` are
-     estimated from the uncertainty on the POI
+* 2/3 of the specified points as used to define a fine grid in the range
+  from :math:`-3\sigma` to :math:`+3\sigma` around the expected limit,
+  where both the expected limit and the value of :math:`\sigma` are
+  estimated from the uncertainty on the POI
     
-  #. 1/3 of the specified points define a looser grid in the range from
-     :math:`+3\sigma` and :math:`+8\sigma`, and the corresponding
-     negative range.
+* 1/3 of the specified points define a looser grid in the range from
+  :math:`+3\sigma` and :math:`+8\sigma`, and the corresponding
+  negative range.
   
 A good balance is the default `hypos=17`, which defines 6 hypothesis
 between 0 and :math:`+3\sigma` (0,0.5,1,1.5,2,2.5), another 3 above
