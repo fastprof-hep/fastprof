@@ -230,5 +230,3 @@ The commands should produce the plots below:
 .. image:: outputs/trileptons_CRs.png
     :width:  70%
     :align:  center
-
-.. [SLLS] N. Berger *Simplified likelihoods using linearized systematic uncertainties* `arXiv:2301.05676 <https://arxiv.org/abs/2301.05676>`_
