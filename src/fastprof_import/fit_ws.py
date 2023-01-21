@@ -5,49 +5,47 @@ __doc__ = """
 
 The script takes as input a ROOT workspace, and computes the information
 needed to evaluate the q_mu and q_mu~ test statistics (see
-[arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>]_) at a number of POI
+arXiv:1007.1727) at a number of POI
 hypothesis points.
 
 These values and hypotheses can then be used to compute sampling distributions
 that allow the estimation of p-values corresponding to the test statistics,
-without the use of the asymptotic approximation of 
-[arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>]_. An example of this
-procedure can be found in the utils/compute_limits.py script.
+without the use of the asymptotic approximation of arXiv:1007.1727.
+An example of this procedure can be found in the utils/compute_limits.py script.
 
-* The input dataset is specified using the `--ws-file` and `--ws-name`
-  options. The input dataset can be either observed data (`--data-file` and
-  `--data-name`) or an Asimov dataset (`--asimov`). For the latter, the POI
-  values are given as argument, and the NP values are taken from a fit to 
-  an observed dataset, if provided (and kept at their nominal values otherwise).
+The input dataset is specified using the `--ws-file` and `--ws-name`
+options. The input dataset can be either observed data (`--data-file` and
+`--data-name`) or an Asimov dataset (`--asimov`). For the latter, the POI
+values are given as argument, and the NP values are taken from a fit to 
+an observed dataset, if provided (and kept at their nominal values otherwise).
+Prior to computations, the model can be adjusted using the `--setval`,
+`--setconst` and `--setrange` options, which set respectively the value,
+constness and range of model parameters.
 
-* Prior to computations, the model can be adjusted using the `--setval`,
-  `--setconst` and `--setrange` options, which set respectively the value,
-  constness and range of model parameters.
-
-* The hypotheses can be set using the `--hypos` option, providing as argument
-  a colon-separated list of definitions. Each definition consists in a comma-
-  separated list of POI assignments. 
-  For the case of a single POI, a single integer can provided as argument. In
-  this case, a set of hypotheses appropriate for the setting of an upper limit
-  on the POI are defined automatically. This set is defined as follows:
+The hypotheses can be set using the `--hypos` option, providing as argument
+a colon-separated list of definitions. Each definition consists in a comma-
+separated list of POI assignments. 
+For the case of a single POI, a single integer can provided as argument. In
+this case, a set of hypotheses appropriate for the setting of an upper limit
+on the POI are defined automatically. This set is defined as follows:
   
-  * 2/3 of the specified points as used to define a fine grid in the range
-    from :math:`-3\sigma` to :math:`+3\sigma` around the expected limit,
-    where both the expected limit and the value of :math:`\sigma` are
-    estimated from the uncertainty on the POI
+  #. 2/3 of the specified points as used to define a fine grid in the range
+     from :math:`-3\sigma` to :math:`+3\sigma` around the expected limit,
+     where both the expected limit and the value of :math:`\sigma` are
+     estimated from the uncertainty on the POI
     
-  * 1/3 of the specified points define a looser grid in the range from
-    :math:`+3\sigma` and :math:`+8\sigma`, and the corresponding
-    negative range.
+  #. 1/3 of the specified points define a looser grid in the range from
+     :math:`+3\sigma` and :math:`+8\sigma`, and the corresponding
+     negative range.
   
-  A good balance is the default `hypos=17`, which defines 6 hypothesis
-  between 0 and :math:`+3\sigma` (0,0.5,1,1.5,2,2.5), another 3 above
-  :math:`+3\sigma` (3, 5.5, 8), and the corresponding negative values.
+A good balance is the default `hypos=17`, which defines 6 hypothesis
+between 0 and :math:`+3\sigma` (0,0.5,1,1.5,2,2.5), another 3 above
+:math:`+3\sigma` (3, 5.5, 8), and the corresponding negative values.
 
-* At each hypothesis, the data is fit twice : once with the POIs set to their
-  hypothesis values, and once free to vary in the fit. The same procedure is
-  performed for an Asimov dataset, with a POI value set to zero. This provides
-  all the information needed to compute q_mu and q_mu~.
+At each hypothesis, the data is fitted twice : once with the POIs set to their
+hypothesis values, and once free to vary in the fit. The same procedure is
+performed for an Asimov dataset, with a POI value set to zero. This provides
+all the information needed to compute q_mu and q_mu~.
 
 The output is a single JSON file containing the result of the fits at each hypothesis,
 including the best-fit values of all parameters and the NLL values at minimum.

@@ -183,9 +183,7 @@ class SingleBinChannel(Channel) :
 
   Attributes :
      name (str) : the channel name
-     samples (dict) : the channel samples, as a dict mapping the sample names
-                      to the sample objects (see :class:`Sample`).
-  
+     samples (dict) : the channel samples as a { name: object } dict (see :class:`Sample`).
   """
 
   type_str = 'bin'

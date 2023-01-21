@@ -13,7 +13,7 @@ import numpy as np
 import json
 
 from fastprof import Model, Data, NPPruner, SamplePruner
-from .tools import process_setvals
+from fastprof_utils import process_setvals
 
 
 ####################################################################################################################################

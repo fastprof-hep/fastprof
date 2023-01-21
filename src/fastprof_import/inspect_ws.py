@@ -4,13 +4,9 @@ __doc__ = """
 *Inspect a ROOT workspace*
 
 The script takes as input a ROOT workspace, and plots the PDF information.
-
-* The model POIs and NPs are taken from the ModelConfig file.
-
-* The model PDF is also taken from the ModelConfig. Only the case of a binned or unbinned 
-  distribution is considered.
-
-* If the PDF is a `RooSimultaneous`*, each component is inspected separately 
+The model POIs and NPs are taken from the ModelConfig file.
+The model PDF is also taken from the ModelConfig. Only the case of a binned or unbinned 
+distribution is considered. If the PDF is a `RooSimultaneous`*, each component is inspected separately 
 
 The output is a PDF file containing the mode information.
 """

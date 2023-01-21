@@ -196,10 +196,10 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
 
-mathjax_config = {
-    'TeX': {
-      'Packages' : {'[+]': ['bm'] },
-        'Macros': {
+mathjax3_config = {
+    'tex': {
+      'packages' : {'[+]': ['bm'] },
+        'macros': {
             'vt': [r'\boldsymbol{\theta}'],
             'vm': [r'\boldsymbol{\mu}'],
             'vn': [r'\boldsymbol{n}'],

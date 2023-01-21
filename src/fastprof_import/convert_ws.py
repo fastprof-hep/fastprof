@@ -6,45 +6,42 @@ __doc__ = """
 The script takes as input a ROOT workspace, and converts the contents
 into the definition file of a linear model, as follows:
 
-* The model POIs and NPs are taken from the ModelConfig file.
-
-* The model PDF is also taken from the ModelConfig. Several cases are currently
-  implemented:
+The model POIs and NPs are taken from the `ModelConfig` object. The model PDF is also 
+taken from the `ModelConfig`, and the following cases are currently supported:
   
-  * *The model is unbinned*: The channel observable is taken from the PDF,
-    and the binning from the `-b` option.
+   #. The model is *unbinned*: The channel observable is taken from the PDF,
+      and the binning from the `-b` option.
   
-    * If the PDF is a `RooAddPdf`, the components of the sum are 
-      used to define the samples of a single channel. 
-      
-    * If the PDF is a `RooSimultaneous`, the states of the PDF are taken
-      to correspond each to a separate channel. Each channel must have a 
-      PDF of *RooAddPdf* type, which is then treated as above.
-      
-  * *The model is binned* : the channel PDF must then be a RooPoisson, 
-    with an expected yield given by a RooAddition. The samples are given
-    from the terms in the RooAddition.
+      #. If the PDF is a `RooAddPdf`, the components of the sum are 
+         used to define the samples of a single channel. 
 
-* Nominal yields in each bin are computed either from integrating the PDF of each
-  sample in each channel, for the unbinned case, or taking the Poisson yield
-  for the binned case.
+      #. If the PDF is a `RooSimultaneous`, the states of the PDF are taken
+         to correspond each to a separate channel. Each channel must have a 
+         PDF of *RooAddPdf* type, which is then treated as above.
 
-* Linear impacts are computed by changing the values of the NPs as 
-  specified by the `--variations` option. By default :math:`\pm 1 \sigma`
-  variations are used. The impact on each sample are separated by setting
-  the normalizations of all but one to zero for each in turn. Variations
-  which are present when all normalizations are set to 0 are assigned to
-  the default sample, specified by the `--default-sample` option.
+   #. The model is *binned* : the channel PDF must then be a RooPoisson, 
+      with an expected yield given by a RooAddition. The samples are given
+      from the terms in the RooAddition.
 
-* NP central values and uncertainties taken from directly from the workspace,
-  or from a fit to data (`--data-file` option) or to an Asimov dataset
-  (`--asimov` option). The same applied to the POI value used to define
-  the nominal yields. If the POI value leads to a normalization of 0, the POI
-  is instead set to twice its uncertainty.
-  
-* Prior to computations, the model can be adjusted using the `--setval`,
-  `--setconst` and `--setrange` options, which set respectively the value,
-  constness and range of model parameters.
+Nominal yields in each bin are computed either from integrating the PDF of each
+sample in each channel, for the unbinned case, or taking the Poisson yield
+for the binned case.
+
+Linear impacts are computed by changing the values of the NPs as 
+specified by the `--variations` option. By default :math:`\pm 1 \sigma`
+variations are used. The impact on each sample are separated by setting
+the normalizations of all but one to zero for each in turn. Variations
+which are present when all normalizations are set to 0 are assigned to
+the default sample, specified by the `--default-sample` option.
+
+NP central values and uncertainties taken from directly from the workspace,
+or from a fit to data (`--data-file` option) or to an Asimov dataset
+(`--asimov` option). The same applied to the POI value used to define
+the nominal yields. If the POI value leads to a normalization of 0, the POI
+is instead set to twice its uncertainty. Prior to computations,
+the model can be adjusted using the `--setval`,
+`--setconst` and `--setrange` options, which set respectively the value,
+constness and range of model parameters.
 
 The output is a single markup file which defines the model as well as the 
 dataset if one was specified. A validation file is also produced if the 

@@ -3,15 +3,21 @@ Utility classes for model manipulation:
 
 * :class:`ModelMerger`: tool to combine multiple models into a single one.
 
-* :class:`ChannelMerger`: tool to merge groups of model channels into a single multi-bin channel (useful for some moels where bins spanning a range where defined as single bins, but can be better merged into a single `binned_range` channel)
+* :class:`ChannelMerger`: tool to merge groups of model channels into a single
+  multi-bin channel (useful for some moels where bins spanning a range where
+  defined as single bins, but can be better merged into a single `binned_range` channel)
 
-* :class:`ModelReparam`: tool to reparameterize the model (define new model parameters expressions, replace expressions with new ones, etc.)
+* :class:`ModelReparam`: tool to reparameterize the model (define new model parameters
+  expressions, replace expressions with new ones, etc.)
 
-* :class:`NPPruner`: tool to simplify a model by pruning away nuisance parameters with small impacts
+* :class:`NPPruner`: tool to simplify a model by pruning away nuisance parameters
+  with small impacts
 
-* :class:`SamplePruner`: tool to simplify a model by pruning away samples with negligible expected event yields compared to other samples in the same channel.
+* :class:`SamplePruner`: tool to simplify a model by pruning away samples with negligible
+  expected event yields compared to other samples in the same channel.
 
 * :class:`ParBound`: utiliy class defining the bounds of a fit parameter.
+
 """
 
 import re
@@ -137,7 +143,7 @@ class ChannelMerger :
   should be associated with a range of an observable. These ranges are specified 
   by `obs_bins`, while `obs_name` and `obs_unit` specify the observable.
 
-  Atttributes:
+  Attributes:
     model (Model) : the model on which to act.
     channels_to_merge (list) : list of names of channels to merge.
     merged_name (str) : name of the merged channel.
@@ -453,8 +459,7 @@ class ModelReparam :
     a numerical value that must be provided in each case.
     Args:
       names : list of names of POIs and expressions to remove
-      values : dict of {name :value } pairs providing the values
-               with which to replace each POI or expression.
+      values : dict of {name :value } pairs providing the values with which to replace each POI or expression.
     """
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :

@@ -9,8 +9,7 @@ linear statistical model.
 * The code computes the limit at the specified CL (`--cl` argument), by
   default 95%. Both frequentist and modified-frequentist :math:`CL_s` limits
   are computed. The test statistic can be set usign the `-t` option. By
-  default, the q_mu~ of [arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>]_
-  is used.
+  default, the q_mu~ of arXiv:1007.1727 is used.
 
 * The main inputs are the model file (`--model-file` argument) and the
   *fits* file providing results from the full model (`--fits-file`).

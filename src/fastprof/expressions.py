@@ -170,15 +170,21 @@ class Expression(Serializable) :
 
 # -------------------------------------------------------------------------
 class Number(Expression) :
-  """Expression class representing a (fixed) float value
+  """Expression class representing a (fixed) numerical value
+
+  Attributes:
+    val (float) : the numerical value
   """
 
   type_str = 'number'
 
   def __init__(self, par_name : str = '', value : float = 0) :
-    """Create a new LinearCombination object
+    """Initialize a new object
     
-    #"""
+    Args:
+      par_name: the object name
+      val : the numerical value to assign
+    """
     super().__init__(par_name)
     self.val = value
 
@@ -403,10 +409,14 @@ class SingleParameter(Expression) :
 class LinearCombination(Expression) :
   """Class representing a linear combination of parameters
 
+  The linear combination is represented as
+  (nominal value) + coeff1*par1 + coeff2*par2 + ...
+
   Attributes:
-     coeffs (dict) : dict with the format { par_name : par_coeff } 
-                          mapping parameter names to their coefficients
-                          in the linear combination
+    nominal_value (float) : the nominal term in the expression
+    coeffs (dict) : dict with the format { par_name : par_coeff }
+                    mapping parameter names to their coefficients
+                    in the linear combination
   """
 
   type_str = 'linear_combination'
@@ -415,6 +425,7 @@ class LinearCombination(Expression) :
     """Create a new LinearCombination object
     
     Args:
+      nominal_value: the nominal term added to the linear combination
       coeffs : dict specifying the parameters and coefficients of the 
                linear combination, with entries of the form expr: coeff 
     """
@@ -432,8 +443,6 @@ class LinearCombination(Expression) :
       linear coefficients.
     
       Args:
-        pars : expression parameters as a dictionary of { name: object } pairs
-        reals: sub-expressions as a dictionary of { name: object } pairs
         real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
         gradients wrt parameters
@@ -451,7 +460,9 @@ class LinearCombination(Expression) :
      Non-zero gradient is given by the linear coefficients
 
       Args:
-         real_vals : a dictionary of parameter name: value pairs
+        pars : expression parameters as a dictionary of { name: object } pairs
+        reals: sub-expressions as a dictionary of { name: object } pairs
+        real_vals: values of all reals and pars, as { name: value} pairs
       Returns:
          known gradient, in the form { par_name: dN/dpar }
     """
@@ -476,7 +487,7 @@ class LinearCombination(Expression) :
     return np.zeros((len(pars), len(pars)))
 
   def replace(self, name : str, value : float, reals : dict) -> 'LinearCombination' :
-    """Replace parameter 'name' by a numberical value
+    """Replace parameter 'name' by a numerical value
 
        Replaces all instances of the parameter 'name'
        by 'value', as needed for instance if a parameter is set 

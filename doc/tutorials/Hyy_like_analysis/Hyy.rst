@@ -56,10 +56,8 @@ The arguments are as follows:
 - ``-w`` specifies the name of the workspace within the file.
 - ``-d`` specifies the name of the dataset to use.
 - ``-m`` provides the name of the RooStats ``ModelConfig`` object holding the model description.
-- ``-b`` specifies the binning to use. Here one asks for 551 bins between 105 and 160 GeV.
-         The ``+`` indicates that the endpoint at 160 GeV should be included in the binning.
-- ``-t`` provides the packing tolerance, i.e. the relative difference below which the numerical values of parameter impacts are considered
-         negligible. This allows to reduce the size of the output file by providing impacts for groups of bins with similar impacts.
+- ``-b`` specifies the binning to use. Here one asks for 551 bins between 105 and 160 GeV. The ``+`` indicates that the endpoint at 160 GeV should be included in the binning.
+- ``-t`` provides the packing tolerance, i.e. the relative difference below which the numerical values of parameter impacts are considered negligible. This allows to reduce the size of the output file by providing impacts for groups of bins with similar impacts.
 - ``-o`` The output file, containing both the model and the dataset.
 
 The output file ``Hyy33.json`` can also be found in the ``inputs/`` directory, in case ROOT is not available.
@@ -225,4 +223,5 @@ The impact is highly non-linear, again as expected. However for small values of 
     
 .. [Hyy] ATLAS Collaboration, *Measurement of the properties of Higgs boson production at √s = 13 TeV in the H → γγ channel using 139 fb−1 of pp collision data with the ATLAS experiment*, 2022. `arXiv:2207.00348 <https://arxiv.org/abs/2207.00348>`_
 
-.. [SLLS] N. Berger *Simplified likelihoods using linearized systematic uncertainties* `arXiv:2301.05676 <https://arxiv.org/abs/2301.05676>`_
+.. 
+   [SLLS] N. Berger *Simplified likelihoods using linearized systematic uncertainties* `arXiv:2301.05676 <https://arxiv.org/abs/2301.05676>`_
