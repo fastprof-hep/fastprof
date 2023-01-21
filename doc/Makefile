@@ -1,9 +1,10 @@
 # Minimal makefile for Sphinx documentation
-#
 
-# You can set these variables from the command line.
-SPHINXOPTS    =
-SPHINXBUILD   = sphinx-build
+
+# You can set these variables from the command line, and also
+# from the environment for the first two.
+SPHINXOPTS    ?=
+SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = ../build/sphinx
 
@@ -20,5 +21,6 @@ help:
 
 doc:
 	sphinx-apidoc -fMeT -o ./api ../src ../setup.py
+	rm api/fastprof.rst api/fastprof_utils*.rst api/fastprof_import*.rst
 	@echo "Auto-generation of API documentation finished. " \
-          "The generated files are in './api/'"
+	  "The generated files are in './api/'"

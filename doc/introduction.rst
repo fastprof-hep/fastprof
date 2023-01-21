@@ -9,7 +9,9 @@ SLLS models are simplified versions of the HistFactory standard, implementing ev
 The models differ from the HistFactory baseline by modeling systematics uncertainties only at linear order and with Gaussian constraints. This simplication leads to large performance improvements when performing parameter minimization. This translates in particular to large gains in the computation of profile likelihoods and related test statistics, which are widely used in HEP [Asimov]_. The paramerers of interest (POIs) of the measurement are treated exactly.
 
 These simplified likelihoods can be used as approximations to the exact measurement likelihoods, in particular for two important applications:
+
   - *For the reuse, reinterpretation and combination of experimental measurements*: these operations are typically CPU-intensive for full likelihoods, especially when many configurations need to be considered -- e.g. when scanning over a large model parameter space. The SLLS formalism preserves the POIs and the nuisance parameters (NPs) of the full likelihood. This allows operations such as reinterpretations and combinations to be performed in the same way as in the original model.
+  
   - *To determine the sampling distributions of the test statistics using pseudo-data generation*, in the case where the asymptotic formulas presented in Ref. [Asimov]_ are invalid. This is a CPU-intensive task, since the number of pseudo-experiments is typically :math:`O(10^5)` to :math:`O(10^7)` or more. Simplified likelihoods allow a much faster processing of pseudo-experiments, and provide a better approximation of the full model than the asymptotic formulas.
 
 The code provides the following components:
@@ -24,5 +26,5 @@ These components are described in detail in the next sections.
 
 .. [SLLS] N\. Berger, *Simplified likelihoods using linearized systematic uncertainties*, `arXiv:2301.05676 <https://arxiv.org/abs/2301.05676>`_
 
-.. [Asimov] G. Cowan, K. Cranmer, E. Gross, O. Vitells, *Asymptotic formulae for likelihood-based tests of new physics*, Eur. Phys. J. C **71**:1554, 2011, `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_
+.. [Asimov] G\. Cowan, K. Cranmer, E. Gross, O. Vitells, *Asymptotic formulae for likelihood-based tests of new physics*, Eur. Phys. J. C **71**:1554, 2011, `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_
 
