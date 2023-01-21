@@ -3,6 +3,8 @@ source env/bin/activate
 pip install --upgrade pip | grep -v 'already satisfied'
 if [ ! -e build ]; then 
   pip install .; 
-  cd doc; make doc; make html; cd ..
+  if [[ ! -v NO_DOC ]]; then
+    cd doc; make doc; make html; cd ..
+  fi
 fi
 
