@@ -45,3 +45,8 @@ prune_nps:
   script:
     - testing/prune_nps/run.sh > out.log
     - testing/prune_nps/diff.sh out.log testing/prune_nps/ref.log
+
+check_expressions:
+  script:
+    - testing/check_expressions/run.sh > out.log
+    - testing/check_expressions/diff.sh out.log testing/check_expressions/ref.log
