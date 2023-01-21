@@ -171,7 +171,7 @@ class Expression(Serializable) :
 # -------------------------------------------------------------------------
 class Number(Expression) :
   """Expression class representing a (fixed) numerical value
-
+  
   Attributes:
     val (float) : the numerical value
   """
@@ -414,7 +414,7 @@ class LinearCombination(Expression) :
 
   Attributes:
     nominal_value (float) : the nominal term in the expression
-    coeffs (dict) : dict with the format { par_name : par_coeff }
+    coeffs (dict) : dict with the format { par_name : par_coeff } 
                     mapping parameter names to their coefficients
                     in the linear combination
   """
@@ -484,7 +484,11 @@ class LinearCombination(Expression) :
       Returns:
         Hessian wrt parameter pairs
     """
-    return np.zeros((len(pars), len(pars)))
+    hess = np.zeros((len(pars), len(pars)))
+    for par_name in self.coeffs :
+      hess += self.coeffs[par_name]*reals[par_name].hessian(pars, reals, real_vals)
+    return hess
+
 
   def replace(self, name : str, value : float, reals : dict) -> 'LinearCombination' :
     """Replace parameter 'name' by a numerical value
