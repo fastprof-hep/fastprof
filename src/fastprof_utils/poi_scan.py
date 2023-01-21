@@ -38,7 +38,7 @@ def make_parser() :
   parser.add_argument(      "--cutoff"        , type=float, default=None     , help="Cutoff to regularize the impact of NPs")
   parser.add_argument(      "--marker"        , type=str  , default='+'      , help="Marker type for plots")
   parser.add_argument("-l", "--linestyle"     , type=str  , default='-,--,:' , help="Line style for plots")
-  parser.add_argument(      "--smoothing"     , type=int  , default=0        , help="Smoothing for contours (0=no smoothing)")
+  parser.add_argument(      "--smoothing"     , type=int  , default=None     , help="Smoothing for contours (0=no smoothing)")
   parser.add_argument(      "--batch-mode"    , action='store_true'          , help="Batch mode: no plots shown")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=0        , help="Verbosity level")
   parser.add_argument("-t", "--show-timing"   , action='store_true'          , help="Enables printout of timing information")
@@ -185,7 +185,8 @@ def run(argv = None) :
       poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
       if first : best_fit = poi_scan.best_fit(print_result=True)
       if not options.batch_mode :
-        poi_scan.plot(fig1, label='%3.1f%% CL' % (poi_scan.cl()*100), best_fit=first, marker=options.marker, linestyle=linestyle, smoothing=options.smoothing)
+        poi_scan.plot(fig1, label='%3.1f%% CL' % (poi_scan.cl()*100), best_fit=first,
+                      marker=options.marker, linestyle=linestyle, smoothing=options.smoothing)
         plt.show()
         plt.legend()
       first = False
