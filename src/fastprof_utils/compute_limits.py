@@ -226,17 +226,17 @@ def run(argv = None) :
   # Plot results
   if not options.batch_mode :
     plt.ion()
-    fig1 = plt.figure(1)
-    scan_sampling_clsb.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
-    scan_asy_fast_clsb.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
+    fig1, ax1 = plt.subplots(constrained_layout=True)
+    scan_sampling_clsb.plot(fig1, marker=options.marker + 'b-', label='Sampling', with_errors=True)
+    scan_asy_fast_clsb.plot(fig1, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
 
-    fig2 = plt.figure(2)
+    fig2, ax2 = plt.subplots(constrained_layout=True)
     if options.bands :
       opti_samples.plot_bands(options.bands)
-    scan_sampling_cls.plot(plt, marker=options.marker + 'b-', label='Sampling', with_errors=True)
-    scan_asy_fast_cls.plot(plt, marker=options.marker + 'r:', label='Asymptotics')
+    scan_sampling_cls.plot(fig2, marker=options.marker + 'b-', label='Sampling', with_errors=True)
+    scan_asy_fast_cls.plot(fig2, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
     fig1.savefig(options.output_file + '_clsb.pdf')

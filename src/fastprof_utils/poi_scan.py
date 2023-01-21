@@ -151,15 +151,15 @@ def run(argv = None) :
     poi_name = pois[0]
     if not options.batch_mode :
       plt.ion()
-      fig1 = plt.figure(1)
+      fig1, ax1 = plt.subplots(constrained_layout=True)
     for cl, linestyle in zip(cl_values, linestyles) :
       poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
       interval = poi_scan.interval(print_result=True)
       # Plot results
       if not options.batch_mode :
         #poi_scan.plot(plt, marker='b', linestyle=linestyle, label='PRL_smooth', smooth=100)
-        poi_scan.plot(plt, linestyle=linestyle, label='tmu interpolation', smooth=100)
-        poi_scan.plot(plt, marker=options.marker, linestyle='None')
+        poi_scan.plot(fig1, linestyle=linestyle, label='tmu interpolation', smooth=100)
+        poi_scan.plot(fig1, marker=options.marker, linestyle='None')
         plt.ylim(0, None)
         plt.axhline(y=poi_scan.ts_level, color='k', linestyle='dotted')
         plt.show()
@@ -180,12 +180,12 @@ def run(argv = None) :
     poi2_name = pois[1]
     if not options.batch_mode :
       plt.ion()
-      fig1 = plt.figure(1)
+      fig1, ax1 = plt.subplots(constrained_layout=True)
     for cl, linestyle in zip(cl_values, linestyles) :
       poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
       if first : best_fit = poi_scan.best_fit(print_result=True)
       if not options.batch_mode :
-        poi_scan.plot(plt, label='%3.1f%% CL' % (poi_scan.cl()*100), best_fit=first, marker=options.marker, linestyle=linestyle, smoothing=options.smoothing)
+        poi_scan.plot(fig1, label='%3.1f%% CL' % (poi_scan.cl()*100), best_fit=first, marker=options.marker, linestyle=linestyle, smoothing=options.smoothing)
         plt.show()
         plt.legend()
       first = False
