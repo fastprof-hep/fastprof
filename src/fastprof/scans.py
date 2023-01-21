@@ -2,10 +2,10 @@
   Utility classes to plot parameter scans
   and extract numerical results
 
-  The underlying data in scan classes is a raster of points in POI-space
+  The underlying data in scan classes is a raster of points in POI-space 
   for which confidence level (CL) values or p-values (PV) have been computed.
   This information is stored in a :class:`Raster` object that is stored in the scan class.
-
+  
   The purpose of the scan classes is to either extract meaningful information
   (limits or confidence intervals on the POIs) from the rasters, or plot these
   results.
@@ -42,7 +42,7 @@ class Scan :
 
   Defines the basic interface for interacting with a raster:
   identifying the POIs and extracting information at each point
-
+  
   Attributes:
     name (str) : the name of the scan
     raster (Raster) : the raster containing the information
@@ -119,7 +119,7 @@ class Scan :
 
       Returns the mininum value of the target (specified by self.key)
       among all PLRData objects in the raster.
-
+      
       Returns:
         the minimum value
     """
@@ -130,7 +130,7 @@ class Scan :
 
       Returns the maximum value of the target (specified by self.key)
       among all PLRData objects in the raster.
-
+      
       Returns:
         the maximum value
     """
@@ -141,7 +141,7 @@ class Scan1D (Scan) :
   """Base class for 1D scans over a raster of points
 
   Defines the basic interface for dealing with 1D curves,
-  in particular computing extrema and crossings with
+  in particular computing extrema and crossings with 
   specified levels.
 
   Attributes:
@@ -270,7 +270,7 @@ class Scan1D (Scan) :
     order, and uses this to compute result values over
     a finer grid of points covering the same range as the
     raster.
-
+    
     The return value is a pair of lists, the first for the poi values (X-axis)
     and the second for the result values (Y-axis)
 
@@ -339,13 +339,13 @@ class Scan1D (Scan) :
     """Perform a one-dimensional interpolation between points to find crossing positions
 
     Takes 2 lists of same size, corresponding to the `x` and `y`
-    dimensions, and interpolates to find the position of the
+    dimensions, and interpolates to find the position of the 
     (interpolated) minimum y.
     
     Uses the `InterpolatedUnivariateSpline` method from `scipy`, with
     spline order specified by the `order` parameter, and computes the
     derivative spline to find the minima.
-
+    
     Note that for now only quartic splines are supported.
 
     Args:
@@ -378,7 +378,7 @@ class UpperLimitScan (Scan1D):
   """Base class for Upper limit scans over a raster of points
 
   Defines the basic interface for dealing with 1D curves,
-  in particular computing extrema and crossings with
+  in particular computing extrema and crossings with 
   specified levels.
 
   Attributes:
@@ -414,7 +414,7 @@ class UpperLimitScan (Scan1D):
     The limit is computed as the crossing point with the specified
     CL value. If multiple values are found, the first one is returned.
     If no value is found, returns `None`.
-
+    
     Args:
       order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
       log_scale : if `True`, interpolate in the log of the p-values. If `False`
@@ -423,7 +423,7 @@ class UpperLimitScan (Scan1D):
       print_result : if `True`, print out the results.
 
     Returns:
-      the interpolated limit (+ optional bands)
+      the interpolated limit (+ optional bands) 
     """
     found_crossings = self.crossings(1 - self.cl, order, log_scale, with_errors)
     if len(found_crossings) == 0 :
@@ -434,7 +434,15 @@ class UpperLimitScan (Scan1D):
     if print_result : print(self.description(found_crossings[0]))
     return found_crossings[0]
 
-  def description(self, limit) :
+  def description(self, limit : float) -> str :
+    """Build a description string for printout
+    
+    Args:
+      limit : the limit value for which to print out the description
+
+    Returns:
+      the string description 
+    """
     value = limit if not isinstance(limit, tuple) else limit[0]
     value_str = ('%g' % limit) if not isinstance(limit, tuple) else '%g +%g -%g' % (limit[0], limit[1] - limit[0], limit[0] - limit[2])
     return self.name + ' : UL(%g%%) = %s' % (100*self.cl, value_str) \
@@ -442,7 +450,7 @@ class UpperLimitScan (Scan1D):
 
   def plot(self, canvas : tuple = (None, None), marker : str = 'b', with_errors : bool = False, label : str = None) :
     """Plot the CL curve and the intersection with the target CL
-
+    
     Args:
       canvas : a (fig, axes) pair on which to plot the result. If not specified, a new
                figure is created.
@@ -450,7 +458,7 @@ class UpperLimitScan (Scan1D):
       with_errors : if `True`, also returns the crossing points with the +/-1sigma bands.
       label : the curve label to use for the legend.
     """
-    if canvas == (None, None) :
+    if canvas == (None, None) : 
       fig, axs = plt.subplots(figsize=figsize, dpi=100, constrained_layout=True)
     elif isinstance(canvas, plt.Figure) :
       fig = canvas
@@ -469,19 +477,54 @@ class UpperLimitScan (Scan1D):
 
 
 class PLRScan1D (Scan1D) :
-  """Utility class to compute 1D confidence intervals from PLR scan information
+  """Base class for 1D PLR scans over a raster of points
+
+  Defines the basic interface for dealing with 1D curves,
+  in particular computing extrema and crossings with 
+  specified levels.
 
   Attributes:
+    name (str) : the name of the scan
+    raster (Raster) : the raster containing the information
+    key (str) : the key identifying the quantity of interest in the raster
+                (usually a CL or a PV)
+    poi (str) : the POI object
+    ts_name (str) : the name of the test statistic
+    ts_level (float) : the test statistic level at which to report the
+       confidence interval.
   """
 
-  def __init__(self, raster : Raster, ts_key : str = None, poi_name : str = None, calculator : TestStatisticCalculator = None, name = 'Profile likelihood', ts_name = None, cl = None, nsigmas = 1) :
-    """Initialize the `PLRScan` object"""
+  def __init__(self, raster : Raster, ts_key : str = None, poi_name : str = None,
+               calculator : TestStatisticCalculator = None, name = 'Profile likelihood',
+               ts_name = None, cl = None, nsigmas = 1) :
+    """Initialize the object
+
+      The level at which the compute the confidence interval
+      can be provided either as a test statistic value (`ts_level`)
+      or a number of sigmas (`nsigmas`).
+
+      Args:
+        raster : the raster containing the information
+        key : the key identifying the quantity of interest in the raster
+        poi_name : the name of the POI
+        calculator : a calculator to be initialized
+        name : the scan name (if '', use the raster name)
+        ts_name : the name of the test statistic
+        ts_level : the test statistic level at which to report the
+                   confidence interval.
+        nsigmas : test statistic level, provided as number of sigmas
+    """
     super().__init__(raster, ts_key, poi_name, calculator, name)
     if cl is None and nsigmas is None : raise ValueError('Must provide either a CL value or a number of sigmas to specify the interval size')
     self.ts_level = scipy.stats.chi2.isf(1 - cl, 1) if cl is not None else nsigmas**2
     self.ts_name = ts_name if ts_name is not None else ts_key
 
-  def cl(self) :
+  def cl(self) -> float :
+    """Return the CL value for the interval
+    
+    Returns:
+      the CL value
+    """
     return 1 - scipy.stats.chi2.sf(self.ts_level, 1)
 
 
@@ -489,14 +532,13 @@ class PLRScan1D (Scan1D) :
     """Perform a one-dimensional interpolation to compute a likelihood interval
 
     Args:
-      hypos : list of POI values
-      pvs   : list of p-values
       order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
       log_scale : if `True`, interpolate in the log of the p-values. If `False`
          (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
+      print_result : if `True`, print out the results.
 
     Returns:
-      The interpolated limit
+      the interval as a (central value, +error, -error) triplet
     """
     found_crossings = self.crossings(self.ts_level, order, log_scale, with_errors=False)
     if len(found_crossings) == 0 :
@@ -527,12 +569,22 @@ class PLRScan1D (Scan1D) :
     if print_result : print(self.description(minimum, error_hi, error_lo))
     return minimum, error_hi, error_lo
 
-  def description(self, minimum, err_hi, err_lo) :
-    return '%s = %g' % (self.poi.name, minimum) + ((' +%g' % err_hi) if err_hi is not None else '') + ((' -%g' % err_lo) if err_lo is not None else '') + ' @ %4.1f%% CL' % (100*self.cl())
+  def description(self, central_value : float, err_hi : float, err_lo : float) :
+    """Build a description string for printout
+    
+    Args:
+      central_value : the central value of the interval
+      err_hi : the positive uncertainty
+      err_lo : the negative uncertainty
+
+    Returns:
+      the string description 
+    """
+    return '%s = %g' % (self.poi.name, central_value) + ((' +%g' % err_hi) if err_hi is not None else '') + ((' -%g' % err_lo) if err_lo is not None else '') + ' @ %4.1f%% CL' % (100*self.cl())
 
   def plot(self, canvas : tuple = (None, None), linestyle : str = '-', marker = 'b', label : str = None, smooth : int = None) :
     """Plot the CL curve and the intersection with the target CL
-
+    
     Args:
       canvas : a (fig, axes) pair on which to plot the result. If not specified, a new
                figure is created.
@@ -542,7 +594,7 @@ class PLRScan1D (Scan1D) :
       smooth : if not `None`, resample the specified number of points
                to get a smoother curve
     """
-    if canvas == (None, None) :
+    if canvas == (None, None) : 
       fig, axs = plt.subplots(figsize=figsize, dpi=100, constrained_layout=True)
     elif isinstance(canvas, plt.Figure) :
       fig = canvas
@@ -561,14 +613,43 @@ class PLRScan1D (Scan1D) :
 
 
 class PLRScan2D (Scan) :
-  """Utility class to compute 2D confidence intervals from PLR scan information
+  """Base class for 2D PLR scans over a raster of points
+
+  Defines the basic interface for dealing with 1D curves,
+  in particular computing extrema and crossings with 
+  specified levels.
 
   Attributes:
+    name (str) : the name of the scan
+    raster (Raster) : the raster containing the information
+    key (str) : the key identifying the quantity of interest in the raster
+                (usually a CL or a PV)
+    poi1 (str) : the first POI object
+    poi2 (str) : the second POI object
+    ts_name (str) : the name of the test statistic
+    ts_level (float) : the test statistic level at which to report the
+       confidence interval.
   """
 
   def __init__(self, raster : Raster, ts_key : str = None, poi1_name : str = None, poi2_name : str = None,
                calculator : TestStatisticCalculator = None, name = 'Profile likelihood', ts_name = None, cl = None, nsigmas = 1) :
-    """Initialize the `PLRScan` object"""
+    """Initialize the object
+
+      The level at which the compute the confidence interval
+      can be provided either as a test statistic value (`ts_level`)
+      or a number of sigmas (`nsigmas`).
+
+      Args:
+        raster : the raster containing the information
+        key : the key identifying the quantity of interest in the raster
+        poi_name : the name of the POI
+        calculator : a calculator to be initialized
+        name : the scan name (if '', use the raster name)
+        ts_name : the name of the test statistic
+        ts_level : the test statistic level at which to report the
+                   confidence interval.
+        nsigmas : test statistic level, provided as number of sigmas
+    """
     super().__init__(raster, ts_key, calculator, name)
     self.ts_name = ts_name if ts_name is not None else ts_key
     self.poi1 = self.find_poi(poi1_name, 0)
@@ -578,12 +659,22 @@ class PLRScan2D (Scan) :
     self.ts_level = scipy.stats.chi2.isf(1 - cl_level, 2)
 
   def cl(self) :
+    """Return the CL value for the contour
+    
+    Returns:
+      the CL value
+    """
     return 1 - scipy.stats.chi2.sf(self.ts_level, 2)
 
   def points(self) -> tuple :
     """Collect the raster information into a set of points
 
+    Returns a triplet of lists containing the
+    POI1 values (X), POI2 values (Y) and result values (Z)
+    in this order.
+
     Returns:
+      triplet of point coordinates
     """
     poi1_values = []
     poi2_values = []
@@ -595,10 +686,29 @@ class PLRScan2D (Scan) :
     return (poi1_values, poi2_values, result_values)
 
   def spline(self, order : int = 3) :
+    """Compute a spline over the raster points
+
+    The spline is computed from the points returned
+    by :meth:`Scan1D.points` above.
+
+    Args:
+      order : the spline order
+
+    Returns:
+      the spline curve
+    """
     pts = self.points()
     return scipy.interpolate.SmoothBivariateSpline(pts[0], pts[1], pts[2], kx=order, ky=order)
 
   def best_fit(self, print_result=False) :
+    """Compute the best-fit point
+
+    Args:
+      print_result : if `True`, print out the result
+
+    Returns:
+      the best-fit position as a list of [x,y] coordinates.
+    """
     spl = self.spline()
     best_point = self.minimum()
     init1 = best_point[0][self.poi1.name]
@@ -609,14 +719,14 @@ class PLRScan2D (Scan) :
       print(result.message)
       return init1, init2
     if print_result :
-      print('best-fit value @ %s=%g, %s=%g' % (self.poi1.name, result.x[0], self.poi2.name, result.x[0]))
+      print('best-fit value @ %s=%g, %s=%g' % (self.poi1.name, result.x[0], self.poi2.name, result.x[1]))
     return result.x
 
   def plot(self, canvas : tuple = (None, None), best_fit : bool = False, points : bool = False,
            color : str = 'g', linestyle : str = 'solid', marker : str = '+',
            smoothing : int = None, label : str = None) :
     """Plot the CL curve and the intersection with the target CL
-
+    
     Args:
       canvas : a (fig, axes) pair on which to plot the result. If not specified, a new
                figure is created.
@@ -629,7 +739,7 @@ class PLRScan2D (Scan) :
                to get a smoother curve
       label : the curve label to use for the legend.
     """
-    if canvas == (None, None) :
+    if canvas == (None, None) : 
       fig, axs = plt.subplots(figsize=figsize, dpi=100, constrained_layout=True)
     elif isinstance(canvas, plt.Figure) :
       fig = canvas
