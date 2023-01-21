@@ -1,7 +1,7 @@
 .. _limits:
 
 Setting upper limits from sampling distributions
-================================================
+------------------------------------------------
 
 When the observed data is in good agreement with the model, it can be used to set bounds on model parameters. A common use-case is to set an upper limit on the normalization of a model component, that is considered as the signal. Following Ref. [Asimov]_, these limits can be set using the test statistic
 

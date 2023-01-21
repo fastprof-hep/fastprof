@@ -14,7 +14,6 @@ The *fastprof* tool: Statistical computations with linear nuisance parameters
    introduction
    setup
    model
-   limits
    utilities
    tutorials
    code
