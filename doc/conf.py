@@ -12,8 +12,8 @@ import sphinx_rtd_theme
 project = 'fastprof'
 copyright = '2020, Nicolas Berger'
 author = 'Nicolas Berger'
-version = '0.4.0'
-release = '0.4.0'
+version = '0.4.1'
+release = '0.4.1'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
