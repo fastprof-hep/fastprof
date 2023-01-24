@@ -24,9 +24,13 @@ git checkout v0.4.1 -b v0.4.1
 source ./setup-env.sh
 ````
 
-This sets up the latest stable version,`v0.4.1`. (skipping this line sets up the latest `master` version instead, but this is not recommended)
+This sets up the latest stable version,`v0.4.1`. (skipping this line sets up the latest `master` version instead, but this is not recommended).
+The last command sets up a python3 *pyenv* working environment.
 
-The last command sets up a python3 *pyenv* working environment. The numpy, pandas and matplotlib packages should also be installed within the environment using pip install if they are not already available.
+Alternatively, the package can be installed directly using *pip* using
+```
+pip install fastprof
+```
 
 
 Documentation
