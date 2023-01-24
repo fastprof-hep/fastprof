@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-The *fastprof* tool: Statistical computations with linear nuisance parameters
-=============================================================================
+The *fastprof* tool: Statistical computations with linear nuisance parameter impacts
+====================================================================================
 
 .. toctree::
    :maxdepth: 3

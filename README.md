@@ -14,12 +14,16 @@ The tool is written in python, with most of the work done by numpy.
 Setup
 =====
 
-The package can be set up as follows
+The package can be set up as follows:
 ```
 git clone ssh://git@gitlab.cern.ch:7999/nberger/fastprof.git
 cd fastprof
+git checkout v0.3.2 -b v0.3.2
 source ./setup-env.sh
 ````
+
+This sets up the latest stable version,`v0.3.2`. (skipping this line sets up the latest `master` version instead, but this is not recommended)
+
 The last command sets up a python3 `pyenv` working environment. The numpy, pandas and matplotlib packages should also be installed within the environment using pip install if they are not already available.
 
 Goals
