@@ -1,4 +1,4 @@
-.. _code:
+.. _code reference:
 
 Code reference
 ==============

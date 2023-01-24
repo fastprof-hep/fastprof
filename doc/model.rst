@@ -1,7 +1,7 @@
 .. _model:
 
-Simplified likelihood formalism
-===============================
+Simplified models
+=================
 
 Likelihood definition
 ---------------------
@@ -16,71 +16,108 @@ The class of models supported by fastprof follows closely the HistFactory defini
 
 * The NPs are each associated with an auxiliary observable, which are interpreted as the observables of a separate Gaussian measurements. The information from these measurements feeds into the model Lagrangian as Gaussian constraint on the NP which is included in the expression of the likelihood.
 
+* Each channel can be represented by either a `Poisson` description, with a Poisson counting experiment in each bin, or by a `Gaussian` description, with the measurements in all bins descried collectively using a single multivariate Gaussian distribution.
+
 In the rest of this document, we use the following notations, with bold text indicating vectors :
-  * :math:`c` is an index running over model channels, from 1 to :math:`N\chan`.
-  * :math:`i` is an index running over measurement bins, from 1 to :math:`N\bins`.
-  * :math:`s` is an index running over samples, from 1 to :math:`N\samp`.
-  * :math:`\alpha` is an index running over NPs, from 1 to :math:`N\nps`.
+  * :math:`c` is an index running over model channels, from 1 to :math:`N\chan`. Alternatively, it can also run only over the :math:`N\poiss` `Poisson` channels and the :math:`N\gauss` `Gaussian` channels.
+  * :math:`b` is an index running over the measurement bins of channel :math:`c`, from 1 to :math:`N\binsc`.
+  * :math:`s` is an index running over the samples of channel :math:`c`,  from 1 to :math:`N\sampc`.
+  * :math:`k` is an index running over NPs, from 1 to :math:`N\nps`.
   * :math:`\mu` and \theta are the vectors of model POIs and NPs respectively of size :math:`N\pois` and :math:`N\nps`.
   * :math:`\vt\aux` is the vector of auxiliary observables, with each component corresponding to the NP with the same index as in :math:`\vt`.
   * :math:`\Gamma` is the inverse of the covariance matrix of the auxiliary measurement corresponding to the :math:`\vt\aux`.
-  * :math:`n\obs_i` is the observed number of events.
-  * :math:`N_{s,i}(\vm, \vt)` is the expected events yield for sample :math:`s` in bin :math:`i`, and :math:`N_i(\vm, \vt)` the total yield summed over samples.
-  * :math:`\vD^+_{s,i}` and :math:`\vD^-_{s,i}` provide the impact of the NPs on the expected yield of sample :math:`s` in bin :math:`i`, respectively for positive and negative NP values. Each one is a vector of size :math:`N\nps` where each component corresponds to the NP with the same index in :math:`\vt`.
-  * :math:`\nu_s(\vm)` is the overall normalization factor for sample :math:`s`.
+  * :math:`n\obs\cb` is the observed number of events in bin :math:`b` of channel :math:`c`.
+  * :math:`N\cbs(\vm, \vt)` is the expected events yield in bin :math:`b` of sample :math:`s` in channel :math:`c`, and :math:`N\cb(\vm, \vt)` the total yield for this bin, summed over samples.
+  * :math:`\vD\cbs` provides the impacts of each NP on the expected yield of bin :math:`b` of sample :math:`s` of channel :math:`c`.
+    It is a vector of size :math:`N\nps` where each component corresponds to one NP in :math:`\vt`. Several versions can be defined for positive and negative variations of the NP, respectively :math:`\vD^+\cbs` and :math:`\vD^-\cbs`. The version without additional superscripts (defined below) denotes the symmetrized version over positive and negative variations.
+  * :math:`\nu\cs(\vm)` is the overall normalization factor for sample :math:`s`.
+  * For Gaussian channels, :math:`H_c` is the inverse of the covariance matrix of the multivariate Gaussian distribution.
 
 With the definitions above, the model likelihood can be written as
 
-.. math:: \mathcal{L}(\vm, \vt) = \prod\limits_{i=1}^{N\bins} e^{- N_i(\vm, \vt) } \frac{N_i(\vm, \vt)^{n\obs_i}}{n\obs_i!} \exp\left[-\frac{1}{2} (\vt - \vt\aux)^T \Gamma (\vt - \vt\aux)\right]
+.. math:: 
+   \mathcal{L}(\vm, \vt) = &\prod\limits_{c=1}^{N\poiss} \prod\limits_{b=1}^{N\binsc} e^{- N\cb(\vm, \vt) }
+   \frac{N\cb(\vm, \vt)^{n\obs\cb}}{n\obs\cb!} \\
+   &\prod\limits_{c=1}^{N\gauss} \prod\limits_{b,b'=1}^{N\binsc} (N\cb(\vm, \vt) - n\obs\cb)
+   [H_c]_{bb'} (N_{c,b'}(\vm, \vt) - n\obs_{c,b'}) \\
+   &\quad \exp\left[-\frac{1}{2} (\vt - \vt\aux)^T \Gamma (\vt - \vt\aux)\right]
    :label: llh
 
 and the expected event yields as
 
-.. math:: N_{s,i}(\vm, \vt) = \nu_k(\vm) N\nom_{s,i} e^{\delta_{s,i}(\vt)}
+.. math:: N\cbs(\vm, \vt) = \frac{\nu\cs(\vm)}{\nu\cs(\vm\nom)} N\nom\cbs e^{\delta\cbs(\vt - \vt\nom)}
    :label: nexp
 
-where :math:`N\nom_{s,i}` is the nominal event yield for sample :math:`s` in bin :math:`i` and
+where :math:`N\nom\cbs` is the nominal event yield in bin :math:`b` of sample :math:`s` in channel :math:`c`, computed for nominal parameter values :math:`\vm\nom` and :math:`\vt\nom`, and
 
-.. math:: \delta_{s,i}(\vt) = \sum\limits_{\alpha=1}^{N\nps}\log\left(1 + \Delta^+_{s,i,\alpha}\right) \max(\theta_{\alpha}, 0) + \log\left(1 + \Delta^-_{s,i,\alpha}\right) \min(\theta_{\alpha}, 0)
+.. math:: \delta\cbs(\vt) = \sum\limits_{k=1}^{N\nps}\log\left(1 + \Delta^+\cbsk\right) \max(\theta_k, 0) + \log\left(1 + \Delta^-\cbsk\right) \min(\theta_k, 0)
 
 The impact of the NPs is implemented in exponential form, as this ensures that the expected event yields remain positive for all NP values.
 
 Maximum likelihood estimates
 ----------------------------
 
+.. _profiling:
+
 Maximization with respect to the NPs is performed under the assumption that their impact on the expected event yields is linear. This assumption is applies around a reference value :math:`\vt=\vt\ref`, so that for the purpose of the minimization the expected event yields are expressed as
 
-.. math:: \begin{align} 
-  N_{s,i}(\vm, \vt) &= \nu_k(\vm) N\nom_{s,i} e^{\delta_{s,i}(\vt\ref)} \left[1 + \vD_{s,i} (\vt - \vt\ref) \right] \\
-                    &= N_{s,i}(\vm, \vt\ref)\left[1 + \vD_{s,i} (\vt - \vt\ref) \right] \end{align}
+.. math::
+  N\cbs(\vm, \vt) 
+  &\approx \frac{\nu\cs(\vm)}{\nu\cs(\vm\nom)} N\nom\cbs e^{\delta\cbs(\vt\ref - \vt\nom)}
+  \left[1 + \vD\cbs (\vt - \vt\ref) \right] \\
+  &= N\cbs(\vm, \vt\ref)\left[1 + \vD\cbs (\vt - \vt\ref) \right] 
 
-where the symmetric impact values :math:`\vD_{s,i}` are computed as
+where the symmetric impact values :math:`\vD\cbs` are computed as
 
-.. math:: \Delta_{s,i,\alpha} = \sqrt{\frac{1 + \Delta_{s,i,\alpha}^+}{1 + \Delta_{s,i,\alpha}^-}} - 1.
+.. math:: \Delta\cbsk = \sqrt{\frac{1 + \Delta\cbsk^+}{1 + \Delta\cbsk^-}} - 1.
 
-The NP values that maximize the likelihood of :eq:`llh`, expressed using the event yields above, can then be computed as
+The NP values that maximize the likelihood of Eq. :eq:`llh`, expressed using the event yields above, can then be computed as
 
-.. math:: \hat{\hat{\vt}}(\vm) = \vt\ref + \left[ P(\vm) + \Gamma \right]^{-1} \left[ \boldsymbol{Q}(\mu) + \Gamma(\vt\aux - \vt\ref) \right]
+.. math::
+   \hat{\hat{\vt}}(\vm) = \vt\ref + \left[ P(\vm) + \Gamma \right]^{-1} \left[ \boldsymbol{Q}(\mu) + \Gamma(\vt\aux - \vt\ref) \right]
+   :label: prof
 
-where
+where :math:`P(\vm)` is a matrix of size :math:`N\nps \times N\nps` and :math:`\vQ(\vm)` is a vector of size :math:`N\nps`. They can be both computed as a sum over channels,
 
-.. math:: P(\vm) = \sum\limits_{i=1}^{N\bins} n\obs_i \sum_{s,s'=1}^{N\samp} \frac{N_{s,i}(\vm, \vt\ref)}{N_i(\vm, \vt\ref)}\frac{N_{s',i}(\vm, \vt\ref)}{N_i(\vm, \vt\ref)} \vD_{s,i} \otimes \vD_{s',i}
+.. math::
+   P(\vm) = \sum\limits_{c=1}^{N\chan} P_c(\vm) \\
+   \vQ(\vm) = \sum\limits_{c=1}^{N\chan} \vQ_c(\vm) \\
 
-is a matrix of size :math:`N\nps \times N\nps` and
+and the per-channel contributions are different for the `Poisson` and `Gaussian` cases. For `Poisson` channels, the expressions are
 
-.. math:: \boldsymbol{Q}(\vm) = \sum\limits_{i=1}^{N\bins} \sum_{s=1}^{N\samp} \left(n\obs_i - N_i(\vm, \vt\ref) \right) \frac{N_{s,i}(\vm, \vt\ref)}{N_i(\vm, \vt\ref)} \vD_{s,i}
+.. math::
+   \vQ_c^{\text{Poisson}}(\vm) &= \sum\limits_{i=1}^{N\bins} \left(n\obs\cb - N\cb(\vm, \vt\ref) \right) \vD\cb \\
+   P_c^{\text{Poisson}}(\vm) &= \sum\limits_{b=1}^{N\binsc} n\obs_i \vD\cb \otimes \vD_{cb'}
 
-is a vector of size :math:`N\nps`.
+while for `Gaussian` channels one has
 
-This expression provides the conditional maximum likelihood estimates (MLEs) for :math:`\vt` for a fixed value of :math:`\vm`. The global MLEs :math:`\hat{\vm}` and :math:`\hat{\vt}` can then be obtained by maximizing over :math:`\vm`. Since no approximations are applied on the dependence of the likelihood on the :math:`\vm`, this step must be performed using non-linear minimization routines. This is however quicker than performing non-linear minimization over all parameters, especially if the number of NPs is large.
+.. math::
+   \vQ_c^{\text{Gaussian}}(\vm) &= \sum\limits_{b,b'=1}^{N\bins} [H_c]_{bb'}
+   \left(n\obs\cb - N\cb(\vm, \vt\ref) \right) [ N_{cb'}(\vm, \vt\ref) \vD_{cb'}] \\
+   P_c^{\text{Gaussian}}(\vm) &= \sum\limits_{b,b'=1}^{N\bins}  [H_c]_{bb'}
+     [ N_{cb }(\vm, \vt\ref) \vD_{cb }] \otimes 
+     [ N_{cb'}(\vm, \vt\ref) \vD_{cb'}].
+
+Both cases make use of the sample-averaged impacts
+
+.. math::
+   \vD\cb = \sum_{s=1}^{N\sampc} \left[\frac{N\cbs(\vm, \vt\ref)}{N\cb(\vm, \vt\ref)}\vD\cbs\right].
+
+The expression of Eq. :eq:`prof` is the fundamental ingredient in the simplified likelihood model, since it provides in `closed form` the conditional maximum likelihood estimates (MLEs) for :math:`\vt` for a fixed value of :math:`\vm`. Performing this minimization is usually CPU-intensive in realistic models due to large numbers of NP, and the matrix algebra relations of Eq. :eq:`prof` and the definitions of the P and Q terms provide a much fast evaluation of the MLE.
+
+The global MLEs :math:`\hat{\vm}` and :math:`\hat{\vt}` can then be obtained by maximizing over :math:`\vm`. Since no approximations are applied on the dependence of the likelihood on the :math:`\vm`, this step must be performed using non-linear minimization routines. This is however quicker than performing non-linear minimization over all parameters, especially if the number of NPs is large.
 
 These expressions can then be used to evaluate the profile-likelihood ratio (PLR) 
 
 .. math:: t(\vm) = -2 \log \frac{\mathcal{L}(\mu, \hat{\hat{\vt}}(\vm))}{\mathcal{L}(\hat{\vm}, \hat{\vt})}.
    :label: PLR
+   
+which is used as a test statistic to produce statistical results (p-values, discovery significances, confidence intervals, and upper limits), as described in detail in Ref. [Asimov]_.
 
 Conversion from other model formats
 -----------------------------------
+
+.. _model-conv:
 
 Linear models can be constructed directly, or by approximating an existing, non-linear model. For the latter, the conversion to a linear model proceeds as follows:
 * The structure of the model (POIs, NPs, channels, samples and bins) is directly taken from the full model. In case the full model follows the HistFactory specification, the structure can be imported directly. For ROOT workspaces, the POIs, NPs and model PDF are extracted from the ModelConfig of the workspace. The channels are then obtained from the categories implemented in the model PDF; the samples are extracted from the PDFs for each category. The bins are defined as either one bin per channel, in case of a counting experiment, or from the binning in the observable for this channel, in case of a shape analysis.
@@ -93,6 +130,7 @@ Linear models can be constructed directly, or by approximating an existing, non-
 
 Datasets are converted to the linear format in a similar way. For a counting experiment, the observed bin yields are the same as those of the full model; for a shape analysis, they are obtained by counting events within the bins of the channel observable defined above. The auxiliary observable values for constrained NPs are scaled in the same way as the NPs themselves; for free NPs, the auxiliary observables are taken to be 0 by convention.
 
+Utilities for model creation and conversion are listed in the :ref:`utilities-creation` section
 
 Regularization procedures
 -------------------------
@@ -115,63 +153,59 @@ The behavior of the linear model can be improved by using additional constraints
 
 .. _json_format:
 
-JSON Format
------------
+Storage format
+--------------
 
-.. _limits:
+Models are stored in plain-text files, either in the JSON or YAML markup langauges. A single file can be used to store both a model and an observed dataset. The model provides specifications for 
 
-Setting upper limits from sampling distributions
-------------------------------------------------
+* The parameters of interest :math:`\vm`.
 
-When the observed data is in good agreement with the model, it can be used to set bounds on model parameters. A common use-case is to set an upper limit on the normalization of a model component, that is considered as the signal. Following Ref. [Asimov]_, these limits can be set using the test statistic
+* The nuisance parameters :math:`\vt`
 
-.. math:
+* The auxiliary observables :math:`\vt\aux`
 
-  \tilde{q}_{\mu} = \begin{cases}
-     -2 \log \frac{\mathcal{L}(\mu, \hat{\hat{\vt}}(\vm))}{\mathcal{L}(\hat{\vm}, \hat{\vt})} \text{for} 0 < \hat{\mu} < \mu \\
-     -2 \log \frac{\mathcal{L}(\mu, \hat{\hat{\vt}}(\vm))}{\mathcal{L}(0, \hat{\hat{\vt}}(0))} \text{for} \hat{\mu} \le 0 \\
-     0 \text{for} \hat{\mu} \ge \mu
-  \end{cases}
+* Mathematical `expressions` involving model parameters
 
-or alternatively the simpler form
+* Specifications for all model channels. These can consist in a single bin (type ``single_bin``), multiple bins (type ``multiple_bins``), multiple bins spanning a range of a continuous observable (type ``binned_range``) or a Gaussian measurement (type ``gaussian``). In each case, the specification includes:
 
-.. math:
+   * A list of channel samples
+   
+   * A list of bin specification, in case multiple bins are defined.
+   
+   * Other information such as the observable name and unit for type ``binned_range``, and the Gaussian covariance matrix for type ``gaussian``.
+   
+* Each sample consists itself of
 
-  q_{\mu} = \begin{cases}
-     -2 \log \frac{\mathcal{L}(\mu, \hat{\hat{\vt}}(\vm))}{\mathcal{L}(\hat{\vm}, \hat{\vt})} \text{for} \hat{\mu} < \mu \\
-     0 \text{for} \hat{\mu} \ge \mu.
-  \end{cases}
+   * Nominal event yields for each bin
+   
+   * An overall normalization term, provided as a real number, a single parameter, or an `expression` involving one or more parameters.
+   
+   * The impact values of all nuisance parameters on the bin contents.
+   
+The observed dataset is specified by:
 
-In both cases, :math:`mu` refers to the signal normalization parameter on which the limit is to be set. These test statistics are derived from the profile-likelihood ratio of Eq. :eq:`PLR`, which can be computed as described in Section :numref:`model`.
+* For each model channel, the observed event yields in each bin.
 
-Large values of the test statistics :math:`\tilde{q}_{\mu}` or :math:`q_{\mu}` correspond to values of :math:`\mu` that are disfavored by the data, while null values correspond to perfect agreement. Setting an upper limit at a given confidence level (CL) involves adjusting :math:`\mu` until a test statistic value is reached which corresponds to a p-value of :math:`p = 1 - \text{CL}`. 
+* The observed values of the auxiliary observables.
 
-For approximately Gaussian likelihoods, corresponding to the *asymptotic approximation* of large expected event yields, these p-values can be computed in closed form using the formulas in Ref. [Asimov]_. In HEP, limits are usually set at a CL of 95%. For upper limits on a signal normalization, the :math:`CL_s` procedure [CLs]_ is also usually applied. In this case, the quantity used to set the upper limit is not the p-value computed as above, but its ratio to the p-value computed in the hypothesis :math:`\mu = 0`.
-
-Even in the asymptotic approximation, there is usually no practical way to compute the test statistic value corresponding to a given p-value -- instead, one can only go in the direction of the test statistic value to the p-value. Setting a limit at a given CL therefore involves iteratively computing the p-value for different :math:`\mu` hypotheses, until the desired p-value is reached. The corresponding :math:`\mu` hypothesis then provides the upper limit.
-
-In cases where the asymptotic approximation is not valid, p-values can be computed from sampling distributions as follows:
-
-1. for a given hypothesis, a number of pseudo-datasets are randomly generated
-
-2. for each dataset, the test statistic (:math:`\tilde{q}_{\mu}` or :math:`q_{\mu}` above) is computed, and the value stored
-
-3. for a given value :math:`q_{\mu}^{\text{obs}}` of the test statistic, the corresponding p-value is computed as the quantile of this value in the distribution obtained at step 2.
-
-Given the iterative nature of the limit search, the full procedure can be summarized as follows:
-
-1. Define a set of hypotheses to be tested: the hypothesis points should span a region that contains the limit value, with a spacing that allows to reliably interpolate it.
-
-2. For each hypothesis, generate a set of pseudo-experiments and compute the associated test statistic values to produce the sampling distribution.
-
-3. Compute the observed value of the test statistic :math:`q_{\mu}^{\text{obs}}` at each hypothesis :math:`\mu`
-
-4. Compute the p-value at each hypothesis as the quantile of :math:`q_{\mu}^{\text{obs}}` within the corresponding sampling distribution. This uses the *mid-p-value* technique to be robust against narrow peaks in the sampling distributions.
-
-5. Interpolate between the tested hypothesis to determine the upper limit on :math:`\mu` at the desired CL value.
-
-For a  :math:`CL_s` limit, steps 2. and 4. need to be performed twice, one for the nominal hypothesis, and once for :math:`\mu = 0` to compute the :math:`CL_b` term.
+The storage specification is described in detail in the :ref:`markup spec` section.
 
 
-.. [CLs] A. L. Read, *Modified frequentist analysis of search results (the* :math:`CL_s` *method)*, `CERN-OPEN-2000-005 <http://cdsweb.cern.ch/record/451614>`_
+.. _model utils:
+
+Model computations and manipulation
+-----------------------------------
+
+The `fastprof` package provides a set of tool to:
+
+* Create and import models;
+
+* Perform statistical computation, as described in the :ref:`stat computations` section below;
+
+* Validate and plot the model contents;
+
+* Modify the models by changing the measurement parameters, removing unnecessary components or merging multiple models together.
+
+
+The main functionalities can be access through the command line tools, listed in the :ref:`utilities` section. The full API is also described in the :ref:`code reference` section.
 

@@ -14,9 +14,11 @@ The *fastprof* tool: Statistical computations with linear nuisance parameters
    introduction
    setup
    model
+   stat
    utilities
-   tutorials
+   markup
    code
+   tutorials
 
 .. 
 .. Indices and tables
