@@ -1,4 +1,4 @@
-.. _stat computations:
+.. _stat:
 
 Statistical computations
 ========================
@@ -13,7 +13,7 @@ The main statistical results produced by the package are
 
 * Upper limit on a signal yield
 
-These computations are based on the profile likelihood ratio (PLR) test statistic described in the :ref:`profiling` section. Two main modes of operation are provided:
+These computations are based on the profile likelihood ratio (PLR) test statistic described in the :ref:`model` section. Two main modes of operation are provided:
 
 * Asymptotic computations: in this case, the PLR is assumed to follow a Gaussian distribution, as is the case for large expected event yields and Gaussian systematics.
 
@@ -25,7 +25,7 @@ Asymptotic computations
 
 The computations follow the prescriptions presented in Ref. [Asimov]_. The :math:`t_{\mu}`, :math:`q_{\mu}` and :math:`\tilde{q}_{\mu}` test statistics are implemented. Upper limits can be computed using the :math:`\text{CL}_s` [CLs]_ modified frequentist prescription. 
 
-Tools to perform the computations are listed in the :ref:`utilities-comp` section.
+Tools to perform the computations are listed in the :ref:`utilities` section.
 
 
 Setting upper limits from sampling distributions

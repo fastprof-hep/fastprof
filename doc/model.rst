@@ -130,7 +130,7 @@ Linear models can be constructed directly, or by approximating an existing, non-
 
 Datasets are converted to the linear format in a similar way. For a counting experiment, the observed bin yields are the same as those of the full model; for a shape analysis, they are obtained by counting events within the bins of the channel observable defined above. The auxiliary observable values for constrained NPs are scaled in the same way as the NPs themselves; for free NPs, the auxiliary observables are taken to be 0 by convention.
 
-Utilities for model creation and conversion are listed in the :ref:`utilities-creation` section
+Utilities for model creation and conversion are listed in the :ref:`utilities` section
 
 Regularization procedures
 -------------------------
@@ -200,7 +200,7 @@ The `fastprof` package provides a set of tool to:
 
 * Create and import models;
 
-* Perform statistical computation, as described in the :ref:`stat computations` section below;
+* Perform statistical computation, as described in the :ref:`stat` section below;
 
 * Validate and plot the model contents;
 

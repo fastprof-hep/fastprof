@@ -9,10 +9,10 @@ Utilities
 Model creation and import
 -------------------------
 
-.. _utilities-creation:
+.. _utilities creation:
 
 Simplified models can be created from scratch from a markup file, or (more commonly) converted from other formats.
-The conversion involves a linear approximation of the nuisance parameter impacts, as described in the :ref:`model-conv` section.
+The conversion involves a linear approximation of the nuisance parameter impacts, as described in the :ref:`model` section.
 Conversion from two inputs formats is currently supported:
 
 * Models in the `HistFactory` format implemented using the `pyhf` tool. Conversion is handled by the ``convert_pyhf_json.py`` script in this case.
@@ -43,7 +43,7 @@ Computations
 
 .. _utilities-comp:
 
-The following statistical computations are supported (see the :ref:`stat comp` section for more details on the computations themselves) :
+The following statistical computations are supported (see the :ref:`stat` section for more details on the computations themselves) :
 
 * P-value and significance for a model hypothesis, implemented in the ``fit_model.py`` tool.
 
@@ -66,8 +66,8 @@ The following statistical computations are supported (see the :ref:`stat comp` s
 Plotting
 --------
 
-.. toctree::
-   :maxdepth: 1
+.. _utilities-plot:
+
 
 The following plotting utilities are provided
 
@@ -76,7 +76,10 @@ The following plotting utilities are provided
 * Plotting the impact values of nuisance parameters in each bin, implemented in ``plot_impacts.py``.
 
 * Plotting the impact values of the nuisance parameters as a function of their value, to check the linearity of the impacts; implemented in the ``plot_valid.py`` tool.
-   
+
+.. toctree::
+   :maxdepth: 1
+
    scripts/plot.rst
    scripts/plot_impacts.rst
    scripts/plot_valid.rst

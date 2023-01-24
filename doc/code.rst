@@ -4,7 +4,7 @@ Code reference
 ==============
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
    api/fastprof.core
    api/fastprof.base
