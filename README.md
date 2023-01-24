@@ -27,7 +27,7 @@ source ./setup-env.sh
 This sets up the latest stable version,`v0.4.1`. (skipping this line sets up the latest `master` version instead, but this is not recommended).
 The last command sets up a python3 *pyenv* working environment.
 
-Alternatively, the package can be installed directly using *pip* using
+Alternatively, the package can be installed directly using
 ```
 pip install fastprof
 ```
