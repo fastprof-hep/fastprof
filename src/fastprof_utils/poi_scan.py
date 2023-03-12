@@ -29,7 +29,8 @@ def make_parser() :
   parser.add_argument("-y", "--hypos"         , type=str  , default=None     , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
   parser.add_argument("-c", "--cl"            , type=str  , default="1"      , help="Confidence levels at which to compute the limit, either integers (nsigmas) or floats (CL)")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True    , help="Name of output file")
-  parser.add_argument("-x", "--overwrite"     , action='store_true'          , help="Allow overwriting output file")
+  parser.add_argument("-x", "--overwrite"     , action='store_true'          , help="Allow overwriting output file, if the existing file does not correspond to the current computation parameters.")
+  parser.add_argument("-f", "--force-computation", action='store_true'       , help="Force a repeat of the computation, ignoring data in output file if it already exists.")
   parser.add_argument("-b", "--best-fit-mode" , type=str  , default='single' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
   parser.add_argument("-r", "--setrange"      , type=str  , default=None     , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
   parser.add_argument(      "--linear-nps"       , action='store_true'         , help="Use linear NP impact")
@@ -83,7 +84,7 @@ def run(argv = None) :
   do_computation = True
   raster = Raster('fast', model=model)
   try :
-    if raster.load(raster_file) : do_computation = False
+    if not options.force_computation and raster.load(raster_file) : do_computation = False
   except FileNotFoundError :
     pass
 
