@@ -500,7 +500,7 @@ class Model (Serializable) :
     if self.use_asym_impacts :    
       self.pos_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
       self.neg_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
-    self.sym_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps)))
+    self.sym_impact_coeffs   = np.zeros((self.max_nsamples, self.nbins, len(self.nps)))
     for p, par in enumerate(self.nps) :
       if self.verbosity > 0 : 
         sys.stderr.write('\rInitializing impacts for nuisance parameter %d of %d %-80s' % (p+1, self.nnps, '[ ' + par + ' ]'))
@@ -1163,7 +1163,8 @@ class Model (Serializable) :
     return self.generate_asimov(self.expected_pars(pois, minimizer))
 
   @staticmethod
-  def create(filename : str, verbosity : int = 0, flavor : str = None, use_linear_nps : bool = False) -> 'Model' :
+  def create(filename : str, verbosity : int = 0, flavor : str = None,
+             use_linear_nps : bool = False, use_asym_impacts : bool = True) -> 'Model' :
     """Shortcut method to instantiate a model from a markup file
 
       Same behavior as creating a default model and loading from the file,
@@ -1174,10 +1175,11 @@ class Model (Serializable) :
          verbosity: level of verbosity (0=minimal)
          flavor   : input markup flavor (currently supported: 'json' [default], 'yaml')
          use_linear_nps: if `True`, use linear NP impacts (see :meth:`Model.__init__`)
+         use_asym_impacts: if `True`, use asymmetric NP impacts (see :meth:`Model.__init__`)
       Returns:
          the created model
     """
-    return Model(use_linear_nps=use_linear_nps, verbosity=verbosity).load(filename, flavor=flavor)
+    return Model(use_linear_nps=use_linear_nps, use_asym_impacts=use_asym_impacts, verbosity=verbosity).load(filename, flavor=flavor)
 
   @staticmethod
   def create_from_dict(sdict : dict, verbosity : int = 0) -> 'Model' :
