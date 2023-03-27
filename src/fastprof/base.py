@@ -224,10 +224,11 @@ class ModelPOI(Serializable) :
      max_value     (float) : the upper bound of the allowed range of the parameter
      initial_value (float) : the initial value of the parameter when performing fits to data
      unit          (str)   : the unit in which the parameter is expressed
+     description   (str)   : a description string for the object
   """
 
   def __init__(self, name : str = '', min_value : float = None, max_value : float = None,
-               initial_value : float = None, unit : str = '') :
+               initial_value : float = None, unit : str = None, description : str = None) :
     """Initialize object attributes
 
       Missing arguments are set to None.
@@ -238,8 +239,10 @@ class ModelPOI(Serializable) :
         max_value     : the upper bound of the allowed range of the parameter
         initial_value : the initial value of the parameter when performing fits to data
         unit          : the unit in which the parameter is expressed
+        description   : a description string for the object
     """
     self.name = name
+    self.description = description
     self.min_value = min_value
     self.max_value = max_value
     self.initial_value = initial_value
@@ -266,7 +269,7 @@ class ModelPOI(Serializable) :
       Returns:
         the description string
     """
-    unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
+    unit = ' %s' % self.unit if self.unit is not None else ''
     rep = '%s%s' % (pre_indent,  self.name)
     if verbosity == 1 :
       rep += ' = %g%s (min = %g%s, max = %g%s)' % (self.initial_value, unit, self.min_value, unit, self.max_value, unit)
@@ -274,6 +277,7 @@ class ModelPOI(Serializable) :
       rep += '\n%sinitial_value = %g%s' % (pre_indent + indent, self.initial_value, unit)
       rep += '\n%smin_value = %g%s' % (pre_indent + indent, self.min_value, unit)
       rep += '\n%smax_value = %g%s' % (pre_indent + indent, self.max_value, unit)
+      rep += '\n%sdescription = %s' % self.description if self.description is not None else ''
     return rep
 
 
@@ -286,11 +290,12 @@ class ModelPOI(Serializable) :
       Returns:
         ModelPOI: self
     """
-    self.name      = self.load_field('name'     , sdict,  self.name, str)
-    self.min_value = self.load_field('min_value', sdict,  0, [int, float])
-    self.max_value = self.load_field('max_value', sdict,  0, [int, float])
+    self.name        = self.load_field('name'       , sdict, self.name, str)
+    self.description = self.load_field('description', sdict, None, str)
+    self.min_value   = self.load_field('min_value'  , sdict, 0, [int, float])
+    self.max_value   = self.load_field('max_value'  , sdict, 0, [int, float])
     self.initial_value = self.load_field('initial_value', sdict, 0, [int, float])
-    self.unit      = self.load_field('unit'     , sdict,  '', str)
+    self.unit        = self.load_field('unit'       , sdict, None, str)
     return self
 
   def fill_dict(self, sdict) :
@@ -300,10 +305,11 @@ class ModelPOI(Serializable) :
          sdict: a dictionary containing markup data
     """
     sdict['name']      = self.name
+    if self.description is not None : sdict['description'] = self.description
     if self.min_value is not None : sdict['min_value'] = self.unnumpy(self.min_value)
     if self.max_value is not None : sdict['max_value'] = self.unnumpy(self.max_value)
     if self.initial_value is not None : sdict['initial_value'] = self.unnumpy(self.initial_value)
-    if self.unit != '' : sdict['unit']  = self.unit
+    if self.unit is not None : sdict['unit'] = self.unit
 
 
 # -------------------------------------------------------------------------
@@ -322,10 +328,24 @@ class ModelAux(Serializable) :
     min_value     (float) : the lower bound of the allowed range of the parameter
     max_value     (float) : the upper bound of the allowed range of the parameter
     unit          (str)   : the unit in which the parameter is expressed
+    description   (str)   : a description string for the object
  """
 
-  def __init__(self, name = '', min_value : float = None, max_value : float = None, unit : str = None) :
+  def __init__(self, name = '', min_value : float = None, max_value : float = None,
+               unit : str = None, description : str = None) :
+    """Initialize object attributes
+
+      Missing arguments are set to None.
+
+      Args:
+        name          : the name of the parameter
+        min_value     : the lower bound of the allowed range of the parameter
+        max_value     : the upper bound of the allowed range of the parameter
+        unit          : the unit in which the parameter is expressed
+        description   : a description string for the object
+    """
     self.name = name
+    self.description = description
     self.unit = unit
     self.min_value = min_value
     self.max_value = max_value
@@ -350,15 +370,15 @@ class ModelAux(Serializable) :
       Returns:
         the description string
     """
-    unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
-    s = '%s%s' % (pre_indent,  self.name)
+    unit = ' %s' % self.unit if self.unit is not None else ''
+    rep = '%s%s' % (pre_indent,  self.name)
     if verbosity == 1 :
-      s += ' (min = %g%s, max = %g%s)' % (self.good_float(self.min_value), unit, self.good_float(self.max_value), unit)
+      rep += ' (min = %g%s, max = %g%s)' % (self.good_float(self.min_value), unit, self.good_float(self.max_value), unit)
     elif verbosity >= 2 :
-      s += '\n%smin_value = %5g%s' % (pre_indent + indent, self.good_float(self.min_value), unit)
-      s += '\n%smax_value = %5g%s' % (pre_indent + indent, self.good_float(self.max_value), unit)
-    return s
-
+      rep += '\n%smin_value = %5g%s' % (pre_indent + indent, self.good_float(self.min_value), unit)
+      rep += '\n%smax_value = %5g%s' % (pre_indent + indent, self.good_float(self.max_value), unit)
+      rep += '\n%sdescription = %s' % self.description if self.description is not None else ''
+    return rep
 
   def load_dict(self, sdict) -> 'ModelAux' :
     """Load object information from a dictionary of markup data
@@ -369,8 +389,9 @@ class ModelAux(Serializable) :
       Returns:
         self
     """
-    self.name = self.load_field('name', sdict, '', str)
-    self.unit = self.load_field('unit', sdict, '', str)
+    self.name = self.load_field('name', sdict, self.name, str)
+    self.description = self.load_field('description', sdict, None, str)
+    self.unit = self.load_field('unit', sdict, None, str)
     self.min_value = self.load_field('min_value', sdict, None, [int, float])
     self.max_value = self.load_field('max_value', sdict, None, [int, float])
     return self
@@ -382,7 +403,8 @@ class ModelAux(Serializable) :
          sdict: a dictionary containing markup data
     """
     sdict['name'] = self.name
-    sdict['unit'] = self.unit
+    if self.description is not None : sdict['description'] = self.description
+    if self.unit is not None : sdict['unit'] = self.unit
     sdict['min_value'] = self.unnumpy(self.min_value)
     sdict['max_value'] = self.unnumpy(self.max_value)
 
@@ -420,11 +442,29 @@ class ModelNP(Serializable) :
     aux_obs        (:class:`ModelAux`) : pointer to the corresponding aux. obs. object,
                                          for constrained NPs.
     unit           (str)   : the unit in which the parameter is expressed
+    description    (str)   : a description string for the object
 """
 
   def __init__(self, name = '', nominal_value : float = 0, variation : float = 1,
-               constraint : float = None, aux_obs : float = None, unit : str = None) :
+               constraint : float = None, aux_obs : str = None,
+               unit : str = None, description : str = None) :
+    """Initialize object attributes
+
+      Missing arguments are set to None.
+
+      Args:
+        name          : the name of the parameter
+        nominal_value : the reference value of the parameter used to compute nominal sample yields
+        variation     : the uncertainty on the parameter value
+        constraint    : the value of the width of the constraint Gaussian,
+                        for constrained NPs (otherwise None). The value is
+                        in *unscaled* units (same as `nominal_value` and `variation`)
+        aux_obs       : the name of the corresponding aux. obs., for constrained NPs
+        unit          : the unit in which the parameter is expressed
+        description   : a description string for the object
+    """
     self.name = name
+    self.description = description
     self.unit = unit
     self.nominal_value = nominal_value
     self.variation = variation
@@ -508,16 +548,17 @@ class ModelNP(Serializable) :
       Returns:
         the description string
     """
-    unit = ' %s' % self.unit if self.unit is not None and self.unit != '' else ''
+    unit = ' %s' % self.unit if self.unit is not None else ''
     constraint = ' constrained to %s with σ = %g%s' % (self.aux_obs, self.constraint, unit) if self.aux_obs is not None else ' free parameter'
-    s = '%s%s' % (pre_indent,  self.name)
+    rep = '%s%s' % (pre_indent,  self.name)
     if verbosity == 1 :
-      s += ' = %g +/- %g%s%s' % (self.nominal_value, self.variation, unit, constraint)
+      rep += ' = %g +/- %g%s%s' % (self.nominal_value, self.variation, unit, constraint)
     elif verbosity >= 2 :
-      s += '\n%snominal_value = %g%s' % (pre_indent + indent, self.nominal_value, self.unit)
-      s += '\n%svariation = %g%s' % (pre_indent + indent, self.variation, self.unit)
-      s += '\n%sconstraint = %s' % (pre_indent + indent, constraint)
-    return s
+      rep += '\n%snominal_value = %g%s' % (pre_indent + indent, self.nominal_value, self.unit)
+      rep += '\n%svariation = %g%s' % (pre_indent + indent, self.variation, self.unit)
+      rep += '\n%sconstraint = %s' % (pre_indent + indent, constraint)
+      rep += '\n%sdescription = %s' % self.description if self.description is not None else ''
+    return rep
 
   def load_dict(self, sdict) :
     """Load object information from a dictionary of markup data
@@ -528,8 +569,9 @@ class ModelNP(Serializable) :
       Returns:
         self
     """
-    self.name = self.load_field('name', sdict, '', str)
-    self.unit = self.load_field('unit', sdict, '', str)
+    self.name = self.load_field('name', sdict, self.name, str)
+    self.description = self.load_field('description', sdict, None, str)
+    self.unit = self.load_field('unit', sdict, None, str)
     self.nominal_value = self.load_field('nominal_value', sdict, 0, [int, float])
     self.variation = self.load_field('variation', sdict, None, [int, float])
     self.constraint = self.load_field('constraint', sdict, None)
@@ -548,7 +590,8 @@ class ModelNP(Serializable) :
          sdict: a dictionary containing markup data
     """
     sdict['name'] = self.name
-    if self.unit != '' : sdict['unit'] = self.unit
+    if self.description is not None : sdict['description'] = self.description
+    if self.unit is not None : sdict['unit'] = self.unit
     sdict['nominal_value'] = self.unnumpy(self.nominal_value)
     sdict['variation']     = self.unnumpy(self.variation)
     if self.constraint is not None : sdict['constraint']    = self.unnumpy(self.constraint)

@@ -334,6 +334,7 @@ class Model (Serializable) :
 
   Attributes:
      name (str) : the name of the model
+     description   (str)  : a description string for the model
      pois (dict): the model POIs (as a dict mapping POI name to :class:`fastprof.base.ModelPOI` object)
      nps  (dict): the model NPs (as a dict mapping NP name to :class:`fastprof.base.ModelNP` object)
      aux_obs (dict): the model auxiliary observables that constrain the NPs
@@ -387,7 +388,7 @@ class Model (Serializable) :
   def __init__(self, name : str = '', pois : dict = None, nps : dict = None, aux_obs : dict = None, channels : dict = None,
                expressions : dict = None, use_asym_impacts : bool = True, use_linear_nps : bool = False,
                use_simple_sym_impacts : bool = True, use_lognormal_terms : bool = False, variations : list = None,
-               verbosity : int = 0) :
+               description : str = None, verbosity : int = 0) :
     """Initialize a Model object
 
       Args:
@@ -401,10 +402,12 @@ class Model (Serializable) :
         use_simple_sym_impacts : option to use `sym_impacts` for the linear impacts (see :meth:`Model.linear_impacts`, default: True)
         use_lognormal_terms : option to include exp derivatives when minimizing nll (see class description, default: False)
         variations : list of NP variations to consider (default: None -- use 1 and the largest available other one)
+        description : a description string for the model
         verbosity : verbosity level of the output
     """
     super().__init__()
     self.name = name
+    self.description = description
     self.pois = { poi.name : poi for poi in pois.values() } if pois is not None else {}
     self.nps = {}
     if nps is not None :
@@ -441,7 +444,7 @@ class Model (Serializable) :
                   channels={ channel.name : channel.clone() for channel in self.channels.values() },
                   expressions=self.expressions, use_asym_impacts=self.use_asym_impacts, use_linear_nps=self.use_linear_nps,
                   use_simple_sym_impacts=self.use_simple_sym_impacts, use_lognormal_terms=self.use_lognormal_terms, variations=self.variations,
-                  verbosity=self.verbosity)
+                  description=self.description, verbosity=self.verbosity)
     if set_internal_vars : clone.set_internal_vars()
     return clone
 
@@ -1210,6 +1213,7 @@ class Model (Serializable) :
     if not 'channels' in sdict['model'] : raise KeyError("No 'channels' section in specified markup file")
     if self.verbosity > 1 : print('Loading parameters')
     self.name = self.load_field('name', sdict['model'], '', str)
+    self.description = self.load_field('description', sdict['model'], None, str)
     self.pois = {}
     for dict_poi in sdict['model']['POIs'] :
       poi = ModelPOI()
@@ -1274,6 +1278,7 @@ class Model (Serializable) :
     """
     sdict['model'] = {}
     sdict['model']['name'] = self.name
+    if self.description is not None : sdict['model']['description'] = self.description
     sdict['model']['POIs'] = []
     sdict['model']['NPs'] = []
     sdict['model']['expressions'] = []
@@ -1335,6 +1340,7 @@ class Model (Serializable) :
     else :
       for channel in self.channels.values() :
         rep += '\n - ' + channel.string_repr(verbosity, indent='   ')
+    rep += '\n%sdescription = %s' % self.description if self.description is not None else ''
     return rep
 
 # -------------------------------------------------------------------------
@@ -1358,18 +1364,22 @@ class Data (Serializable) :
      counts (np.ndarray): the observed bin yields
      aux_obs (np.ndarray): the observed aux. obs. values
      model (Model): pointer to a :class:`Model` object containing the full model.
+     description (str) : a description string for the dataset
   """
-  def __init__(self, model : Model, counts : np.ndarray = None, aux_obs : np.ndarray = None) :
+  def __init__(self, model : Model, counts : np.ndarray = None, aux_obs : np.ndarray = None,
+               description : str = None) :
     """Initialize the object
 
       Args:
          counts  : observed bin counts
          aux_obs : aux. obs. values
+         description : a description string for the dataset
     """
     super().__init__()
     self.model = model
     self.set_counts(counts if counts is not None else [])
     self.set_aux_obs(aux_obs if aux_obs is not None else [])
+    self.description = description
 
   def clone(self, model : Model = None, counts : np.array = None, aux_obs : np.array = None) :
     """Return a clone of the object
@@ -1387,7 +1397,8 @@ class Data (Serializable) :
     """
     return Data(model=model if model is not None else self.model,
                 counts=counts if counts is not None else np.array(self.counts),
-                aux_obs=aux_obs if aux_obs is not None else np.array(self.aux_obs))
+                aux_obs=aux_obs if aux_obs is not None else np.array(self.aux_obs),
+                description=self.description)
 
   def set_counts(self, counts : np.ndarray) -> 'Data' :
     """Set the observed bin counts
@@ -1459,6 +1470,7 @@ class Data (Serializable) :
         self
     """
     if not 'data' in sdict : raise KeyError("No 'data' section in specified markup file")
+    self.description = self.load_field('description', sdict['data'], None, str)
     if not 'channels' in sdict['data'] : raise KeyError("No 'channels' section in specified markup file")
     offset = 0
     for model_channel in self.model.channels.values() :
@@ -1490,6 +1502,7 @@ class Data (Serializable) :
          sdict: A dictionary containing markup data
     """
     sdict['data'] = {}
+    if self.description is not None : sdict['data']['description'] = self.description
     sdict['data']['channels'] = []
     for channel_name, channel in self.model.channels.items() :
       channel_data = {}
@@ -1540,13 +1553,14 @@ class Data (Serializable) :
     if verbosity >= 1 :
       rep = '%s (model : %s)' % (pre_indent,  self.model.name)
       rep += '\n'
-      rep += '\n%sCounts' % pre_indent
+      rep += '\n%scounts' % pre_indent
       for channel_name, channel in self.model.channels.items() :
         counts = self.model.channel_n_exp(nexp=self.counts, channel=channel_name)
         rep += '\n%s - channel %s : %s = %s' % (pre_indent, channel_name, 'total counts' if verbosity == 1 else 'counts', str(np.sum(counts)) if verbosity == 1 else str(counts))
       rep += '\n'
-      rep += '\n%sAuxiliary observables' % pre_indent
+      rep += '\n%sauxiliary observables' % pre_indent
       for aux_name, aux_val in zip(self.model.aux_obs, self.aux_obs) :
         rep += '\n%s - %s = %g' % (pre_indent, aux_name, aux_val)
+      rep += '\n%sdescription = %s' % self.description if self.description is not None else ''
     return rep
   
