@@ -358,11 +358,11 @@ def run(argv = None) :
       print('=== Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.name, par.error, par.nominal, options.epsilon))
 
     variations = {}
-    if variations is not None :
+    if options.variations is not None :
       try :
         for spec in options.variations.split(',') :
           p,v = spec.split('=')
-          variations[p] = ( +float(v), -float(v))
+          variations[p] = [ +float(v), -float(v) ]
       except Exception as inst :
         print(inst)
         raise ValueError('Invalid NP variations specification %s : should be of the form par1=v1,par2=v2,...' % options.variations)
@@ -703,6 +703,7 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
       sys.stderr.flush()
       delta = par.error*options.epsilon
       var_impacts = {}
+      if par.name not in variations : variations[par.name] = [ 1.0, -1.0 ]
       for variation in variations[par.name] :
         set_normpars(channel)
         par.obj.setVal(par.nominal + variation*delta)
