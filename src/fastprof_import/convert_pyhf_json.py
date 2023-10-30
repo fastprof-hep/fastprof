@@ -105,6 +105,8 @@ def run(argv = None) :
       else :
         print("WARNING: +1σ and -1σ impacts for '%s' in sample '%s' of channel '%s' (%s) have the same sign, setting to default." % (modifier_name, sample['name'], channel['name'], str(impact)))
         impact = [ 0 ]
+    else :
+      impact = [ sum([ i/float(v) for v,i in imp.items()])/len(imp) for imp in impact ] 
     if len(impact) == 1 : impact = impact[0]
     if modifier_name in sample['impacts'] :
       prev_impact = sample['impacts'][modifier_name]

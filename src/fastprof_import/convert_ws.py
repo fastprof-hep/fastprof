@@ -378,7 +378,9 @@ def run(argv = None) :
         for sample in channel.samples :
           new_impacts = {}
           for par_name in sample.impacts :
+            print('njpb packing', par_name, sample.name, sample.impacts[par_name])
             impact = pack(sample.impacts[par_name], options.packing_tolerance, options.digits)
+            print('njpb packed', impact)
             if impact is not None : new_impacts[par_name] = impact
           sample.impacts = new_impacts
 
@@ -702,12 +704,12 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
       sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d [%30s]" % (channel.name, channel_index + 1, nchannels, i+1, nbins, p, len(nuis_pars), par.name[:30]))
       sys.stderr.flush()
       delta = par.error*options.epsilon
-      var_impacts = {}
+      for sample in channel.samples : sample.var_impacts = {}
       if par.name not in variations : variations[par.name] = [ 1.0, -1.0 ]
       for variation in variations[par.name] :
         set_normpars(channel)
         par.obj.setVal(par.nominal + variation*delta)
-        #print('%s %g impact pars:' % (par.name, variation))
+        #print('njpb %s %g impact pars:' % (par.name, variation))
         #print('-------------')
         #for s in channel.samples :
           #if s.normpar is not None : print(s.normpar.GetName(), '=', s.normpar.getVal())
@@ -716,12 +718,14 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
         par.obj.setVal(par.nominal)
         for sample in channel.samples : 
           impact = (sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1 if sample.yields['nominal'] != 0 else 0
-          var_impacts[variation] = impact
+          sample.var_impacts[variation] = impact
           if options.verbosity > 2 : 
             print('-- sample %10s, parameter %-10s (%g %+g * %g) impact = %g (mod %g vs. ref %g)' % (sample.name, par.name, par.nominal, variation, delta, impact, sample.yields['var'], sample.yields['nominal']))
           elif options.verbosity > 1 :
             print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, impact))
-      sample.impacts[par.name].append(sum([ i/v for v, i in var_impacts.items()])/len(var_impacts))
+      for sample in channel.samples : 
+        sample.impacts[par.name].append(sum([ i/v for v, i in sample.var_impacts.items()])/len(sample.var_impacts))
+        #print('njpb-summary', sample.name, par.name, sample.var_impacts, sum([ i/v for v, i in sample.var_impacts.items()])/len(sample.var_impacts), sample.impacts[par.name])
       if options.validation_output is not None :
         par_data = channel.valid_data[par.name]
         for k, val in enumerate(validation_points) :
@@ -758,9 +762,9 @@ def create_bin_integral(channel, bin_index) :
 
 # Check if all the impacts are the same (within tolerance), if so return the average
 def pack(impacts, tolerance=1E-5, num_digits=7) :
+  n = len(impacts)
   if n == 0 : return []
   pack_ok = True
-  n = len(impacts)
   average = sum(impacts)/n
   for impact in impacts :
     if abs(impact - average) > tolerance :
