@@ -19,7 +19,7 @@ the model is valid, which can be used for instance to define the
 
 By default two linear model preductions are shown: one for log-normal
 NP impact, which is the default and usually provides the best
-prediction; and one fo linear NP impact.
+prediction; and one for linear NP impact.
 
 Additional plots can also be shown to gauge the precision
 of approximating 1/(N0(1+e)) ~ (1-e)/N0, although this is
@@ -78,7 +78,6 @@ def make_parser() :
   parser.add_argument("-i", "--inv-range"      , type=float, default=None , help="Vertical range for inversion impact")
   parser.add_argument(      "--no-nli"         , action='store_true'      , help="Only plot linear reference")
   parser.add_argument(      "--no-title"       , action='store_true'      , help="Omit the plot title")
-  parser.add_argument(      "--symmetric"      , action='store_true'      , help="Show symmetric impacts")
   parser.add_argument("-t", "--style"          , type=str  , default=None , help="List of styles to apply (comma-separated)")
   parser.add_argument("-o", "--output-file"    , type=str  , default=None , help="Output file name")
   return parser
@@ -108,7 +107,6 @@ def run(argv = None) :
   model = Model().load(options.model_file)
   if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
   if not options.cutoff is None : model.cutoff = options.cutoff
-  if options.symmetric : model.use_asym_impacts = False
 
   if options.channel != None :
     channel = model.channel(options.channel)

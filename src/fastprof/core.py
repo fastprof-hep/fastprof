@@ -351,28 +351,17 @@ class Model (Serializable) :
      nbins (int): total number of measurement bins, summing over all channels
      channel_offsets (dict): maps channel name to the index of the first bin of this channel in the overall bin list.
        (of size `nbins`).
-     nominal_yields (np.array): expected event yields for each sample, as a 2D array of size
+     nominal_yield (np.array): expected event yields for each sample, as a 2D array of size
        `nsamples` x `nbins`.
-     pos_impact_coeffs (np.array): array of the per-sample event yield variations for positive NP values, as
+     impacts (np.array): array of per-sample event yield variations as a function of NPs, as
         a 3D array of size `nsamples` x `nbins` x `nnps`.
-     neg_impact_coeffs (np.array): array of the per-sample event yield variations for negative NP values, as
-        a 3D array of size `nsamples` x `nbins` x `nnps`.
-     sym_impact_coeffs (np.array): array of symmetrized per-sample event yield variations, as
-        a 3D array of size `nsamples` x `nbins` x `nnps`. The variations are computed as the average of
-        the positive and negative impacts.
      constraint_hessian (np.array): inverse of the covariance matrix of the NP constraint Gaussian
      np_nominal_values (np.array): nominal values of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
      ref_pars (Parameters) : reference values of the parameters : initial value of the POIs and nominal value of the NPs
      ref_yields (np.ndarray) : Bin yields computed at the reference values of the parameters specified in `ref_pars`.
      np_variations (np.array): variations of the unscaled NPs (see the description of :class:`fastprof.elements.ModelNP` for details)
-     use_asym_impacts (bool): use asymmetric impact terms when computing yield variation (True, default), or
-        use symmetrized impacts instead (False).
      use_linear_nps (bool): compute yield variations using an exponential form (False, default) or a linear
         form (True).
-     use_simple_sym_impacts (bool): option to use `sym_impacts` for the linear impact factors (see :meth:`Model.linear_impacts`,
-                                    default: True).
-     use_lognormal_terms (bool): include the derivatives of the exponential terms in the NP minimization
-        procedure (True) or not (False, default).
      cutoff (float): regularization term that caps the relative variations in event yields
      variations (list) : list of NP variations to use (default: [-1, 1])
      verbosity (int) : verbosity level of the output
@@ -386,8 +375,8 @@ class Model (Serializable) :
   """
 
   def __init__(self, name : str = '', pois : dict = None, nps : dict = None, aux_obs : dict = None, channels : dict = None,
-               expressions : dict = None, use_asym_impacts : bool = True, use_linear_nps : bool = False,
-               use_simple_sym_impacts : bool = True, use_lognormal_terms : bool = False, variations : list = None,
+               expressions : dict = None, use_linear_nps : bool = False,
+               variations : list = None,
                description : str = None, verbosity : int = 0) :
     """Initialize a Model object
 
@@ -397,11 +386,8 @@ class Model (Serializable) :
         aux_obs  : the model aux. obs., as a dict mapping names to :class:`fastprof.elements.ModelAux` objects
         channels : the model channels, as a dict mapping channel names to :class:`fastprof.elements.Channel` objects
         expressions      : the model expressions as a dict mapping names to :class:`fastprof.elements.Expression` objects
-        use_asym_impacts : option to use assymmetric (True) or symmetric (False) NP impacts (see class description, default: True)
         use_linear_nps   : option to use the linear (True) or exp (False) form of NP impact on yields (see class description, default: False)
-        use_simple_sym_impacts : option to use `sym_impacts` for the linear impacts (see :meth:`Model.linear_impacts`, default: True)
-        use_lognormal_terms : option to include exp derivatives when minimizing nll (see class description, default: False)
-        variations : list of NP variations to consider (default: None -- use 1 and the largest available other one)
+        variations : list of NP variations to consider (default: None -- use 1)
         description : a description string for the model
         verbosity : verbosity level of the output
     """
@@ -418,10 +404,7 @@ class Model (Serializable) :
     self.aux_obs = { par.name : par for par in aux_obs.values() } if aux_obs is not None else {}
     self.channels = { channel.name : channel for channel in channels.values() } if channels is not None else {}
     self.expressions = { expr.name : expr for expr in expressions.values() } if expressions is not None else {}
-    self.use_asym_impacts = use_asym_impacts
     self.use_linear_nps = use_linear_nps
-    self.use_simple_sym_impacts = use_simple_sym_impacts
-    self.use_lognormal_terms = use_lognormal_terms
     self.cutoff = 0
     self.variations = variations
     self.verbosity = verbosity
@@ -442,8 +425,7 @@ class Model (Serializable) :
     """
     clone = Model(name=name if name is not None else self.name, pois=self.pois, nps=self.nps, aux_obs=self.aux_obs,
                   channels={ channel.name : channel.clone() for channel in self.channels.values() },
-                  expressions=self.expressions, use_asym_impacts=self.use_asym_impacts, use_linear_nps=self.use_linear_nps,
-                  use_simple_sym_impacts=self.use_simple_sym_impacts, use_lognormal_terms=self.use_lognormal_terms, variations=self.variations,
+                  expressions=self.expressions, use_linear_nps=self.use_linear_nps, variations=self.variations,
                   description=self.description, verbosity=self.verbosity)
     if set_internal_vars : clone.set_internal_vars()
     return clone
@@ -496,36 +478,19 @@ class Model (Serializable) :
         self.poi_hessian[offset:offset + channel.nbins(), offset:offset + channel.nbins()] = channel.hessian
       self.nbins += channel.nbins()
       for s, sample in enumerate(channel.samples.values()) :
-        sample.set_np_data(self.nps.values(), reals, self.real_vals(self.ref_pars), variation=1, verbosity=self.verbosity)
+        sample.set_np_data(self.nps.values(), reals, self.real_vals(self.ref_pars), verbosity=self.verbosity)
         self.samples[(channel.name, s)] = sample
     if self.verbosity > 1 : print('Initializing nominal event yields')
-    self.nominal_yields = np.stack([ np.concatenate([ self.samples[(channel.name, s)].nominal_yields if s < len(channel.samples) else np.zeros(channel.nbins()) for channel in self.channels.values()]) for s in range(0, self.max_nsamples) ])      
-    if self.use_asym_impacts :    
-      self.pos_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
-      self.neg_impact_coeffs = np.zeros((self.max_nsamples, self.nbins, len(self.nps), self.nvariations))
-    self.sym_impact_coeffs   = np.zeros((self.max_nsamples, self.nbins, len(self.nps)))
+    self.nominal_yield = np.stack([ np.concatenate([ self.samples[(channel.name, s)].nominal_yield if s < len(channel.samples) else np.zeros(channel.nbins()) for channel in self.channels.values()]) for s in range(0, self.max_nsamples) ])      
+    self.impacts = np.zeros((self.max_nsamples, self.nbins, len(self.nps)))
     for p, par in enumerate(self.nps) :
       if self.verbosity > 0 : 
         sys.stderr.write('\rInitializing impacts for nuisance parameter %d of %d %-80s' % (p+1, self.nnps, '[ ' + par + ' ]'))
       for s in range(0, self.max_nsamples) :
-        sym_list = []
-        pos_list = []
-        neg_list = []
+        imp_list = []
         for channel in self.channels.values() :
-          default_cs = np.zeros((len(self.variations) if self.variations is not None else 1, channel.nbins()))
-          sym_list.append(self.samples[(channel.name, s)].sym_impact(par) if s < len(channel.samples) else np.zeros(channel.nbins()))
-          if self.use_asym_impacts :
-            pos_cs, neg_cs = self.samples[(channel.name, s)].impact_coefficients(par, self.variations, is_log=not self.use_linear_nps) if s < len(channel.samples) else (default_cs, default_cs)
-            pos_list.append(pos_cs.T)
-            neg_list.append(neg_cs.T)
-            if pos_cs.shape[0] > self.nvariations or neg_cs.shape[0] > self.nvariations :
-              self.nvariations = max(pos_cs.shape[0], neg_cs.shape[0])
-              self.pos_impact_coeffs.resize(self.max_nsamples, self.nbins, len(self.nps), self.nvariations)
-              self.neg_impact_coeffs.resize(self.max_nsamples, self.nbins, len(self.nps), self.nvariations)
-        if self.use_asym_impacts :
-          self.pos_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(pos_list)
-          self.neg_impact_coeffs[s, :, p, :pos_cs.shape[0]] = np.concatenate(neg_list)
-        self.sym_impact_coeffs[s, :, p] = np.concatenate(sym_list) # TODO: check here that there is some non-zero impact, can indicate trouble for later
+          imp_list.append(self.samples[(channel.name, s)].impact(par) if s < len(channel.samples) else np.zeros(channel.nbins()))
+        self.impacts[s, :, p] = np.concatenate(imp_list) # TODO: check here that there is some non-zero impact, can indicate trouble for later
     if self.verbosity > 0 : sys.stderr.write('\n')
     self.ref_yields = self.n_exp(self.ref_pars)
 
@@ -615,38 +580,16 @@ class Model (Serializable) :
       Returns:
          The event yield modifiers
     """
-    if self.use_asym_impacts :
-      pos_np = np.maximum(pars.nps, 0)
-      neg_np = np.minimum(pars.nps, 0)
-      if self.nvariations > 1 :
-        pos_vdm = np.vander(pos_np, self.nvariations + 1, True)[:,1:] # remove the first column with only 1s
-        neg_vdm = np.vander(neg_np, self.nvariations + 1, True)[:,1:] # remove the first column with only 1s
-        delta = np.tensordot(self.pos_impact_coeffs, pos_vdm, axes=2) + np.tensordot(self.neg_impact_coeffs, neg_vdm, axes=2)
-      else :
-        delta = np.tensordot(self.pos_impact_coeffs[:,:,:,0], pos_np, axes=1) + np.tensordot(self.neg_impact_coeffs[:,:,:,0], neg_np, axes=1)
-      if self.verbosity > 2 :
-        print('== k_exp eval:')
-        print('delta = ', delta)
-        if self.verbosity > 3 :
-          print('pos_impact_coeffs = ', self.pos_impact_coeffs[:,:,:,0])
-          print('neg_impact_coeffs = ', self.neg_impact_coeffs[:,:,:,0])
-          print('pos_np = ', pos_np)
-          print('neg_np = ', neg_np)
-      if self.use_linear_nps :
-        return 1 + delta
-      else :
-        return np.exp(delta)
+    if self.verbosity > 2 :
+      print('== k_exp eval:')
+      print('delta = ', self.impacts.dot(pars.nps))
+      if self.verbosity > 3 :
+        print('impacts = ', self.impacts)
+        print('pars.nps = ', pars.nps)
+    if self.use_linear_nps :
+      return 1 + self.impacts.dot(pars.nps)
     else :
-      if self.verbosity > 2 :
-        print('== k_exp eval [sym impacts]:')
-        print('delta = ', self.sym_impact_coeffs.dot(pars.nps))
-        if self.verbosity > 3 :
-          print('sym_impact_coeffs = ', self.sym_impact_coeffs)
-          print('pars.nps = ', pars.nps)
-      if self.use_linear_nps :
-        return 1 + self.sym_impact_coeffs.dot(pars.nps)
-      else :
-        return np.exp(np.log(1 + self.sym_impact_coeffs).dot(pars.nps))
+      return np.exp(np.log(1 + self.impacts).dot(pars.nps))
 
   def cut_k_exp(self, pars) :
     k = self.k_exp(pars)
@@ -915,41 +858,6 @@ class Model (Serializable) :
     errors = np.sqrt(cov.diagonal())
     return (cov.T / errors).T / errors
 
-  def linear_impacts(self, pars : Parameters) -> np.array :
-    """Returns the NP impacts used in linear computations
-
-      The NP minimization for linear models assumes by definition that the impact
-      of NPs on all bin contents are linear (see package documentation). This
-      method provides an exact computation of this, i.e. the dericative of k_exp
-      wrt the NP. Since this computation is expensive, it can be replaced by
-      just `sym_impacts`, i.e. the linear impact terms at NP=0.
-
-      Args:
-         pars : a set of parameter values
-      Returns:
-         The impact matrix for all samples, bins and NPs
-    """
-    if self.use_simple_sym_impacts : return self.sym_impact_coeffs
-    if np.array_equal(pars.nps, np.zeros(self.nnps)) : return self.sym_impact_coeffs
-    pos_nps = np.maximum(pars.nps, 0)
-    neg_nps = np.minimum(pars.nps, 0)
-    pos_np1 = np.sign(pos_nps)
-    neg_np1 = -np.sign(neg_nps)
-    nul_nps = (pars.nps == 0)
-    impact = self.sym_impact_coeffs*nul_nps
-    for i in range(0, self.pos_impact_coeffs.shape[3]) :
-      impact += self.pos_impact_coeffs[:,:,:,i]*((i+1)*pos_der) + \
-                self.neg_impact_coeffs[:,:,:,i]*((i+1)*neg_der)
-      pos_der *= pos_nps
-      neg_der *= neg_nps
-    if self.use_linear_nps :
-      return impact
-    else :
-      # For the exp case, mutiply by the exponential. Needs a bit of gymnastics since the
-      # exp has one less dimension (nnps) which happens to be the last one, while numpy
-      # automatically "broadcasts" only leading dimensions.
-      return (impact.T*self.k_exp(pars).T).T
-
   def plot(self, pars : Parameters, data : 'Data' = None, channel_names : str = None, only : list = None, exclude : list = None,
            variations : list = None, residuals : bool = False, canvas : tuple = (None, None), labels : bool = True, stack : bool = False, figsize=(8,6),
            bin_width : float = None, logy : bool = False, legend : bool = True) :
@@ -1167,7 +1075,7 @@ class Model (Serializable) :
 
   @staticmethod
   def create(filename : str, verbosity : int = 0, flavor : str = None,
-             use_linear_nps : bool = False, use_asym_impacts : bool = True) -> 'Model' :
+             use_linear_nps : bool = False) -> 'Model' :
     """Shortcut method to instantiate a model from a markup file
 
       Same behavior as creating a default model and loading from the file,
@@ -1178,11 +1086,10 @@ class Model (Serializable) :
          verbosity: level of verbosity (0=minimal)
          flavor   : input markup flavor (currently supported: 'json' [default], 'yaml')
          use_linear_nps: if `True`, use linear NP impacts (see :meth:`Model.__init__`)
-         use_asym_impacts: if `True`, use asymmetric NP impacts (see :meth:`Model.__init__`)
       Returns:
          the created model
     """
-    return Model(use_linear_nps=use_linear_nps, use_asym_impacts=use_asym_impacts, verbosity=verbosity).load(filename, flavor=flavor)
+    return Model(use_linear_nps=use_linear_nps, verbosity=verbosity).load(filename, flavor=flavor)
 
   @staticmethod
   def create_from_dict(sdict : dict, verbosity : int = 0) -> 'Model' :
@@ -1263,9 +1170,9 @@ class Model (Serializable) :
         raise ValueError('ERROR: multiple channels defined with the same name (%s)' % channel.name)
       for sample in channel.samples.values() :
         # nominal yields can be None, which corresponds to [nominal_norm]*nbins which automatically works
-        if sample.nominal_yields is not None and len(sample.nominal_yields) != channel.nbins() :
-          raise ValueError("ERROR: sample '%s' of channel '%s' has nominal_yields of the wrong size (%d, expected %d)."
-                           % (sample.name, channel.name, len(sample.nominal_yields), channel.nbins()))
+        if sample.nominal_yield is not None and len(sample.nominal_yield) != channel.nbins() :
+          raise ValueError("ERROR: sample '%s' of channel '%s' has nominal_yield of the wrong size (%d, expected %d)."
+                           % (sample.name, channel.name, len(sample.nominal_yield), channel.nbins()))
       self.channels[channel.name] = channel
     self.set_internal_vars()
     return self

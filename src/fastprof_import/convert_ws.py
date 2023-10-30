@@ -86,7 +86,7 @@ def make_parser() :
   parser.add_argument(      "--refit"            , type=str  , default=None     , help="Fit the model to the specified dataset before conversion")
   parser.add_argument(      "--binned"           , action="store_true"          , help="Use binned data")
   parser.add_argument(      "--input_bins"       , type=int  , default=0        , help="Number of bins to use when binning the input dataset")
-  parser.add_argument(      "--variations"       , type=str  , default='1'      , help="Comma-separated list of NP variations to tabulate")
+  parser.add_argument(      "--variations"       , type=str  , default=None     , help="Comma-separated list of NP variations, as par1=var1,...")
   parser.add_argument(      "--regularize"       , type=float, default=0        , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument("-o", "--output-file"      , type=str  , required=True    , help="Name of output file")
   parser.add_argument(      "--output-name"      , type=str  , default=''       , help="Name of the output model")
@@ -306,7 +306,7 @@ def run(argv = None) :
     for channel in channels :
       for sample in channel.samples :
         if sample.normpar is not None and sample.normpar.getMin() > 0 : sample.normpar.setMin(0) # allow setting variable to 0
-        # If a normpar is zero, we cannot get the expected nominal_yields for this component. In this case, fit an Asimov and set the parameter at the +2sigma level
+        # If a normpar is zero, we cannot get the expected nominal_yield for this component. In this case, fit an Asimov and set the parameter at the +2sigma level
       for sample in channel.samples : 
         if sample.normpar is not None and sample.normpar.getVal() == 0 and sample.normpar not in zero_normpars :
           zero_normpars.append(sample.normpar)
@@ -336,7 +336,7 @@ def run(argv = None) :
       for par in zero_normpars : 
         par.setVal(2*par.getError())
         if par.getVal() == 0 :
-          raise ValueError('ERROR : normalization parameter %s is exactly 0, cannot extract sample nominal_yields' % par.GetName())
+          raise ValueError('ERROR : normalization parameter %s is exactly 0, cannot extract sample nominal_yield' % par.GetName())
         print('=== Set POI nominal value to %s = %g' % (par.GetName(), par.getVal()))
       asimov_pdf.getVariables().Print('V')
 
@@ -357,14 +357,15 @@ def run(argv = None) :
         par.error = 1
       print('=== Parameter %s : using deviation %g from nominal value %g for impact computation (x%g)' % (par.name, par.error, par.nominal, options.epsilon))
 
-    variations = []
-    try :
-      for v in options.variations.split(',') : variations.extend([ +float(v), -float(v) ])
-    except Exception as inst :
-      print(inst)
-      raise ValueError('Invalid NP variations specification %s : should be of the form v1,v2,...' % options.variations)
-    if len(variations) == 0 :
-      raise ValueError('Should have at least 1 NP variation implemented for a valid model')
+    variations = {}
+    if variations is not None :
+      try :
+        for spec in options.variations.split(',') :
+          p,v = spec.split('=')
+          variations[p] = ( +float(v), -float(v))
+      except Exception as inst :
+        print(inst)
+        raise ValueError('Invalid NP variations specification %s : should be of the form par1=v1,par2=v2,...' % options.variations)
 
     validation_points = np.linspace(-5, 5, 21) if options.validation_output is not None else []
 
@@ -442,7 +443,7 @@ def run(argv = None) :
         channel_spec['bins'] = bin_specs
       sample_specs = []
       for sample in channel.samples :
-        if np.count_nonzero(sample.nominal_yields) == 0 : continue
+        if np.count_nonzero(sample.nominal_yield) == 0 : continue
         sample_spec = {}
         sample_spec['name'] = sample.name
         if sample.normpar is not None and (pois.find(sample.normpar.GetName()) or nps.find(sample.normpar.GetName())) :
@@ -450,7 +451,7 @@ def run(argv = None) :
           sample_spec['nominal_norm'] = sample.nominal_norm
         else :
           sample_spec['norm'] = 1
-        sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
+        sample_spec['nominal_yield'] = sample.nominal_yield.tolist()
         sample_spec['impacts'] = sample.impacts
         sample_specs.append(sample_spec)
       channel_spec['samples'] = sample_specs
@@ -521,7 +522,7 @@ def run(argv = None) :
       channel_valid = {}
       for par in nuis_pars : 
         for i, sample in enumerate(channel.samples) :
-          if np.count_nonzero(sample.nominal_yields) == 0 :
+          if np.count_nonzero(sample.nominal_yield) == 0 :
             channel.valid_data[par.name] = np.concatenate([channel.valid_data[par.name][:i], channel.valid_data[par.name][i+1:]])
         channel_valid[par.name] = channel.valid_data[par.name].tolist()
       valid_lists[channel.name] = channel_valid
@@ -667,7 +668,7 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
     if sample.normpar is not None :
       sample.normpar.setVal(sample.nominal_norm)
       sample.normpar.setVal(0)
-    sample.nominal_yields = np.zeros(nbins) 
+    sample.nominal_yield = np.zeros(nbins) 
     sample.yields = {}
     sample.impacts = {}
     for par in nuis_pars : sample.impacts[par.name] = []
@@ -692,17 +693,17 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
     #for p in nuis_pars : print(p.obj.GetName(), '=', p.obj.getVal())
     fill_yields(channel, 'nominal')
     for sample in channel.samples :
-      sample.nominal_yields[i] = trim_float(sample.yields['nominal'], options.digits)
+      sample.nominal_yield[i] = trim_float(sample.yields['nominal'], options.digits)
       if sample.normpar is not None :
-        if options.verbosity > 0 : print('-- Nominal %s = %g (%s = %g)' % (sample.name, sample.nominal_yields[i], sample.normpar.GetName(), sample.nominal_norm))
+        if options.verbosity > 0 : print('-- Nominal %s = %g (%s = %g)' % (sample.name, sample.nominal_yield[i], sample.normpar.GetName(), sample.nominal_norm))
       else :
-        if options.verbosity > 0 : print('-- Nominal %s = %g' % (sample.name, sample.nominal_yields[i]))
+        if options.verbosity > 0 : print('-- Nominal %s = %g' % (sample.name, sample.nominal_yield[i]))
     for p, par in enumerate(nuis_pars) :
       sys.stderr.write("\rProcessing channel '%s' (%3d of %3d), bin %3d of %3d, NP %4d of %4d [%30s]" % (channel.name, channel_index + 1, nchannels, i+1, nbins, p, len(nuis_pars), par.name[:30]))
       sys.stderr.flush()
       delta = par.error*options.epsilon
-      for sample in channel.samples : sample.impacts[par.name].append({})
-      for variation in variations :
+      var_impacts = {}
+      for variation in variations[par.name] :
         set_normpars(channel)
         par.obj.setVal(par.nominal + variation*delta)
         #print('%s %g impact pars:' % (par.name, variation))
@@ -713,12 +714,13 @@ def fill_channel_yields(channel, channel_index, nchannels, nuis_pars, variations
         fill_yields(channel, 'var')
         par.obj.setVal(par.nominal)
         for sample in channel.samples : 
-          sample.impact = (sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1 if sample.yields['nominal'] != 0 else 0
-          sample.impacts[par.name][-1]['%+g' % variation] = sample.impact
+          impact = (sample.yields['var']/sample.yields['nominal'])**(1/options.epsilon) - 1 if sample.yields['nominal'] != 0 else 0
+          var_impacts[variation] = impact
           if options.verbosity > 2 : 
-            print('-- sample %10s, parameter %-10s (%g %+g * %g) impact = %g (mod %g vs. ref %g)' % (sample.name, par.name, par.nominal, variation, delta, sample.impact, sample.yields['var'], sample.yields['nominal']))
+            print('-- sample %10s, parameter %-10s (%g %+g * %g) impact = %g (mod %g vs. ref %g)' % (sample.name, par.name, par.nominal, variation, delta, impact, sample.yields['var'], sample.yields['nominal']))
           elif options.verbosity > 1 :
-            print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, sample.impact))
+            print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample.name, par.name, variation, impact))
+      sample.impacts[par.name].append(sum([ i/v for v, i in var_impacts.items()])/len(var_impacts))
       if options.validation_output is not None :
         par_data = channel.valid_data[par.name]
         for k, val in enumerate(validation_points) :
@@ -755,30 +757,20 @@ def create_bin_integral(channel, bin_index) :
 
 # Check if all the impacts are the same (within tolerance), if so return the average
 def pack(impacts, tolerance=1E-5, num_digits=7) :
-  n = len(impacts)
-  pack_ok = True
   if n == 0 : return []
-  average = { key : 0 for key in impacts[0] }
+  pack_ok = True
+  n = len(impacts)
+  average = sum(impacts)/n
   for impact in impacts :
-    for key in average : average[key] += impact[key]/n
-  for impact in impacts :
-    for key in average :
-      if abs(impact[key] - average[key]) > tolerance :
-        if num_digits is None :
-          return impacts
-        else :
-          pack_ok = False
-          impact[key] = trim_float(impact[key], num_digits)
+    if abs(impact - average) > tolerance :
+      if num_digits is None :
+        return impacts
+      else :
+        pack_ok = False
+        impact = trim_float(impact, num_digits)
   if num_digits is not None :
-    for key in average :
-      average[key] = trim_float(average[key], num_digits)
-  if pack_ok : 
-    is_null = True
-    for key in average :
-      if abs(average[key]) > tolerance :
-        is_null = False
-        break
-    if is_null : return None
+    average = trim_float(average, num_digits)
+  if pack_ok and abs(average) < tolerance : return None
   return average if pack_ok else impacts
 
 if __name__ == '__main__' : run()

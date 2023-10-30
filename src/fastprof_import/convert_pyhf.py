@@ -221,9 +221,9 @@ def run(argv = None) :
   for i, sample_name in enumerate(model.config.samples) :
     model.nominal_rates[0,i,0,:] = nominal_rates[sample_name]
     yields = model.expected_actualdata(pars)
-    nominal_yields = {}
+    nominal_yield = {}
     for channel in channels.values() :
-      channel.samples[sample_name].nominal_yields = yields[channel.bin_slice]
+      channel.samples[sample_name].nominal_yield = yields[channel.bin_slice]
     for p, par in enumerate(nuis_pars) :
       sys.stderr.write("\rProcessing sample '%s' (%3d of %3d), NP %4d of %4d [%30s]" % (sample_name, sample.index + 1, nsamples, p, len(nuis_pars), par.name[:30]))
       sys.stderr.flush()
@@ -236,7 +236,7 @@ def run(argv = None) :
         pars[par.index] = par.nominal
         for channel in channels.values() :
           var_yields = yields[channel.bin_slice]
-          impact = (var_yields/channel.samples[sample_name].nominal_yields)**(1/options.epsilon) - 1 if channel.samples[sample_name].nominal_yields != 0 else 0
+          impact = (var_yields/channel.samples[sample_name].nominal_yield)**(1/options.epsilon) - 1 if channel.samples[sample_name].nominal_yield != 0 else 0
           channel.samples[sample_name].impacts[par.name][-1]['%+g' % variation] = impact
         if options.verbosity > 1 : print('-- sample %10s, parameter %-10s : %+g sigma impact = %g' % (sample_name, par.name, variation, impact))
     model.nominal_rates[0,i,0,:] = np.zeros(nbins)
@@ -310,7 +310,7 @@ def run(argv = None) :
           sample_spec['nominal_norm'] = sample.nominal_norm
         else :
           sample_spec['norm'] = 1
-        sample_spec['nominal_yields'] = sample.nominal_yields.tolist()
+        sample_spec['nominal_yield'] = sample.nominal_yield.tolist()
         sample_spec['impacts'] = sample.impacts
         sample_specs.append(sample_spec)
       channel_spec['samples'] = sample_specs

@@ -125,7 +125,7 @@ class ModelMerger :
       self.target.log_sym_impact_coeffs = np.concatenate(tuple(np.pad(model.log_sym_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0))) for model in all_models), axis=1)
       self.target.log_pos_impact_coeffs = np.concatenate(tuple(np.pad(model.log_pos_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0),(0,0))) for model in all_models), axis=1)
       self.target.log_neg_impact_coeffs = np.concatenate(tuple(np.pad(model.log_neg_impact_coeffs, ((0, max_nsamples - model.max_nsamples),(0,0),(0,0),(0,0))) for model in all_models), axis=1)
-    self.target.nominal_yields = np.concatenate(tuple(np.pad(model.nominal_yields, ((0, max_nsamples - model.max_nsamples),(0,0))) for model in all_models), axis=1)
+    self.target.nominal_yield = np.concatenate(tuple(np.pad(model.nominal_yield, ((0, max_nsamples - model.max_nsamples),(0,0))) for model in all_models), axis=1)
     return self.target
 
 
@@ -188,7 +188,7 @@ class ChannelMerger :
     Args:
       sample : Sample object to add to the list
     """
-    self.merged_samples[sample.name] = Sample(sample.name, sample.norm, sample.nominal_norm, sample.nominal_yields, sample.impacts)
+    self.merged_samples[sample.name] = Sample(sample.name, sample.norm, sample.nominal_norm, sample.nominal_yield, sample.impacts)
 
   def check(self) -> bool :
     """Perform checks on the merging inputs
@@ -247,10 +247,10 @@ class ChannelMerger :
         chan = self.model.channels[channel]
         if merged_sample.name in chan.samples :
           sample = chan.samples[merged_sample.name]
-          all_yields.append(sample.nominal_yields/sample.nominal_norm*merged_sample.nominal_norm)
+          all_yields.append(sample.nominal_yield/sample.nominal_norm*merged_sample.nominal_norm)
         else :
           all_yields.append(np.zeros(chan.nbins()))
-      merged_sample.nominal_yields = np.concatenate(all_yields)
+      merged_sample.nominal_yield = np.concatenate(all_yields)
       for par in merged_sample.impacts :
         all_impacts = []
         for channel in self.channels_to_merge :
@@ -556,7 +556,7 @@ class NPPruner :
             if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
               #unscaled_value = par.unscaled_value(value)
               # We replace by the *nominal* norm, since the effect of the NP will be accounted for
-              # in the nominal_yields below. It would be more elegant to do it the other way, but
+              # in the nominal_yield below. It would be more elegant to do it the other way, but
               # One would need to then correct the nexp sample by sample to remove the normalization
               # effect we apply here, which doesn't seem optimal.
               if self.verbosity > 0 :
@@ -573,10 +573,10 @@ class NPPruner :
     for channel in model.channels.values() :
       for s, sample in enumerate(channel.samples.values()) :
         if self.verbosity > 0 : print("Applying changes to the nominal yields of sample '%s' of channel '%s'." % (sample.name, channel.name))
-        if self.verbosity > 1 : print('Old yields :\n', sample.nominal_yields)
-        sample.nominal_yields = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
+        if self.verbosity > 1 : print('Old yields :\n', sample.nominal_yield)
+        sample.nominal_yield = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
         sample.nominal_norm = sample.norm.value(real_vals)
-        if self.verbosity > 1 : print('New yields :\n', sample.nominal_yields)
+        if self.verbosity > 1 : print('New yields :\n', sample.nominal_yield)
     for par in removed :
       if par.aux_obs : model.aux_obs.pop(par.aux_obs)
       model.nps.pop(par.name)
@@ -624,11 +624,11 @@ class SamplePruner :
     """
     changed = False
     for channel in self.model.channels.values() :
-      total_nominal_yields = np.zeros(channel.nbins())
-      for sample in channel.samples.values() : total_nominal_yields += sample.nominal_yields
+      total_nominal_yield = np.zeros(channel.nbins())
+      for sample in channel.samples.values() : total_nominal_yield += sample.nominal_yield
       to_remove = []
       for sample in channel.samples.values() :
-        z = self.total_significance(sample.nominal_yields, total_nominal_yields)
+        z = self.total_significance(sample.nominal_yield, total_nominal_yield)
         if z < min_signif :
           to_remove.append(sample.name)
           if self.verbosity > 0 :

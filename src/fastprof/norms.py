@@ -26,17 +26,16 @@ class Norm(Serializable) :
     """
     pass
   
-  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
+  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict) -> list :
     """Provide the NP variations that are implicit in the norm
 
       Args:
         par       : the nuisance parameter for which to get variations
         reals     : expressions as a dictionary of { name: object } pairs
         real_vals : values of all reals and pars, as { name: value} pairs
-        variation : magnitude of the variation, in numbers of sigmas        
 
       Returns:
-        the relative yield variation for the specified NP variation
+        the relative yield variation for a 1-sigma NP variation
     """
     return None
 
@@ -139,7 +138,7 @@ class NumberNorm(Serializable) :
     """
     self.norm_value = norm_value
   
-  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
+  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict) -> list :
     """Provides the NP variations that are implicit in the norm
 
       This is called only for NPs. If the normalization parameter is an NP,
@@ -151,10 +150,9 @@ class NumberNorm(Serializable) :
         par       : the nuisance parameter for which to get variations
         reals     : expressions as a dictionary of { name: object } pairs
         real_vals : values of all reals and pars, as { name: value} pairs
-        variation : magnitude of the variation, in numbers of sigmas        
 
       Returns:
-        the relative yield variation for the specified NP variation
+        the relative yield variation for a 1-sigma NP variation
     """
     return None
 
@@ -253,7 +251,7 @@ class ExpressionNorm(Serializable) :
     """
     self.expr_name = expr_name
   
-  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict, variation : float = +1) -> list :
+  def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict) -> list :
     """Provide the NP variations that are implicit in the norm
 
       This is called only for NPs. If the normalization parameter is an NP,
@@ -265,13 +263,12 @@ class ExpressionNorm(Serializable) :
         par       : the nuisance parameter for which to get variations
         reals     : expressions as a dictionary of { name: object } pairs
         real_vals : values of all reals and pars, as { name: value} pairs
-        variation : magnitude of the variation, in numbers of sigmas        
 
       Returns:
-        the relative yield variation for the specified NP variation
+        the relative yield variation for a 1-sigma NP variation
     """
-    rel_var = variation*par.variation*self.gradient({ par.name : par }, reals, real_vals)[0]/par.nominal_value if par.nominal_value != 0 else 0
-    return { '%+g' % variation : rel_var, '%+g' % -variation : -rel_var }
+    rel_var = par.variation*self.gradient({ par.name : par }, reals, real_vals)[0]/par.nominal_value if par.nominal_value != 0 else 0
+    return rel_var
 
   def value(self, real_vals : dict) -> float :
     """Compute the overall normalization factor

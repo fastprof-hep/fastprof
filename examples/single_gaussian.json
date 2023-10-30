@@ -1,6 +1,6 @@
 {
    "model": {
-      "name": "single_bin",
+      "name": "single_gaussian",
       "POIs": [
          {
             "name": "xs_BSM",
@@ -23,45 +23,46 @@
          },
          {
             "name": "np_bkg",
-            "nominal_value": 50,
-            "constraint": 5,
+            "nominal_value": 100,
+            "constraint": 10,
             "aux_obs": "aux_bkg"
          }
       ],
       "channels": [
          {
             "name": "SR",
-            "type": "bin",
+            "type": "gaussian",
+            "bins": [ "SR1" ],
+            "covariance" : [[ 100 ]],
             "samples": [
                {
                   "name": "Signal",
                   "norm": "xs_BSM",
                   "nominal_norm": 1,
-                  "nominal_yield": 10,
+                  "nominal_yield": [ 0.5 ],
                   "impacts": {
-                     "np_lumi": 0.02,
-                     "np_eff" : 0.10
+                     "np_lumi": [ 0.02 ],
+                     "np_eff" : [ 0.10 ]
                   }
                },
                {
                   "name": "Background",
                   "norm": "np_bkg",
                   "impacts": {
-                     "np_lumi": 0,
-                     "np_eff" : 0
+                     "np_lumi": [ 0 ],
+                     "np_eff" : [ 0 ]
                   }
                }
             ]
          }
       ]
    },
-
    "data": {
       "channels": [
-         {
+        {
             "name"  : "SR",
-            "counts": 150
-         }
+            "bins" :  [{ "name" : "SR1",  "obs" : 100 }]
+        }
       ],
       "aux_obs": [
          {
@@ -74,7 +75,7 @@
          },
          {
             "name": "aux_bkg",
-            "value": 50
+            "value": 100
          }
       ]
    }

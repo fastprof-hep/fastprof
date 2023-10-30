@@ -1,0 +1,49 @@
+{
+   "model": {
+      "name": "single_gaussian",
+      "POIs": [
+         {
+            "name": "xs_BSM",
+            "initial_value": 0,
+            "min_value": 0.0,
+            "max_value": 20
+         },
+         {
+            "name": "nbkg",
+            "initial_value": 100,
+            "min_value": 0.0,
+            "max_value": 200
+         }
+      ],
+      "NPs": [],
+      "channels": [
+         {
+            "name": "Measurement",
+            "type": "gaussian",
+            "bins": [ "SR", "CR" ],
+            "covariance" : [[ 100, 0 ], [0, 100]],
+            "samples": [
+               {
+                  "name": "Signal",
+                  "norm": "xs_BSM",
+                  "nominal_yield" : [1, 0]
+               },
+               {
+                  "name": "Background",
+                  "norm": "nbkg",
+                  "nominal_yield" : [1, 1]
+               }
+            ]
+         }
+      ]
+   },
+   "data": {
+      "channels": [
+        {
+            "name"  : "Measurement",
+            "bins" :  [{ "name" : "SR",  "obs" : 120 },
+                       { "name" : "CR",  "obs" : 110 }]
+        }
+      ]
+   }
+}

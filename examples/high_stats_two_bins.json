@@ -83,18 +83,18 @@
                   "name": "Signal",
                   "norm": "totalXS",
                   "nominal_norm": 1,
-                  "nominal_yields": [ 10 ],
+                  "nominal_yield": [ 10 ],
                   "impacts": {
-                     "np_lumi": [ { "+1":  0.02, "-1":  -0.02 } ],
-                     "np_eff" : [ { "+1":  0.10, "-1":  -0.10 } ]
+                     "np_lumi": [ 0.02 ],
+                     "np_eff" : [ 0.10 ]
                   }
                },
                {
                   "name": "Background",
                   "norm": "np_bkg1",
                   "impacts": {
-                     "np_lumi": [ { "+1":  0, "-1":  0 } ],
-                     "np_eff" : [ { "+1":  0, "-1":  0 } ]
+                     "np_lumi": [ 0 ],
+                     "np_eff" : [ 0 ]
                   }
                }
             ]
@@ -107,18 +107,18 @@
                   "name": "Signal",
                   "norm": "xs2",
                   "nominal_norm": 1,
-                  "nominal_yields": [ 5 ],
+                  "nominal_yield": [ 5 ],
                   "impacts": {
-                     "np_lumi": [ { "+1":  0.02, "-1":  -0.02 } ],
-                     "np_eff" : [ { "+1":  0.10, "-1":  -0.10 } ]
+                     "np_lumi": [ 0.02 ],
+                     "np_eff" : [ 0.10 ]
                   }
                },
                {
                   "name": "Background",
                   "norm": "np_bkg2",
                   "impacts": {
-                     "np_lumi": [ { "+1":  0, "-1":  0 } ],
-                     "np_eff" : [ { "+1":  0, "-1":  0 } ]
+                     "np_lumi": [ 0 ],
+                     "np_eff" : [ 0 ]
                   }
                }
             ]

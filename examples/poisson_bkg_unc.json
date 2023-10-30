@@ -1,0 +1,51 @@
+{
+   "model": {
+      "name": "poisson_bkg_unc",
+      "POIs": [
+         {
+            "name": "nsig",
+            "initial_value": 0,
+            "min_value": 0,
+            "max_value": 20
+         }
+      ],
+      "NPs": [
+         {
+            "name": "np_bkg",
+            "nominal_value": 3,
+            "constraint": 0.01,
+            "aux_obs": "aux_bkg"
+         }
+      ],
+      "channels": [
+         {
+            "name": "SR",
+            "type": "bin",
+            "samples": [
+               {
+                  "name": "Signal",
+                  "norm": "nsig"
+               },
+               {
+                  "name": "Background",
+                  "norm": "np_bkg"
+               }
+            ]
+         }
+      ]
+   },
+   "data": {
+      "channels": [
+         {
+            "name"  : "SR",
+            "counts": 0
+         }
+      ],
+      "aux_obs": [
+         {
+            "name": "aux_bkg",
+            "value": 3
+         }
+      ]
+   }
+}

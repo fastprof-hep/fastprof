@@ -37,18 +37,18 @@
                   "name": "Signal",
                   "norm": "xs_BSM",
                   "nominal_norm": 1,
-                  "nominal_yields": [ 0.5 ],
+                  "nominal_yield": [ 0.5 ],
                   "impacts": {
-                     "np_lumi": [ { "+1":  0.02, "-1":  -0.02 } ],
-                     "np_eff" : [ { "+1":  0.10, "-1":  -0.10 } ]
+                     "np_lumi": [ 0.02 ],
+                     "np_eff" : [ 0.10 ]
                   }
                },
                {
                   "name": "Background",
                   "norm": "np_bkg",
                   "impacts": {
-                     "np_lumi": [ { "+1":  0, "-1":  0 } ],
-                     "np_eff" : [ { "+1":  0, "-1":  0 } ]
+                     "np_lumi": [ 0 ],
+                     "np_eff" : [ 0 ]
                   }
                }
             ]

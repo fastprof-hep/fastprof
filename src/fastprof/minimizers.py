@@ -89,7 +89,7 @@ class NPMinimizer :
     # i : bin index
     # k,l : sample indices
     # a,b,c : NP indices
-    impacts = model.linear_impacts(hypo)
+    impacts = model.impacts
     # print('njpb', model.nbins_poisson, model.nbins_gaussian, model.nbins)
     if model.nbins_poisson > 0 :
       (p_pois, q_pois) = self.pq_einsum_poisson (n_nom[:,:model.nbins_poisson], self.data.counts[:model.nbins_poisson], impacts[:,:model.nbins_poisson,:])
@@ -144,7 +144,6 @@ class NPMinimizer :
       print('ratio_impacts = \n', ratio_impacts)
     q = np.einsum('i,ia->a', delta_obs, ratio_impacts, optimize=self.optimize_einsum)
     p = np.einsum('i,ia,ib->ab', obs, ratio_impacts, ratio_impacts, optimize=self.optimize_einsum)
-    if self.data.model.use_lognormal_terms : p += np.einsum('ki,i,kia,kib->ab', ratio_nom, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
     return (p,q)
 
   def pq_einsum_gaussian(self, n_nom : np.ndarray, obs : np.ndarray, impacts : np.ndarray) -> (np.ndarray, np.ndarray) :
@@ -175,7 +174,6 @@ class NPMinimizer :
     #print('njpb', n_nom_impacts.shape, hessian.shape, delta_obs.shape)
     q = np.einsum('ia,ij,j->a', n_nom_impacts, hessian, delta_obs, optimize=self.optimize_einsum)
     p = np.einsum('ia,ij,jb->ab', n_nom_impacts, hessian, n_nom_impacts, optimize=self.optimize_einsum)
-    if self.data.model.use_lognormal_terms : p += 2*np.einsum('ki,ij,j,kia,kib->ab', n_nom, hessian, delta_obs, impacts, impacts, optimize=self.optimize_einsum)
     return (p,q)
 
   def profile(self, hypo : Parameters) -> Parameters :
@@ -269,9 +267,9 @@ class POIMinimizer :
      free_deltas (np.ndarray) : the best-fit deltas of the free-POI fit stored by :meth:`POIMinimizer.tmu`.
                                 (see :meth:`NPMinimizer.profile` for the definition of the deltas)
      tmu_debug (float) : stores the raw value of `tmu` for debugging purposes
-
+     verbosity  (int)  : output level
   """
-  def __init__(self, niter : int = 1, floor : float = None) :
+  def __init__(self, niter : int = 1, floor : float = None, verbosity : int = 0) :
     """Initialize the POIMinimizer object
 
       Args:
@@ -280,6 +278,7 @@ class POIMinimizer :
         niter : number of iterations to perform when minimizing over NPs
         floor :  minimal event yield to use in the NLL computation (see
             :meth:`.Model.nll` for details).
+        verbosity: the output level
     """
     self.niter = niter
     self.floor = floor
@@ -295,6 +294,7 @@ class POIMinimizer :
     self.free_nll = None
     self.free_deltas = None
     self.tmu_debug = 0
+    self.verbosity = verbosity
 
   def clone(self) :
     pass
@@ -535,8 +535,6 @@ class OptiMinimizer (POIMinimizer) :
                                 primary one (given by the `method` attribute) fails.
      rebound    (int)         : if > 0, perform `rebound` iterations while narrowing the bounds
                                 by a factor 2 each time
-     verbosity  (int)         : output level
-
   """
   def __init__(self, method : str = 'scalar', niter : int = 1, floor : float = 1E-7,
                rebound : int = 0, alt_method : str = None, force_num_jac : bool = False, verbosity : int = 0) :
@@ -553,12 +551,12 @@ class OptiMinimizer (POIMinimizer) :
                       by a factor 2 each time
          alt_method : alternate optimization algorithm to apply if the
                       primary one (given by the `method` attribute) fails.
+         verbosity: the output level
     """
-    super().__init__(niter, floor)
+    super().__init__(niter, floor, verbosity)
     self.method = method
     self.rebound = rebound
     self.alt_method = alt_method
-    self.verbosity = verbosity
     self.force_num_jac = force_num_jac
     self.np_min = None
 

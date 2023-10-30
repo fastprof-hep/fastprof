@@ -1,0 +1,43 @@
+{
+   "model": {
+      "name": "simple_bkg_uncertainty",
+      "POIs": [
+         { "name" : "xs_signal", "unit" : "fb", "min_value": 0, "max_value": 10, "initial_value": 1 }
+      ],
+      "NPs": [
+         { "name": "np_bkg", "nominal_value": 0, "constraint": 1, "aux_obs": "aux_bkg" }
+      ],
+      "aux_obs": [
+         { "name": "aux_bkg", "min_value": -5, "max_value": 5 }
+      ],
+      "channels": [
+         {
+            "name": "measurement_region",
+            "type": "bin",
+            "samples": [
+               {
+                  "name": "Signal",
+                  "norm": "xs_signal",
+                  "nominal_yield": [ 1 ]
+               },
+               {
+                  "name": "Background",
+                  "nominal_yield": [ 2 ],
+                  "impacts": {
+                     "np_bkg": 0.10
+                  }
+               }
+            ]
+         }
+      ]
+   },
+
+   "data": {
+      "channels": [
+        { "name" : "measurement_region", "counts": 3 }
+      ],
+      "aux_obs": [
+         { "name": "aux_bkg", "value": 0 }
+      ]
+   }
+}
