@@ -395,7 +395,7 @@ class Samples (SamplesBase) :
       raise(inst)
     return samples.quantile(fraction, nsigmas)
 
-  def bands(self, max_sigma : int) -> 'Samples' :
+  def bands(self, max_sigma : int) -> dict :
     """Compute expected band positions for all hypotheses
 
     Args:
@@ -405,7 +405,7 @@ class Samples (SamplesBase) :
       A dict mapping band order to a list of band positions for each hypothesis
     """
     bds = {}
-    for i in range (-max_sigma, max_sigma+1) :
+    for i in range(-max_sigma, max_sigma+1) :
       bds[i]  = np.array([ self.quantile(hypo, nsigmas=i) for hypo in self.hypos ])
     return bds
 

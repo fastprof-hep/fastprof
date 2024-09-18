@@ -4,7 +4,7 @@ from .norms           import Norm, NumberNorm, ExpressionNorm
 from .sample          import Sample
 from .channels        import Channel, SingleBinChannel, BinnedRangeChannel, GaussianChannel
 from .core            import Model, Parameters, Data
-from .test_statistics import TMu, QMu, QMuTilda
+from .test_statistics import TMu, DMu, QMu, QMuTilda
 from .minimizers      import NPMinimizer, OptiMinimizer, ScanMinimizer
 from .sampling        import SamplingDistribution, Samples, CLsSamples
 from .samplers        import ScanSampler, OptiSampler

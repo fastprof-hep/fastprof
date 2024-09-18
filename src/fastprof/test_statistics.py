@@ -75,7 +75,7 @@ class TestStatistic :
     pass
 
   @abstractmethod
-  def asymptotic_pv(self, ts : float = None) -> float :
+  def asymptotic_pv(self, ts : float = None, variation : int = None) -> float :
     """Asymptotic p-value corresponding
        to the test-statistic value
 
@@ -83,7 +83,9 @@ class TestStatistic :
       ts : an alternate test statistic value. If not `None`,
            the p-value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-
+      variation : compute p-values for the +/- N sigma variation instead
+                  if nominal, e.g. to construct expected bands
+                  (variation = None and 0 is the same)
     Returns:
       the asymptotic p-value
     """
@@ -119,10 +121,10 @@ class TestStatistic :
 
 
 class TMu(TestStatistic) :
-  """The :math:`t_{\mu}` (profile-likelihood ratio) test statistic
+  """The basic profile-likelihood ratio test statistic, :math:`t_{\mu}`
 
   Attributes:
-    tmu (float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
+    tmu(float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
   """
 
   def __init__(self, test_poi_values : list, tmu : float) :
@@ -138,14 +140,14 @@ class TMu(TestStatistic) :
   def value(self) -> float :
     """Value of the test statistic
 
-    Returns the stored value of `tmu`.
+    Returns the stored value of the PLR.
 
     Returns:
       the test statistic value
     """
     return self.tmu
 
-  def asymptotic_pv(self, ts : float = None) -> float :
+  def asymptotic_pv(self, ts : float = None, variation : int = None) -> float :
     """Asymptotic p-value corresponding
        to the test-statistic value
 
@@ -153,11 +155,13 @@ class TMu(TestStatistic) :
       ts : an alternate test statistic value. If not `None`,
            the p-value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-
+      variation : compute p-values for the +/- N sigma variation instead
+                  if nominal, e.g. to construct expected bands
+                  (variation = None and 0 is the same)
     Returns:
       the asymptotic p-value
     """
-    if ts == None : ts = self.value()
+    if ts is None : ts = self.value()
     return scipy.stats.chi2.sf(ts, self.npois())
 
   def asymptotic_pdf(self, ts) :
@@ -188,23 +192,23 @@ class TMu(TestStatistic) :
     return scipy.stats.norm.isf(pv)
 
 
-class QMu(TestStatistic) :
-  """The :math:`q_{\mu}` test statistic
+class DMu(TestStatistic) :
+  """The :math:`d_{\mu}` test statistic, one-sided for discovery cases
 
-  The form implemented here corresponds to the "uncapped" version,
-  which has values of -tmu for POI values above the hypothesis, instead
-  of 0 as defined in `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_.
+  The form implemented here corresponds to a generalization of q_0 
+  as defined in `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_, defined
+  for an arbitrary hypothesis value and "uncapped" so that for best_poi < test_poi,
+  the test statistic is -tmu instead of 0 
 
   Attributes:
     tmu (float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
     best_poi (float) : the best-fit value of the POI
     comp_poi (float) : the value of the POI (`mu`) used in the computation of `tmu`.
-    tmu_Amu (float)    : the value of `tmu` computed on an Asimov dataset generated
+    tmu_Amu  (float) : the value of `tmu` computed on an Asimov dataset generated
                        under the tested hypothesis.
     sigma (float)    : the Asimov uncertainty on the POI, an alternate way to
                        provide tmu_Amu
   """
-
   def __init__(self, test_poi : float, tmu : float, best_poi : float, comp_poi  : float = None,
                tmu_Amu  : float = None, sigma  : float = None) :
     """Initialize the `QMu` object
@@ -247,7 +251,7 @@ class QMu(TestStatistic) :
     Returns:
       the test statistic value
     """
-    return self.tmu if self.best_poi < self.comp_poi else -self.tmu
+    return self.tmu if self.best_poi > self.comp_poi else -self.tmu
 
   @staticmethod
   def signed_sqrt(x : float) -> float :
@@ -261,7 +265,7 @@ class QMu(TestStatistic) :
     """
     return math.sqrt(x) if x >= 0 else -math.sqrt(-x)
 
-  def non_centrality_parameter(self) :
+  def non_centrality_parameter(self, return_sqrt : bool = False) :
     """The non-centrality parameter of the asymptotic
        chi2 distribution of the test statistic, under
        the POI=0 hypothesis
@@ -275,21 +279,24 @@ class QMu(TestStatistic) :
     parameter at initialization, or from a value of
     :math:`\sigma` provided by `sigma`.
 
+    Args:
+      return_sqrt: return the square root of the NC parameter
     Returns:
       the value of :math:`t_{\mu, A(0)}`
     """
     if self.comp_poi == self.test_poi() : return 0
-    if self.tmu_Amu != None :
+    if self.tmu_Amu is not None :
       if self.tmu_Amu < 0 :
         print('WARNING: tmu_Amu = % g < 0, returning 0' % self.tmu_Amu)
         return 0
       return self.tmu_Amu # Must be the right value for test_poi! (=> tmu_Amu and comp_poi should be set together consistently)
-    elif self.sigma != None :
-      return ((self.comp_poi - self.test_poi())/self.sigma)**2
+    elif self.sigma is not None :
+      sqrt_ncp = (self.comp_poi - self.test_poi())/self.sigma
+      return sqrt_ncp if return_sqrt else (sqrt_ncp)**2
     else :
       raise ValueError('Should supply either tmu_Amu or sigma for the asymptotic CL_s computation')
 
-  def asymptotic_pv(self, ts : float = None) -> float :
+  def asymptotic_pv(self, ts : float = None, variation : int = None) -> float :
     """Asymptotic p-value corresponding
        to the test-statistic value
 
@@ -297,12 +304,20 @@ class QMu(TestStatistic) :
       ts : an alternate test statistic value. If not `None`,
            the p-value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-
+      variation : compute p-values for the +/- N sigma variation instead
+                  if nominal, e.g. to construct expected bands
+                  (variation = None and 0 is the same)
     Returns:
       the asymptotic p-value
     """
-    if ts == None : ts = self.value()
-    return scipy.stats.norm.sf(self.signed_sqrt(ts) - math.sqrt(self.non_centrality_parameter()))
+    if ts is None : ts = self.value()
+    if variation is None : variation = 0
+    # Note that 
+    # -- signed_sqrt(ts) gives (best_mu - comp_mu)/sigma with this sign
+    # -- NCP_sqrt gives (comp_mu - test_mu)/sigma also with this sign
+    # -- The sum of the two ensures comp_mu cancels out as desired
+    # -- The variation is defined with respect to best_mu (+1 <-> best_mu + 1 sigma) so comes with a plus sign
+    return scipy.stats.norm.sf(self.signed_sqrt(ts) + self.non_centrality_parameter(return_sqrt = True) + variation)
 
   def asymptotic_pdf(self, ts : float = None) -> float :
     """Value of the PDF of the test statistic, under
@@ -316,8 +331,8 @@ class QMu(TestStatistic) :
     Returns:
       the local value of the asymptotic PDF
     """
-    if ts == None : ts = self.value()
-    pdf_q = scipy.stats.norm.pdf(self.signed_sqrt(ts) - math.sqrt(self.non_centrality_parameter()))
+    if ts is None : ts = self.value()
+    pdf_q = scipy.stats.norm.pdf(self.signed_sqrt(ts) + self.non_centrality_parameter(return_sqrt = True))
     return pdf_q/2/math.sqrt(abs(ts)) if ts != 0 else 0
 
   def asymptotic_ts(self, pv : float) -> float :
@@ -330,27 +345,144 @@ class QMu(TestStatistic) :
     Returns:
       the corresponding test statistic value
     """
-    q1 = scipy.stats.norm.isf(pv) + math.sqrt(self.non_centrality_parameter())
+    q1 = scipy.stats.norm.isf(pv) - self.non_centrality_parameter(return_sqrt = True)
     return q1*abs(q1)
 
-  def asymptotic_clb(self) -> float :
+
+class QMu(DMu) :
+  """The :math:`q_{\mu}` test statistic
+
+  The form implemented here corresponds to the "uncapped" version of
+  the `q_mu` defined in `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_,
+  which has values of -tmu for best_poi > test_poi, instead
+  of 0. (i.e. one-sided in the opposite direction from DMu)
+
+  Attributes:
+    tmu (float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
+    best_poi (float) : the best-fit value of the POI
+    comp_poi (float) : the value of the POI (`mu`) used in the computation of `tmu`.
+    tmu_Amu (float)    : the value of `tmu` computed on an Asimov dataset generated
+                       under the tested hypothesis.
+    sigma (float)    : the Asimov uncertainty on the POI, an alternate way to
+                       provide tmu_Amu
+  """
+
+  def __init__(self, test_poi : float, tmu : float, best_poi : float, comp_poi  : float = None,
+               tmu_Amu  : float = None, sigma  : float = None) :
+    """Initialize the `QMu` object
+
+    Args:
+      test_poi : the POI value that defines the tested hypothesis
+      tmu : the value of the profile likelihood ratio :math:`-2\Delta\log L`
+      best_poi : the best-fit value of the POI
+      comp_poi : the value of the POI used in the computation of `tmu`. If
+                 `None` (default), assumed to be the same as `test_poi`.
+      tmu_Amu  : the value of `tmu` computed on an Asimov dataset generated
+                 under the tested hypothesis.
+      sigma    : the Asimov uncertainty on the POI, an alternate way to
+                 provide tmu_Amu
+    """
+    super().__init__([ test_poi ], tmu, best_poi, comp_poi, tmu_Amu, sigma)
+
+  def test_poi(self) :
+    """Tested values of the POI
+
+    Helper function to get the first (and here only) POI value, since `QMu` implements
+    a single POI, whereas the general `TestStatistic` class allows multiple.
+
+    Returns:
+      the test statistic value
+    """
+    return self.test_poi_values[0]
+
+  def value(self) :
+    """Value of the test statistic
+
+    Implements the computation of :math:`q_{\mu}` : return `tmu` if
+    the best-fit POI is below the hypothesis value, 0 otherwise.
+
+    Returns:
+      the test statistic value
+    """
+    return self.tmu if self.best_poi < self.comp_poi else -self.tmu
+
+  def asymptotic_pv(self, ts : float = None, variation : int = None) -> float :
+    """Asymptotic p-value corresponding
+       to the test-statistic value
+
+    Args:
+      ts : an alternate test statistic value. If not `None`,
+           the p-value is computed for this one, otherwise
+           for the value returned by :meth:`value`.
+      variation : compute p-values for the +/- N sigma variation instead
+                  if nominal, e.g. to construct expected bands
+                  (variation = None and 0 is the same)
+    Returns:
+      the asymptotic p-value
+    """
+    if ts is None : ts = self.value()
+    if variation is None : variation = 0
+    # Note that 
+    # -- signed_sqrt(ts) gives (comp_mu - best_mu)/sigma with this sign (note: opposite the t_mu case!)
+    # -- NCP_sqrt gives (comp_mu - test_mu)/sigma also with this sign
+    # -- The difference between the two ensures comp_mu cancels out as desired
+    # -- The variation is defined with respect to best_mu (+1 <-> best_mu + 1 sigma) so comes with a minus sign
+    return scipy.stats.norm.sf(self.signed_sqrt(ts) - self.non_centrality_parameter(return_sqrt = True) - variation)
+
+  def asymptotic_pdf(self, ts : float = None) -> float :
+    """Value of the PDF of the test statistic, under
+       asymptotic assumptions
+
+    Args:
+      ts : an alternate test statistic value. If not `None`,
+           the PDF value is computed for this one, otherwise
+           for the value returned by :meth:`value`.
+
+    Returns:
+      the local value of the asymptotic PDF
+    """
+    if ts is None : ts = self.value()
+    pdf_q = scipy.stats.norm.pdf(self.signed_sqrt(ts) - self.non_centrality_parameter(return_sqrt = True))
+    return pdf_q/2/math.sqrt(abs(ts)) if ts != 0 else 0
+
+  def asymptotic_ts(self, pv : float) -> float :
+    """Test statistic value corresponding to a given
+       p-value, under asymptotic assumptions
+
+    Args:
+      pv : an asymptptic p-value.
+
+    Returns:
+      the corresponding test statistic value
+    """
+    q1 = scipy.stats.norm.isf(pv) +  self.non_centrality_parameter(return_sqrt = True)
+    return q1*abs(q1)
+
+  def asymptotic_clb(self, variation : int = None) -> float :
     """return the :math:'CL_b` value for the
        current test statistic value
-
+    Args:
+      variation : compute p-values for the +/- N sigma variation instead
+                  if nominal, e.g. to construct expected bands
+                  (variation = None and 0 is the same)
     Returns:
        the :math:'CL_b` value
     """
-    return QMu(0, self.tmu, self.best_poi, self.comp_poi, self.tmu_Amu, self.sigma).asymptotic_pv()
+    return QMu(0, self.tmu, self.best_poi, self.comp_poi, self.tmu_Amu, self.sigma).asymptotic_pv(variation=variation)
 
-  def asymptotic_cls(self) :
+  def asymptotic_cls(self, variation : int = None) :
     """return the :math:'CL_s` value for the
        current test statistic value
 
+    Args:
+      variation : compute p-values for the +/- N sigma variation instead
+                  if nominal, e.g. to construct expected bands
+                  (variation = None and 0 is the same)
     Returns:
        the :math:'CL_s` value
     """
-    clsb = self.asymptotic_pv()
-    cl_b = self.asymptotic_clb()
+    clsb = self.asymptotic_pv(variation=variation)
+    cl_b = self.asymptotic_clb(variation=variation)
     #print('Asymptotic CLs = %g/%g = %g' % (clsb, cl_b, clsb/cl_b))
     return clsb/cl_b if cl_b > 0 else 1
 
@@ -437,7 +569,7 @@ class QMuTilda(QMu) :
       return 0
     return self.tmu_A0
 
-  def asymptotic_pv(self, ts : float = None) -> float :
+  def asymptotic_pv(self, ts : float = None, variation : int = None) -> float :
     """Asymptotic p-value corresponding
        to the test-statistic value
 
@@ -445,15 +577,23 @@ class QMuTilda(QMu) :
       ts : an alternate test statistic value. If not `None`,
            the p-value is computed for this one, otherwise
            for the value returned by :meth:`value`.
-
+      variation : compute p-values for the +/- N sigma variation instead
+                  if nominal, e.g. to construct expected bands
+                  (variation = None and 0 is the same)
     Returns:
       the asymptotic p-value
     """
-    if ts == None : ts = self.value()
+    if ts is None : ts = self.value()
+    if variation is None : variation = 0
+    # Note that 
+    # -- signed_sqrt(ts) gives (comp_mu - best_mu)/sigma with this sign (note: opposite the t_mu case!)
+    # -- NCP_sqrt gives (comp_mu - test_mu)/sigma also with this sign
+    # -- The difference between the two ensures comp_mu cancels out as desired
+    # -- The variation is defined with respect to best_mu (+1 <-> best_mu + 1 sigma) so comes with a minus sign
     if ts < self.threshold() :
-      return QMu.asymptotic_pv(self, ts)
+      return QMu.asymptotic_pv(self, ts, variation)
     else :
-      return scipy.stats.norm.sf((ts + self.threshold())/(2*math.sqrt(self.threshold())) - math.sqrt(self.non_centrality_parameter()))
+      return scipy.stats.norm.sf((ts + self.threshold())/(2*math.sqrt(self.threshold())) - self.non_centrality_parameter(return_sqrt=True) - variation)
 
   def asymptotic_pdf(self, ts : float = None) -> float :
     """Value of the PDF of the test statistic, under
@@ -490,11 +630,15 @@ class QMuTilda(QMu) :
     else :
       return q1*2*math.sqrt(self.threshold()) - self.threshold()
 
-  def asymptotic_clb(self) -> float :
+  def asymptotic_clb(self, variation : int = None) -> float :
     """return the :math:'CL_b` value for the
        current test statistic value
 
+    Args:
+      variation : compute p-values for the +/- N sigma variation instead
+                  if nominal, e.g. to construct expected bands
+                  (variation = None and 0 is the same)
     Returns:
        the :math:'CL_b` value
     """
-    return QMuTilda(0, tmu=self.tmu, best_poi=self.best_poi, comp_poi=self.comp_poi, tmu_Amu=self.tmu_A0, tmu_A0=self.tmu_A0).asymptotic_pv()
+    return QMuTilda(0, tmu=self.tmu, best_poi=self.best_poi, comp_poi=self.comp_poi, tmu_Amu=self.tmu_A0, tmu_A0=self.tmu_A0).asymptotic_pv(variation=variation)
