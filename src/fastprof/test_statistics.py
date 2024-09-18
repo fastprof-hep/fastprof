@@ -8,13 +8,13 @@ defined in `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_.
 The classes below each define one of these test statistics,
 with the following implemented so far:
 
-* The :class:`TMu` class defines the :math:`t_{\mu}` test
+* The :class:`TMu` class defines the :math:`t_{\\mu}` test
   statistic of the reference above
 
-* The :class:`QMu` class defines the :math:`q_{\mu}` test
+* The :class:`QMu` class defines the :math:`q_{\\mu}` test
   statistic of the reference above
 
-* The :class:`QMuTilda` class defines the :math:`\tilde{q}_{\mu}` test
+* The :class:`QMuTilda` class defines the :math:`\\tilde{q}_{\\mu}` test
   statistic of the reference above
 
 In all cases, the classes are initialized with a set of POI values
@@ -121,7 +121,7 @@ class TestStatistic :
 
 
 class TMu(TestStatistic) :
-  """The basic profile-likelihood ratio test statistic, :math:`t_{\mu}`
+  """The basic profile-likelihood ratio test statistic, :math:`t_{\\mu}`
 
   Attributes:
     tmu(float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
@@ -132,7 +132,7 @@ class TMu(TestStatistic) :
 
     Args:
       test_poi : the POI value that defines the tested hypothesis
-      tmu : the value of the profile likelihood ratio :math:`-2\Delta\log L`
+      tmu : the value of the profile likelihood ratio :math:`-2\\Delta\\log L`
     """
     super().__init__(test_poi_values)
     self.tmu = tmu
@@ -290,7 +290,7 @@ class DMu(TestStatistic) :
         print('WARNING: tmu_Amu = % g < 0, returning 0' % self.tmu_Amu)
         return 0
       # Must be the right value for test_poi! (=> tmu_Amu and comp_poi should be set together consistently)
-      return self.signed_sqrt(self.tmu_Amu) if return_sqrt else self.tmu_Amu
+      return math.copysign(self.signed_sqrt(self.tmu_Amu), self.comp_poi - self.test_poi()) if return_sqrt else self.tmu_Amu
     elif self.sigma is not None :
       sqrt_ncp = (self.comp_poi - self.test_poi())/self.sigma
       return sqrt_ncp if return_sqrt else (sqrt_ncp)**2
@@ -383,7 +383,7 @@ class QMu(DMu) :
       sigma    : the Asimov uncertainty on the POI, an alternate way to
                  provide tmu_Amu
     """
-    super().__init__([ test_poi ], tmu, best_poi, comp_poi, tmu_Amu, sigma)
+    super().__init__(test_poi, tmu, best_poi, comp_poi, tmu_Amu, sigma)
 
   def test_poi(self) :
     """Tested values of the POI
