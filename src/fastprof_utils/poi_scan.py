@@ -155,7 +155,7 @@ def run(argv = None) :
       plt.ion()
       fig1, ax1 = plt.subplots(constrained_layout=True)
     for cl, linestyle in zip(cl_values, linestyles) :
-      poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
+      poi_scan = PLRScan1D(raster, 'tmu', name='PLR Scan for %s' % poi_name, ts_name='t_{\\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
       interval = poi_scan.interval(print_result=True)
       # Plot results
       if not options.batch_mode :
@@ -184,7 +184,7 @@ def run(argv = None) :
       plt.ion()
       fig1, ax1 = plt.subplots(constrained_layout=True)
     for cl, linestyle in zip(cl_values, linestyles) :
-      poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
+      poi_scan = PLRScan2D(raster, 'tmu', name='PLR Scan for (%s,%s)' % (poi1_name, poi2_name), ts_name='t_{\\mu}', nsigmas=int(cl) if cl.is_integer() else None, cl=cl if not cl.is_integer() else None)
       if first : best_fit = poi_scan.best_fit(print_result=True)
       if not options.batch_mode :
         poi_scan.plot(fig1, label='%3.1f%% CL' % (poi_scan.cl()*100), best_fit=first,
