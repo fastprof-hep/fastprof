@@ -226,8 +226,8 @@ class Scan1D (Scan) :
       the list of minima
     """
     hypos, values = self.points()
-    found_minima = self.interpolate_minima(hypos, values, order, self.name)
-    return found_minima if len(found_minima) > 0 else np.array([ values[np.argmin(hypos)] ])
+    found_minima = self.interpolate_minima(hypos, values[0], order, self.name)
+    return found_minima if len(found_minima) > 0 else np.array([ values[0][np.argmin(hypos)] ])
     
   def points(self, with_errors : bool = False, with_bands : int = None) -> tuple :
     """Collect the raster information into a set of points
@@ -632,7 +632,7 @@ class PLRScan1D (Scan1D) :
       axs.plot(rsp[0], rsp[1], marker, linestyle=linestyle, label=label if label is not None else self.key)
     else :
       pts = self.points(with_errors=False)
-      axs.plot(pts[0], pts[1], marker, linestyle=linestyle, label=label if label is not None else self.key)
+      axs.plot(pts[0], pts[1][0], marker, linestyle=linestyle, label=label if label is not None else self.key)
 
 
 class PLRScan2D (Scan) :
