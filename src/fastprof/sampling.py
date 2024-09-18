@@ -199,20 +199,16 @@ class SamplesBase :
     """
     pass
 
-  def plot_bands(self, max_sigma = 2, canvas=plt) :
-    """Plot expected bands
+  def par_hypos(self, par_index : int = 0) :
+    """Returns the list the values of the parameter
+       with the provided index, over all hupos.
 
     Args:
-      max_sigma : the highest-order band to show. The bands or order
-                  -max_sigma ... -max_sigma will be drawn
-      canvas : the matplotlib figure on which to draw (default: plt)
+      par_index : the index of the target parameter
+    Returns:
+      The list of all values of this parameter
     """
-    colors = [ 'k', 'g', 'y', 'c', 'b' ]
-    hypos = [ hypo.pars[list(hypo.pars.keys())[0]] for hypo in self.hypos ]
-    bands = self.bands(max_sigma)
-    for i in reversed(range(1, max_sigma + 1)) :
-      canvas.fill_between(hypos, bands[+i], bands[-i], color=colors[i])
-    canvas.plot(hypos, bands[0], 'k--')
+    return [ hypo.pars[list(hypo.pars.keys())[par_index]] for hypo in self.hypos ]
 
 
 # -------------------------------------------------------------------------

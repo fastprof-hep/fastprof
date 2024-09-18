@@ -51,7 +51,7 @@ import copy
 import json
 import time
 
-from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
+from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan, PlotBands
 
 from fastprof_utils import make_model, make_data, make_hypos, init_calc, try_loading_results
 
@@ -119,7 +119,7 @@ def run(argv = None) :
   if options.show_timing : comp_start_time = time.time()
   if faster is None :
     full_hypos = { hypo : model.expected_pars(hypo.pars) for hypo in hypos }
-    faster = calc.compute_fast_results(hypos, data, full_hypos)
+    faster = calc.compute_fast_results(hypos, data, full_hypos, bands=options.bands)
     faster.save(raster_file)
   if options.show_timing : comp_stop_time = time.time()
   faster.print(verbosity = options.verbosity)
@@ -164,7 +164,8 @@ def run(argv = None) :
     if options.bands :
       sampling_bands = opti_samples.bands(options.bands)
       for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-        for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands[band]) : plr_data.pvs['sampling_cls_%+d' % band] = band_point
+        for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands[band]) : 
+          plr_data.pvs['sampling_cls_%+d' % band] = band_point
 
     faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
 
@@ -185,16 +186,16 @@ def run(argv = None) :
     plt.ion()
     fig1, ax1 = plt.subplots(constrained_layout=True)
     if options.ntoys > 0 : scan_sampling_clsb.plot(fig1, marker=options.marker + 'b-', label='Sampling', with_errors=True)
-    scan_asy_fast_clsb.plot(fig1, marker=options.marker + 'r:', label='Asymptotics')
+    scan_asy_fast_clsb.plot(fig1, marker=options.marker + 'r:', label='Asymptotics', bands=options.bands)
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
 
     fig2, ax2 = plt.subplots(constrained_layout=True)
     if options.ntoys > 0 : 
       if options.bands :
-        opti_samples.plot_bands(options.bands)
+        PlotBands(opti_samples.par_hypos(), opti_samples.bands(options,bands)).plot(options.bands)
       scan_sampling_cls.plot(fig2, marker=options.marker + 'b-', label='Sampling', with_errors=True)
-    scan_asy_fast_cls.plot(fig2, marker=options.marker + 'r:', label='Asymptotics')
+    scan_asy_fast_cls.plot(fig2, marker=options.marker + 'r:', label='Asymptotics', bands=options.bands)
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
     fig1.savefig(options.output_file + '_clsb.pdf')

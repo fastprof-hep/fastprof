@@ -51,7 +51,7 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
+from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan, PlotBands
 
 ####################################################################################################################################
 ###
@@ -234,7 +234,7 @@ def run(argv = None) :
 
     fig2, ax2 = plt.subplots(constrained_layout=True)
     if options.bands :
-      opti_samples.plot_bands(options.bands)
+      PlotBands(opti_samples.par_hypos(), opti_samples.bands(options,bands)).plot(options.bands)
     scan_sampling_cls.plot(fig2, marker=options.marker + 'b-', label='Sampling', with_errors=True)
     scan_asy_fast_cls.plot(fig2, marker=options.marker + 'r:', label='Asymptotics')
     plt.legend(loc=1) # 1 -> upper right

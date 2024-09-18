@@ -341,3 +341,25 @@ class PlotImpacts :
     if self.verbosity == 0 : sys.stderr.write("\n")
     return { data['name'] : data for data in sorted(impacts, key=lambda data: abs(data['pos_impact'] - data['neg_impact'])/2, reverse=True) }  
  
+
+class PlotBands :
+  
+  def __init__(self, hypos, bands) :
+    self.hypos = hypos
+    self.bands = bands
+    
+  def plot(self, max_sigma = 1, marker : str = 'k--', label : str = None, canvas=plt) :
+    """Plot expected bands
+
+    Args:
+      max_sigma : the highest-order band to show. The bands or order
+                  -max_sigma ... -max_sigma will be drawn
+      marker : line marker format
+      label : line label
+      canvas : the matplotlib figure on which to draw (default: plt)
+    """
+    colors = [ 'k', 'g', 'y', 'c', 'b' ]
+    for i in reversed(range(1, max_sigma + 1)) :
+      canvas.fill_between(self.hypos, self.bands[+i], self.bands[-i], color=colors[i])
+    canvas.plot(self.hypos, self.bands[0], marker, label)
+

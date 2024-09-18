@@ -14,6 +14,7 @@ Classes implementing the computation of test statistics.
 
 from abc import abstractmethod
 from timeit import default_timer as timer
+from itertools import chain
 
 from .core import Model, Data, Parameters, ModelPOI
 from .fit_data import POIHypo, FitResult, PLRData, Raster
@@ -92,7 +93,7 @@ class TestStatisticCalculator :
     return pois[index]
 
   @abstractmethod
-  def fill_pv(self, plr_data : PLRData) :
+  def fill_pv(self, plr_data : PLRData, bands : int = None) :
     """Fills p-value information from PLR data
 
     Abstract method to be reimplemented in derived classes
@@ -100,6 +101,7 @@ class TestStatisticCalculator :
 
     Args:
       plr_data : an object storing PLR information
+      bands : if not None, produce -bands...+bands error bands
     """
     pass
 
@@ -154,7 +156,7 @@ class TestStatisticCalculator :
     self.fill_pv(fast_plr_data)
     return fast_plr_data
 
-  def fill_all_pv(self, raster : Raster) :
+  def fill_all_pv(self, raster : Raster, bands : int = None) :
     """Compute p-values in a raster containing PLR values
 
     Takes as input a raster object containing PLR values at each
@@ -162,12 +164,13 @@ class TestStatisticCalculator :
 
     Args:
       raster : a raster object
+      bands : if not None, produce -bands...+bands error bands
     Returns:
       self
     """
-    for plr_data in raster.plr_data.values() : self.fill_pv(plr_data)
+    for plr_data in raster.plr_data.values() : self.fill_pv(plr_data, bands)
 
-  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast') -> Raster :
+  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast', bands : int = None) -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Builds a raster object with the same hypothesis points as the one
@@ -178,6 +181,7 @@ class TestStatisticCalculator :
       hypos  : a list of POIHypo objects (or just POI dicts)
       data   : the input dataset
       name   : name of the output :class:`PLRData` objects
+      bands : if not None, produce -bands...+bands error bands
     Returns:
       a raster object containing the fast PLR and p-value results
     """
@@ -189,10 +193,10 @@ class TestStatisticCalculator :
         print('Processing hypothesis point %d of %d : %s %s' % (i+1, len(hypos), str(hypo), ('[so far %g s/point]' % ((timer() - start_time)/i)) if i > 0 else ''))
       fast_plr_data[hypo] = self.compute_fast_q(hypo, data, full_hypos[hypo] if hypo in full_hypos else None, '%s_%g' % (name, i))
     fast = Raster(name, fast_plr_data, model=data.model)
-    self.fill_all_pv(fast)
+    self.fill_all_pv(fast, bands)
     return fast
 
-  def recompute_raster(self, raster : Raster, data : Data, name : str = 'fast') -> Raster :
+  def recompute_raster(self, raster : Raster, data : Data, name : str = 'fast', bands : int = None) -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Builds a raster object with the same hypothesis points as the one
@@ -203,10 +207,11 @@ class TestStatisticCalculator :
       raster : a raster object
       data   : the input dataset
       name   : name of the output :class:`PLRData` objects
+      bands : if not None, produce -bands...+bands error bands
     Returns:
       a raster object containing the fast PLR and p-value results
     """
-    return self.compute_fast_results(raster.plr_data.keys(), data, { hypo : plr_data.full_hypo for hypo, plr_data in raster.plr_data.items() if plr_data.full_hypo is not None }, name)
+    return self.compute_fast_results(raster.plr_data.keys(), data, { hypo : plr_data.full_hypo for hypo, plr_data in raster.plr_data.items() if plr_data.full_hypo is not None }, name, bands)
 
 
 class TMuCalculator(TestStatisticCalculator) :
@@ -238,7 +243,7 @@ class TMuCalculator(TestStatisticCalculator) :
     """
     return TMu([ plr_data.hypo[poi] for poi in cls.pois(plr_data) ], tmu=plr_data.test_statistics['tmu'])
 
-  def fill_pv(self, plr_data : PLRData) -> 'TMuCalculator' :
+  def fill_pv(self, plr_data : PLRData, bands : int = None) -> 'TMuCalculator' :
     """Fills p-value information from PLR data
 
     Builds a :class:`TMu` test statistic from the :class:`PLRData`
@@ -248,18 +253,23 @@ class TMuCalculator(TestStatisticCalculator) :
 
     Args:
       plr_data : an object storing PLR information
+      bands : if not None, produce -bands...+bands error bands
     Returns:
       self
     """
     try :
       q = self.make_q(plr_data)
       plr_data.pvs['pv' ] = q.asymptotic_pv()
+      if bands is not None :
+        for b in chain(range(bands, 0, -1), range(-1, -bands - 1, -1)) :
+          plr_data.pvs['pv_%+d' % b] = q.asymptotic_pv(variation=b)
     except Exception as inst:
       print("t_mu computation failed for PLR '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo))
       raise(inst)
     return self
 
-  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast', free_fit : str = 'all') -> Raster :
+  def compute_fast_results(self, hypos : list, data : Data, full_hypos : dict = {}, name : str = 'fast', free_fit : str = 'all',
+                           bands : int = None) -> Raster :
     """Compute fast PLR and p-values for a set of hypotheses
 
     Reimplements the general method since it can be done more simply for t_mu
@@ -270,6 +280,7 @@ class TMuCalculator(TestStatisticCalculator) :
       name      : name of the output :class:`PLRData` objects
       free_fit  : can be 'all' (default, same as general method), 'single' (do a single
                   fit near the best fixed fit) of 'best_fixed_fit' (just take the best fixed fit) 
+      bands : if not None, produce -bands...+bands error bands
     Returns:
       a raster object containing the fast PLR and p-value results
     """
@@ -313,7 +324,7 @@ class TMuCalculator(TestStatisticCalculator) :
     for hypo in hypos :
       fast_plr_data[hypo].update() # includes `tmu` computation
     fast = Raster(name, fast_plr_data, model=data.model)
-    self.fill_all_pv(fast)
+    self.fill_all_pv(fast, bands)
     return fast
 
 
@@ -347,7 +358,7 @@ class QMuCalculator(TestStatisticCalculator) :
     return QMu(test_poi = plr_data.hypo[cls.poi(plr_data)], tmu = plr_data.test_statistics['tmu'],
                best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_Amu = plr_data.test_statistics['tmu_A0'])
 
-  def fill_pv(self, plr_data : PLRData) -> 'QMuCalculator' :
+  def fill_pv(self, plr_data : PLRData, bands : int = None) -> 'QMuCalculator' :
     """Fills p-value information from PLR data
 
     Builds a :class:`QMu` test statistic from the :class:`PLRData`
@@ -357,6 +368,7 @@ class QMuCalculator(TestStatisticCalculator) :
 
     Args:
       plr_data : an object storing PLR information
+      bands : if not None, produce -bands...+bands error bands
     Returns:
       self
     """
@@ -367,6 +379,9 @@ class QMuCalculator(TestStatisticCalculator) :
       plr_data.pvs['pv' ] = q.asymptotic_pv()
       plr_data.pvs['cls'] = q.asymptotic_cls()
       plr_data.pvs['clb'] = q.asymptotic_clb()
+      if bands is not None :
+        for b in chain(range(bands, 0, -1), range(-1, -bands - 1, -1)) :
+          plr_data.pvs['pv_%+d' % b] = q.asymptotic_pv(variation=b)
     except Exception as inst:
       print("q_mu computation failed for PLR '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo))
       raise(inst)
@@ -404,7 +419,7 @@ class QMuTildaCalculator(TestStatisticCalculator) :
                     best_poi = plr_data.free_fit.fitpars[cls.poi(plr_data)].value, tmu_Amu = plr_data.test_statistics['tmu_A0'],
                     tmu_A0 = plr_data.test_statistics['tmu_A0'])
 
-  def fill_pv(self, plr_data) :
+  def fill_pv(self, plr_data, bands : int = None) :
     """Fills p-value information from PLR data
 
     Builds a :class:`QMuTilda` test statistic from the :class:`PLRData`
@@ -414,6 +429,7 @@ class QMuTildaCalculator(TestStatisticCalculator) :
 
     Args:
       plr_data : an object storing PLR information
+      bands : if not None, produce -bands...+bands error bands
     Returns:
       self
     """
@@ -424,6 +440,10 @@ class QMuTildaCalculator(TestStatisticCalculator) :
       plr_data.pvs['pv' ] = q.asymptotic_pv()
       plr_data.pvs['cls'] = q.asymptotic_cls()
       plr_data.pvs['clb'] = q.asymptotic_clb()
+      if bands is not None :
+        for b in chain(range(bands, 0, -1), range(-1, -bands - 1, -1)) :
+          plr_data.pvs['pv_%+d' % b] = q.asymptotic_pv(variation=b)
+          plr_data.pvs['cls_%+d' % b] = q.asymptotic_cls(variation=b)
     except Exception as inst:
       print("q~mu computation failed for computation '%s', hypothesis %s, with exception below:" % (plr_data.name, plr_data.hypo))
       raise(inst)
