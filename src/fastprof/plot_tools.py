@@ -348,7 +348,7 @@ class PlotBands :
     self.hypos = hypos
     self.bands = bands
     
-  def plot(self, max_sigma = 1, marker : str = 'k--', label : str = None, canvas=plt) :
+  def plot(self, max_sigma = 1, marker : str = 'k--', label : str = '', canvas=plt) :
     """Plot expected bands
 
     Args:

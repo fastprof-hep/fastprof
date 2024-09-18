@@ -280,7 +280,7 @@ class DMu(TestStatistic) :
     :math:`\sigma` provided by `sigma`.
 
     Args:
-      return_sqrt: return the square root of the NC parameter
+      return_sqrt: return the square root of the NC parameter if True
     Returns:
       the value of :math:`t_{\mu, A(0)}`
     """
@@ -289,7 +289,8 @@ class DMu(TestStatistic) :
       if self.tmu_Amu < 0 :
         print('WARNING: tmu_Amu = % g < 0, returning 0' % self.tmu_Amu)
         return 0
-      return self.tmu_Amu # Must be the right value for test_poi! (=> tmu_Amu and comp_poi should be set together consistently)
+      # Must be the right value for test_poi! (=> tmu_Amu and comp_poi should be set together consistently)
+      return self.signed_sqrt(self.tmu_Amu) if return_sqrt else self.tmu_Amu
     elif self.sigma is not None :
       sqrt_ncp = (self.comp_poi - self.test_poi())/self.sigma
       return sqrt_ncp if return_sqrt else (sqrt_ncp)**2

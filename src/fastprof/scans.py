@@ -111,12 +111,18 @@ class Scan :
         the specified value
     """
     key = self.key if with_band is None else '%s_%+d' % (self.key, with_band)
-    raw_value = plr_data.pvs[key] if key in plr_data.pvs else plr_data.test_statistics[key]
+    if key in plr_data.pvs :
+      raw_value = plr_data.pvs[key]
+    elif key in plr_data.test_statistics :
+      raw_value = plr_data.test_statistics[key]
+    else :
+      print(plr_data)
+      raise KeyError("No data for key '%s' in PLR data '%s', available data above." % (key, plr_data.name))
     if not isinstance(raw_value, tuple) or len(raw_value) < 2 :
       if with_variation == 0 :
         return raw_value
       else :
-        raise('Cannot return %+g sigma variation on %s since no error information is provided.' % (with_variation, key))
+        raise KeyError('Cannot return %+g sigma variation on %s since no error information is provided.' % (with_variation, key))
     else :
       return raw_value[0] + with_variation*raw_value[1]
 
@@ -174,7 +180,7 @@ class Scan1D (Scan) :
     self.poi = self.find_poi(poi_name)
 
   def crossings(self, pv_level : float = 0.05, order : int = 3, log_scale : bool = True, 
-                with_errors : bool = False, with_bands : int = None) -> float :
+                with_bands : int = None) -> float :
     """Compute the crossing points at a predefined p-value level
 
     The contour is obtained by interpolating the p-values at each raster
@@ -194,27 +200,23 @@ class Scan1D (Scan) :
       order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
       log_scale : if `True`, interpolate in the log of the p-values. If `False`
          (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
-      with_errors : if `True`, returns for each crossing a triplet with (nominal , nominal + 1sigma error,
+      with_bands : if `True`, returns for each crossing a triplet with (nominal , nominal + 1sigma error,
          nominal - 1sigma error), where the uncertainties are propagated from those of the p-values.
 
     Returns:
-      A list of crossings : if `with_errors` is False, a list of floats giving the crossing positions, and
-                            if `with_errors` is True, a list of (nominal , nominal + 1sigma error,
-                            nominal - 1sigma error) values
+      A list of crossings : if `with_bands` is not None, return a list of (nominal , nominal +n sigma error,
+                            ... nominal -nsigma error) values
     """
-    hypos, values = self.points(with_errors, with_bands)
+    hypos, values = self.points(with_bands)
     crossings = {}
     crossings[0] = self.interpolate_crossings(hypos, values[0], pv_level, order, log_scale, self.name + ' nominal')
-    if with_bands :
-      bands = with_bands
-    elif with_errors :
-      bands = 1
-    else :
-      return crossings[0]
+    if with_bands is None : return crossings[0]
     for b in chain(range(with_bands, 0, -1), range(-1, -with_bands - 1, -1)) :        
       crossings[b]  = self.interpolate_crossings(hypos, values[b] , pv_level, order, log_scale, self.name + ' %+d sigma band' % b)
-      if len(crossings[b]) != len(crossings[0]) : raise ValueError('Number of %+d sigma crossings (%d) does not match the number of nominal crossings (%d).' % (b, len(crossings[b]), len(crossings[0])))
-    return [ [crossing[0] + [ crossing[b] for b in chain(range(with_bands, 0, -1), range(-1, -with_bands - 1, -1)) ] ] for crossing in crossings ]
+      if len(crossings[b]) != len(crossings[0]) : 
+        print('WARNING: Number of %+d sigma crossings (%d) does not match the number of nominal crossings (%d), returning [].' % (b, len(crossings[b]), len(crossings[0])))
+        return []
+    return [ [ crossings[b][i] for b in chain(range(0,1), range(with_bands, 0, -1), range(-1, -with_bands - 1, -1)) ] for i in range(0, len(crossings[0])) ]
 
   def minima(self, order : int = 3) -> float :
     """Compute the minimum value of a test statistic
@@ -229,15 +231,15 @@ class Scan1D (Scan) :
     found_minima = self.interpolate_minima(hypos, values[0], order, self.name)
     return found_minima if len(found_minima) > 0 else np.array([ values[0][np.argmin(hypos)] ])
     
-  def points(self, with_errors : bool = False, with_bands : int = None) -> tuple :
+  def points(self, with_bands : int = None) -> tuple :
     """Collect the raster information into a set of points
 
     The output is a pair of lists, the first for the poi values (X-axis)
-    and the second for the result values (Y-axis). If `with_errors` is True,
+    and the second for the result values (Y-axis). If `with_bands` is not None,
     the second list is triplet of lists for (central, +1sigma, -1sigma) values.
 
     Args:
-      with_errors : if `True`, return y-values with an error band
+      with_bands : if not None, return y-values with an error band
 
     Returns:
       a tuple of lists as specified above
@@ -248,18 +250,12 @@ class Scan1D (Scan) :
     if with_bands :
       for b in chain(range(with_bands, 0, -1), range(-1, -with_bands - 1, -1)) :        
         result_values[b] = []
-    elif with_errors :
-      result_values[+1] = []
-      result_values[-1] = []
     for hypo, plr_data in self.raster.plr_data.items() :
       poi_values.append(hypo[self.poi.name])
       result_values[0].append(self.value(plr_data))
       if with_bands :
         for b in chain(range(with_bands, 0, -1), range(-1, -with_bands - 1, -1)) :        
           result_values[b].append(self.value(plr_data, with_band=b))
-      elif with_errors :
-        result_values[+1].append(self.value(plr_data, +1))
-        result_values[-1].append(self.value(plr_data, -1))
     return (poi_values, result_values)
 
   def spline(self, order : int = 3) :
@@ -423,8 +419,7 @@ class UpperLimitScan (Scan1D):
     self.cl = 0.95
     self.cl_name = cl_name if cl_name is not None else pv_key
 
-  def limit(self, order : int = 3, log_scale : bool = True,
-            with_errors : bool = False, with_bands : int = None,
+  def limit(self, order : int = 3, log_scale : bool = True, with_bands : int = None,
             print_result : bool = False) -> float :
     """Perform a one-dimensional interpolation to compute a limit
 
@@ -436,14 +431,13 @@ class UpperLimitScan (Scan1D):
       order : the order of the interpolation (see :meth:`Raster.interpolate_limit`)
       log_scale : if `True`, interpolate in the log of the p-values. If `False`
          (default), interpolate the p-values directly (see :meth:`Raster.interpolate_limit`)
-      with_errors : if `True`, also returns the crossing points with the +/-1sigma bands.
       with_bands : if `True`, also returns the crossing points with the +/-nsigma bands.
       print_result : if `True`, print out the results.
 
     Returns:
       the interpolated limit (+ optional bands) 
     """
-    found_crossings = self.crossings(1 - self.cl, order, log_scale, with_errors, with_bands)
+    found_crossings = self.crossings(1 - self.cl, order, log_scale, with_bands)
     if len(found_crossings) == 0 :
       print("No crossings found for %s = %g vs. %s." % (self.cl_name, self.cl, self.poi.name))
       return (None, None, None)
@@ -461,12 +455,12 @@ class UpperLimitScan (Scan1D):
     Returns:
       the string description 
     """
-    value = limit if not isinstance(limit, tuple) else limit[0]
-    value_str = ('%g' % limit) if not isinstance(limit, tuple) else '%g +%g -%g' % (limit[0], limit[1] - limit[0], limit[0] - limit[2])
+    value = limit if not isinstance(limit, list) else limit[0]
+    value_str = ('%g' % limit) if not isinstance(limit, list) else '%g +%g -%g' % (limit[0], limit[1] - limit[0], limit[0] - limit[2])
     return self.name + ' : UL(%g%%) = %s' % (100*self.cl, value_str) \
       + ('  (N = %s)' % str(self.raster.model.n_exp(self.raster.model.expected_pars(value)).sum(axis=1))) if self.raster.model is not None else ''
 
-  def plot(self, canvas : tuple = (None, None), marker : str = 'b', with_errors : bool = False, label : str = None, bands : int = None) :
+  def plot(self, canvas : tuple = (None, None), marker : str = 'b', label : str = None, with_errors : bool = False, bands : int = None) :
     """Plot the CL curve and the intersection with the target CL
     
     Args:
@@ -487,12 +481,11 @@ class UpperLimitScan (Scan1D):
     fig.suptitle('$%s$' % self.cl_name)
     axs.set_xlabel('%s' % self.poi.name)
     axs.set_ylabel('$%s$' % self.cl_name)
-    pts = self.points(with_errors, with_bands=bands)
+    if bands is None and with_errors : bands = 1
+    pts = self.points(with_bands=bands)
     plot_label = label if label is not None else self.key
     if bands is not None :
       PlotBands(pts[0], pts[1]).plot(bands, marker, plot_label, axs)
-    elif with_errors :
-      PlotBands(pts[0], pts[1]).plot(1, marker, plot_label, axs)
       #axs.fill_between(pts[0], [ up - nom for (up,nom) in zip(pts[1][+1], pts[1][0]) ], [ nom - dn for (nom, dn) in zip(pts[1][0], pts[1][-1]) ], facecolor='b', alpha=0.5)
       #axs.plot(pts[0], pts[1][0], marker, plot_label)
     else :
@@ -563,7 +556,7 @@ class PLRScan1D (Scan1D) :
     Returns:
       the interval as a (central value, +error, -error) triplet
     """
-    found_crossings = self.crossings(self.ts_level, order, log_scale, with_errors=False)
+    found_crossings = self.crossings(self.ts_level, order, log_scale)
     if len(found_crossings) == 0 :
       print("No crossings found for %s = %g vs. %s." % (self.ts_name, self.ts_level, self.poi.name))
       found_crossings = np.array([ None, None])
@@ -631,7 +624,7 @@ class PLRScan1D (Scan1D) :
       rsp = self.resample(smooth)
       axs.plot(rsp[0], rsp[1], marker, linestyle=linestyle, label=label if label is not None else self.key)
     else :
-      pts = self.points(with_errors=False)
+      pts = self.points()
       axs.plot(pts[0], pts[1][0], marker, linestyle=linestyle, label=label if label is not None else self.key)
 
 

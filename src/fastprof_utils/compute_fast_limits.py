@@ -162,18 +162,21 @@ def run(argv = None) :
       plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo, plr_data.pvs['pv'], with_error=True)
 
     if options.bands :
-      sampling_bands = opti_samples.bands(options.bands)
+      sampling_bands_pv = opti_samples.clsb.bands(options.bands)
+      sampling_bands_cls = opti_samples.bands(options.bands)
       for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-        for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands[band]) : 
+        for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands_pv[band]) : 
+          plr_data.pvs['sampling_pv_%+d' % band] = band_point
+        for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands_cls[band]) : 
           plr_data.pvs['sampling_cls_%+d' % band] = band_point
 
     faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
+    faster.print(keys=[ 'sampling_pv', 'sampling_pv_+1', 'sampling_pv_-1' ], verbosity=1)
 
     scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='CLsb, sampling   , fast model', cl=options.cl, cl_name='CL_{s+b}')
     scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='CL_s, sampling   , fast model', cl=options.cl, cl_name='CL_s' )
-    limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_errors=True)
-    limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, with_errors=True)
-
+    limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_bands=1)
+    limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, with_bands=1)
     if options.bands :
       scan_sampling_cls_bands = {}
       limit_sampling_cls_bands = {}
@@ -193,7 +196,7 @@ def run(argv = None) :
     fig2, ax2 = plt.subplots(constrained_layout=True)
     if options.ntoys > 0 : 
       if options.bands :
-        PlotBands(opti_samples.par_hypos(), opti_samples.bands(options,bands)).plot(options.bands)
+        PlotBands(opti_samples.par_hypos(), opti_samples.bands(options.bands)).plot(options.bands)
       scan_sampling_cls.plot(fig2, marker=options.marker + 'b-', label='Sampling', with_errors=True)
     scan_asy_fast_cls.plot(fig2, marker=options.marker + 'r:', label='Asymptotics', bands=options.bands)
     plt.legend(loc=1) # 1 -> upper right
