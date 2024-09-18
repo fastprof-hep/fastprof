@@ -20,7 +20,7 @@ __author__ = "Nicolas Berger <Nicolas.Berger@cern.ch"
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from fastprof import Model, Data, Parameters, OptiMinimizer
-from fastprof_utils import process_setvals
+from fastprof_utils import make_model, make_data, set_pois
 import matplotlib.pyplot as plt
 import math
 import os
@@ -60,48 +60,13 @@ def run(argv = None) :
     return
 
   if options.style is not None : plt.style.use(options.style.split(','))
-  model = Model.create(options.model_file)
-  if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  channels = options.channel.split(',') if options.channel is not None else None
+  model = make_model(options)
+  data = make_data(model, options)
+  pars = set_pois(model, data, options)
+
+  channels = options.channel.split(',') if options.channel is not None else list(model.channels.keys())
   for channel in channels :
     if channel not in model.channels : raise KeyError("Channel '%s' not found in model. Defined channels are: %s." % (channel, ', '.join(model.channels.keys())))
-
-  if options.data_file is not None :
-    data = Data(model).load(options.data_file)
-    if data is None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    print('Using dataset stored in file %s.' % options.data_file)
-  elif options.asimov is not None :
-    try:
-      sets = process_setvals(options.asimov, model)
-      data = model.generate_expected(sets)
-    except Exception as inst :
-      print(inst)
-      raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
-    print('Using Asimov dataset with POIs %s.' % str(sets))
-  else :
-    try :
-      data = Data(model).load(options.model_file)
-    except KeyError :
-      data = None
-
-  if options.setval is not None :
-    try :
-      poi_dict = process_setvals(options.setval, model, match_nps = False)
-    except Exception as inst :
-      print(inst)
-      raise ValueError("ERROR : invalid POI specification string '%s'." % options.setval)
-    pars = model.expected_pars(poi_dict)
-    if options.profile :
-      mini = OptiMinimizer()
-      mini.profile_nps(pars, data)
-      print('Minimum: nll = %g @ parameter values : %s' % (mini.min_nll, mini.min_pars))
-      pars = mini.min_pars
-  elif data is not None and options.profile :
-    mini = OptiMinimizer().set_pois(model)
-    mini.minimize(data)
-    pars = mini.min_pars
-  else :
-    pars = model.ref_pars
 
   try:
     width, height = tuple( [ float(dim) for dim in options.window.split('x') ] )

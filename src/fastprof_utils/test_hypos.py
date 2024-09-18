@@ -14,8 +14,9 @@ import copy
 import json
 import time
 
-from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
-from fastprof_utils import process_values_spec
+from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, TMuCalculator, ParBound, UpperLimitScan
+
+from fastprof_utils import make_model, make_data, make_hypos, init_calc, try_loading_results
 
 
 ####################################################################################################################################
@@ -25,7 +26,7 @@ def make_parser() :
   parser = ArgumentParser("compute_limits_fast.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   parser.add_argument("-m", "--model-file"    , type=str  , required=True , help="Name of markup file defining model")
-  parser.add_argument("-y", "--hypos"         , type=str  , required=True , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
+  parser.add_argument("-y", "--hypos"         , type=str  , required=True , help="List of POI hypothesis values (poi1=val1,poi2=val2|...)")
   parser.add_argument("-n", "--ntoys"         , type=int  , default=0     , help="Number of pseudo-datasets to produce")
   parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="Seed to use for random number generation")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
@@ -39,6 +40,7 @@ def make_parser() :
   parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
   parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
   parser.add_argument(      "--show-timing"   , action='store_true'       , help="Enables printout of timing information")
+  parser.add_argument("-x", "--overwrite"     , action='store_true'       , help="Allow overwriting output file")
   parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
   return parser
 
@@ -51,73 +53,30 @@ def run(argv = None) :
 
   if options.show_timing : start_time = time.time()
 
-  model = Model.create(options.model_file)
-  if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  if not options.regularize is None : model.set_gamma_regularization(options.regularize)
-  if not options.cutoff is None : model.cutoff = options.cutoff
-
   results_file = options.output_file + '_results.json'
   raster_file = options.output_file + '_raster.json'
 
-  try :
-    hypos = [ POIHypo(setval_dict) for setval_dict in process_setval_list(options.hypos, model) ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError("Could not parse list of hypothesis values '%s' : expected colon-separated list of variable assignments" % options.hypos)
+  model = make_model(options)
+  if not options.regularize is None : model.set_gamma_regularization(options.regularize)
+  if not options.cutoff is None : model.cutoff = options.cutoff
+  data = make_data(model, options)
+  hypos = make_hypos(model, options)
 
-  if options.data_file :
-    data = Data(model).load(options.data_file)
-    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    print('Using dataset stored in file %s.' % options.data_file)
-  elif options.asimov != None :
-    try:
-      sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
-      data = model.generate_expected(sets)
-    except Exception as inst :
-      print(inst)
-      raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
-    print('Using Asimov dataset with POIs %s.' % str(sets))
-  else :
-    data = Data(model).load(options.model_file)
-    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    print('Using dataset stored in file %s.' % options.model_file)
-
-  gen_bounds = []
-  if options.bounds :
-    bound_specs = options.bounds.split(',')
-    try :
-      for spec in bound_specs :
-        var_range = spec.split('=')
-        range_spec = var_range[1].split(':')
-        if len(range_spec) == 2 :
-          gen_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
-        elif len(range_spec) == 1 :
-          gen_bounds.append(ParBound(var_range[0], float(range_spec[0]), float(range_spec[0]))) # case of fixed parameter
-    except Exception as inst:
-      print(inst)
-      raise ValueError('Could not parse parameter bound specification "%s", expected in the form name1=[min]#[max],name2=[min]#[max],...' % options.bounds)
-
-  if options.ntoys > 0 : 
-    print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
-  do_computation = True
-  try :
-    faster = Raster('fast', model=model)
-    faster.load(raster_file)
-    do_computation = False
-  except FileNotFoundError :
-    pass
+  if len(model.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
+  calc = TMuCalculator(OptiMinimizer(verbosity=options.verbosity), verbosity=options.verbosity)
+  par_bounds = init_calc(calc, model, options)
+  faster = try_loading_results(model, raster_file, options)
 
   if options.show_timing : comp_start_time = time.time()
-
-  if do_computation :
+  if faster is None :
     full_hypos = { hypo : model.expected_pars(hypo.pars) for hypo in hypos }
     faster = calc.compute_fast_results(hypos, data, full_hypos)
     faster.save(raster_file)
-
   if options.show_timing : comp_stop_time = time.time()
-
   faster.print(verbosity = options.verbosity)
+
   if options.ntoys == 0 : return
+  print('Checking CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
 
   if options.seed != None : np.random.seed(options.seed)
   niter = options.iterations
@@ -135,7 +94,7 @@ def run(argv = None) :
     gen_hypo = fast_plr_data.full_hypo
     tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
     gen0_hypo = gen_hypo.clone().set(model.poi(0).name, 0)
-    clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
+    clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=par_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
     samplers_clsb.append(clsb)
 
   if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)

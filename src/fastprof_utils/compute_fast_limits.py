@@ -52,8 +52,8 @@ import json
 import time
 
 from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan
-from fastprof_utils import process_setval_list
 
+from fastprof_utils import make_model, make_data, make_hypos, init_calc, try_loading_results
 
 ####################################################################################################################################
 ###
@@ -95,52 +95,15 @@ def run(argv = None) :
 
   if options.show_timing : start_time = time.time()
 
-  model = Model.create(options.model_file, verbosity=options.verbosity)
-  if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  if not options.regularize is None : model.set_gamma_regularization(options.regularize)
-  if not options.cutoff is None : model.cutoff = options.cutoff
-
   results_file = options.output_file + '_results.json'
   raster_file = options.output_file + '_raster.json'
 
-  try :
-    hypos = [ POIHypo(setval_dict) for setval_dict in process_setval_list(options.hypos, model) ]
-  except Exception as inst :
-    print(inst)
-    raise ValueError("Could not parse list of hypothesis values '%s' : expected |-separated list of variable assignments" % options.hypos)
+  model = Model.create(options.model_file, verbosity=options.verbosity)
+  if not options.regularize is None : model.set_gamma_regularization(options.regularize)
+  if not options.cutoff is None : model.cutoff = options.cutoff
 
-  if options.data_file :
-    data = Data(model).load(options.data_file)
-    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    print('Using dataset stored in file %s.' % options.data_file)
-  elif options.asimov is not None :
-    try:
-      sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
-      sets_dict = { name : value for name, value in sets }
-      data = model.generate_expected(sets_dict)
-    except Exception as inst :
-      print(inst)
-      raise ValueError("Cannot define an Asimov dataset from options '%s'." % options.asimov)
-    print('Using Asimov dataset with POIs %s.' % str(sets))
-  else :
-    data = Data(model).load(options.model_file)
-    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    print('Using dataset stored in file %s.' % options.model_file)
-
-  par_bounds = []
-  if options.bounds :
-    bound_specs = options.bounds.split(',')
-    try :
-      for spec in bound_specs :
-        var_range = spec.split('=')
-        range_spec = var_range[1].split(':')
-        if len(range_spec) == 2 :
-          par_bounds.append(ParBound(var_range[0], float(range_spec[0]) if range_spec[0] != '' else None, float(range_spec[1]) if range_spec[1] != '' else None))
-        elif len(range_spec) == 1 :
-          par_bounds.append(ParBound(var_range[0], float(range_spec[0]), float(range_spec[0]))) # case of fixed parameter
-    except Exception as inst:
-      print(inst)
-      raise ValueError('Could not parse parameter bound specification "%s", expected in the form name1=[min]#[max],name2=[min]#[max],...' % options.bounds)
+  data = make_data(model, options)
+  hypos = make_hypos(model, options)
 
   if options.test_statistic == 'q~mu' :
     if len(model.pois) > 1 : raise ValueError('Currently not supporting more than 1 POI for this operation')
@@ -150,37 +113,15 @@ def run(argv = None) :
     calc = QMuCalculator(OptiMinimizer(verbosity=options.verbosity), verbosity=options.verbosity)
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
+  par_bounds = init_calc(calc, model, options)
+  faster = try_loading_results(model, raster_file, options)
   
-  calc.minimizer.set_pois(model)
-  for bound in par_bounds :
-    print('Overriding bound %s by user-provided %s' % (str(calc.minimizer.bounds[bound.par]), str(bound)))
-  calc.minimizer.set_pois(model, bounds=par_bounds)
-
-  # Check the fastprof CLs against the ones in the reference: in principle this should match well,
-  # otherwise it means what we generate isn't exactly comparable to the observation, which would be a problem...
-  if options.ntoys > 0 : 
-    print('Check CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
-  do_computation = True
-  try :
-    faster = Raster('fast', model=model)
-    faster.load(raster_file)
-    do_computation = False
-  except FileNotFoundError :
-    pass
-
-  if not do_computation and options.overwrite :
-    print("INFO: will recompute results and overwrite output file '%s' as requested." % raster_file)
-    do_computation = True
-
   if options.show_timing : comp_start_time = time.time()
-
-  if do_computation :
+  if faster is None :
     full_hypos = { hypo : model.expected_pars(hypo.pars) for hypo in hypos }
     faster = calc.compute_fast_results(hypos, data, full_hypos)
     faster.save(raster_file)
-
   if options.show_timing : comp_stop_time = time.time()
-
   faster.print(verbosity = options.verbosity)
   scan_asy_fast_clsb = UpperLimitScan(faster, 'pv'          , name='CLsb, asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
   scan_asy_fast_cls  = UpperLimitScan(faster, 'cls'         , name='CL_s, asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
@@ -188,6 +129,7 @@ def run(argv = None) :
   limit_asy_fast_cls  = scan_asy_fast_cls .limit(print_result=True)
 
   if options.ntoys > 0 :
+    print('Checking CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
     if options.seed != None : np.random.seed(options.seed)
     niter = options.iterations
     samplers_clsb = []
@@ -238,7 +180,7 @@ def run(argv = None) :
         scan_sampling_cls_bands[band] = UpperLimitScan(faster, 'sampling_cls_%+d' % band, name='Expected limit band, fast model, %+d sigma band' % band)
         limit_sampling_cls_bands[band] = scan_sampling_cls_bands[band].limit(print_result=True)
 
-  # Plot results
+  # Show results
   if not options.batch_mode :
     plt.ion()
     fig1, ax1 = plt.subplots(constrained_layout=True)
