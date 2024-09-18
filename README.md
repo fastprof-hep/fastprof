@@ -21,7 +21,7 @@ The package can be set up as follows:
 git clone ssh://git@gitlab.cern.ch:7999/nberger/fastprof.git
 cd fastprof
 git checkout v0.4.1 -b v0.4.1
-source ./setup-env.sh
+source ./setup.sh
 ````
 
 This sets up the latest stable version, `v0.4.1`. (skipping this line sets up the latest `master` version instead, but this is not recommended).
