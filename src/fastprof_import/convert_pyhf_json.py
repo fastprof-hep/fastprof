@@ -96,17 +96,21 @@ def run(argv = None) :
 
   pyhf_meas = { entry['name'] : entry for entry in pyhf_model['measurements'][0]['config']['parameters'] }
 
+  def compute_symmetric_impact(sample, modifier_name, imp) :
+    # Symmetric case : { "+1" : -0.2, "-1" : +0.4 } ==> -0.3
+    if imp["+1"]*imp["-1"] <= 0 :
+      return (imp["+1"] - imp["-1"])/2
+    # Now for the same-sign case (pathological systematics)
+    if options.keep_same_sign : # option to ignore these issues and just return the max
+      return max(imp["+1"], -imp["-1"])
+    # default case: warn and take the average
+    print("WARNING: +1σ and -1σ impacts for '%s' in sample '%s' of channel '%s' (%s) have the same sign, symmetrizing to average impact." % (modifier_name, sample['name'], channel['name'], str(impact)))
+    return (imp["+1"] + imp["-1"])/2
+  
   def add_impact(sample, modifier_name, impact) :
     if not modifier_name in fastprof_model['NPs'] and not modifier_name in fastprof_model['POIs'] :
       fastprof_model['NPs'][modifier_name] = { 'name' : modifier_name, 'nominal_value' : 0, 'constraint' : 1, 'aux_obs' : 'aux_' + modifier_name }
-    if np.any([ imp["+1"]*imp["-1"] > 0 for imp in impact ]) : 
-      if options.keep_same_sign :
-        impact = max(imp["+1"], -imp["-1"])
-      else :
-        print("WARNING: +1σ and -1σ impacts for '%s' in sample '%s' of channel '%s' (%s) have the same sign, setting to default." % (modifier_name, sample['name'], channel['name'], str(impact)))
-        impact = [ 0 ]
-    else :
-      impact = [ sum([ i/float(v) for v,i in imp.items()])/len(imp) for imp in impact ] 
+    impact = [ compute_symmetric_impact(sample, modifier_name, imp) for imp in impact ]
     if len(impact) == 1 : impact = impact[0]
     if modifier_name in sample['impacts'] :
       prev_impact = sample['impacts'][modifier_name]
@@ -163,9 +167,12 @@ def run(argv = None) :
             add_impact(sample, modifier['name'], impact)
           elif modifier['type'] == 'shapesys' or modifier['type'] == 'staterror' :
             for b, (y, sigma) in enumerate(zip(nominal_yield, modifier['data'])) :
-              impact = [ { "+1" : sigma/y if b == b2 else 0, "-1" : -sigma/y if b == b2 else 0 } for b2 in range(0, len(nominal_yield)) ]
-              if options.verbosity > 2 : print('  Parameter %s of type %s : impact = %s / %s = %s' % (('%s_bin%d' % (modifier['name'], b)), modifier['type'],
-                                                                                                      str(modifier['data']), str(nominal_yield), str(impact)))
+              if y > 0 :
+                impact = [ 
+                  { "+1" : sigma/y if b == b2 and y != 0 else 0,
+                    "-1" : -sigma/y if b == b2 and y !=0 else 0 } 
+                  for b2 in range(0, len(nominal_yield)) ]
+              if options.verbosity > 2 : print('  Parameter %s of type %s : impact = %s / %s = %s' % (('%s_bin%d' % (modifier['name'], b)), modifier['type'], str(modifier['data']), str(nominal_yield), str(impact)))
               add_impact(sample, '%s_bin%d' % (modifier['name'], b), impact)
           else :
             raise ValueError("Unknown modifier type '%s' in channel '%s'." % (modifier['type'], pyhf_channel['name']))
