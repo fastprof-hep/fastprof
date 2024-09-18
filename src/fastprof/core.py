@@ -484,7 +484,7 @@ class Model (Serializable) :
     self.nominal_yield = np.stack([ np.concatenate([ self.samples[(channel.name, s)].nominal_yield if s < len(channel.samples) else np.zeros(channel.nbins()) for channel in self.channels.values()]) for s in range(0, self.max_nsamples) ])      
     self.impacts = np.zeros((self.max_nsamples, self.nbins, len(self.nps)))
     for p, par in enumerate(self.nps) :
-      if self.verbosity > 0 : 
+      if self.verbosity > 1 :
         sys.stderr.write('\rInitializing impacts for nuisance parameter %d of %d %-80s' % (p+1, self.nnps, '[ ' + par + ' ]'))
       for s in range(0, self.max_nsamples) :
         imp_list = []
