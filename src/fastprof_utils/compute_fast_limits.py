@@ -176,8 +176,8 @@ def run(argv = None) :
 
     scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='CLsb, sampling, fast model', cl=options.cl, cl_name='CL_{s+b}')
     scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='CL_s, sampling, fast model', cl=options.cl, cl_name='CL_s' )
-    limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_bands=1)
-    limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, with_bands=1)
+    limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, bands=1)
+    limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, bands=1)
     if options.bands :
       scan_sampling_cls_bands = {}
       limit_sampling_cls_bands = {}
@@ -213,13 +213,13 @@ def run(argv = None) :
   jdict['poi_unit'] = model.poi(0).unit
   if options.ntoys > 0 : 
     jdict['limit_sampling_CLs']    = limit_sampling_cls[0]
-    jdict['limit_sampling_CLs_up'] = limit_sampling_cls[1]
-    jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[2]
+    jdict['limit_sampling_CLs_up'] = limit_sampling_cls[+1]
+    jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[-1]
   jdict['limit_asymptotics_CLs'] = limit_asy_fast_cls
   if options.ntoys > 0 : 
     jdict['limit_sampling_CLsb']    = limit_sampling_clsb[0]
-    jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[1]
-    jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[2]
+    jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[+1]
+    jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[-1]
   jdict['limit_asymptotics_CLsb'] = limit_asy_fast_clsb
 
   if options.ntoys > 0 : 
