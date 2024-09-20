@@ -286,10 +286,7 @@ class DMu(TestStatistic) :
     """
     if self.comp_poi == self.test_poi() : return 0
     if self.tmu_Amu is not None :
-      if self.tmu_Amu < 0 :
-        print('WARNING: tmu_Amu = % g < 0, returning 0' % self.tmu_Amu)
-        return 0
-      # Must be the right value for test_poi! (=> tmu_Amu and comp_poi should be set together consistently)
+      # Must be the right mu value! (=> tmu_Amu and comp_poi should be set together consistently)
       return math.copysign(self.signed_sqrt(self.tmu_Amu), self.comp_poi - self.test_poi()) if return_sqrt else self.tmu_Amu
     elif self.sigma is not None :
       sqrt_ncp = (self.comp_poi - self.test_poi())/self.sigma
@@ -428,6 +425,8 @@ class QMu(DMu) :
     # -- NCP_sqrt gives (comp_mu - test_mu)/sigma also with this sign
     # -- The difference between the two ensures comp_mu cancels out as desired
     # -- The variation is defined with respect to best_mu (+1 <-> best_mu + 1 sigma) so comes with a minus sign
+    if (self.non_centrality_parameter(return_sqrt = True) != 0) :
+      self.non_centrality_parameter(return_sqrt = True) - variation))
     return scipy.stats.norm.sf(self.signed_sqrt(ts) - self.non_centrality_parameter(return_sqrt = True) - variation)
 
   def asymptotic_pdf(self, ts : float = None) -> float :
@@ -612,7 +611,7 @@ class QMuTilda(QMu) :
     if ts < self.threshold() :
       return QMu.asymptotic_pdf(self, ts)
     else :
-      pdf_q = scipy.stats.norm.pdf((ts + self.threshold())/(2*math.sqrt(self.threshold())) - math.sqrt(self.non_centrality_parameter()))
+      pdf_q = scipy.stats.norm.pdf((ts + self.threshold())/(2*math.sqrt(self.threshold())) - self.non_centrality_parameter(return_sqrt=True))
       return pdf_q/(2*math.sqrt(self.threshold())) if self.threshold() > 0 else 0
 
   def asymptotic_ts(self, pv : float) -> float :
@@ -625,7 +624,7 @@ class QMuTilda(QMu) :
     Returns:
       the corresponding test statistic value
     """
-    q1 = scipy.stats.norm.isf(pv) + math.sqrt(self.non_centrality_parameter())
+    q1 = scipy.stats.norm.isf(pv) + self.non_centrality_parameter(return_sqrt=True)
     if q1 < self.threshold() :
       return q1*abs(q1)
     else :
