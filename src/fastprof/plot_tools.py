@@ -361,5 +361,5 @@ class PlotBands :
     colors = [ 'k', 'g', 'y', 'c', 'b' ]
     for i in reversed(range(1, max_sigma + 1)) :
       canvas.fill_between(self.hypos, self.bands[+i], self.bands[-i], color=colors[i])
-    canvas.plot(self.hypos, self.bands[0], marker, label)
+    canvas.plot(self.hypos, self.bands[0], marker, label=label)
 
