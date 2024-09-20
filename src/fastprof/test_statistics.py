@@ -425,8 +425,6 @@ class QMu(DMu) :
     # -- NCP_sqrt gives (comp_mu - test_mu)/sigma also with this sign
     # -- The difference between the two ensures comp_mu cancels out as desired
     # -- The variation is defined with respect to best_mu (+1 <-> best_mu + 1 sigma) so comes with a minus sign
-    if (self.non_centrality_parameter(return_sqrt = True) != 0) :
-      self.non_centrality_parameter(return_sqrt = True) - variation))
     return scipy.stats.norm.sf(self.signed_sqrt(ts) - self.non_centrality_parameter(return_sqrt = True) - variation)
 
   def asymptotic_pdf(self, ts : float = None) -> float :
