@@ -23,7 +23,7 @@
          },
          {
             "name": "np_bkg",
-            "nominal_value": 100,
+            "nominal_value": 50,
             "constraint": 5,
             "aux_obs": "aux_bkg"
          }
@@ -60,7 +60,7 @@
       "channels": [
          {
             "name"  : "SR",
-            "counts": 100
+            "counts": 150
          }
       ],
       "aux_obs": [
@@ -74,7 +74,7 @@
          },
          {
             "name": "aux_bkg",
-            "value": 100
+            "value": 50
          }
       ]
    }
