@@ -180,7 +180,7 @@ class Scan1D (Scan) :
     self.poi = self.find_poi(poi_name)
 
   def crossings(self, pv_level : float = 0.05, order : int = 3, log_scale : bool = True, 
-                bands : int = 0) -> float :
+                bands : int = 0) -> list :
     """Compute the crossing points at a predefined p-value level
 
     The contour is obtained by interpolating the p-values at each raster
@@ -203,8 +203,8 @@ class Scan1D (Scan) :
       bands : if >0 returns also the +/- (bands) sigma uncertainty bands.
 
     Returns:
-      A list of crossings : if `bands` is >0, return a list of (nominal , nominal +n sigma,
-                            ... nominal -nsigma) values
+      A list of crossings : if `bands` is >0, return a dict of {0 : nominal , '+n' : nominal +n sigma,
+                            ... -n : nominal -nsigma) } values
     """
     hypos, values = self.points(bands)
     crossings = {}
@@ -215,7 +215,7 @@ class Scan1D (Scan) :
       if len(crossings[b]) != len(crossings[0]) : 
         print('WARNING: Number of %+d sigma crossings (%d) does not match the number of nominal crossings (%d), returning [].' % (b, len(crossings[b]), len(crossings[0])))
         return []
-    return [ [ crossings[b][i] for b in chain(range(0,1), range(bands, 0, -1), range(-1, -bands - 1, -1)) ] for i in range(0, len(crossings[0])) ]
+    return [ { b : crossings[b][i] for b in chain(range(0,1), range(bands, 0, -1), range(-1, -bands - 1, -1)) } for i in range(0, len(crossings[0])) ]
 
   def minima(self, order : int = 3) -> float :
     """Compute the minimum value of a test statistic
@@ -449,13 +449,18 @@ class UpperLimitScan (Scan1D):
     """Build a description string for printout
     
     Args:
-      limit : the limit value for which to print out the description
+      limit : the limit value for which to print out the description. Can
+              be a float (central value only) or a dict { 0: cv, +2: cv+2sigma, ... }
 
     Returns:
       the string description 
     """
-    value = limit if not isinstance(limit, list) else limit[0]
-    value_str = ('%g' % limit) if not isinstance(limit, list) else '%g +%g -%g' % (limit[0], limit[1] - limit[0], limit[0] - limit[2])
+    if not isinstance(limit, dict) :
+      value = limit
+      value_str = ('%g' % limit)
+    else :
+      value = limit[0]
+      value_str = '%g %+g %+g' % (limit[0], limit[+1] - limit[0], limit[-1] - limit[0])
     return self.name + ' : UL(%g%%) = %s' % (100*self.cl, value_str) \
       + ('  (N = %s)' % str(self.raster.model.n_exp(self.raster.model.expected_pars(value)).sum(axis=1))) if self.raster.model is not None else ''
 
@@ -580,7 +585,7 @@ class PLRScan1D (Scan1D) :
       value_hi = value_lo
       value_lo = None
     error_hi = value_hi - minimum if value_hi is not None else None
-    error_lo = minimum - value_lo if value_lo is not None else None
+    error_lo = value_lo - minimum if value_lo is not None else None
     if print_result : print(self.description(minimum, error_hi, error_lo))
     return minimum, error_hi, error_lo
 
@@ -595,7 +600,7 @@ class PLRScan1D (Scan1D) :
     Returns:
       the string description 
     """
-    return '%s = %g' % (self.poi.name, central_value) + ((' +%g' % err_hi) if err_hi is not None else '') + ((' -%g' % err_lo) if err_lo is not None else '') + ' @ %4.1f%% CL' % (100*self.cl())
+    return '%s = %g' % (self.poi.name, central_value) + ((' %+g' % err_hi) if err_hi is not None else '') + ((' %+g' % err_lo) if err_lo is not None else '') + ' @ %4.1f%% CL' % (100*self.cl())
 
   def plot(self, canvas : tuple = (None, None), linestyle : str = '-', marker = 'b', label : str = None, smooth : int = None) :
     """Plot the CL curve and the intersection with the target CL
