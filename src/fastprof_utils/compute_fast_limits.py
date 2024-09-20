@@ -78,7 +78,7 @@ def make_parser() :
   parser.add_argument(      "--break-locks"   , action='store_true'       , help="Allow breaking locks from other sample production jobs")
   parser.add_argument("-x", "--overwrite"     , action='store_true'       , help="Allow overwriting output file")
   parser.add_argument(      "--debug"         , action='store_true'       , help="Produce debugging output")
-  parser.add_argument("-b", "--bands"         , type=int  , default=None  , help="Number of bands to show")
+  parser.add_argument("-b", "--bands"         , type=int  , default=0     , help="Number of bands to show")
   parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
   parser.add_argument(      "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
@@ -123,10 +123,10 @@ def run(argv = None) :
     faster.save(raster_file)
   if options.show_timing : comp_stop_time = time.time()
   faster.print(verbosity = options.verbosity)
-  scan_asy_fast_clsb = UpperLimitScan(faster, 'pv'          , name='CLsb, asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
-  scan_asy_fast_cls  = UpperLimitScan(faster, 'cls'         , name='CL_s, asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
-  limit_asy_fast_clsb = scan_asy_fast_clsb.limit(print_result=True)
-  limit_asy_fast_cls  = scan_asy_fast_cls .limit(print_result=True)
+  scan_asy_fast_clsb = UpperLimitScan(faster, 'pv' , name='CLsb, asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
+  scan_asy_fast_cls  = UpperLimitScan(faster, 'cls', name='CL_s, asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
+  limit_asy_fast_clsb = scan_asy_fast_clsb.limit(print_result=True, bands=options.bands)
+  limit_asy_fast_cls  = scan_asy_fast_cls .limit(print_result=True, bands=options.bands)
 
   if options.ntoys > 0 :
     print('Checking CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
@@ -172,9 +172,10 @@ def run(argv = None) :
 
     faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
     faster.print(keys=[ 'sampling_pv', 'sampling_pv_+1', 'sampling_pv_-1' ], verbosity=1)
+    faster.print(keys=[ 'pv', 'pv_+1', 'pv_-1' ], verbosity=1)
 
-    scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='CLsb, sampling   , fast model', cl=options.cl, cl_name='CL_{s+b}')
-    scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='CL_s, sampling   , fast model', cl=options.cl, cl_name='CL_s' )
+    scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='CLsb, sampling, fast model', cl=options.cl, cl_name='CL_{s+b}')
+    scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='CL_s, sampling, fast model', cl=options.cl, cl_name='CL_s' )
     limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, with_bands=1)
     limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, with_bands=1)
     if options.bands :
