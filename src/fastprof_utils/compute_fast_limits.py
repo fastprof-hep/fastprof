@@ -158,8 +158,8 @@ def run(argv = None) :
 
     for plr_data in faster.plr_data.values() :
       plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
-      plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
-      plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo, plr_data.pvs['pv'], with_error=True)
+      plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo, plr_data.pvs['clb'], with_error=True)
+      plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo, plr_data.pvs['cls'], with_error=True)
 
     if options.bands :
       sampling_bands_pv = opti_samples.clsb.bands(options.bands)
