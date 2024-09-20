@@ -124,7 +124,7 @@ class TMu(TestStatistic) :
   """The basic profile-likelihood ratio test statistic, :math:`t_{\\mu}`
 
   Attributes:
-    tmu(float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
+    tmu(float) : the value of the profile-likelihood ratio :math:`-2\\Delta\\log L`
   """
 
   def __init__(self, test_poi_values : list, tmu : float) :
@@ -201,7 +201,7 @@ class DMu(TestStatistic) :
   the test statistic is -tmu instead of 0 
 
   Attributes:
-    tmu (float) : the value of the profile-likelihood ratio :math:`-2\Delta\log L`
+    tmu (float) : the value of the profile-likelihood ratio :math:`-2\\Delta\\log L`
     best_poi (float) : the best-fit value of the POI
     comp_poi (float) : the value of the POI (`mu`) used in the computation of `tmu`.
     tmu_Amu  (float) : the value of `tmu` computed on an Asimov dataset generated
@@ -215,7 +215,7 @@ class DMu(TestStatistic) :
 
     Args:
       test_poi : the POI value that defines the tested hypothesis
-      tmu : the value of the profile likelihood ratio :math:`-2\Delta\log L`
+      tmu : the value of the profile likelihood ratio :math:`-2\\Delta\\log L`
       best_poi : the best-fit value of the POI
       comp_poi : the value of the POI used in the computation of `tmu`. If
                  `None` (default), assumed to be the same as `test_poi`.
@@ -245,7 +245,7 @@ class DMu(TestStatistic) :
   def value(self) :
     """Value of the test statistic
 
-    Implements the computation of :math:`q_{\mu}` : return `tmu` if
+    Implements the computation of :math:`q_{\\mu}` : return `tmu` if
     the best-fit POI is below the hypothesis value, 0 otherwise.
 
     Returns:
@@ -271,18 +271,18 @@ class DMu(TestStatistic) :
        the POI=0 hypothesis
 
     In general the non-centrality parameter is defined as
-    :math:`\Lambda = t_{\mu, A(\mu')} = (\mu - \mu')^2/\sigma^2`,
+    :math:`\\Lambda = t_{\\mu, A(\\mu')} = (\\mu - \\mu')^2/\\sigma^2`,
     see `arXiv:1007.1727 <https://arxiv.org/abs/1007.1727>`_.
 
     The result can either be obtained from the value of
-    :math:`t_{\mu, A(\mu')}` provided by the `tmu_Amu`
+    :math:`t_{\\mu, A(\\mu')}` provided by the `tmu_Amu`
     parameter at initialization, or from a value of
-    :math:`\sigma` provided by `sigma`.
+    :math:`\\sigma` provided by `sigma`.
 
     Args:
       return_sqrt: return the square root of the NC parameter if True
     Returns:
-      the value of :math:`t_{\mu, A(0)}`
+      the value of :math:`t_{\\mu, A(0)}`
     """
     if self.comp_poi == self.test_poi() : return 0
     if self.tmu_Amu is not None :
