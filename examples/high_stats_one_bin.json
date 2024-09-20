@@ -60,7 +60,7 @@
       "channels": [
          {
             "name"  : "SR",
-            "counts": 80
+            "counts": 100
          }
       ],
       "aux_obs": [
