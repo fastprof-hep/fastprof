@@ -14,7 +14,7 @@ import json
 import time
 
 from fastprof import Model, Data, Parameters, POIHypo, OptiMinimizer, Raster, TMuCalculator, PLRScan1D, PLRScan2D
-from fastprof_utils import process_setval_list, process_setvals, process_setranges
+from fastprof_utils import make_model, make_data, make_hypos, init_calc, try_loading_results
 
 
 ####################################################################################################################################
@@ -29,8 +29,7 @@ def make_parser() :
   parser.add_argument("-y", "--hypos"         , type=str  , default=None     , help="List of POI hypothesis values (poi1=val1,poi2=val2#...)")
   parser.add_argument("-c", "--cl"            , type=str  , default="1"      , help="Confidence levels at which to compute the limit, either integers (nsigmas) or floats (CL)")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True    , help="Name of output file")
-  parser.add_argument("-x", "--overwrite"     , action='store_true'          , help="Allow overwriting output file, if the existing file does not correspond to the current computation parameters.")
-  parser.add_argument("-f", "--force-computation", action='store_true'       , help="Force a repeat of the computation, ignoring data in output file if it already exists.")
+  parser.add_argument("-x", "--overwrite"     , action='store_true'          , help="Force a repeat of the computation, ignoring data in output file if it already exists.")
   parser.add_argument("-b", "--best-fit-mode" , type=str  , default='single' , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
   parser.add_argument("-r", "--setrange"      , type=str  , default=None     , help="List of variable range changes, in the form var1=[min1]:[max1],var2=[min2]:[max2],...")
   parser.add_argument(      "--linear-nps"       , action='store_true'         , help="Use linear NP impacts")
@@ -54,73 +53,21 @@ def run(argv = None) :
 
   if options.show_timing : start_time = time.time()
 
-  if options.verbosity >= 1 : print('Initializing model from file %s' % options.model_file)
-  model = Model.create(options.model_file, verbosity=options.verbosity,
-                       use_linear_nps=options.linear_nps)
-  if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-  if options.regularize is not None : model.set_gamma_regularization(options.regularize)
-  if options.cutoff is not None : model.cutoff = options.cutoff
-  if options.setrange is not None : process_setranges(options.setrange, model)
-
   results_file = options.output_file + '_results.json'
   raster_file = options.output_file + '_raster.json'
 
-  if options.data_file :
-    data = Data(model).load(options.data_file)
-    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    if options.verbosity >= 1 : print('Using dataset stored in file %s.' % options.data_file)
-  elif options.asimov != None :
-    try :
-      sets = process_setvals(options.asimov, model)
-    except Exception as inst :
-      print(inst)
-      raise ValueError("ERROR : invalid POI specification string '%s'." % options.asimov)
-    data = model.generate_expected(sets)
-    if options.verbosity >= 1 : print('Using Asimov dataset with parameters %s' % str(sets))
-  else :
-    if options.verbosity >= 1 : print('Initializing data from file %s.' % options.model_file)
-    data = Data(model).load(options.model_file)
-    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-
-  do_computation = True
-  raster = Raster('fast', model=model)
-  try :
-    if not options.force_computation and raster.load(raster_file) : do_computation = False
-  except FileNotFoundError :
-    pass
-
-  if options.hypos is not None :
-    try :
-      hypos = [ POIHypo(setval_dict) for setval_dict in process_setval_list(options.hypos, model) ]
-    except Exception as inst :
-      print(inst)
-      raise ValueError("Could not parse list of hypothesis values '%s' : expected #-separated list of variable assignments" % options.hypos)
-
-    if not do_computation : # check that the loaded data is for the correct set of hypos
-      if len(raster.plr_data) != len(hypos) :
-        if options.overwrite :
-          do_computation = True
-        else :
-          raise KeyError("ERROR : cannot load from file '%s' which defines %d hypotheses when we need %d." % (raster_file, len(raster.plr_data), len(hypos)))
-      for hypo in hypos :
-        match = next((loaded_hypo for loaded_hypo in raster.plr_data if loaded_hypo == hypo), None)
-        if match is None :
-          if options.overwrite :
-            do_computation = True
-          else :
-            raise KeyError("ERROR: data for hypothesis '%s' not found in file '%s'." % (str(hypo), raster_file))
-  else :
-    hypos = [ hypo for hypo in raster.plr_data ]
-
+  model = make_model(options)
+  data = make_data(model, options)
+  hypos = make_hypos(model, options)
+  
+  raster = try_loading_results(model, raster_file, options, hypos)
+  if options.hypos is None : hypos = [ hypo for hypo in raster.plr_data ]
   pois = Raster.have_compatible_pois(hypos)
   if pois is None : raise ValueError("Hypotheses '%s' are not compatible (different POIs or different POI ordering)." % ', '.join([str(hypo) for hypo in hypos]))
   if options.verbosity > 1 : 
     print('Will scan the following hypotheses : \n- %s' % '\n- '.join([str(hypo) for hypo in hypos]))
 
-
-  # Compute the tmu values
-
-  if do_computation :
+  if raster is None :
     calc = TMuCalculator(OptiMinimizer(niter=options.iterations, verbosity=options.verbosity).set_pois(model), verbosity=options.verbosity)
     if options.verbosity > 1 : 
       prof_pois = set(calc.minimizer.free_pois()) - set(pois)
