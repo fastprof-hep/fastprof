@@ -61,6 +61,15 @@ class POIHypo(Serializable) :
     """
     return self.pars[par]
 
+  def __setitem__(self, par : str, value : float) :
+    """Implement [] lookup of POI and NP names
+
+      Args:
+        par : name of a parameter (either POI or NP)
+        value : the value to set
+    """
+    self.pars[par] = value
+
   def __eq__(self, other) :
     return self.pars == other.pars
 
