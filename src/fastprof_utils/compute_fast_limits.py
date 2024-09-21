@@ -172,12 +172,15 @@ def run(argv = None) :
           for plr_data, band_point in zip(raster.plr_data.values(), sampling_bands_pv[band]) : 
             plr_data.pvs['sampling_pv_%+d' % band] = band_point
 
+    if options.bands >= 2 :
+      raster.print(keys=[ 'sampling_cls_-2', 'sampling_cls_-1', 'sampling_cls_+0', 'sampling_cls_+1', 'sampling_cls_+2' ], verbosity=1)
+      if options.clsb : raster.print(keys=[ 'sampling_pv_-2', 'sampling_pv_-1', 'sampling_pv_+0', 'sampling_pv_+1', 'sampling_pv_+2' ], verbosity=1)
     raster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
-    scan_sampling_cls  = UpperLimitScan(raster, 'sampling_cls', name='CLs, sampling', cl=options.cl, cl_name='CL_s' )
-    limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, bands=1)
+    scan_sampling_cls = UpperLimitScan(raster, 'sampling_cls', name='CLs [sampling]', cl=options.cl, cl_name='CL_s' )
+    limit_sampling_cls = scan_sampling_cls.limit(print_result=True)
     if options.clsb :
-      scan_sampling_clsb = UpperLimitScan(raster, 'sampling_pv' , name='CLsb, sampling', cl=options.cl, cl_name='CL_{s+b}')
-      limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, bands=1)
+      scan_sampling_clsb = UpperLimitScan(raster, 'sampling_pv' , name='CLsb [sampling]', cl=options.cl, cl_name='CL_{s+b}')
+      limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True)
     if options.bands :
       scan_sampling_cls_bands = {}
       limit_sampling_cls_bands = {}
@@ -214,16 +217,12 @@ def run(argv = None) :
   jdict['poi_name'] = model.poi(0).name
   jdict['poi_unit'] = model.poi(0).unit
   if options.ntoys > 0 : 
-    jdict['limit_sampling_CLs']    = limit_sampling_cls[0]
-    jdict['limit_sampling_CLs_up'] = limit_sampling_cls[+1]
-    jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[-1]
-  jdict['limit_asymptotics_CLs'] = limit_asy_fast_cls
+    jdict['limit_sampling_CLs']    = limit_sampling_cls
+  jdict['limit_asymptotic_CLs'] = limit_asy_fast_cls
   if options.clsb : 
     if options.ntoys > 0 : 
-      jdict['limit_sampling_CLsb']    = limit_sampling_clsb[0]
-      jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[+1]
-      jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[-1]
-    jdict['limit_asymptotics_CLsb'] = limit_asy_fast_clsb
+      jdict['limit_sampling_CLsb']    = limit_sampling_clsb
+    jdict['limit_asymptotic_CLsb'] = limit_asy_fast_clsb
 
   if options.ntoys > 0 : 
     if options.bands :
