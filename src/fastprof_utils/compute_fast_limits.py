@@ -112,8 +112,8 @@ def run(argv = None) :
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
   par_bounds = init_calc(calc, model, options)
-  raster = try_loading_results(model, raster_file, options)
   
+  raster = try_loading_results(model, raster_file, options, hypos)
   if options.show_timing : comp_start_time = time.time()
   if raster is None :
     full_hypos = { hypo : model.expected_pars(hypo.pars) for hypo in hypos }
