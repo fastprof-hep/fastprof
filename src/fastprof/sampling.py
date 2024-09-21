@@ -434,6 +434,12 @@ class CLsSamples (SamplesBase) :
   Two sets of samples are generated, one for the tested hypotheses for
   :math:`CL_{s+b}` and one under the POI=0 hypothesis for :math:`CL_b`.
 
+  In both cases the sampling is based on the asymptotic p-value, computed
+  in the test_hypo=comp_hypo assumption -- also for clb. This is an a design
+  choice -- the pv is just a stand-in for the q_mu, which is the same for
+  clsb and clb. This means that the lookup also is to be done with the
+  same asymptotic pv for clsb and clb, which is convenient.
+
   Attributes:
     clsb (Samples) : :math:`Samples` object for the :math:`CL_{s+b}` computation
     cl_b (Samples) : :math:`Samples` object for the :math:`CL_b` computation
@@ -548,7 +554,7 @@ class CLsSamples (SamplesBase) :
     """
     return self.clsb.quantile(hypo, fraction, nsigmas)/cl_b
 
-  def bands(self, max_sigmas) :
+  def bkg_hypo_bands(self, max_sigmas, clsb : bool = False) :
     """Compute expected :math:`CL_s` band positions
 
     The computation is perfomed on the ensemble of :math:`CL_b`
@@ -557,13 +563,15 @@ class CLsSamples (SamplesBase) :
     Args:
       max_sigma : the highest-order band to compute. The bands or order
                   -max_sigma ... -max_sigma will be computed
+      clsb : if True, compute the bands for CL_s+b instead of the CL_s default
     Returns :
       A dict mapping band order to a list of band positions for each hypothesis
     """
     cls_samples = Samples(hypos=self.hypos)
     for hypo in self.hypos :
       sd = SamplingDistribution(len(self.cl_b.dists[hypo].samples))
-      for i, apv in enumerate(self.cl_b.dists[hypo].samples) : sd.samples[i] = self.pv(hypo, apv)
+      for i, apv in enumerate(self.cl_b.dists[hypo].samples) :
+        sd.samples[i] = self.pv(hypo, apv) if not clsb else self.clsb.pv(hypo, apv)
       sd.sort()
       cls_samples.dists[hypo] = sd
     return cls_samples.bands(max_sigmas)

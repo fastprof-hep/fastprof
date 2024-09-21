@@ -157,13 +157,16 @@ def run(argv = None) :
     if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
 
     for plr_data in faster.plr_data.values() :
+      # We always use pv which represents the q_mu value. This is the pv that is sampled in all cases, both
+      # clsb and clb, so the lookup is also done in terms of pv. Of course the sampling p-values do reflect
+      # the different distributions  of clsb and clb
       plr_data.pvs['sampling_pv' ] = opti_samples.clsb.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
-      plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo, plr_data.pvs['clb'], with_error=True)
-      plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo, plr_data.pvs['cls'], with_error=True)
+      plr_data.pvs['sampling_clb'] = opti_samples.cl_b.pv(plr_data.hypo, plr_data.pvs['pv'], with_error=True)
+      plr_data.pvs['sampling_cls'] = opti_samples.pv     (plr_data.hypo, plr_data.pvs['pv'], with_error=True)
 
     if options.bands :
-      sampling_bands_pv = opti_samples.clsb.bands(options.bands)
-      sampling_bands_cls = opti_samples.bands(options.bands)
+      sampling_bands_pv  = opti_samples.bkg_hypo_bands(options.bands, clsb = True)
+      sampling_bands_cls = opti_samples.bkg_hypo_bands(options.bands)
       for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
         for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands_pv[band]) : 
           plr_data.pvs['sampling_pv_%+d' % band] = band_point
@@ -189,17 +192,17 @@ def run(argv = None) :
   if not options.batch_mode :
     plt.ion()
     fig1, ax1 = plt.subplots(constrained_layout=True)
-    if options.ntoys > 0 : scan_sampling_clsb.plot(fig1, marker=options.marker + 'b-', label='Sampling', with_errors=True)
-    scan_asy_fast_clsb.plot(fig1, marker=options.marker + 'r:', label='Asymptotics', bands=options.bands)
+    if options.ntoys > 0 : scan_sampling_clsb.plot(fig1, marker=options.marker + 'b-', label='Sampling CL_{s+b}', with_errors=True)
+    scan_asy_fast_clsb.plot(fig1, marker=options.marker + 'r:', label='Asymptotic CL_{s+b}', bands=options.bands)
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
 
     fig2, ax2 = plt.subplots(constrained_layout=True)
     if options.ntoys > 0 : 
       if options.bands :
-        PlotBands(opti_samples.par_hypos(), opti_samples.bands(options.bands)).plot(options.bands)
-      scan_sampling_cls.plot(fig2, marker=options.marker + 'b-', label='Sampling', with_errors=True)
-    scan_asy_fast_cls.plot(fig2, marker=options.marker + 'r:', label='Asymptotics', bands=options.bands)
+        PlotBands(opti_samples.par_hypos(), opti_samples.bkg_hypo_bands(options.bands)).plot(options.bands, label='Expected CL_s')
+      scan_sampling_cls.plot(fig2, marker=options.marker + 'b-', label='Sampling CL_s', with_errors=True)
+    scan_asy_fast_cls.plot(fig2, marker=options.marker + 'r:', label='Asymptotic CL_s', bands=options.bands)
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
     fig1.savefig(options.output_file + '_clsb.pdf')
