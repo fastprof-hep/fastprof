@@ -75,10 +75,11 @@ def run(argv = None) :
     if len(pois) > 2 : raise ValueError('Currently not supporting more than 2 POIs for this operation')
     print('Producing PLR scan with POI(s) %s, bounds %s.' % (str(pois), str(calc.minimizer.bounds)))
 
-    if options.show_timing : comp_start_time = time.time()
+  if options.show_timing : comp_start_time = time.time()
+  if raster is None :
     raster = calc.compute_fast_results(hypos, data, free_fit=options.best_fit_mode)
     raster.save(raster_file)
-    if options.show_timing : comp_stop_time = time.time()
+  if options.show_timing : comp_stop_time = time.time()
 
   if not options.batch_mode : raster.print(keys=[ 'tmu' ], verbosity=options.verbosity + 1)
   sdict = {}
@@ -143,7 +144,7 @@ def run(argv = None) :
   if options.show_timing :
     stop_time = time.time()
     print("##           Setup time : %g s" % (comp_start_time - start_time))
-    if do_computation : print("##     Computation time : %g s" % (comp_stop_time - comp_start_time))
+    print("##     Computation time : %g s" % (comp_stop_time - comp_start_time))
     print("## Post-processing time : %g s" % (stop_time - comp_stop_time))
 
   with open(results_file, 'w') as fd:

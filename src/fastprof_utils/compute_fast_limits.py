@@ -174,10 +174,10 @@ def run(argv = None) :
 
     raster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
     scan_sampling_cls  = UpperLimitScan(raster, 'sampling_cls', name='CLs, sampling', cl=options.cl, cl_name='CL_s' )
-    limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, bands=1)
+    limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, bands=1)
     if options.clsb :
       scan_sampling_clsb = UpperLimitScan(raster, 'sampling_pv' , name='CLsb, sampling', cl=options.cl, cl_name='CL_{s+b}')
-      limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, bands=1)
+      limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, bands=1)
     if options.bands :
       scan_sampling_cls_bands = {}
       limit_sampling_cls_bands = {}
