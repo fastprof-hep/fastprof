@@ -66,6 +66,7 @@ def make_parser() :
   parser.add_argument("-n", "--ntoys"         , type=int  , default=0     , help="Number of pseudo-datasets to produce")
   parser.add_argument("-s", "--seed"          , type=int  , default='0'   , help="Seed to use for random number generation")
   parser.add_argument("-c", "--cl"            , type=float, default=0.95  , help="Confidence level at which to compute the limit")
+  parser.add_argument(      "--clsb"          , action='store_true'       , help="Also show CLsb results")
   parser.add_argument("-o", "--output-file"   , type=str  , required=True , help="Name of output file")
   parser.add_argument("-%", "--print-freq"    , type=int  , default=1000  , help="Verbosity level")
   parser.add_argument("-d", "--data-file"     , type=str  , default=None  , help="Use the dataset stored in the specified markup file")
@@ -82,8 +83,8 @@ def make_parser() :
   parser.add_argument(      "--marker"        , type=str  , default=''    , help="Marker type for plots")
   parser.add_argument(      "--batch-mode"    , action='store_true'       , help="Batch mode: no plots shown")
   parser.add_argument(      "--truncate-dist" , type=float, default=None  , help="Truncate high p-values (just below 1) to get reasonable bands")
-  parser.add_argument(      "--show-timing"   , action='store_true'          , help="Enables printout of timing information")
-  parser.add_argument("-v", "--verbosity"     , type=int  , default=1     , help="Verbosity level")
+  parser.add_argument(      "--show-timing"   , action='store_true'       , help="Enables printout of timing information")
+  parser.add_argument("-v", "--verbosity"     , type=int  , default=0     , help="Verbosity level")
   return parser
 
 def run(argv = None) :
@@ -98,10 +99,7 @@ def run(argv = None) :
   results_file = options.output_file + '_results.json'
   raster_file = options.output_file + '_raster.json'
 
-  model = Model.create(options.model_file, verbosity=options.verbosity)
-  if not options.regularize is None : model.set_gamma_regularization(options.regularize)
-  if not options.cutoff is None : model.cutoff = options.cutoff
-
+  model = make_model(options)
   data = make_data(model, options)
   hypos = make_hypos(model, options)
 
@@ -114,22 +112,22 @@ def run(argv = None) :
   else :
     raise ValueError('Unknown test statistic %s' % options.test_statistic)
   par_bounds = init_calc(calc, model, options)
-  faster = try_loading_results(model, raster_file, options)
+  raster = try_loading_results(model, raster_file, options)
   
   if options.show_timing : comp_start_time = time.time()
-  if faster is None :
+  if raster is None :
     full_hypos = { hypo : model.expected_pars(hypo.pars) for hypo in hypos }
-    faster = calc.compute_fast_results(hypos, data, full_hypos, bands=options.bands)
-    faster.save(raster_file)
+    raster = calc.compute_fast_results(hypos, data, full_hypos, bands=options.bands)
+    raster.save(raster_file)
   if options.show_timing : comp_stop_time = time.time()
-  faster.print(verbosity = options.verbosity)
-  scan_asy_fast_clsb = UpperLimitScan(faster, 'pv' , name='CLsb, asymptotics, fast model', cl=options.cl, cl_name='CL_{s+b}')
-  scan_asy_fast_cls  = UpperLimitScan(faster, 'cls', name='CL_s, asymptotics, fast model', cl=options.cl, cl_name='CL_s' )
-  limit_asy_fast_clsb = scan_asy_fast_clsb.limit(print_result=True, bands=options.bands)
+  raster.print(verbosity = options.verbosity)
+  scan_asy_fast_cls  = UpperLimitScan(raster, 'cls', name='CL_s [asymptotic]', cl=options.cl, cl_name='CL_s' )
   limit_asy_fast_cls  = scan_asy_fast_cls .limit(print_result=True, bands=options.bands)
+  if options.clsb :
+    scan_asy_fast_clsb = UpperLimitScan(raster, 'pv' , name='CLsb [asymptotic]', cl=options.cl, cl_name='CL_{s+b}')
+    limit_asy_fast_clsb = scan_asy_fast_clsb.limit(print_result=True, bands=options.bands)
 
   if options.ntoys > 0 :
-    print('Checking CL computed from fast model against those of the full model (a large difference would require to correct the sampling distributions) :')
     if options.seed != None : np.random.seed(options.seed)
     niter = options.iterations
     samplers_clsb = []
@@ -139,7 +137,7 @@ def run(argv = None) :
     # NPMinimizer.optimize_einsum = False    
     print('Running with POI %s, bounds %s, and %d iteration(s).' % (str(calc.minimizer.init_pois.dict(pois_only=True)), str(calc.minimizer.bounds), niter))
   
-    for fast_plr_data in faster.plr_data.values() :
+    for fast_plr_data in raster.plr_data.values() :
       test_hypo = fast_plr_data.hypo
       gen_hypo = fast_plr_data.full_hypo
       tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
@@ -156,7 +154,7 @@ def run(argv = None) :
   
     if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
 
-    for plr_data in faster.plr_data.values() :
+    for plr_data in raster.plr_data.values() :
       # We always use pv which represents the q_mu value. This is the pv that is sampled in all cases, both
       # clsb and clb, so the lookup is also done in terms of pv. Of course the sampling p-values do reflect
       # the different distributions  of clsb and clb
@@ -168,46 +166,47 @@ def run(argv = None) :
       sampling_bands_pv  = opti_samples.bkg_hypo_bands(options.bands, clsb = True)
       sampling_bands_cls = opti_samples.bkg_hypo_bands(options.bands)
       for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-        for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands_pv[band]) : 
-          plr_data.pvs['sampling_pv_%+d' % band] = band_point
-        for plr_data, band_point in zip(faster.plr_data.values(), sampling_bands_cls[band]) : 
+        for plr_data, band_point in zip(raster.plr_data.values(), sampling_bands_cls[band]) : 
           plr_data.pvs['sampling_cls_%+d' % band] = band_point
+        if options.clsb :
+          for plr_data, band_point in zip(raster.plr_data.values(), sampling_bands_pv[band]) : 
+            plr_data.pvs['sampling_pv_%+d' % band] = band_point
 
-    faster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
-    faster.print(keys=[ 'sampling_pv', 'sampling_pv_+1', 'sampling_pv_-1' ], verbosity=1)
-    faster.print(keys=[ 'pv', 'pv_+1', 'pv_-1' ], verbosity=1)
-
-    scan_sampling_clsb = UpperLimitScan(faster, 'sampling_pv' , name='CLsb, sampling, fast model', cl=options.cl, cl_name='CL_{s+b}')
-    scan_sampling_cls  = UpperLimitScan(faster, 'sampling_cls', name='CL_s, sampling, fast model', cl=options.cl, cl_name='CL_s' )
+    raster.print(keys=[ 'sampling_pv', 'sampling_cls', 'sampling_clb' ], verbosity=1)
+    scan_sampling_cls  = UpperLimitScan(raster, 'sampling_cls', name='CLs, sampling', cl=options.cl, cl_name='CL_s' )
     limit_sampling_clsb = scan_sampling_clsb.limit(print_result=True, bands=1)
-    limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, bands=1)
+    if options.clsb :
+      scan_sampling_clsb = UpperLimitScan(raster, 'sampling_pv' , name='CLsb, sampling', cl=options.cl, cl_name='CL_{s+b}')
+      limit_sampling_cls  = scan_sampling_cls .limit(print_result=True, bands=1)
     if options.bands :
       scan_sampling_cls_bands = {}
       limit_sampling_cls_bands = {}
       for band in np.linspace(-options.bands, options.bands, 2*options.bands + 1) :
-        scan_sampling_cls_bands[band] = UpperLimitScan(faster, 'sampling_cls_%+d' % band, name='Expected limit band, fast model, %+d sigma band' % band)
+        scan_sampling_cls_bands[band] = UpperLimitScan(raster, 'sampling_cls_%+d' % band, name='Expected limit band, %+d sigma band' % band)
         limit_sampling_cls_bands[band] = scan_sampling_cls_bands[band].limit(print_result=True)
 
   # Show results
   if not options.batch_mode :
     plt.ion()
-    fig1, ax1 = plt.subplots(constrained_layout=True)
-    if options.ntoys > 0 : scan_sampling_clsb.plot(fig1, marker=options.marker + 'b-', label='Sampling CL_{s+b}', with_errors=True)
-    scan_asy_fast_clsb.plot(fig1, marker=options.marker + 'r:', label='Asymptotic CL_{s+b}', bands=options.bands)
-    plt.legend(loc=1) # 1 -> upper right
-    plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
-
-    fig2, ax2 = plt.subplots(constrained_layout=True)
+    fig_cls, ax_cls = plt.subplots(constrained_layout=True, num='CLs limit scan')
     if options.ntoys > 0 : 
       if options.bands :
         PlotBands(opti_samples.par_hypos(), opti_samples.bkg_hypo_bands(options.bands)).plot(options.bands, label='Expected CL_s')
-      scan_sampling_cls.plot(fig2, marker=options.marker + 'b-', label='Sampling CL_s', with_errors=True)
-    scan_asy_fast_cls.plot(fig2, marker=options.marker + 'r:', label='Asymptotic CL_s', bands=options.bands)
+      scan_sampling_cls.plot(fig_cls, marker=options.marker + 'b-', label='Sampling $CL_s$', with_errors=True)
+    scan_asy_fast_cls.plot(fig_cls, marker=options.marker + 'r:', label='Asymptotic $CL_s$', bands=options.bands)
     plt.legend(loc=1) # 1 -> upper right
     plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
-    fig1.savefig(options.output_file + '_clsb.pdf')
-    fig2.savefig(options.output_file + '_cls.pdf')
-    fig2.savefig(options.output_file + '_cls.png')
+    fig_cls.savefig(options.output_file + '_cls.pdf')
+    fig_cls.savefig(options.output_file + '_cls.png')
+
+    if options.clsb :
+      fig_clsb, ax_clsb = plt.subplots(constrained_layout=True, num='CLsb limit scan')
+      if options.ntoys > 0 : scan_sampling_clsb.plot(fig_clsb, marker=options.marker + 'b-', label='Sampling $CL_{s+b}$', with_errors=True)
+      scan_asy_fast_clsb.plot(fig_clsb, marker=options.marker + 'r:', label='Asymptotic $CL_{s+b}$', bands=options.bands)
+      plt.legend(loc=1) # 1 -> upper right
+      plt.axhline(y=1 - options.cl, color='k', linestyle='dotted')
+      fig_clsb.savefig(options.output_file + '_clsb.pdf')
+
     plt.show()
 
   jdict = {}
@@ -219,11 +218,12 @@ def run(argv = None) :
     jdict['limit_sampling_CLs_up'] = limit_sampling_cls[+1]
     jdict['limit_sampling_CLs_dn'] = limit_sampling_cls[-1]
   jdict['limit_asymptotics_CLs'] = limit_asy_fast_cls
-  if options.ntoys > 0 : 
-    jdict['limit_sampling_CLsb']    = limit_sampling_clsb[0]
-    jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[+1]
-    jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[-1]
-  jdict['limit_asymptotics_CLsb'] = limit_asy_fast_clsb
+  if options.clsb : 
+    if options.ntoys > 0 : 
+      jdict['limit_sampling_CLsb']    = limit_sampling_clsb[0]
+      jdict['limit_sampling_CLsb_up'] = limit_sampling_clsb[+1]
+      jdict['limit_sampling_CLsb_dn'] = limit_sampling_clsb[-1]
+    jdict['limit_asymptotics_CLsb'] = limit_asy_fast_clsb
 
   if options.ntoys > 0 : 
     if options.bands :
