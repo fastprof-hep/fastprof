@@ -588,7 +588,7 @@ class OptiMinimizer (POIMinimizer) :
          data : dataset for which to compute the NLL
          init_pars : initial value (of POIs and NPs) for the minimization
       Returns:
-         best-fit parameters
+         NLL at minimum
     """
     if init_pars is not None or self.init_pois is None or self.bounds is None :
       self.set_pois(data.model, init_pars)
@@ -659,7 +659,7 @@ class OptiMinimizer (POIMinimizer) :
       if hasattr(self.result, 'fun')     : print('fun     =', self.result.fun)
       if hasattr(self.result, 'status')  : print('status  =', self.result.status)
       if hasattr(self.result, 'message') : print('message =', self.result.message)
-      return None, None
+      return None
     self.min_nll = self.result.fun
     self.min_pois = self.result.x if isinstance(self.result.x, np.ndarray) else np.array([self.result.x])
     self.nfev = self.result.nfev
