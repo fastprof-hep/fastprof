@@ -461,8 +461,7 @@ class UpperLimitScan (Scan1D):
     else :
       value = limit[0]
       value_str = '%g %+g %+g' % (limit[0], limit[+1] - limit[0], limit[-1] - limit[0])
-    return self.name + ' :  %s < %s @ %g%% CL' % (self.poi.name, value_str, 100*self.cl) \
-      + ('  (N = %s)' % str(self.raster.model.n_exp(self.raster.model.expected_pars(value)).sum(axis=1))) if self.raster.model is not None else ''
+    return self.name + ' :  %s < %s @ %g%% CL' % (self.poi.name, value_str, 100*self.cl)
 
   def plot(self, canvas : tuple = (None, None), marker : str = 'b', label : str = None, with_errors : bool = False, bands : int = None) :
     """Plot the CL curve and the intersection with the target CL
