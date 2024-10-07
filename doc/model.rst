@@ -29,7 +29,7 @@ In the rest of this document, we use the following notations, with bold text ind
   * :math:`n\obs\cb` is the observed number of events in bin :math:`b` of channel :math:`c`.
   * :math:`N\cbs(\vm, \vt)` is the expected events yield in bin :math:`b` of sample :math:`s` in channel :math:`c`, and :math:`N\cb(\vm, \vt)` the total yield for this bin, summed over samples.
   * :math:`\vD\cbs` provides the impacts of each NP on the expected yield of bin :math:`b` of sample :math:`s` of channel :math:`c`.
-    It is a vector of size :math:`N\nps` where each component corresponds to one NP in :math:`\vt`. Several versions can be defined for positive and negative variations of the NP, respectively :math:`\vD^+\cbs` and :math:`\vD^-\cbs`. The version without additional superscripts (defined below) denotes the symmetrized version over positive and negative variations.
+    It is a vector of size :math:`N\nps` where each component corresponds to one NP in :math:`\vt`.
   * :math:`\nu\cs(\vm)` is the overall normalization factor for sample :math:`s`.
   * For Gaussian channels, :math:`H_c` is the inverse of the covariance matrix of the multivariate Gaussian distribution.
 
@@ -50,7 +50,7 @@ and the expected event yields as
 
 where :math:`N\nom\cbs` is the nominal event yield in bin :math:`b` of sample :math:`s` in channel :math:`c`, computed for nominal parameter values :math:`\vm\nom` and :math:`\vt\nom`, and
 
-.. math:: \delta\cbs(\vt) = \sum\limits_{k=1}^{N\nps}\log\left(1 + \Delta^+\cbsk\right) \max(\theta_k, 0) + \log\left(1 + \Delta^-\cbsk\right) \min(\theta_k, 0)
+.. math:: \delta\cbs(\vt) = \sum\limits_{k=1}^{N\nps}\log\left(1 + \Delta\cbsk\right) \theta_k
 
 The impact of the NPs is implemented in exponential form, as this ensures that the expected event yields remain positive for all NP values.
 
@@ -65,11 +65,8 @@ Maximization with respect to the NPs is performed under the assumption that thei
   N\cbs(\vm, \vt) 
   &\approx \frac{\nu\cs(\vm)}{\nu\cs(\vm\nom)} N\nom\cbs e^{\delta\cbs(\vt\ref - \vt\nom)}
   \left[1 + \vD\cbs (\vt - \vt\ref) \right] \\
-  &= N\cbs(\vm, \vt\ref)\left[1 + \vD\cbs (\vt - \vt\ref) \right] 
+  &= N\cbs(\vm, \vt\ref)\left[1 + \vD\cbs (\vt - \vt\ref) \right].
 
-where the symmetric impact values :math:`\vD\cbs` are computed as
-
-.. math:: \Delta\cbsk = \sqrt{\frac{1 + \Delta\cbsk^+}{1 + \Delta\cbsk^-}} - 1.
 
 The NP values that maximize the likelihood of Eq. :eq:`llh`, expressed using the event yields above, can then be computed as
 
@@ -86,8 +83,8 @@ where :math:`P(\vm)` is a matrix of size :math:`N\nps \times N\nps` and :math:`\
 and the per-channel contributions are different for the `Poisson` and `Gaussian` cases. For `Poisson` channels, the expressions are
 
 .. math::
-   \vQ_c^{\text{Poisson}}(\vm) &= \sum\limits_{i=1}^{N\bins} \left(n\obs\cb - N\cb(\vm, \vt\ref) \right) \vD\cb \\
-   P_c^{\text{Poisson}}(\vm) &= \sum\limits_{b=1}^{N\binsc} n\obs_i \vD\cb \otimes \vD_{cb'}
+   \vQ_c^{\text{Poisson}}(\vm) &= \sum\limits_{b=1}^{N\binsc} \left(n\obs\cb - N\cb(\vm, \vt\ref) \right) \vD\cb \\
+   P_c^{\text{Poisson}}(\vm) &= \sum\limits_{b,b'=1}^{N\binsc} n\obs_i \vD\cb \otimes \vD_{cb'}
 
 while for `Gaussian` channels one has
 
