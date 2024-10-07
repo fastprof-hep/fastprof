@@ -18,11 +18,9 @@ part is delegated to the abstract method :meth:`Sampler.compute` which is
 reimplemented in derived classes corresponding to the minimization
 algorithms. So far the following are defined:
 
-* :class:`OptiSampler` class, using the :class:`OptiMinimizer`
-  minimization algorithm.
+* :class:`PValueSampler` class, to sample p-values
 
-* :class:`ScanSampler` class, using the :class:`SCanMinimizer`
-  minimization algorithm.
+* :class:`ParameterSampler` class, to sample parameters
 """
 
 import json
@@ -38,7 +36,7 @@ from timeit import default_timer as timer
 from .core import Model, Parameters, Data
 from .test_statistics import QMu, QMuTilda
 from .sampling import SamplingDistribution
-from .minimizers import OptiMinimizer, ScanMinimizer
+from .minimizers import OptiMinimizer
 
 # -------------------------------------------------------------------------
 class Sampler :
@@ -61,7 +59,7 @@ class Sampler :
     dist (SamplingDistribution) : the sampling distribution produced by
                                   meth:`generate`.
   """
-  def __init__(self, model : Model, gen_hypo : Parameters = None, print_freq : int = 1000, max_tries : int = 20) :
+  def __init__(self, model : Model, gen_hypo : Parameters = None, entries = [], print_freq : int = 1000, max_tries : int = 20) :
     """Initialize the Sampler object
 
     Args:
@@ -74,9 +72,11 @@ class Sampler :
     """
     self.model = model
     self.gen_hypo = model.expected_pars(gen_hypo) if isinstance(gen_hypo, (int, float)) else gen_hypo
+    self.entries = entries
     self.print_freq = print_freq
     self.max_tries = max_tries
     self.ntries = 0
+
 
   def progress(self, k : int, ntoys : int, descr : str = '') :
     """Small utility method to print out a progress indicator
@@ -105,13 +105,13 @@ class Sampler :
       ntoys : the total number of samples to generate
       hypo_descr : a description string for the hypothesis
     Returns:
-      `self.dist`, the generated sampling distribution
+      `self.dist`, the generated sampling distributions (dict mapping entries to distributions)
     """
     hypo_descr = ' ' + hypo_descr if hypo_descr is not None else ''
     print('Generating POI hypothesis %s%s, starting at %s. Full gen hypo = ' % (str(self.gen_hypo.pois), hypo_descr, str(datetime.datetime.now())))
     start_time = timer()
     print(str(self.gen_hypo))
-    self.dist = SamplingDistribution(ntoys)
+    self.dist = { entry : SamplingDistribution(ntoys) for entry in self.entries }
     ntotal = 0
     for k in range(0, ntoys) :
       if k % self.print_freq == 0 or k == ntoys - 1 :
@@ -125,13 +125,16 @@ class Sampler :
         ntotal += 1
         self.ntries += 1
         result = self.compute(data, k)
-        if result != None :
+        if result is not None :
           success = True
         elif self.ntries < self.max_tries :
           print('Processing toy iteration %d failed, repeating it.' % k)
         else :
           print('Processing toy iteration %d failed, and max number of tries (%d) reached -- returning null result.' % (k, self.max_tries))
-      self.dist.samples[k] = result
+      for entry in self.entries : 
+        if not entry in result :
+          raise KeyError("Sampler computation error: result did not contain the expected entry '%s'." % entry)
+        self.dist[entry].samples[k] = result[entry]
     end_time = timer()
     sys.stderr.write('\n')
     print('Done with POI hypothesis %s, end time %s. Generated %d good toys (%d total), elapsed time = %g s' % (str(self.gen_hypo.pois), datetime.datetime.now(), ntoys, ntotal, end_time - start_time))
@@ -146,18 +149,18 @@ class Sampler :
       data : the toy dataset on which to perform the computation
       toy_iter : the index of the toy generation iteration
     Returns:
-      the result, or `None` if the computation fails
+      the result, as a maps of entries to values; or `None` if the computation fails
     """
     pass
 
 
 # -------------------------------------------------------------------------
-class OptiSampler (Sampler) :
-  """Sampler algorithms using :class:`OptiMinimizer` minimization
+class PValueSampler (Sampler) :
+  """P-value sampler algorithm using :class:`OptiMinimizer` minimization
 
   Provides an implementation of :class:`Sampler` in which the
-  p-value computation in the meth:`compute` method is performed
-  using :class:`OptiMinimizer`. In turn, this uses algorithms from
+  meth:`compute` method implements a p-value comptuation using
+  :class:`OptiMinimizer`. In turn, this uses algorithms from
   :mod`scipy.minimize` to perform the minimization.
 
   A list of parameter bounds defined by :class:`ParBounds` objects
@@ -198,7 +201,7 @@ class OptiSampler (Sampler) :
                method : str = 'scalar', niter : int = 1, bounds : list = [],
                print_freq : int = 1000, max_tries : int = 20, tmu_Amu : float = None, tmu_A0 : float = None,
                floor : float = 1E-7, debug : bool = False) :
-    """Initialize the OptiSampler object
+    """Initialize the Sampler object
 
     Args:
       test_hypo : the model parameter values defining the
@@ -225,7 +228,7 @@ class OptiSampler (Sampler) :
               `qmu` to use in `qmutilda` computations
       debug : if True, print out debug information
     """
-    super().__init__(model, gen_hypo, print_freq)
+    super().__init__(model, gen_hypo, [ 'pv' ], print_freq)
     self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
     if self.gen_hypo == None : self.gen_hypo = Parameters.clone(self.test_hypo)
     self.bounds = bounds
@@ -304,84 +307,106 @@ class OptiSampler (Sampler) :
         self.debug_data.at[toy_iter, 'hypo_' + p] = self.minimizer.hypo_pars[p]
         self.debug_data.at[toy_iter, 'aux_'  + p] = data.aux_obs[i]
       data.save('data/debug_data_%d.json' % toy_iter)
-    return q.asymptotic_pv()
-
+    return { 'pv' : q.asymptotic_pv() }
 
 
 # -------------------------------------------------------------------------
-class ScanSampler (Sampler) :
-  """Sampler algorithms using :class:`ScanMinimizer` minimization
+class ParameterSampler (Sampler) :
+  """Parameter sampler algorithm using :class:`OptiMinimizer` minimization
 
   Provides an implementation of :class:`Sampler` in which the
-  p-value computation in the meth:`compute` method is performed
-  using :class:`ScanMinimizer`, which implements a simple scan
-  over the POIs.
+  meth:`compute` method implements a fit using
+  :class:`OptiMinimizer`, to sample the dispersion of the free parameters.
+
+  The generated samples are the best-fit parameter values. 
 
   Attributes:
-    test_hypo (Parameters) : the model parameter values defining the
-                 tested hypothesis. This is usually identical
-                 to the generation hypothesis, but can differ
-                 e.g. for :math:`CL_b` computations
-    scan_mus (list) : list of POI values over which to perform the scan
-    tmu_Amu (float) : value of the generation-hypothesis Asimov value of
-                    `qmu` to use in `qmutilda` computations
-    tmu_A0 (float) : value of the zero-hypothesis Asimov value of
-                    `qmu` to use in `qmutilda` computations
-    use_qtilda (bool) : if True, use the :class:`QMuTilda` test statistic,
-                        otherwise use :class:`QMu`.
+    method (str) : the minimization method from :mod:`scipy.minimize` to use
+    bounds (list) : Bounds to apply on the best-fit parameters, in the form of
+              a list of :class:`ParBounds` objects defining cuts on one
+              parameter.
+    floor (float) : minimal value of the per-bin event yields to use in
+                    minimization (see :class:`OptiMinimizer` for details)
+    debug (bool) : if True, print out debug information
+    minimizer (OptiMinimizer) : the minimizer object
   """
-  def __init__(self, model : Model, test_hypo : Parameters, scan_mus : list,
-               gen_hypo : Parameters = None, print_freq : int = 1000,
-               tmu_Amu : float = None, tmu_A0 : float = None) :
-    """Initialize the ScanSampler object
+  def __init__(self, model : Model, gen_hypo : Parameters = None,
+               method : str = 'scalar', bounds : list = [],
+               print_freq : int = 1000, max_tries : int = 20,
+               floor : float = 1E-7, debug : bool = False) :
+    """Initialize the Sampler object
 
     Args:
-      test_hypo : the model parameter values defining the
-                   tested hypothesis. This is usually identical
-                   to the generation hypothesis, but can differ
-                   e.g. for :math:`CL_b` computations
-      scan_mus : list of POI values over which to perform the scan
       gen_hypo  : the model parameter values defining the
                   generation hypothesis (default: None, in which
                   case the test hypothesis is used.)
+      method : the minimization method from :mod:`scipy.minimize` to use
+      bounds : Bounds to apply on the best-fit parameters, in the form of
+               a list of :class:`ParBounds` objects defining cuts on one
+               parameter.
       print_freq : the interval at which to print out progress messages
-      tmu_Amu : value of the generation-hypothesis Asimov value of
-              `qmu` to use in `qmutilda` computations
-      tmu_A0 : value of the zero-hypothesis Asimov value of
-              `qmu` to use in `qmutilda` computations
+      max_tries  : the maximum allowed number of retries when the
+                   generation fails
+      floor : minimal value of the per-bin event yields to use in
+              minimization (see :class:`OptiMinimizer` for details)
+      debug : if True, print out debug information
     """
-    super().__init__(model, gen_hypo, print_freq)
-    self.test_hypo = model.expected_pars(test_hypo) if isinstance(test_hypo, (int, float)) else test_hypo
-    if self.gen_hypo == None : self.gen_hypo = Parameters.clone(self.test_hypo)
-    self.scan_mus = scan_mus
-    self.tmu_Amu = tmu_Amu
-    self.tmu_A0 = tmu_A0
-    self.use_qtilda = True if tmu_Amu != None and tmu_A0 != None else False
+    super().__init__(model, gen_hypo, [*model.all_pars()], print_freq)
+    self.bounds = bounds
+    self.method = method
+    self.floor = floor
+    self.debug = debug
+    self.minimizer = OptiMinimizer(self.method, floor=self.floor)
+    if self.debug : self.minimizer.verbosity = 2
 
   def compute(self, data : Data, toy_iter : int) -> float :
     """Compute the asymptotic p-value
 
-    Compute the asymptotic p-value for a given toy dataset.
-    The computation uses either the :class:`QMuTilda` or the
-    :class:`QMu` test statistic, depending on the initialization
-    parameters.
-    The fits are performed using the :class:`ScanMinimizer`
+    Fit the model for a given toy dataset.
+    The fits are performed using the :class:`OptiMinimizer`
     minimization algorith,.
+    If the best-fit parameters fail the bounds specified at
+    initialization, the computation fails (leading in general to
+    another generation attempt, see :class:`Sampler`).
+    Debug data is produced if the debug flag was passed at
+    initialization.
 
     Args:
       data : the toy dataset on which to perform the computation
       toy_iter : the index of the toy generation iteration
     Returns:
-      the computed p-value
+      the computed p-value, or `None` if the computation fails
     """
-    opti = ScanMinimizer(self.scan_mus)
-    tmu = opti.tmu(self.test_hypo, data, self.test_hypo)
-    if self.use_qtilda :
-      q = QMuTilda(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi, tmu_Amu = self.tmu_Amu, tmu_A0 = self.tmu_A0)
-    else :
-      q = QMu(test_poi = self.test_hypo.pois[0], tmu = tmu, best_poi = opti.min_poi)
-    return q.asymptotic_pv()
+    if self.minimizer.minimize(data, self.gen_hypo) is None : return None
+    for bound in self.bounds :
+      if not bound.test(self.minimizer.np_min.min_deltas) :
+        print('Warning: fit parameters below fail bound %s' % str(bound))
+        print(self.minimizer.np_min.min_deltas)
+        return None
+    if self.debug :
+      print('DEBUG: fitting data with range = %g, mu_hat = %g.' % (*self.poi_bounds, self.minimizer.min_poi))
+    return { par : self.minimizer.min_pars[par] for par in self.entries }
 
+  def errors(self, samples, central_values = None) :
+    if central_values is None : central_values = { par : samples[par].mean() for par in self.entries }
+    sorted_samples = { par : SamplingDistribution(samples=samples[par].samples) for par in self.entries }
+    errs_hi = { par : sorted_samples[par].quantile(nsigmas=+1) - central_values[par] for par in self.entries }
+    errs_lo = { par : sorted_samples[par].quantile(nsigmas=-1) - central_values[par] for par in self.entries }
+    return errs_hi, errs_lo
+
+  def covmat(self, samples) :
+    covmat = np.zeros((len(self.entries), len(self.entries)))
+    for i in range(0, len(self.entries)) :
+      covmat[i,i] = samples[self.entries[i]].var()
+      for j in range(0, i - 1) :
+        covmat[i,j] = samples[self.entries[i]].cov(samples[self.entries[j]])
+        covmat[j,i] = covmat[i,j]
+    return covmat
+  
+  def corrmat(self, samples) :
+    cov = self.covmat(samples)
+    errors = np.sqrt(cov.diagonal())
+    return (cov.T / errors).T / errors
 
 
 # -------------------------------------------------------------------------
@@ -412,7 +437,7 @@ class LimitSampler (Sampler) :
       cl : the CL at which to compute the limit
       print_freq : the interval at which to print out progress messages
     """
-    super().__init__(model, gen_hypo, print_freq)
+    super().__init__(model, gen_hypo, [ 'limit' ], print_freq)
     self.limit_calc = limit_calc
     self.cl = cl
 
@@ -430,4 +455,4 @@ class LimitSampler (Sampler) :
       the computed limit
     """
     self.limit_calc.fill_fast_results(data = data, pv_key = 'fast_pv')
-    return self.limit_calc.limit(pv_key = 'fast_pv', cl=self.cl)
+    return { 'limit' : self.limit_calc.limit(pv_key = 'fast_pv', cl=self.cl) }

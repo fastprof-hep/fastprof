@@ -119,7 +119,7 @@ class SamplingDistribution :
     nbelow_lft = np.searchsorted(self.samples, apv, 'left')
     nbelow_rgt = np.searchsorted(self.samples, apv, 'right')
     nbelow = (nbelow_lft + nbelow_rgt)/2
-    ntot = len(self.samples)
+    ntot = self.size()
     # Add +1 terms to avoid uncertainty going to 0 at the edges of the distribution
     return (nbelow/ntot, math.sqrt((nbelow+1)*(ntot - nbelow + 1)/ntot)/ntot) if with_error else nbelow/ntot
 
@@ -135,16 +135,35 @@ class SamplingDistribution :
     Returns:
       the p-value position of the quantile
     """
-    if fraction == None :
-      if nsigmas != None :
+    if fraction is None :
+      if nsigmas is not None :
         fraction = scipy.stats.norm.cdf(nsigmas)
       else :
         raise ValueError("Should provide exactly one of 'fraction' or 'nsigmas'.")
     if fraction < 0 or fraction > 1 :
       raise ValueError('Invalid fraction value %g, should be between 0 and 1.' % fraction)
-    index = int(len(self.samples)*fraction)
+    index = int(self.size()*fraction)
     #print('Quantile: frac = %g -> index = %d -> pv = %g' % (fraction, index, self.samples[index]))
     return self.samples[index]
+
+  def size(self) :
+    return len(self.samples)
+
+  def mean(self) :
+    return np.mean(self.samples)
+  
+  def var(self) :
+    return np.var(self.samples)
+  
+  def cov(self, other : 'SamplingDistribution' = None) :
+    if self.size() != other.size() :
+      raise ValueError('Cannot compute covariance of two sampling distributions of different sizes')
+    return np.cov(np.stack((self.samples, other.samples)))[0,1]
+  
+  def corr(self, other : 'SamplingDistribution') :
+    if self.size() != other.size() :
+      raise ValueError('Cannot compute covariance of two sampling distributions of different sizes')
+    return np.corrcoef(np.stack((self.samples, other.samples)))[0,1]
 
   def cut(self, min_val : float = None, max_val : float = None) -> 'SamplingDistribution' :
     """Apply a selection to the distribution
@@ -302,7 +321,7 @@ class Samples (SamplesBase) :
       print('Processing sampling distribution for hypo %s' % str(hypo))
       with open(self.file_name(hypo, '.lock'), 'w') as f :
         f.write(str(os.getpid()))
-      self.dists[hypo] = sampler.generate(ntoys, '(%d of %d)' % (i+1, len(self.hypos)))
+      self.dists[hypo] = sampler.generate(ntoys, '(%d of %d)' % (i+1, len(self.hypos)))['pv']
       self.dists[hypo].save(self.file_name(hypo), sort_before_saving=sort_before_saving)
       if hasattr(sampler, 'debug_data') and sampler.debug_data.shape[0] != 0 : sampler.debug_data.to_csv(self.file_name(hypo, '_debug.csv'))
       print('Done')
@@ -341,7 +360,7 @@ class Samples (SamplesBase) :
       raise ValueError('Cannot generate as no samplers were specified.')
     for hypo, sampler in zip(self.hypos, self.samplers) :
       print('Creating sampling distribution for %s' % str(hypo))
-      self.dists[hypo] = self.sampler.generate(ntoys)
+      self.dists[hypo] = self.sampler.generate(ntoys)['pv']
       self.dists[hypo].sort()
       print('Done')
     return self

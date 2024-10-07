@@ -51,7 +51,7 @@ import numpy as np
 import copy
 import json
 
-from fastprof import Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan, PlotBands
+from fastprof import Parameters, Model, Data, Samples, CLsSamples, PValueSampler, OptiMinimizer, Raster, QMuCalculator, QMuTildaCalculator, ParBound, UpperLimitScan, PlotBands
 
 ####################################################################################################################################
 ###
@@ -174,8 +174,8 @@ def run(argv = None) :
     gen_hypo = gen_hypos[plr_data]
     tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
     gen0_hypo = gen_hypo.clone().set(model.poi(0).name, 0)
-    clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
-    cl_b = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo)
+    clsb = PValueSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
+    cl_b = PValueSampler(model, test_hypo, print_freq=options.print_freq, bounds=gen_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen0_hypo)
     plr_data.free_fit.set_poi_values_and_ranges(clsb.minimizer)
     plr_data.free_fit.set_poi_values_and_ranges(cl_b.minimizer)
     samplers_clsb.append(clsb)

@@ -18,7 +18,7 @@ __author__ = "N. Berger <Nicolas.Berger@cern.ch"
 
 import os, sys
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from fastprof import Model, Data, OptiMinimizer, NPMinimizer, QMuTildaCalculator, PlotResults
+from fastprof import Model, Data, OptiMinimizer, NPMinimizer, QMuTildaCalculator, PlotPOIs, PlotNPs, PlotParams
 from fastprof_utils import process_setvals, process_setranges
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,6 +42,8 @@ def make_parser() :
   parser.add_argument("-i", "--iterations"       , type=int  , default=1       , help="Number of iterations to perform for NP computation")
   parser.add_argument(      "--regularize"       , type=float, default=None    , help="Set loose constraints at specified N_sigmas on free NPs to avoid flat directions")
   parser.add_argument(      "--cutoff"           , type=float, default=None    , help="Cutoff to regularize the impact of NPs")
+  parser.add_argument(      "--all"              , action='store_true'         , help="Show all parameters, not just POIs")
+  parser.add_argument("-s", "--error-samples"    , type=int  , default=1000    , help="Number of samples used to compute errors")
   parser.add_argument("-p", "--plot-result"      , action='store_true'         , help="Plot the fitted model and data")
   parser.add_argument("-l", "--log-scale"        , action='store_true'         , help="Use log scale for plotting")
   parser.add_argument("-c", "--plot-channel"     , type=str  , default=None    , help="Name of channel to plot (default: the first one)")
@@ -103,6 +105,7 @@ def run(argv = None) :
     output_data = {}
     output_data['min_nll'] = min_nll
     output_data['min_pars'] = min_pars.dict()
+    output_data['POIs'] = {}
   covariance = model.covariance_matrix(min_pars, data)
   errors = model.parabolic_errors(covmat=covariance) if covariance is not None else None
   correlation = model.correlation_matrix(covmat=covariance) if covariance is not None else None
@@ -110,9 +113,9 @@ def run(argv = None) :
   for par in model.pois.keys() :
     print('%-20s = %10g +/- %10g' % (par, min_pars[par], errors[par] if errors is not None else np.nan))
     if options.output_file is not None :
-      output_data[par] = {}
-      output_data[par]['best_fit_value'] = min_pars[par]
-      output_data[par]['uncertainty'] = errors[par] if errors is not None else None
+      output_data['POIs'][par] = {}
+      output_data['POIs'][par]['best_fit_value'] = min_pars[par]
+      output_data['POIs'][par]['uncertainty'] = errors[par] if errors is not None else None
   if correlation is not None :
     print('\n== Correlation matrix [%s]:' % ' '.join(model.pois.keys()))
     print(correlation)
@@ -120,13 +123,33 @@ def run(argv = None) :
     print('\n== Covariance matrix is singular')
   if options.output_file is not None :
     output_data['correlation_matrix'] = correlation.tolist() if correlation is not None else None
-    plotter = PlotResults(min_pars, data)
-    plotter.plot_best_fit(sym_errors=errors)
-    plt.savefig('%s_results.png' % options.output_file)
-    plotter.plot_covariance()
-    plt.savefig('%s_covariance.png' % options.output_file)
-    plotter.plot_correlation()
-    plt.savefig('%s_correlation.png' % options.output_file)
+    poi_plotter = PlotPOIs(min_pars, data)
+    poi_plotter.plot_pois(sym_errors=errors)
+    plt.savefig('%s_pois.png' % options.output_file)
+    poi_plotter.plot_covariance()
+    plt.savefig('%s_poi_covariance.png' % options.output_file)
+    poi_plotter.plot_correlation()
+    plt.savefig('%s_poi_correlation.png' % options.output_file)
+    np_plotter = PlotNPs(min_pars)
+    np_plotter.pull_plot()
+    plt.savefig('%s_pulls.png' % options.output_file)
+    if options.all :
+      par_plotter = PlotParams(min_pars, data, error_samples = options.error_samples)
+      if options.output_file is not None :
+        output_data['All pars'] = {}
+        err_hi, err_lo = par_plotter.sampler.errors(par_plotter.samples, min_pars)
+        for par in model.all_pars() :
+          output_data['All pars'][par] = {}
+          output_data['All pars'][par]['best_fit_value'] = min_pars[par]
+          output_data['All pars'][par]['+err'] = err_hi[par]
+          output_data['All pars'][par]['-err'] = err_lo[par]
+      par_plotter.plot_pars()
+      plt.savefig('%s_allpars.png' % options.output_file)
+      par_plotter.plot_covariance()
+      plt.savefig('%s_allpars_covariance.png' % options.output_file)
+      par_plotter.plot_correlation()
+      plt.savefig('%s_allpars_correlation.png' % options.output_file)
+
   if options.hypo is not None :
     tmu = opti.tmu(hypo_vals, data)
     print('\n== Profile-likelihood ratio tmu = %g for hypothesis' % tmu, hypo_vals)
@@ -156,5 +179,7 @@ def run(argv = None) :
     plt.figure(1)
     model.plot(min_pars, data=data, stack=True)
     if options.log_scale : plt.yscale('log')
+    plt.savefig('%s_result.png' % options.output_file)
+
 
 if __name__ == '__main__' : run()

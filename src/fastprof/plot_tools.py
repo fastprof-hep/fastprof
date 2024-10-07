@@ -3,7 +3,9 @@ Utility classes for plot-making
 
 * :class:`PlotNPs`: draw NP pull plots 
 
-* :class:`PlotResults`: plot POI best-fit values, covariance and correlation matrices.
+* :class:`PlotPOIs`: plot POI best-fit values, covariance and correlation matrices.
+
+* :class:`PlotParams`: plot all parameters, using toy-based uncertainties are correlations.
 
 * :class:`PlotImpacts`: draw NP impacts and pulls together
 """
@@ -19,6 +21,8 @@ import matplotlib.pyplot as plt
 from .core  import Model, Data, Parameters
 from .minimizers import POIMinimizer, OptiMinimizer
 from .model_tools import NPPruner
+from .samplers import ParameterSampler
+
 
 # -------------------------------------------------------------------------
 class PlotNPs :
@@ -48,6 +52,7 @@ class PlotNPs :
       figsize : figure size, as a (size_x, size_y) pair (default: (5,10))
       fig : figure object to use for plotting (if None, create a new one)
     """
+    if not names and self.pars.model is not None : names = [*self.pars.model.nps]
     indices = np.arange(len(names))
     try :
       values = [ self.pars[name] for name in names ]
@@ -68,7 +73,7 @@ class PlotNPs :
       plt.tight_layout()
 
 
-class PlotResults :
+class PlotPOIs :
   """Utility class to plot POI results
 
   So far 3 plots are implemented:
@@ -81,12 +86,13 @@ class PlotResults :
     data (Data) : the dataset corresponding to the results, to compute covariances.
   """
 
-  def __init__(self, pars, data) :
+  def __init__(self, pars, data, error_samples = None) :
     """Initialize the object
 
     Args:
       pars : a Parameters object with the parameter values.
       data : the dataset corresponding to the results.
+      error_samples : number of samples to use in error sampling (None for no sampling)
     """
     self.pars = pars
     self.data = data
@@ -149,8 +155,8 @@ class PlotResults :
     plt.colorbar(img)
     plt.tight_layout()
     
-  def plot_best_fit(self, values: dict = None, sym_errors : dict = None, results : dict = None,
-                    figsize : tuple = (10,10), fig : plt.Figure = None) :
+  def plot_pois(self, values: dict = None, sym_errors : dict = None, results : dict = None,
+                figsize : tuple = (10,10), fig : plt.Figure = None) :
     """Plot the best-fit results of the POIs
 
     Plots the best-fit values and symmetric (parabolic) errors
@@ -186,6 +192,118 @@ class PlotResults :
       errs = np.zeros((2,len(self.data.model.pois)))
     plt.errorbar(vals, np.arange(len(self.data.model.pois), 0, -1), xerr=errs, fmt='o')
     self.decorate_with_pois(axes='y', reverse=True)
+    plt.tight_layout()
+
+
+class PlotParams :
+  """Utility class to plot fit results
+
+  So far 3 plots are implemented:
+  - Correlation matrix plot
+  - Covariance matrix plot
+  - Bar plot with best-fit value and parabolic error
+
+  Atttributes:
+    pars (Parameters) : a Parameters object with parameter (POI and NP) values
+    data (Data) : the dataset corresponding to the results, to compute covariances.
+  """
+
+  def __init__(self, pars, data, error_samples) :
+    """Initialize the object
+
+    Args:
+      pars : a Parameters object with the parameter values.
+      data : the dataset corresponding to the results.
+      error_samples : number of samples to use in error sampling (None for no sampling)
+    """
+    self.pars = pars
+    self.data = data
+    self.sampler = ParameterSampler(self.data.model, self.pars)
+    print('Generating %d toys to sample parameter uncertainties' % error_samples)
+    self.samples = self.sampler.generate(error_samples)
+
+  def decorate_with_pars(self, axes: str = 'xy', reverse: bool = False) :
+    """Decorate the plot axes with POI names
+
+    Sets the number of axis ticks to the number of POIs and label
+    each tick with the POI name.
+
+    Args:
+      axes : which axes to decorate (default: 'xy')
+      reverse: if True, decorate in reverse order (right to left or top to bottom)
+    """
+    indices = np.arange(len(self.data.model.all_pars())) if not reverse else np.arange(len(self.data.model.all_pars()), 0, -1)
+    if 'x' in axes : plt.xticks(indices, self.data.model.all_pars().keys(), rotation='vertical')
+    if 'y' in axes : plt.yticks(indices, self.data.model.all_pars().keys())
+
+  def make_canvas(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
+    """Provide a figure for plotting
+
+    If the fig argument is passed, then the same figure is returned.
+    Otherwise create a new one with the specified size.
+
+    Args:
+      figsize : figure size, as a (size_x, size_y) pair (default: (5,10))
+      fig : figure object to use (if None, create a new one)
+
+    Returns:
+      the figure
+    """
+    if not fig :
+      self.figure = plt.figure(figsize=figsize)
+    else :
+      self.figure = plt.figure(fig.number)
+  
+  def plot_covariance(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
+    """Plot the covariance matrix of the POIs
+  
+    Args:
+      figsize : figure size, as a (size_x, size_y) pair (default: (5,10))
+      fig : figure object to use (if None, create a new one)
+    """
+    self.make_canvas(figsize, fig)
+    img = plt.imshow(self.sampler.covmat(self.samples), cmap='seismic')
+    self.decorate_with_pars(axes='xy')
+    plt.colorbar(img)
+    plt.tight_layout()
+
+  def plot_correlation(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
+    """Plot the correlation matrix of the POIs
+  
+    Args:
+      figsize : figure size, as a (size_x, size_y) pair (default: (5,10))
+      fig : figure object to use (if None, create a new one)
+    """
+    self.make_canvas(figsize, fig)
+    img = plt.imshow(self.sampler.corrmat(self.samples), vmin=-1, vmax=1, cmap='seismic')
+    self.decorate_with_pars(axes='xy')
+    plt.colorbar(img)
+    plt.tight_layout()
+  
+  def plot_pars(self, figsize : tuple = (10,10), fig : plt.Figure = None) :
+    """Plot the best-fit results of the POIs
+
+    Plots the best-fit values and symmetric (parabolic) errors
+    for the specified POIs. The values and errors can be given as
+    separate dicts (values and sym_errors); or as a dict of results
+    in the form { par_name : (val, err) }, as in the FitResult class.
+    The inputs are checked in this order. If none are provided, the
+    values from self.pars are used instead.
+
+    Args:
+      values : POI values as a {name: value} dict
+      sym_errors : parabolic errors on the POIs, as a {name: value} dict
+      results : dict of fit results in the form { par_name : (val, err) }
+      figsize : figure size, as a (size_x, size_y) pair (default: (5,10))
+      fig : figure object to use (if None, create a new one)
+    """
+    self.make_canvas(figsize, fig)
+    vals = np.array([ self.pars[par] for par in self.data.model.all_pars() ])
+    errs_hi, errs_lo = self.sampler.errors(self.samples, self.pars)
+    errs = np.array([ [ -errs_lo[par] for par in self.sampler.entries ], 
+                      [ +errs_hi[par] for par in self.sampler.entries ] ])
+    plt.errorbar(vals, np.arange(len(self.data.model.all_pars()), 0, -1), xerr=errs, fmt='o')
+    self.decorate_with_pars(axes='y', reverse=True)
     plt.tight_layout()
 
 

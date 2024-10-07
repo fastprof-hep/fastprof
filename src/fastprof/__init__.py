@@ -7,11 +7,11 @@ from .core            import Model, Parameters, Data
 from .test_statistics import TMu, DMu, QMu, QMuTilda
 from .minimizers      import NPMinimizer, OptiMinimizer, ScanMinimizer
 from .sampling        import SamplingDistribution, Samples, CLsSamples
-from .samplers        import ScanSampler, OptiSampler
+from .samplers        import PValueSampler, ParameterSampler
 from .fit_data        import POIHypo, FitParameter, FitResult, Raster, PLRData
 from .calculators     import TMuCalculator, QMuCalculator, QMuTildaCalculator
 from .model_tools     import ModelMerger, ModelReparam, NPPruner, SamplePruner, ChannelMerger, ParBound
-from .plot_tools      import PlotNPs, PlotResults, PlotImpacts, PlotBands
+from .plot_tools      import PlotNPs, PlotPOIs, PlotParams, PlotImpacts, PlotBands
 from .scans           import UpperLimitScan, PLRScan1D, PLRScan2D
 
 import numpy as np

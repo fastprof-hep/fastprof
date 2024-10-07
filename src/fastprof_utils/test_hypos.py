@@ -14,7 +14,7 @@ import copy
 import json
 import time
 
-from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, OptiSampler, OptiMinimizer, NPMinimizer, Raster, TMuCalculator, ParBound, UpperLimitScan
+from fastprof import POIHypo, Parameters, Model, Data, Samples, CLsSamples, PValueSampler, OptiMinimizer, NPMinimizer, Raster, TMuCalculator, ParBound, UpperLimitScan
 
 from fastprof_utils import make_model, make_data, make_hypos, init_calc, try_loading_results
 
@@ -94,7 +94,7 @@ def run(argv = None) :
     gen_hypo = fast_plr_data.full_hypo
     tmu_A0 = fast_plr_data.test_statistics['tmu_A0']
     gen0_hypo = gen_hypo.clone().set(model.poi(0).name, 0)
-    clsb = OptiSampler(model, test_hypo, print_freq=options.print_freq, bounds=par_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
+    clsb = PValueSampler(model, test_hypo, print_freq=options.print_freq, bounds=par_bounds, debug=options.debug, niter=niter, tmu_Amu=tmu_A0, tmu_A0=tmu_A0, gen_hypo=gen_hypo)
     samplers_clsb.append(clsb)
 
   if options.truncate_dist : opti_samples.cut(None, options.truncate_dist)
