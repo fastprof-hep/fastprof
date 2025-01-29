@@ -491,6 +491,13 @@ class Model (Serializable) :
         for channel in self.channels.values() :
           imp_list.append(self.samples[(channel.name, s)].impact(par) if s < len(channel.samples) else np.zeros(channel.nbins()))
         self.impacts[s, :, p] = np.concatenate(imp_list) # TODO: check here that there is some non-zero impact, can indicate trouble for later
+    if np.any(self.impacts <= -1) :
+      self.use_linear_nps = True
+      print('Warning: switching to fully linear NPs to avoid math exceptions when computing log(1 + impact) with impact < -1.')
+      if self.verbosity > 0 : 
+        print('Relevant NPs:')
+        for i in range(0, len(self.nps)) :
+          if np.any(self.impacts[:,:,i] <= -1) : print(list(self.nps.values())[i].name)
     if self.verbosity > 0 : sys.stderr.write('\n')
     self.ref_yields = self.n_exp(self.ref_pars)
 
@@ -538,32 +545,34 @@ class Model (Serializable) :
     return pars
   
   def reals(self) -> dict :
-    """Return all model real values
+    """Return all model reals
 
-      Returns all the real values in the model, i.e. POIs, NPs and expressions.
-      These are in turns the possible inputs to other expressions.
+      Returns all the objects representing real values in the model, i.e. POIs, NPs and expressions.
+      Unlike :meth:`real_vals`, this returns parameter objects (SingleParameter for POIs and NPs, and formula objects of expressions)
+      These represent in turn the possible inputs to other expressions.
 
       Returns:
-         A dictionary of parameter name : object pairs containing
-         all POIs, NPs and expressions
+         A dictionary of parameter name : object pairs containing all POIs, NPs and expressions
     """
     return { **{ poi : SingleParameter(poi) for poi in self.pois}, **{ par : SingleParameter(par) for par in self.nps}, **self.expressions }
 
+  def real_vals(self, pars : Parameters) -> dict :
+    """Return a full dictionary of parameter values, including expressions
 
-  def set_constraint(self, par : str, val : float) :
-    """Set the value of the constraint on a NP
-
-      If `par` is set to `None`, set the constraint on all NPs.
-      See the documentation of :class:`fastprof.base.ModelNP` for more details
-      on constraints
+       Unlike :meth:`reals`, this returns numerical values and not objects,
+       which are easier to deal with to evaluate NLLs.
+       The values are evaluated in order of appearance of the parameters,
+       under the assumption that expressions of other expressions are listed
+       after their dependents.
 
       Args:
-         par : a NP name
-         val : a constraint value
+         pars: a :class:`Parameters` object
+      Returns:
+         a dictionary of name : value pairs.
     """
-    for par in self.nps :
-      if par is None or par.name == par : par.constraint = val
-    self.set_internal_vars()
+    vals = pars.dict(nominal_nps=True)
+    for real in self.expressions.values() : vals[real.name] = real.value(vals)
+    return vals
 
   def k_exp(self, pars : Parameters) -> np.array :
     """Return the modifier to event yields due to NPs
@@ -594,25 +603,6 @@ class Model (Serializable) :
   def cut_k_exp(self, pars) :
     k = self.k_exp(pars)
     return k if self.cutoff == 0 else (1 + self.cutoff*np.tanh((k-1)/self.cutoff))
-
-  def real_vals(self, pars : Parameters) -> dict :
-    """Return a full dictionary of parameter values, including expressions
-
-       Parameters are internally stored as :class:`Parameters` objects, but
-       to evaluate the NLL it is more convenient to have simple name:value
-       pairs. This also allows to add to the list the expressions, which
-       are essentially functions of the parameters. These are added in order,
-       under the assumption that expressions of other expressions are listed
-       after their dependents.
-
-      Args:
-         pars: a :class:`Parameters` object
-      Returns:
-         a dictionary of name:value pairs
-    """
-    vals = pars.dict(nominal_nps=True)
-    for real in self.expressions.values() : vals[real.name] = real.value(vals)
-    return vals
 
   def n_exp(self, pars : Parameters) -> np.array :
     """Return the expected event yields for a given parameter value
