@@ -572,11 +572,11 @@ class NPPruner :
     if self.verbosity > 1 : print('New pars :\n', pars)
     for channel in model.channels.values() :
       for s, sample in enumerate(channel.samples.values()) :
-        if self.verbosity > 0 : print("Applying changes to the nominal yields of sample '%s' of channel '%s'." % (sample.name, channel.name))
-        if self.verbosity > 1 : print('Old yields :\n', sample.nominal_yield)
+        if self.verbosity > 1 : print("Applying changes to the nominal yields of sample '%s' of channel '%s'." % (sample.name, channel.name))
+        if self.verbosity > 2 : print('Old yields :\n', sample.nominal_yield)
         sample.nominal_yield = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
-        sample.nominal_norm = sample.norm.value(real_vals)
-        if self.verbosity > 1 : print('New yields :\n', sample.nominal_yield)
+        if sample.save_norm : sample.nominal_norm = sample.norm.value(real_vals)
+        if self.verbosity > 2 : print('New yields :\n', sample.nominal_yield)
     for par in removed :
       if par.aux_obs : model.aux_obs.pop(par.aux_obs)
       model.nps.pop(par.name)
