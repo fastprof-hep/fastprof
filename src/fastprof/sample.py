@@ -38,12 +38,15 @@ class Sample(Serializable) :
      norm_expr     (str) : a string defining the normalization term
                            as a function of the POIs and NPs
      nominal_norm  (float) : the nominal value of the normalization term,
-                             for which the expected yields are given
+                             for which the expected yields are given.
+                             Normally computed at init-time from model ref_pars
+                             (init values of POIs + nominal vals of NPs), or can
+                             be specified manually.
      nominal_yield (:class:`np.ndarray`) :
           the nominal per-bin yields, provided as an 1D np.array with
           a size equal to the number of channel bins
      impacts (dict) : the relative variations in the per-bin yields
-          corresponding to :math:`n\sigma` variations
+          corresponding to :math:`n\\sigma` variations
           in the value of each NP; provided as a python dict
           with format { np_name: np_impacts } with the impacts provided
           as a list (over bins) of small dicts { nsigmas : relative_variation }
@@ -66,6 +69,7 @@ class Sample(Serializable) :
     self.nominal_norm = nominal_norm
     self.nominal_yield = nominal_yield
     self.impacts = impacts if impacts is not None else {}
+    self.save_norm = True
 
   def clone(self) :
     """Return a clone of the object
@@ -105,15 +109,17 @@ class Sample(Serializable) :
     
     Args:
       nps : list of all model NPs
+      reals : list of all real value objects in the model
+      real_vals : list of the current numerical values of each real.
+      verbosity : verbosity level of the output
     """
     if self.nominal_norm is None :
-      nominal_pars = { par.name : par.nominal_value for par in nps }
+      self.save_norm = False
       try :
-        self.nominal_norm = self.norm.value(nominal_pars)
+        self.nominal_norm = self.norm.value(real_vals)
       except Exception as inst :
-        #print("Cannot fill in empty nominal_norm field for sample '%s' using the following parameter values: %s" % (self.name, str(nominal_pars)))
-        #raise(inst)
-        if verbosity > 0 : print("Using normalization = 1 for sample '%s'." % self.name)
+        if verbosity > 0 : print("Using normalization = 1 for sample '%s' after encountering exception below :" % self.name)
+        print(inst)
         self.nominal_norm = 1
     if self.nominal_yield is None :
       self.nominal_yield = np.array([ self.nominal_norm ])
@@ -157,6 +163,7 @@ class Sample(Serializable) :
       Returns:
          normalization factor value
     """
+    #print('njpb', self.name, self.norm.value(real_vals), self.nominal_norm)
     return self.norm.value(real_vals)/self.nominal_norm
 
   def yields(self, real_vals : dict) -> np.ndarray :
@@ -261,7 +268,7 @@ class Sample(Serializable) :
     """
     sdict['name'] = self.name
     self.norm.fill_dict(sdict)
-    sdict['nominal_norm']  = self.unnumpy(self.nominal_norm)
+    if self.save_norm : sdict['nominal_norm']  = self.unnumpy(self.nominal_norm)
     sdict['nominal_yield'] = self.unnumpy(self.nominal_yield)
     sdict['impacts']       = self.unnumpy(self.impacts)
 
