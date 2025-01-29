@@ -21,7 +21,7 @@ from fastprof_import.tools import process_setvals, process_setranges, process_se
 ###
 
 def make_parser() :
-  parser = ArgumentParser("convert_ws.py", formatter_class=ArgumentDefaultsHelpFormatter)
+  parser = ArgumentParser("convert_pyhf_json.py", formatter_class=ArgumentDefaultsHelpFormatter)
   parser.description = __doc__
   #parser.add_argument("-f", "--input-file"       , type=str  , required=True    , help="Name of file containing the pyhf model")
   parser.add_argument("input_files"              , type=str  , nargs=1          , help="Name of file containing the pyhf model")
@@ -67,7 +67,8 @@ def run(argv = None) :
     print(inst)
     raise("Valid measurement not found in model at index %d" % options.measurement)
   try :
-    fastprof_model['POIs'][config['poi']] = { 'name' : config['poi'], 'min_value' : 0, 'max_value' : 1 } # POI range is not specified in pyhf ?
+     # POI range is not specified in pyhf ? Set initial value at 1 to be consistent with nominal norms also being 1.
+     fastprof_model['POIs'][config['poi']] = { 'name' : config['poi'], 'min_value' : 0, 'max_value' : 1, 'initial_value' : 1 }
   except Exception as inst :
     print(inst)
     raise KeyError('ERROR: could not read parameter of interest information from measurements section.')
@@ -76,11 +77,12 @@ def run(argv = None) :
       if par_spec['name'] in fastprof_model['POIs'] : continue
       constraint = par_spec['sigmas'][0] if 'sigmas' in par_spec else None
       variation = constraint if constraint is not None else 1
-      nominal_value = 0
       if 'aux_data' in par_spec :
         nominal_value = par_spec['aux_data'][0] 
       elif 'inits' in par_spec :
-        nominal_value = par_spec['inits'][0] 
+        nominal_value = par_spec['inits'][0]
+      else :
+        nominal_value = 0
       np_spec = { 'name' : par_spec['name'], 'nominal_value' : nominal_value }
       if constraint is not None :
         np_spec['variation'] = variation
@@ -143,8 +145,8 @@ def run(argv = None) :
         normfactors = [ modifier['name'] for modifier in pyhf_sample['modifiers'] if modifier['type'] == 'normfactor' ]
         if len(normfactors) > 1 : raise("Sample '%s' has %d normfactors, can only handle one -- exiting." % (sample['name'], len(normfactors)))
         if len(normfactors) == 1 :
+          print('njpb', normfactors)
           #sample['norm_type'] = 'parameter'
-          sample['nominal_norm'] = 1 # FIXME: put the nominal POI or NP value here instead
           sample['norm'] = normfactors[0]
         sample['impacts'] = {} 
         for modifier in pyhf_sample['modifiers'] :
