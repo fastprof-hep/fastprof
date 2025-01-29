@@ -51,6 +51,8 @@ class Sample(Serializable) :
           with format { np_name: np_impacts } with the impacts provided
           as a list (over bins) of small dicts { nsigmas : relative_variation }
           for all the known variations.
+     save_norm (bool) : True if the sample norm is explicitly specified, as opposed
+                        to computed on the fly from nominal parameter values.
   """
 
   def __init__(self, name : str = '', norm : Norm = None, nominal_norm : float = None,
