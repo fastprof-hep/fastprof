@@ -67,8 +67,8 @@ def run(argv = None) :
     print(inst)
     raise("Valid measurement not found in model at index %d" % options.measurement)
   try :
-     # POI range is not specified in pyhf ? Set initial value at 1 to be consistent with nominal norms also being 1.
-     fastprof_model['POIs'][config['poi']] = { 'name' : config['poi'], 'min_value' : 0, 'max_value' : 1, 'initial_value' : 1 }
+     # POI range is not specified in pyhf ? Set nominal value at 1 to be consistent with nominal norms also being 1.
+     fastprof_model['POIs'][config['poi']] = { 'name' : config['poi'], 'min_value' : 0, 'max_value' : 1, 'nominal_value' : 1 }
   except Exception as inst :
     print(inst)
     raise KeyError('ERROR: could not read parameter of interest information from measurements section.')

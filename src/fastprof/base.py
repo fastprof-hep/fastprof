@@ -222,13 +222,15 @@ class ModelPOI(Serializable) :
      name          (str)   : the name of the parameter
      min_value     (float) : the lower bound of the allowed range of the parameter
      max_value     (float) : the upper bound of the allowed range of the parameter
+     nominal_value (float) : the nominal parameter value, corresponding to nominal sample yields
      initial_value (float) : the initial value of the parameter when performing fits to data
      unit          (str)   : the unit in which the parameter is expressed
      description   (str)   : a description string for the object
   """
 
   def __init__(self, name : str = '', min_value : float = None, max_value : float = None,
-               initial_value : float = None, unit : str = None, description : str = None) :
+               nominal_value : float = None, initial_value : float = None,
+               unit : str = None, description : str = None) :
     """Initialize object attributes
 
       Missing arguments are set to None.
@@ -237,6 +239,7 @@ class ModelPOI(Serializable) :
         name          : the name of the parameter
         min_value     : the lower bound of the allowed range of the parameter
         max_value     : the upper bound of the allowed range of the parameter
+        nominal_value : the nominal value of the parameter, corresponding to nominal sample yields
         initial_value : the initial value of the parameter when performing fits to data
         unit          : the unit in which the parameter is expressed
         description   : a description string for the object
@@ -245,6 +248,7 @@ class ModelPOI(Serializable) :
     self.description = description
     self.min_value = min_value
     self.max_value = max_value
+    self.nominal_value = nominal_value
     self.initial_value = initial_value
     self.unit = unit
 
@@ -274,6 +278,7 @@ class ModelPOI(Serializable) :
     if verbosity == 1 :
       rep += ' = %g%s (min = %g%s, max = %g%s)' % (self.initial_value, unit, self.min_value, unit, self.max_value, unit)
     elif verbosity >= 2 :
+      rep += '\n%snominal_value = %g%s' % (pre_indent + indent, self.nominal_value, unit)
       rep += '\n%sinitial_value = %g%s' % (pre_indent + indent, self.initial_value, unit)
       rep += '\n%smin_value = %g%s' % (pre_indent + indent, self.min_value, unit)
       rep += '\n%smax_value = %g%s' % (pre_indent + indent, self.max_value, unit)
@@ -294,7 +299,8 @@ class ModelPOI(Serializable) :
     self.description = self.load_field('description', sdict, None, str)
     self.min_value   = self.load_field('min_value'  , sdict, 0, [int, float])
     self.max_value   = self.load_field('max_value'  , sdict, 0, [int, float])
-    self.initial_value = self.load_field('initial_value', sdict, 0, [int, float])
+    self.nominal_value = self.load_field('nominal_value', sdict, 0, [int, float])
+    self.initial_value = self.load_field('initial_value', sdict, self.nominal_value, [int, float])
     self.unit        = self.load_field('unit'       , sdict, None, str)
     return self
 
@@ -308,6 +314,7 @@ class ModelPOI(Serializable) :
     if self.description is not None : sdict['description'] = self.description
     if self.min_value is not None : sdict['min_value'] = self.unnumpy(self.min_value)
     if self.max_value is not None : sdict['max_value'] = self.unnumpy(self.max_value)
+    if self.nominal_value is not None : sdict['nominal_value'] = self.unnumpy(self.nominal_value)
     if self.initial_value is not None : sdict['initial_value'] = self.unnumpy(self.initial_value)
     if self.unit is not None : sdict['unit'] = self.unit
 

@@ -4,6 +4,7 @@
       "POIs": [
          {
             "name": "xs_BSM",
+            "initial_value": 1.0,
             "min_value": 0.0,
             "max_value": 20
          }
@@ -36,7 +37,6 @@
                {
                   "name": "Signal",
                   "norm": "xs_BSM",
-                  "nominal_norm": 1,
                   "nominal_yield": 10,
                   "impacts": {
                      "np_lumi": 0.02,

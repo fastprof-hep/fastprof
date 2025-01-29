@@ -413,7 +413,7 @@ class LinearCombination(Expression) :
   (nominal value) + coeff1*par1 + coeff2*par2 + ...
 
   Attributes:
-    nominal_value (float) : the nominal term in the expression
+    base_value (float) : the constant term in the expression
     coeffs (dict) : dict with the format { par_name : par_coeff } 
                     mapping parameter names to their coefficients
                     in the linear combination
@@ -421,16 +421,16 @@ class LinearCombination(Expression) :
 
   type_str = 'linear_combination'
 
-  def __init__(self, name : str = '', nominal_value : float = 0, coeffs : dict = {}) :
+  def __init__(self, name : str = '', base_value : float = 0, coeffs : dict = {}) :
     """Create a new LinearCombination object
     
     Args:
-      nominal_value: the nominal term added to the linear combination
+      base_value: the nominal term added to the linear combination
       coeffs : dict specifying the parameters and coefficients of the 
                linear combination, with entries of the form expr: coeff 
     """
     super().__init__(name)
-    self.nominal_value = nominal_value
+    self.base_value = base_value
     self.coeffs = coeffs
 
   def value(self, real_vals : dict) -> float :
@@ -447,7 +447,7 @@ class LinearCombination(Expression) :
       Returns:
         gradients wrt parameters
     """
-    val = self.nominal_value
+    val = self.base_value
     for expr in self.coeffs :
       if not expr in real_vals :
         raise KeyError("Cannot evaluate linear combination of the unknown parameter '%s'. Known parameters are as follows: %s" % (expr, str(real_vals)))
@@ -512,11 +512,11 @@ class LinearCombination(Expression) :
     for expr in self.coeffs :
       new_expr = reals[expr].replace(name, value, reals)
       if new_expr != reals[expr] : # i.e. it is now a trivial number
-        self.nominal_value += self.coeffs[expr]*new_expr.val
+        self.base_value += self.coeffs[expr]*new_expr.val
         to_remove.append(expr)
     for expr in to_remove : del self.coeffs[expr]
     if len(self.coeffs) > 0 : return self
-    return Number(self.name, self.nominal_value)
+    return Number(self.name, self.base_value)
 
   def load_dict(self, sdict : dict) -> 'LinearCombination' :
     """Load object information from a dictionary of markup data
@@ -530,7 +530,7 @@ class LinearCombination(Expression) :
     super().load_dict(sdict)
     if 'type' in sdict and sdict['type'] != LinearCombination.type_str :
       raise ValueError("Cannot load expression data defined for type '%s' into object of type '%s'" % (sdict['type'], LinearCombination.type_str))
-    self.nominal_value = self.load_field('nominal_value', sdict, 0,  [float, int])
+    self.base_value = self.load_field('base_value', sdict, 0,  [float, int])
     self.coeffs = self.load_field('coeffs', sdict, {}, dict)
     return self
 
@@ -542,7 +542,7 @@ class LinearCombination(Expression) :
     """
     super().fill_dict(sdict)
     sdict['type'] = LinearCombination.type_str
-    sdict['nominal_value'] = self.nominal_value
+    sdict['base_value'] = self.base_value
     sdict['coeffs'] = self.coeffs
 
   def __str__(self) -> str :
@@ -551,7 +551,7 @@ class LinearCombination(Expression) :
       Returns:
         The object description
     """
-    return ''.join([ str(self.nominal_value) ] + [ '%+g*%s' % (self.coeffs[par_name], par_name) for par_name in self.coeffs ])
+    return ''.join([ str(self.base_value) ] + [ '%+g*%s' % (self.coeffs[par_name], par_name) for par_name in self.coeffs ])
 
 
 # -------------------------------------------------------------------------

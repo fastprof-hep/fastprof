@@ -98,7 +98,6 @@
 @                {
 @                   "name": "Signal",
 @                   "norm": "totalXX",
-@                   "nominal_norm": 1,
 @                   "nominal_yield": [
 @                      10.0
 @                   ],
@@ -116,9 +115,8 @@
 @                {
 @                   "name": "Background",
 @                   "norm": "np_bkg1",
-@                   "nominal_norm": 50,
 @                   "nominal_yield": [
-@                      50
+@                      50.0
 @                   ],
 @                   "impacts": {
 @                      "np_lumi": [
@@ -140,7 +138,6 @@
 @                {
 @                   "name": "Signal",
 @                   "norm": "xs2",
-@                   "nominal_norm": 1,
 @                   "nominal_yield": [
 @                      5.0
 @                   ],
@@ -158,9 +155,8 @@
 @                {
 @                   "name": "Background",
 @                   "norm": "np_bkg2",
-@                   "nominal_norm": 50,
 @                   "nominal_yield": [
-@                      50
+@                      50.0
 @                   ],
 @                   "impacts": {
 @                      "np_lumi": [

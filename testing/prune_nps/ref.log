@@ -6,13 +6,13 @@
 @             "name": "xs1",
 @             "min_value": 0.0,
 @             "max_value": 20,
-@             "initial_value": 1
+@             "initial_value": 1.0
 @          },
 @          {
 @             "name": "xs2",
 @             "min_value": 0.0,
 @             "max_value": 20,
-@             "initial_value": 1
+@             "initial_value": 1.0
 @          }
 @       ],
 @       "NPs": [
@@ -64,7 +64,6 @@
 @                {
 @                   "name": "Signal",
 @                   "norm": "totalXS",
-@                   "nominal_norm": 2.0,
 @                   "nominal_yield": [
 @                      18.18181818181818
 @                   ],
@@ -77,8 +76,7 @@
 @                },
 @                {
 @                   "name": "Background",
-@                   "norm": 50,
-@                   "nominal_norm": 50,
+@                   "norm": 50.0,
 @                   "nominal_yield": [
 @                      51.94300591270423
 @                   ],
@@ -99,7 +97,6 @@
 @                {
 @                   "name": "Signal",
 @                   "norm": "xs2",
-@                   "nominal_norm": 1.0,
 @                   "nominal_yield": [
 @                      4.545454545454545
 @                   ],
@@ -113,7 +110,6 @@
 @                {
 @                   "name": "Background",
 @                   "norm": "np_bkg2",
-@                   "nominal_norm": 50.0,
 @                   "nominal_yield": [
 @                      50.0
 @                   ],

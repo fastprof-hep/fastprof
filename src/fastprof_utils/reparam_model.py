@@ -26,10 +26,10 @@ def make_parser() :
   parser.add_argument("-o", "--output-file" , type=str  , required=True, help="Name of output file")
   parser.add_argument("-n", "--norms"       , type=str  , default=None , help="New normalization terms to apply, in the form channel1:sample1:norm1,...")
   parser.add_argument("-f", "--file"        , type=str  , default=None , help="Best-fit computation: at all points (all), at best point (single) or just the best fixed fit (best_fixed)")
-  parser.add_argument("-e", "--expressions" , type=str  , default=None , help="New expressions to add (comma-separated list of the form name:type:data)")
+  parser.add_argument("-e", "--expressions" , type=str  , default=None , help="New expressions to add (comma-separated list of the form name=type:data)")
   parser.add_argument("-a", "--add"         , type=str  , default=None , help="POI(s) to be added or modified (comma-separated list)")
   parser.add_argument("-r", "--remove"      , type=str  , default=None , help="POI(s) to be removed (comma-separated list)")
-  parser.add_argument(      "--replacements", type=str  , default=None , help="Replacement values for removed POIs, in the form name:value [default: use initial values]")
+  parser.add_argument(      "--replacements", type=str  , default=None , help="Replacement values for removed POIs, in the form name=value [default: use nominal values]")
   parser.add_argument("-v", "--verbosity"   , type=int  , default=0    , help="Verbosity level")
   return parser
 
@@ -99,24 +99,24 @@ def run(argv = None) :
       expr_specs = options.expressions.replace(' ', '').replace('\n', '').split(',')
       for spec in expr_specs :
         if spec == '' : continue
-        spec_names = spec.split(':')
-        if len(spec_names) < 2 : raise ValueError('Only %d element(s) found in the specification' % len(spec_names))
-        if len(spec_names) == 2 : spec_names = [ spec_names[0], 'formula', spec_names[1] ]
-        expr_dict = { 'name' : spec_names[0], 'type' : spec_names[1] }
-        if spec_names[1] == 'formula' : 
-          expr_dict['formula'] = spec_names[2]
-        elif spec_names[1] == 'linear_combination' : 
-          expr_dict['coeffs'] = {}
-          for pc_spec in spec_names[2].split('#') :
+        spec_name_def = spec.split('=')
+        if len(spec_name_def) != 2 : raise ValueError("Expected an expression in the form name=definition, got '%s'" % spec)
+        spec_name = spec_name_def[0]
+        spec_def  = spec_name_def[1].split(':')
+        if len(spec_def) == 1 : 
+          expr_dict = { 'name' : spec_name, 'type' : 'formula', 'formula' : spec_def[0] }
+        elif spec_def[0] == 'linear_combination' : 
+          expr_dict = { 'name' : spec_name, 'type' : spec_def[0], 'coeffs' : {} }
+          for pc_spec in spec_def[1].split('#') :
             par_name, coeff_str = pc_spec.split('*')
             expr_dict['coeffs'][par_name] = float(coeff_str)
         else :
-          raise ValueError("Invalid expression type '%s'." % spec_names[1])
+          raise ValueError("Invalid expression type '%s'." % spec_def[0])
         expr = Expression.instantiate(expr_dict, load_data=True)
         add_expressions.append(expr)
     except Exception as inst :
       print(inst)
-      raise ValueError('Invalid expression specification %s : should be of the form name1:type1:data1,...' % options.expressions)    
+      raise ValueError('Invalid expression specification %s : should be of the form name1=type1:data1,...' % options.expressions)    
 
   add_pois = []
   remove_pois = []
@@ -186,7 +186,7 @@ def run(argv = None) :
   if len(remove_pois) > 0 :
     for poi in remove_pois :
       if poi not in replacements :
-        replacements[poi] = model.pois[poi].initial_value
+        replacements[poi] = model.pois[poi].nominal_value
         if options.verbosity > 0 : print("Using default replacement '%s=%g' when removing POI '%s'." % (poi, replacements[poi], poi))
     reparam.remove_pois(remove_pois, values=replacements)
 

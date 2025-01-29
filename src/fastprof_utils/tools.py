@@ -255,7 +255,7 @@ def process_pois(spec : str, model : Model, check_pars=True) :
         try :
           float_val = float(value)
         except ValueError as inst :
-          raise ValueError("Invalid numerical value '%s' for the value of variable '%s'." % (value, var))
+          raise ValueError("Invalid numerical value '%s' for the nominal value of variable '%s'." % (value, var))
       if minval != '' :
         try :
           float_minval = float(minval)
@@ -266,7 +266,7 @@ def process_pois(spec : str, model : Model, check_pars=True) :
           float_maxval = float(maxval)
         except ValueError as inst :
           raise ValueError("Invalid numerical value '%s' for the upper bound of variable '%s'." % (maxval, var))
-      pois.append(ModelPOI(var, min_value=float_minval, max_value=float_maxval, initial_value=float_val))
+      pois.append(ModelPOI(var, min_value=float_minval, max_value=float_maxval, nominal_value=float_val))
   except Exception as inst :
     print(inst)
     raise ValueError("ERROR : invalid parameter range specification '%s', expecting 'par=value[:min][:max]'." % spec)

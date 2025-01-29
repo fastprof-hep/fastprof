@@ -1,6 +1,6 @@
 from .base            import ModelPOI, ModelNP, ModelAux, Serializable
 from .expressions     import Expression, Number, SingleParameter, LinearCombination, ProductRatio, Formula, Exponential
-from .norms           import Norm, NumberNorm, ExpressionNorm
+from .norms           import Norm, FixedNorm, ExpressionNorm
 from .sample          import Sample
 from .channels        import Channel, SingleBinChannel, BinnedRangeChannel, GaussianChannel
 from .core            import Model, Parameters, Data

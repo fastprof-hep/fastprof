@@ -1,5 +1,5 @@
 reparam_model.py -m examples/high_stats_two_bins.json \
-   -e "totalXX:linear_combination:xx1*2#xs2*1" \
+   -e "totalXX=linear_combination:xx1*2#xs2*1" \
    -n SR1:Signal:totalXX \
    -a xx1=0:0:20 -r xs1 \
    -o high_stats_two_bins_xx1.json

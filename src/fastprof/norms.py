@@ -2,8 +2,8 @@
 
   * :class:`Norm` objects, defining the normalization of a sample
   
-  At the moment two types of norms are defined: :class:`NumberNorm` for normalizations
-  define by a simple real value, and :class:`ExpressionNorm` for a parameter expression
+  At the moment two types of norms are defined: :class:`FixedNorm` for fixed normalizations
+  and :class:`ExpressionNorm` for a parameter expression
   (either a single POI or NP, or an expression of these -- see 
   :class:`fastprof.expressions.Expression`).
 
@@ -102,16 +102,12 @@ class Norm(Serializable) :
          load_data: if `True`, also initialize the norm from markup
     """
     norm = cls.load_field('norm', sdict, None, [int, float, str])
-    if isinstance(norm, (int, float)) or norm is None :
-      norm_type = NumberNorm.type_str
+    if norm is None :
+      norm_type = FixedNorm.type_str
     else :
-      try:
-        float(norm)
-        norm_type = NumberNorm.type_str
-      except Exception as inst:
-        norm_type = ExpressionNorm.type_str
-    if norm_type == NumberNorm.type_str :
-      norm = NumberNorm()
+      norm_type = ExpressionNorm.type_str
+    if norm_type == FixedNorm.type_str :
+      norm = FixedNorm()
     elif norm_type == ExpressionNorm.type_str :
       norm = ExpressionNorm()
     else :
@@ -121,22 +117,22 @@ class Norm(Serializable) :
 
 
 # -------------------------------------------------------------------------
-class NumberNorm(Serializable) :
-  """Class representing the normalization term of a sample as a simple number
+class FixedNorm(Serializable) :
+  """Class representing a fixed sample normalization
 
-  Attributes:
-     norm_value (float) : value of the normalization
+    Essentially a placeholder.
   """
 
-  type_str = 'number'
+  type_str = 'fixed'
 
-  def __init__(self, norm_value : float = None) :
-    """Create a new NumberNorm object
-    
-    Args:
-      norm_value : normalization value
+  def __init__(self) :
+    """Create a new FixedNorm object. 
+  
+     This is essentially a placeholder for the 'norm' field of samples
+     in cases where an expression is not needed.
     """
-    self.norm_value = norm_value
+    pass
+
   
   def implicit_impact(self, par : ModelNP, reals : dict, real_vals : dict) -> list :
     """Provides the NP variations that are implicit in the norm
@@ -165,7 +161,7 @@ class NumberNorm(Serializable) :
       Returns:
          normalization factor value
     """
-    return self.norm_value
+    return 1
 
   def gradient(self, pars : dict, reals : dict, real_vals : dict) -> np.array :
     """Compute the gradient of the normalization wrt parameters
@@ -199,7 +195,7 @@ class NumberNorm(Serializable) :
     """
     return np.zeros((len(pars), len(pars)))
 
-  def load_dict(self, sdict : dict) -> 'NumberNorm' :
+  def load_dict(self, sdict : dict) -> 'FixedNorm' :
     """Load object information from a dictionary of markup data
 
       Args:
@@ -208,10 +204,6 @@ class NumberNorm(Serializable) :
       Returns:
         self
     """
-    self.norm_value = self.load_field('norm', sdict, '', [int, float, str])
-    if self.norm_value == '' : self.norm_value = 1
-    if isinstance(self.norm_value, str) :
-      raise ValueError("Normalization data for type '%s' is the string '%s', not supported for numerical norms." % (NumberNorm.type_str, self.norm_value))
     return self
 
   def fill_dict(self, sdict : dict) :
@@ -220,7 +212,7 @@ class NumberNorm(Serializable) :
       Args:
          sdict: A dictionary containing markup data
     """
-    sdict['norm'] = self.unnumpy(self.norm_value)
+    pass
 
   def __str__(self) -> str :
     """Provide a description string
@@ -228,7 +220,7 @@ class NumberNorm(Serializable) :
       Returns:
         the description string
     """
-    return '%s' % self.norm_value
+    return '1'
 
 
 # -------------------------------------------------------------------------

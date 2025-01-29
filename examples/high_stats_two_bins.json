@@ -6,13 +6,13 @@
             "name": "xs1",
             "min_value": 0.0,
             "max_value": 20,
-            "initial_value": 1
+            "initial_value": 1.0
          },
          {
             "name": "xs2",
             "min_value": 0.0,
             "max_value": 20,
-            "initial_value": 1
+            "initial_value": 1.0
          }
       ],
       "NPs": [
@@ -64,14 +64,14 @@
          {
             "name": "aux_bkg1",
             "unit": "",
-            "min_value": -5,
-            "max_value":  5
+            "min_value":   0.0,
+            "max_value": 100.0
          },
          {
             "name": "aux_bkg2",
             "unit": "",
-            "min_value": -5,
-            "max_value":  5
+            "min_value":   0.0,
+            "max_value": 100.0
          }
       ],
       "channels": [
@@ -82,7 +82,6 @@
                {
                   "name": "Signal",
                   "norm": "totalXS",
-                  "nominal_norm": 1,
                   "nominal_yield": [ 10 ],
                   "impacts": {
                      "np_lumi": [ 0.02 ],
@@ -106,7 +105,6 @@
                {
                   "name": "Signal",
                   "norm": "xs2",
-                  "nominal_norm": 1,
                   "nominal_yield": [ 5 ],
                   "impacts": {
                      "np_lumi": [ 0.02 ],

@@ -25,7 +25,7 @@ import numpy as np
 import itertools
 
 from .core  import Model, Data, Parameters, ModelPOI
-from .norms import ExpressionNorm, NumberNorm
+from .norms import ExpressionNorm, FixedNorm
 from .sample import Sample
 from .channels  import SingleBinChannel, MultiBinChannel, BinnedRangeChannel
   
@@ -464,7 +464,8 @@ class ModelReparam :
       for sample in channel.samples.values() :
         if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == name :
           if name in values :
-            sample.norm = NumberNorm(values[selected_name])
+            sample.norm = FixedNorm()
+            sample.nominal_yield = sample.nominal_yield*values[selected_name]
             if self.verbosity > 0 :
                 print("Using %s=%g replacement in the normalization of sample '%s' of channel '%s'." % (name, values[name], sample.name, channel.name))
           else :
@@ -537,7 +538,8 @@ class NPPruner :
     """
     model = self.model.clone(set_internal_vars=False, name=self.model.name + '_pruned') if clone_model else self.model
     pars = model.ref_pars.clone()
-    removed = []
+    ref_vals = model.real_vals(pars)
+    removed = {}
     for np_name in par_values :
       if np_name in model.nps :
         selected_names = [ np_name ]
@@ -549,35 +551,27 @@ class NPPruner :
         par = model.nps[selected_name]
         value = par_values[selected_name] if selected_name in par_values and par_values[selected_name] is not None else par.nominal_value
         pars[selected_name] = value
-        if self.verbosity > 0 : print("Applying %s=%g" % (selected_name, value))
-        removed.append(par)
-        for channel in model.channels.values() :
-          for s, sample in enumerate(channel.samples.values()) :
-            if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name == selected_name :
-              #unscaled_value = par.unscaled_value(value)
-              # We replace by the *nominal* norm, since the effect of the NP will be accounted for
-              # in the nominal_yield below. It would be more elegant to do it the other way, but
-              # One would need to then correct the nexp sample by sample to remove the normalization
-              # effect we apply here, which doesn't seem optimal.
-              if self.verbosity > 0 :
-                print("Using %s=%g replacement in normalization of sample '%s' of channel '%s'." % 
-                      (selected_name, sample.nominal_norm, sample.name, channel.name))
-              sample.norm = NumberNorm(sample.nominal_norm)
-            else :
-              if selected_name in sample.impacts : sample.impacts.pop(selected_name)
-        # TODO: should also replace by its value in expressions.
+        if self.verbosity > 0 : print("Applying %s=%g" % (selected_name, par.unscaled_value(value)))
+        removed[par.name] = par
     nexp = model.n_exp(pars)
-    real_vals = model.real_vals(pars)
     if self.verbosity > 1 : print('Old pars :\n', model.ref_pars)
     if self.verbosity > 1 : print('New pars :\n', pars)
     for channel in model.channels.values() :
       for s, sample in enumerate(channel.samples.values()) :
         if self.verbosity > 1 : print("Applying changes to the nominal yields of sample '%s' of channel '%s'." % (sample.name, channel.name))
         if self.verbosity > 2 : print('Old yields :\n', sample.nominal_yield)
+        # TODO: should also replace by its value in complex expressions.
+        if isinstance(sample.norm, ExpressionNorm) and sample.norm.expr_name in removed :
+          if self.verbosity > 0 :
+            print("Replacing %s=%g in normalization of sample '%s' of channel '%s'." % 
+                  (sample.norm.expr_name, sample.nominal_norm, sample.name, channel.name))
+          # This is counterintuitive but correct: we are removing NPs, which have their effect implemented in the nexp computation -- including
+          # those coming from the norm. To avoid double-counting, the norm itself is therefore kept at its nominal.
+          sample.norm = FixedNorm()
+        for par_name in removed : sample.impacts.pop(par_name)
         sample.nominal_yield = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
-        if sample.save_norm : sample.nominal_norm = sample.norm.value(real_vals)
         if self.verbosity > 2 : print('New yields :\n', sample.nominal_yield)
-    for par in removed :
+    for par in removed.values() :
       if par.aux_obs : model.aux_obs.pop(par.aux_obs)
       model.nps.pop(par.name)
     model.set_internal_vars()

@@ -82,7 +82,7 @@ class Sample(Serializable) :
       Returns:
         the new clone
     """
-    return Sample(self.name, self.norm, self.nominal_norm, np.array(self.nominal_yield), copy.deepcopy(self.impacts))
+    return Sample(self.name, self.norm, np.array(self.nominal_yield), copy.deepcopy(self.impacts))
 
   def set_np_data(self, nps : list, reals : dict, real_vals : dict, verbosity : int = 0) :
     """Post-initialization update based on model NPs
@@ -115,16 +115,13 @@ class Sample(Serializable) :
       real_vals : list of the current numerical values of each real.
       verbosity : verbosity level of the output
     """
-    if self.nominal_norm is None :
-      self.save_norm = False
-      try :
-        self.nominal_norm = self.norm.value(real_vals)
-      except Exception as inst :
-        if verbosity > 0 : print("Using normalization = 1 for sample '%s' after encountering exception below :" % self.name)
-        print(inst)
-        self.nominal_norm = 1
-    if self.nominal_yield is None :
-      self.nominal_yield = np.array([ self.nominal_norm ])
+    try :
+      self.nominal_norm = self.norm.value(real_vals)
+    except Exception as inst :
+      if verbosity > 0 : print("Using nominal norm = 1 for sample '%s' after encountering exception below :" % self.name)
+      print(inst)
+      self.nominal_norm = 1
+    if self.nominal_yield is None : self.nominal_yield = np.array([ self.nominal_norm ])
     for par in nps :
       if par.name in self.impacts : continue
       imp_impact = self.norm.implicit_impact(par, reals, real_vals)
@@ -253,7 +250,6 @@ class Sample(Serializable) :
     """
     self.name = self.load_field('name', sdict, '', str)
     self.norm = Norm.instantiate(sdict)
-    self.nominal_norm = self.load_field('nominal_norm', sdict, None, [float, int])
     self.nominal_yield = self.load_field('nominal_yield', sdict, None, [np.ndarray, list, float, int])
     if isinstance(self.nominal_yield, (float, int)) :
       self.nominal_yield = np.array([ self.nominal_yield ], dtype=float)
@@ -270,7 +266,6 @@ class Sample(Serializable) :
     """
     sdict['name'] = self.name
     self.norm.fill_dict(sdict)
-    if self.save_norm : sdict['nominal_norm']  = self.unnumpy(self.nominal_norm)
     sdict['nominal_yield'] = self.unnumpy(self.nominal_yield)
     sdict['impacts']       = self.unnumpy(self.impacts)
 
