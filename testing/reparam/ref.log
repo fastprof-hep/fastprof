@@ -1,3 +1,30 @@
+njpb Model twin_bins
+
+Parameters of interest
+ - xs2 = 1 (min = 0, max = 20)
+ - xx1 = 0 (min = 0, max = 20)
+
+Nuisance parameters
+ - np_lumi = 0 +/- 1 constrained to aux_lumi with σ = 1
+ - np_eff = 0 +/- 1 constrained to aux_eff with σ = 1
+ - np_bkg1 = 50 +/- 5 constrained to aux_bkg1 with σ = 5
+ - np_bkg2 = 50 +/- 5 constrained to aux_bkg2 with σ = 5
+
+Auxiliary observables
+ - aux_lumi (min = -5 , max = 5 )
+ - aux_eff (min = -5 , max = 5 )
+ - aux_bkg1 (min = 0 , max = 100 )
+ - aux_bkg2 (min = 0 , max = 100 )
+
+Channels
+ - SR1 : 1 bins
+  o Sample Signal, norm = totalXS (nominal norm = 2.0), nominal yield = 20
+  o Sample Background, norm = np_bkg1 (nominal norm = 50.0), nominal yield = 50
+ - SR2 : 1 bins
+  o Sample Signal, norm = xs2 (nominal norm = 1.0), nominal yield = 5
+  o Sample Background, norm = np_bkg2 (nominal norm = 50.0), nominal yield = 50
+njpb {'xs2': 1.0, 'xx1': 0.0, 'np_lumi': 0.0, 'np_eff': 0.0, 'np_bkg1': 50.0, 'np_bkg2': 50.0, 'totalXS': 2.0, 'totalXX': 1.0}
+njpb totalXX 1.0
 @ {
 @    "model": {
 @       "name": "twin_bins",
@@ -6,12 +33,14 @@
 @             "name": "xs2",
 @             "min_value": 0.0,
 @             "max_value": 20,
-@             "initial_value": 1
+@             "nominal_value": 1.0,
+@             "initial_value": 1.0
 @          },
 @          {
 @             "name": "xx1",
 @             "min_value": 0.0,
 @             "max_value": 20.0,
+@             "nominal_value": 0.0,
 @             "initial_value": 0.0
 @          }
 @       ],
@@ -49,7 +78,7 @@
 @          {
 @             "name": "totalXS",
 @             "type": "linear_combination",
-@             "nominal_value": 1,
+@             "base_value": 1.0,
 @             "coeffs": {
 @                "xs2": 1
 @             }
@@ -57,7 +86,7 @@
 @          {
 @             "name": "totalXX",
 @             "type": "linear_combination",
-@             "nominal_value": 0,
+@             "base_value": 0,
 @             "coeffs": {
 @                "xx1": 2.0,
 @                "xs2": 1.0
@@ -80,14 +109,14 @@
 @          {
 @             "name": "aux_bkg1",
 @             "unit": "",
-@             "min_value": -5,
-@             "max_value": 5
+@             "min_value": 0.0,
+@             "max_value": 100.0
 @          },
 @          {
 @             "name": "aux_bkg2",
 @             "unit": "",
-@             "min_value": -5,
-@             "max_value": 5
+@             "min_value": 0.0,
+@             "max_value": 100.0
 @          }
 @       ],
 @       "channels": [
@@ -174,6 +203,9 @@
 @       ]
 @    }
 @ }
+INFO: Using model from file high_stats_two_bins_xx1.json.
+INFO: Using observed dataset from file examples/high_stats_two_bins.json.
+INFO: will recompute results and overwrite output file 'reparam_xx1_raster.json' as requested.
 Producing PLR scan with POI(s) ['xx1'], bounds {'xs2': 0 <= xs2 <= 20, 'xx1': 0 <= xx1 <= 20}.
 == OptiMinimizer: cannot use method 'scalar' for multiple POIs, switching to 'L-BFGS-B'.
 | xx1             | tmu             | pv              
