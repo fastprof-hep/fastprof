@@ -249,7 +249,7 @@ class ModelPOI(Serializable) :
     self.min_value = min_value
     self.max_value = max_value
     self.nominal_value = nominal_value
-    self.initial_value = initial_value
+    self.initial_value = initial_value if initial_value is not None else nominal_value
     self.unit = unit
 
   def __str__(self) -> str :
@@ -434,7 +434,7 @@ class ModelNP(Serializable) :
 
   * A *scaled* representation in the linearized model (see :class:`Model`),
     where their values represent pulls : the nominal is 0, and 1 represents
-    a :math:`1\sigma` deviation from the nominal
+    a :math:`1\\sigma` deviation from the nominal
 
   The scaled representation is obtained from the original as
   `scaled` = (`original` - `nominal_value`)/`variation`.
