@@ -6,13 +6,13 @@
             "name": "xs1",
             "min_value": 0.0,
             "max_value": 20,
-            "initial_value": 1.0
+            "nominal_value": 1.0
          },
          {
             "name": "xs2",
             "min_value": 0.0,
             "max_value": 20,
-            "initial_value": 1.0
+            "nominal_value": 1.0
          }
       ],
       "NPs": [

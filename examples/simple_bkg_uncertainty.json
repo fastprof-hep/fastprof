@@ -2,7 +2,7 @@
    "model": {
       "name": "simple_bkg_uncertainty",
       "POIs": [
-         { "name" : "xs_signal", "unit" : "fb", "min_value": 0, "max_value": 10, "initial_value": 1 }
+         { "name" : "xs_signal", "unit" : "fb", "min_value": 0, "max_value": 10, "nominal_value": 1 }
       ],
       "NPs": [
          { "name": "np_bkg", "nominal_value": 0, "constraint": 1, "aux_obs": "aux_bkg" }

@@ -4,13 +4,13 @@
       "POIs": [
          {
             "name": "xs_BSM",
-            "initial_value": 0,
+            "nominal_value": 0,
             "min_value": 0.0,
             "max_value": 20
          },
          {
             "name": "nbkg",
-            "initial_value": 100,
+            "nominal_value": 100,
             "min_value": 0.0,
             "max_value": 200
          }
