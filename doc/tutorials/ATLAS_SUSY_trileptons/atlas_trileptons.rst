@@ -75,7 +75,7 @@ Simplified likelihood conversion
 
 The next step is the conversion of the pyhf likelihood to a simplified likelihood. For this, please make sure you are back to the fastprof session defined in :ref:`Setting up <setting-up>` above.
 
-One starts from the ``brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json`` file that has either been produced at the previous step or taken from ``inputs/``. Conversion to the simplified likleihood is performed using a dedicated fastprof script:
+One starts from the ``brZ_60_brH_20_brW_20_bre_33_brm_33_brt_33_mass_500.json`` file that has either been produced at the previous step or taken from ``inputs/``. Conversion to the simplified likelihood is performed using a dedicated fastprof script:
 
 .. code-block:: console
 
@@ -93,10 +93,10 @@ The model contains a single parameter of interest ``mu_SIG``, that corresponds t
 
 .. code-block:: console
 
-  python -i poi_scan.py -m paper/models/trileptons.json -y mu_SIG=-0.01:0.20:22+ \
+  python -i poi_scan.py -m trileptons.json -y mu_SIG=-0.01:0.20:22+ \
   -o scan_trileptons
 
-This scans values of ``mu_SIG`` from -0.01 to 0.20 in 22 steps. The '+' at the end specifies that the endpoint (0.20 here) should be included in the scan.The ``python -i`` prefix opens an interactive python session so that the plot remains visible -- close it when ``exit`` when done. (one can also run just ``poi_scan.py`` without the prefix to avoid this).
+This scans values of ``mu_SIG`` from -0.01 to 0.20 in 22 steps. The '+' at the end specifies that the endpoint (0.20 here) should be included in the scan.The ``python -i`` prefix opens an interactive python session so that the plot remains visible -- close it with ``exit`` when done. (one can also run just ``poi_scan.py`` without the prefix to avoid this).
 
 The scan should be as follows:
 
@@ -106,7 +106,7 @@ The scan should be as follows:
 
 and the 68% CL interval on ``mu_SIG`` should be printed out as::
 
-  mu_SIG = 0.044474 +0.0444334 -0.0343663 @ 68.3% CL
+  mu_SIG = 0.0448382 +0.0456306 -0.035951 @ 68.3% CL
 
 Finally, one can also compute a 95% CL upper limit on ``mu_SIG``. The command is
 
@@ -114,7 +114,7 @@ Finally, one can also compute a 95% CL upper limit on ``mu_SIG``. The command is
 
   python -i compute_fast_limits.py -m trileptons.json -y mu_SIG=0:0.20:21+ -o limit_trileptons
 
-This should yield a CLs limit of 0.126255, which indicates that for these model parameters, the model prediction ``mu_SIG=1`` is excluded at the 95% level. The plot below giving the CLs p-value as a function of ``mu_SIG`` should also be displayed.
+This should yield a CLs limit of 0.129486, which indicates that for these model parameters, the model prediction ``mu_SIG=1`` is excluded at the 95% level. The plot below giving the CLs p-value as a function of ``mu_SIG`` should also be displayed.
 
 .. image:: outputs/limit_trileptons_cls.png
     :width:  70%
@@ -126,11 +126,11 @@ Both of these results are computed in the asymptotic approximation, i.e. assumin
 Plotting results
 ################
 
-The aim of this section is to plot the model predictions and data. The model includes 3 signal regions (SRs), each containing 16 bins of the invariant mass variable :math:`m_{Zl}`, and 3 control regions (CRs) with a single bin apiece. Making the relevant plots is not completely trivial since the model is stored as a collection of unrelated bins, so that the SRs need to be pieced back together as a consistent range of bins. This is done using the following script:
+The aim of this section is to plot the model predictions and data. The model includes 3 signal regions (SRs), each consisting of 16 bins in the invariant mass variable :math:`m_{Zl}`, and 3 control regions (CRs) with a single bin apiece. Making the relevant plots is not completely trivial since the pyhf model is presented as a collection of unrelated bins, so that the SRs need to be pieced back together as a consistent range of bins. This is done using the following script:
 
 .. code-block:: console
 
-   merge_channels.py -m trileptons.json -d trileptons.json \
+   merge_channels.py -m trileptons.json \
    -o trileptons_merged --obs-name mZl --obs-unit GeV -c "\
    SRFR=\
        SRFR_90_110_all_cuts:90:110,
@@ -190,16 +190,16 @@ The command should produce two files ``trileptons_merged.json`` and ``trileptons
 
 .. code-block:: console
 
-   plot.py -m trileptons_merged.json -d trileptons_merged_data.json -w 5x3 -y 2E-3,20 --profile \
+   plot.py -m trileptons_merged.json -w 5x3 -y 2E-3,20 --profile \
    --setval mu_SIG=0.044 --stack --log-scale --bin-width 1 -o trileptons_SR4l.png --channel SR4l
    
-   plot.py -m trileptons_merged.json -d trileptons_merged_data.json -w 5x3 -y 2E-3,20 --profile \
+   plot.py -m trileptons_merged.json -w 5x3 -y 2E-3,20 --profile \
    --setval mu_SIG=0.044 --stack --log-scale --bin-width 1 -o trileptons_SR3l.png --channel SR3l
    
-   plot.py -m trileptons_merged.json -d trileptons_merged_data.json -w 5x3 -y 1E-4,20 --profile \
+   plot.py -m trileptons_merged.json -w 5x3 -y 1E-4,20 --profile \
    --setval mu_SIG=0.044 --stack --log-scale --bin-width 1 -o trileptons_SRFR.png --channel SRFR
    
-   plot.py -m trileptons_merged.json -d trileptons_merged_data.json -w 5x2.7 --no-legend --profile \
+   plot.py -m trileptons_merged.json -w 5x2.7 --no-legend --profile \
    --setval mu_SIG=0.044 --stack --log-scale --bin-width 1 -o trileptons_CRs.png \
    --channel CRWZ_all_cuts,CRZZ_all_cuts,CRttZ_all_cuts
 
