@@ -4,6 +4,7 @@
       "POIs": [
          {
             "name": "xs_BSM",
+            "nominal_value": 1.0,
             "min_value": 0.0,
             "max_value": 30
          }

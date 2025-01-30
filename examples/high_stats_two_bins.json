@@ -82,7 +82,7 @@
                {
                   "name": "Signal",
                   "norm": "totalXS",
-                  "nominal_yield": [ 10 ],
+                  "nominal_yield": [ 20 ],
                   "impacts": {
                      "np_lumi": [ 0.02 ],
                      "np_eff" : [ 0.10 ]
