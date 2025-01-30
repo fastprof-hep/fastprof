@@ -226,7 +226,7 @@ class ChannelMerger :
           # Make sure all the NPs from all samples are listed, to avoid lookup errors later
           # the nominal yields are updated in merge below
           for par in chan.samples[sample].impacts :
-            if par not in merged_sample.impacts : merged_sample.impacts[par] = {"+1" : 0, "-1" : 0}
+            if par not in merged_sample.impacts : merged_sample.impacts[par] = 0
     return True
 
   def merge(self) -> Model :
@@ -255,11 +255,11 @@ class ChannelMerger :
         all_impacts = []
         for channel in self.channels_to_merge :
           chan = self.model.channels[channel]
-          impact = [{"+1" : 0, "-1" : 0}]
+          impact = [ 0 ]
           if merged_sample.name in chan.samples :
             sample = self.model.channels[channel].samples[merged_sample.name]
             if par in sample.impacts : impact = sample.impacts[par]
-            if isinstance(impact, dict) : impact = [ impact ]
+            if isinstance(impact, (int, float)) : impact = [ impact ]
           all_impacts.extend(impact)
         merged_sample.impacts[par] = list(itertools.chain(all_impacts))
     if self.obs_bins is None :
@@ -287,9 +287,8 @@ class ChannelMerger :
           merged_channels[self.merged_name] = BinnedRangeChannel(self.merged_name, merged_bins, self.obs_name, self.obs_unit, self.merged_samples)    
         merged_added = True
     return Model(self.model.name, self.model.pois, self.model.nps, self.model.aux_obs, merged_channels, self.model.expressions,
-                 self.model.use_asym_impacts, self.model.use_linear_nps, self.model.use_simple_sym_impacts,
-                 self.model.use_lognormal_terms, self.model.variations, self.model.verbosity)
-  
+                 self.model.use_linear_nps, self.model.variations, self.model.description, self.model.verbosity)
+ 
   def merge_data(self, data : Data, merged_model : Model) -> Data :
     """Perform the channel merge for the data
 
@@ -522,7 +521,8 @@ class NPPruner :
         if self.verbosity > 0 : print("Pruning away nuisance parameter '%s'." % par_name)
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :
-        for pruned_np in pruned_nps : sample.impacts.pop(pruned_np)
+        for pruned_np in pruned_nps : 
+          if pruned_np in sample.impacts : sample.impacts.pop(pruned_np)
     return self.remove_nps({ par : None for par in pruned_nps })
 
   def remove_nps(self, par_values : dict, clone_model : bool = False) :
@@ -575,7 +575,8 @@ class NPPruner :
           # This is counterintuitive but correct: we are removing NPs, which have their effect implemented in the nexp computation -- including
           # those coming from the norm. To avoid double-counting, the norm itself is therefore kept at its nominal.
           sample.norm = FixedNorm()
-        for par_name in removed : sample.impacts.pop(par_name)
+        for par_name in removed : 
+          if par_name in sample.impacts : sample.impacts.pop(par_name)
         sample.nominal_yield = model.channel_n_exp(nexp=nexp, channel=channel.name, sample=sample.name)
         if self.verbosity > 2 : print('New yields :\n', sample.nominal_yield)
     for par in removed.values() :

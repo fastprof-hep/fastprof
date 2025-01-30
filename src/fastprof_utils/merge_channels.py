@@ -13,6 +13,7 @@ import numpy as np
 import json
 
 from fastprof import Model, Data, ChannelMerger
+from fastprof_utils import make_model, make_data
 
 
 ####################################################################################################################################
@@ -37,14 +38,9 @@ def run(argv = None) :
     parser.print_help()
     sys.exit(0)
   if options.verbosity >= 1 : print('Loading model from file %s' % options.model_file)
-  model = Model.create(options.model_file, verbosity=options.verbosity)
-  if model is None : raise ValueError('No valid model definition found in file %s.' % options.model_file)
-
-  data = None
-  if options.data_file :
-    data = Data(model).load(options.data_file)
-    if data == None : raise ValueError('No valid dataset definition found in file %s.' % options.data_file)
-    if options.verbosity >= 1 : print('Using dataset stored in file %s.' % options.data_file)
+  
+  model = make_model(options)
+  data = make_data(model, options)
 
   merge_specs = []
   try:
@@ -78,8 +74,10 @@ def run(argv = None) :
      if current_data is not None : current_data = merger.merge_data(current_data, new_model)
      current_model = new_model
 
-  current_model.save('%s.json' % options.output_file)
-  if current_data is not None : current_data.save('%s_data.json' % options.output_file)
+  if current_data is not None :
+    current_data.save_with_model('%s.json' % options.output_file)
+  else :
+    current_model.save('%s.json' % options.output_file)
 
 
 if __name__ == '__main__' : run()
