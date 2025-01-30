@@ -16,7 +16,7 @@ def make_data(model, options) :
     data = Data(model).load(options.data_file)
     if data == None : raise ValueError('ERROR: No valid dataset definition found in file %s.' % options.data_file)
     print('INFO: Using observed dataset from file %s.' % options.data_file)
-  elif options.asimov is not None :
+  elif hasattr(options, 'asimov') and options.asimov is not None :
     try:
       sets = [ v.replace(' ', '').split('=') for v in options.asimov.split(',') ]
       sets_dict = { name : value for name, value in sets }
