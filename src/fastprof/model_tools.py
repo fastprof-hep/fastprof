@@ -349,6 +349,7 @@ class ModelReparam :
         raise KeyError("Cannot add POI '%s' to model, a POI with that name is already defined." % poi.name)
       if self.verbosity > 0 : print("Adding POI '%s'." % str(poi))
       self.model.pois[poi.name] = poi
+    self.model.set_internal_vars() # update reference POI values
 
   def add_expressions(self, new_expressions : list) :
     """Add new Expressions to the model
@@ -373,6 +374,7 @@ class ModelReparam :
     Args:
       new_norms : dict mapping (channel_spec, sample_spec) pairs to :class:`Norm` objects.
     """
+    ref_vals = self.model.real_vals(self.model.ref_pars)
     for channel in self.model.channels.values() :
       for sample in channel.samples.values() :
         matching_norms = []
@@ -386,6 +388,10 @@ class ModelReparam :
         if len(matching_norms) > 1 :
           raise KeyError("Sample '%s' of channel '%s' matches multiple new normalization entries : \n %s" % (sample.name, channel.name, '\n'.join([str(norm) for norm in matching_norms])))
         if self.verbosity > 0 : print("Replacing normalization '%s' -> '%s' in sample '%s' of channel '%s'." % (str(sample.norm), str(matching_norms[0]), sample.name, channel.name))
+        # fix nominal values
+        if self.verbosity > 1 : print("Adjusting nominal yields to account change of nominal norm (old=%g, new=%g)" % 
+                                      (sample.nominal_norm, matching_norms[0].value(ref_vals)))
+        sample.nominal_yield = sample.nominal_yield/sample.nominal_norm*matching_norms[0].value(ref_vals)
         sample.norm = matching_norms[0]
 
   def remove_pois(self, poi_names : list, values : dict = {}) :
@@ -423,6 +429,7 @@ class ModelReparam :
           expression_values[expr.name] = value.val
       self.model.pois.pop(selected_name)
     self.remove_expressions(expressions_to_remove, expression_values)
+    self.model.set_internal_vars() # update reference POI values
 
   def remove_expressions(self, expr_names : list, values : dict = {}) :
     """Remove Expressions from the model
