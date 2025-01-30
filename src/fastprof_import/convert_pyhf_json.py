@@ -174,8 +174,9 @@ def run(argv = None) :
                   { "+1" : sigma/y if b == b2 and y != 0 else 0,
                     "-1" : -sigma/y if b == b2 and y !=0 else 0 } 
                   for b2 in range(0, len(nominal_yield)) ]
-              if options.verbosity > 2 : print('  Parameter %s of type %s : impact = %s / %s = %s' % (('%s_bin%d' % (modifier['name'], b)), modifier['type'], str(modifier['data']), str(nominal_yield), str(impact)))
-              add_impact(sample, '%s_bin%d' % (modifier['name'], b), impact)
+              par_name = '%s_bin%d' % (modifier['name'], b) if len(nominal_yield) > 1 else modifier['name']
+              if options.verbosity > 2 : print('  Parameter %s of type %s : impact = %s / %s = %s' % (par_name, modifier['type'], str(modifier['data']), str(nominal_yield), str(impact)))
+              add_impact(sample, par_name, impact)
           else :
             raise ValueError("Unknown modifier type '%s' in channel '%s'." % (modifier['type'], pyhf_channel['name']))
           if options.verbosity > 3 : print(sample)
